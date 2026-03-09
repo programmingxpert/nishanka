@@ -1,0 +1,51 @@
+/* eslint-disable */
+const { Collection } = require('discord.js');
+
+module.exports = {
+    name: 'messageCreate',
+
+    async execute(message, client) {
+        // Ignore bots and DMs
+        if (message.author.bot || !message.guild) return;
+
+        const prefix = process.env.PREFIX ?? '-';
+        if (!message.content.startsWith(prefix)) return;
+
+        const args        = message.content.slice(prefix.length).trim().split(/\s+/);
+        const commandName = args.shift().toLowerCase();
+
+        const command = client.commands.get(commandName)
+            ?? client.commands.find(cmd => cmd.aliases?.includes(commandName));
+
+        if (!command || typeof command.executePrefix !== 'function') return;
+
+        // --- Cooldown logic ---
+        const { cooldowns } = client;
+        if (!cooldowns.has(command.data.name)) {
+            cooldowns.set(command.data.name, new Collection());
+        }
+
+        const now        = Date.now();
+        const timestamps = cooldowns.get(command.data.name);
+        const cooldownMs = (command.cooldown ?? 3) * 1000;
+
+        if (timestamps.has(message.author.id)) {
+            const expiry = timestamps.get(message.author.id) + cooldownMs;
+            if (now < expiry) {
+                const remaining = ((expiry - now) / 1000).toFixed(1);
+                return message.reply(`⏳ Please wait **${remaining}s** before using \`${prefix}${commandName}\` again.`);
+            }
+        }
+
+        timestamps.set(message.author.id, now);
+        setTimeout(() => timestamps.delete(message.author.id), cooldownMs);
+
+        // --- Execute command ---
+        try {
+            await command.executePrefix(message, args);
+        } catch (error) {
+            console.error(`[messageCreate] Error in prefix command "${commandName}":`, error);
+            message.reply('❌ An error occurred while executing that command.').catch(() => {});
+        }
+    },
+};

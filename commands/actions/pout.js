@@ -1,0 +1,52 @@
+/* eslint-disable */
+// commands/actions/pout.js
+const { SlashCommandBuilder } = require('discord.js');
+const { sendAnimeAction } = require('../../utils/sendAnimeAction');
+
+module.exports = {
+	category: 'actions',
+	data: new SlashCommandBuilder()
+		.setName('pout')
+		.setDescription('Pout...')
+		.addUserOption(option =>
+			option.setName('user')
+				.setDescription('The user to pout at (optional)'))
+		.addStringOption(option =>
+			option.setName('message')
+				.setDescription('An optional message to send with your pouting.')),
+
+	async execute(context) {
+		const user = context.options?.getUser?.('user');
+		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');
+		const targetUser = user || context.user || context.author;
+
+		if (context.deferReply) await context.deferReply();
+
+		await sendAnimeAction({
+			interaction: context.deferReply ? context : null,
+			message: context.message || null,
+			targetUser: targetUser,
+			actingUser: context.user || context.author,
+			customMsg,
+			actionType: 'pout',
+			emoji: '😒',
+			color: 0xffc107 // Example: Amber
+		});
+	},
+	async executePrefix(message, args) {
+		await this.execute({
+			client: message.client,
+			user: message.author,
+			author: message.author,
+			member: message.member,
+			channel: message.channel,
+			message: message,
+			args: args,
+			options: {
+				getUser: () => message.mentions.users.first(),
+				getString: () => args.join(' ')
+			}
+		});
+	}
+};
+

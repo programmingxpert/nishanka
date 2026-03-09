@@ -1,0 +1,178 @@
+/* eslint-disable */
+const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const { createCanvas, loadImage, registerFont } = require('canvas');
+
+const emojiURLs = {
+	heart: 'https://png.pngtree.com/png-clipart/20220902/ourmid/pngtree-red-heart-shaped-icon-png-image_6135253.png',
+	broken: 'https://emojiisland.com/cdn/shop/products/Broken_Red_Heart_Emoji_large.png?v=1571606066',
+	skull: 'https://emoji.iamrohit.in/img-apple/1f480.png'
+};
+
+function getShipScore(user1, user2) {
+	const seed = user1.id + user2.id;
+	let hash = 0;
+	for (let i = 0; i < seed.length; i++) {
+		hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+	}
+	return Math.abs(hash % 101);
+}
+
+function getOverlayEmoji(score) {
+	if (score >= 50) return emojiURLs.heart;
+	if (score >= 40) return emojiURLs.broken;
+	return emojiURLs.skull;
+}
+
+function getLoveMessage(score, user1DisplayName, user2DisplayName) {
+	const nicknames = [
+		'cutie pies',
+		'buttercups',
+		'sugarplums',
+		'lovebirds',
+		'matcha muffins',
+		'peachy pair'
+	];
+	const cuteName = nicknames[Math.floor(Math.random() * nicknames.length)];
+	if (score >= 90) return `💘 These two ${cuteName} are *meant to be!*`;
+	if (score >= 70) return `😍 Sparks are flying between ${user1DisplayName} and ${user2DisplayName}!`;
+	if (score >= 50) return `🙂 Not bad! ${user1DisplayName} and ${user2DisplayName} might become something!`;
+	if (score >= 30) return `😬 Bit rocky... but love can surprise!`;
+	if (score >= 10) return `😅 Awkward... maybe just friends.`;
+	return `💀 Run. Just run.`;
+}
+
+function drawMeter(ctx, score, x, y, width = 500, height = 20) {
+	const bgColor = '#555';
+	const fillColor =
+		score >= 50 ? '#FF4F7A' : score >= 40 ? '#FFAA4F' : '#888';
+
+	ctx.fillStyle = bgColor;
+	ctx.fillRect(x, y, width, height);
+
+	ctx.fillStyle = fillColor;
+	ctx.fillRect(x, y, (score / 100) * width, height);
+
+	ctx.strokeStyle = '#fff';
+	ctx.strokeRect(x, y, width, height);
+}
+
+async function generateShipImage(user1, user2, score) {
+	const canvas = createCanvas(600, 300);
+	const ctx = canvas.getContext('2d');
+
+	// Background
+	ctx.fillStyle = '#2f3136';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	// Load avatars and emoji
+	const [avatar1, avatar2, emojiOverlay] = await Promise.all([
+		loadImage(user1.displayAvatarURL({ extension: 'png', size: 256 })),
+		loadImage(user2.displayAvatarURL({ extension: 'png', size: 256 })),
+		loadImage(getOverlayEmoji(score))
+	]);
+
+	// Draw avatars
+	ctx.drawImage(avatar1, 50, 25, 200, 200);
+	ctx.drawImage(avatar2, 350, 25, 200, 200);
+
+	// Draw emoji in the center
+	ctx.drawImage(emojiOverlay, 250, 75, 100, 100);
+
+	// Draw percentage meter
+	drawMeter(ctx, score, 50, 250, 500, 20);
+
+	// Save to buffer
+	return new AttachmentBuilder(canvas.toBuffer(), { name: 'ship.png' });
+}
+
+function generateCoupleName(displayName1, displayName2) {
+	const name1 = displayName1.replace(/\s/g, ''); // Remove spaces
+	const name2 = displayName2.replace(/\s/g, ''); // Remove spaces
+
+	const len1 = Math.floor(name1.length / 2);
+	const len2 = Math.floor(name2.length / 2);
+
+	const part1 = name1.slice(0, len1 + 1);
+	const part2 = name2.slice(len2);
+
+	return part1 + part2;
+}
+
+module.exports = {
+	category: 'fun',
+	cooldown: 5,
+	data: new SlashCommandBuilder()
+		.setName('ship')
+		.setDescription('Check the love compatibility between two users!')
+		.addUserOption(option =>
+			option.setName('user1')
+				.setDescription('First user to ship')
+				.setRequired(true))
+		.addUserOption(option =>
+			option.setName('user2')
+				.setDescription('Second user to ship')
+				.setRequired(true)),
+
+	async execute(interaction) {
+		const user1 = interaction.options.getUser('user1');
+		const user2 = interaction.options.getUser('user2');
+
+		if (user1.id === user2.id) {
+			return interaction.reply({ content: 'You can’t ship someone with themselves! 😹', ephemeral: true });
+		}
+
+		const member1 = await interaction.guild.members.fetch(user1.id);
+		const member2 = await interaction.guild.members.fetch(user2.id);
+
+		const displayName1 = member1.displayName;
+		const displayName2 = member2.displayName;
+
+		const score = getShipScore(user1, user2);
+		const image = await generateShipImage(user1, user2, score);
+		const coupleName = generateCoupleName(displayName1, displayName2);
+		const message = getLoveMessage(score, displayName1, displayName2);
+
+		const embed = new EmbedBuilder()
+			.setColor(0xFF69B4)
+			.setTitle(`💘 Love Match: ${score}%`)
+			.addFields({name: "Couple Name", value: coupleName})
+			.setDescription(message)
+			.setImage('attachment://ship.png')
+			.setFooter({ text: 'Nishanka ©️' })
+			.setTimestamp();
+
+		await interaction.reply({ embeds: [embed], files: [image] });
+	},
+
+	async executePrefix(message, args) {
+		if (args.length < 2) return message.reply('Usage: `ship @user1 @user2`');
+
+		const user1 = message.mentions.users.at(0);
+		const user2 = message.mentions.users.at(1);
+
+		if (!user1 || !user2) return message.reply('Mention two users to ship!');
+		if (user1.id === user2.id) return message.reply('You can’t ship someone with themselves! 😹');
+
+		const member1 = message.guild.members.cache.get(user1.id);
+		const member2 = message.guild.members.cache.get(user2.id);
+
+		const displayName1 = member1.displayName;
+		const displayName2 = member2.displayName;
+
+		const score = getShipScore(user1, user2);
+		const image = await generateShipImage(user1, user2, score);
+		const coupleName = generateCoupleName(displayName1, displayName2);
+		const messageText = getLoveMessage(score, displayName1, displayName2);
+
+		const embed = new EmbedBuilder()
+			.setColor(0xFF69B4)
+			.setTitle(`💘 Love Match: ${score}%`)
+			.addFields({name: "Couple Name", value: coupleName})
+			.setDescription(messageText)
+			.setImage('attachment://ship.png')
+			.setFooter({ text: 'Nishanka ©️' })
+			.setTimestamp();
+
+		await message.channel.send({ embeds: [embed], files: [image] });
+	}
+};

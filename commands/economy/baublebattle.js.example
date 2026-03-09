@@ -1,0 +1,173 @@
+/* eslint-disable */
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
+const { createCanvas, loadImage } = require('canvas');
+const Bauble = require('../../models/baubleSchema');
+
+// Character/Monster Definitions (You can expand this list)
+const characters = [
+    {
+        name: 'SparklePaws',
+        image: 'https://i.imgur.com/your_image_url_here1.png', // Replace with an actual image URL
+        attack: 25,
+        health: 80,
+    },
+    {
+        name: 'GlimmerFang',
+        image: 'https://i.imgur.com/your_image_url_here2.png', // Replace with an actual image URL
+        attack: 30,
+        health: 70,
+    },
+    // Add more characters here
+];
+
+module.exports = {
+    category: 'economy',
+    data: new SlashCommandBuilder()
+        .setName('baublebattle')
+        .setDescription('Engage in a bauble battle!'),
+
+    async execute(interaction) {
+        try {
+            const userId = interaction.user.id;
+            const guildId = interaction.guild.id;
+
+            // 1. Select Characters
+            const userChar = characters[Math.floor(Math.random() * characters.length)];
+            const botChar = characters[Math.floor(Math.random() * characters.length)];
+
+            // 2. Battle Logic (Simplified)
+            let userHealth = userChar.health;
+            let botHealth = botChar.health;
+
+            let battleLog = `**${interaction.user.tag}'s ${userChar.name}** vs. **Bot's ${botChar.name}**\n\n`;
+
+            while (userHealth > 0 && botHealth > 0) {
+                // User Attacks
+                let userDamage = Math.floor(Math.random() * userChar.attack);
+                botHealth -= userDamage;
+                battleLog += `**${userChar.name}** attacks for ${userDamage} damage!\n`;
+
+                // Bot Attacks
+                let botDamage = Math.floor(Math.random() * botChar.attack);
+                userHealth -= botDamage;
+                battleLog += `**${botChar.name}** attacks for ${botDamage} damage!\n`;
+            }
+
+            let winner, loser;
+
+            if (userHealth <= 0) {
+                winner = 'Bot';
+                loser = interaction.user.tag;
+            } else {
+                winner = interaction.user.tag;
+                loser = 'Bot';
+            }
+
+            battleLog += `\n**${winner}** wins the battle!`;
+
+            // 3. Canvas Visuals (Placeholder)
+            const imageAttachment = await generateBattleImage(userChar, botChar);
+
+            // 4. Bauble Reward
+            if (winner === interaction.user.tag) {
+                let baubleData = await Bauble.findOne({ userId, guildId });
+                if (!baubleData) {
+                    baubleData = new Bauble({ userId, guildId, baubles: 0 });
+                }
+                const winnings = 50; // Set a fixed reward for winning.
+                baubleData.baubles += winnings;
+                await baubleData.save();
+
+                battleLog += `\nYou won ${winnings} Glimmering Baubles!`;
+            }
+
+            await interaction.reply({ content: battleLog, files: [imageAttachment] });
+
+        } catch (error) {
+            console.error('Error in baublebattle command:', error);
+            await interaction.reply({ content: '❌ An error occurred during the battle.', ephemeral: true });
+        }
+    },
+    async executePrefix(message) {
+        try {
+            const userId = message.author.id;
+            const guildId = message.guild.id;
+
+            // 1. Select Characters
+            const userChar = characters[Math.floor(Math.random() * characters.length)];
+            const botChar = characters[Math.floor(Math.random() * characters.length)];
+
+            // 2. Battle Logic (Simplified)
+            let userHealth = userChar.health;
+            let botHealth = botChar.health;
+
+            let battleLog = `**${message.author.tag}'s ${userChar.name}** vs. **Bot's ${botChar.name}**\n\n`;
+
+            while (userHealth > 0 && botHealth > 0) {
+                // User Attacks
+                let userDamage = Math.floor(Math.random() * userChar.attack);
+                botHealth -= userDamage;
+                battleLog += `**${userChar.name}** attacks for ${userDamage} damage!\n`;
+
+                // Bot Attacks
+                let botDamage = Math.floor(Math.random() * botChar.attack);
+                userHealth -= botDamage;
+                battleLog += `**${botChar.name}** attacks for ${botDamage} damage!\n`;
+            }
+
+            let winner, loser;
+
+            if (userHealth <= 0) {
+                winner = 'Bot';
+                loser = message.author.tag;
+            } else {
+                winner = message.author.tag;
+                loser = 'Bot';
+            }
+
+            battleLog += `\n**${winner}** wins the battle!`;
+
+            // 3. Canvas Visuals (Placeholder)
+            const imageAttachment = await generateBattleImage(userChar, botChar);
+
+            // 4. Bauble Reward
+            if (winner === message.author.tag) {
+                let baubleData = await Bauble.findOne({ userId, guildId });
+                if (!baubleData) {
+                    baubleData = new Bauble({ userId, guildId, baubles: 0 });
+                }
+                const winnings = 50; // Set a fixed reward for winning.
+                baubleData.baubles += winnings;
+                await baubleData.save();
+
+                battleLog += `\nYou won ${winnings} Glimmering Baubles!`;
+            }
+
+            await message.channel.send({ content: battleLog, files: [imageAttachment] });
+
+        } catch (error) {
+            console.error('Error in baublebattle command:', error);
+            await message.reply({ content: '❌ An error occurred during the battle.', ephemeral: true });
+        }
+    },
+};
+
+async function generateBattleImage(userChar, botChar) {
+    // This is a placeholder function. You'll need to implement the canvas drawing logic here.
+
+    const canvas = createCanvas(600, 300);
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#2f3136';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Add character images (replace with actual image loading and drawing)
+    ctx.font = '20px sans-serif';
+    ctx.fillStyle = 'white';
+    ctx.fillText('User Char: ' + userChar.name, 50, 50);
+    ctx.fillText('Bot Char: ' + botChar.name, 350, 50);
+
+    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'battle.png' });
+    return attachment;
+}
