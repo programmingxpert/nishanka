@@ -123,6 +123,18 @@ mongoose
         process.exit(1);
     });
 
+// ─── Web Server ─────────────────────────────────────────────────────────────────
+const express = require("express");
+const app = express();
+
+app.get("/", (req, res) => {
+  res.send("Bot is running");
+});
+
+app.listen(3000, () => {
+  console.log("🌐 Web server running on port 3000");
+});
+
 // ─── Login ────────────────────────────────────────────────────────────────────
 client.login(process.env.TOKEN).catch(err => {
     console.error('❌ Discord login failed:', err.message);
