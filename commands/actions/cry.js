@@ -18,6 +18,7 @@ module.exports = {
 	async execute(context) {
 		const user = context.options?.getUser?.('user');
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');
+			const reply = (msg) => context.reply ? context.reply(msg) : context.message.reply(msg);
 		const targetUser = user || context.user || context.author;
 
 		if (context.deferReply) await context.deferReply();

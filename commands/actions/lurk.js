@@ -6,6 +6,9 @@ module.exports = {
 	category: 'actions',
 	data: new SlashCommandBuilder()
 		.setName('lurk')
+		.addUserOption(option =>
+			option.setName('user')
+				.setDescription('Optional user to target'))
 		.setDescription('Lurk and observe... (you\'re lurking!)')
 		.addStringOption(option =>
 			option.setName('message')
@@ -13,7 +16,9 @@ module.exports = {
 
 	// Supports both slash and prefix via fakeInteraction.js
 	async execute(context) {
+		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');
+			const reply = (msg) => context.reply ? context.reply(msg) : context.message.reply(msg);
 
 		// If slash, defer the reply
 		if (context.deferReply) await context.deferReply();
@@ -21,7 +26,7 @@ module.exports = {
 		await sendAnimeAction({
 			interaction: context.deferReply ? context : null, // If slash, pass interaction
 			message: context.message || null,                 // If prefix, pass message
-			targetUser: context.user || context.author, //The lurker themselves
+			targetUser: user || context.user || context.author, //The lurker themselves
 			customMsg,
 			actionType: 'lurk',
 			emoji: '👀',

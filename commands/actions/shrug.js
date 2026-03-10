@@ -6,19 +6,24 @@ module.exports = {
 	category: 'actions',
 	data: new SlashCommandBuilder()
 		.setName('shrug')
+		.addUserOption(option =>
+			option.setName('user')
+				.setDescription('Optional user to target'))
 		.setDescription('¯\\_(ツ)_/¯ Shrug it off!')
 		.addStringOption(option =>
 			option.setName('message')
 				.setDescription('An optional message to send with your shrug.')),
 
 	async execute(context) {
+		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');
+			const reply = (msg) => context.reply ? context.reply(msg) : context.message.reply(msg);
 		if (context.deferReply) await context.deferReply();
 
 		await sendAnimeAction({
 			interaction: context.deferReply ? context : null,
 			message: context.message || null,
-			targetUser: context.user || context.author,
+			targetUser: user || context.user || context.author,
 			customMsg,
 			actionType: 'shrug',
 			emoji: '🤷',

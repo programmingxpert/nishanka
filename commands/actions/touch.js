@@ -18,8 +18,11 @@ module.exports = {
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');
-
-		if (!user) return context.reply('❗ Please mention a user to touch.');
+			const reply = (msg) => context.reply ? context.reply(msg) : context.message.reply(msg);
+			const selfResponses = ["Aww, let me do that for you! *But you still need to mention someone else...*","Doing that to yourself? How lonely... Mention someone!","I'm here for you! But seriously, mention another user for this command.","You can't target yourself, silly! Mention a friend!","Hold on there, you need another person for this to work right. Mention them!"];
+			const randomResponse = selfResponses[Math.floor(Math.random() * selfResponses.length)];
+			if (!user) return reply('❗ Please mention a user to touch.');
+			if (user.id === (context.user?.id || context.author?.id)) return reply(randomResponse);
 
 		// If slash, defer the reply
 		if (context.deferReply) await context.deferReply();

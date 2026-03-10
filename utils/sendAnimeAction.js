@@ -80,9 +80,20 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
         console.warn(`[sendAnimeAction] Failed to fetch GIF for "${actionType}":`, err.message);
     }
 
-    const description = customMsg
-        ? `**<@${author.id}>** ${phrase} **<@${targetUser.id}>**\n*"${customMsg}"*`
-        : `**<@${author.id}>** ${phrase} **<@${targetUser.id}>**`;
+    let description;
+    if (author.id === targetUser.id) {
+        let selfPhrase = phrase;
+        if (selfPhrase.endsWith(' at') || selfPhrase.endsWith(' with') || selfPhrase.endsWith(' to') || selfPhrase.endsWith(' towards')) {
+            selfPhrase = selfPhrase.substring(0, selfPhrase.lastIndexOf(' '));
+        }
+        description = customMsg
+            ? `**<@${author.id}>** ${selfPhrase}\n*"${customMsg}"*`
+            : `**<@${author.id}>** ${selfPhrase}`;
+    } else {
+        description = customMsg
+            ? `**<@${author.id}>** ${phrase} **<@${targetUser.id}>**\n*"${customMsg}"*`
+            : `**<@${author.id}>** ${phrase} **<@${targetUser.id}>**`;
+    }
 
     const embed = new EmbedBuilder()
         .setColor(color ?? 0x7289DA)

@@ -19,8 +19,7 @@ module.exports = {
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');
-
-		if (!user) return context.reply('❗ Please mention a user to wave.');
+			const reply = (msg) => context.reply ? context.reply(msg) : context.message.reply(msg);
 
 		// If slash, defer the reply
 		if (context.deferReply) await context.deferReply();
