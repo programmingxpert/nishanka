@@ -1,7 +1,16 @@
 /* eslint-disable */
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const { Riffy } = require('riffy');
+const { Bloom, initializeFonts } = require('musicard');
+
+(async () => {
+    try {
+        await initializeFonts();
+    } catch (e) {
+        console.error("Failed to initialize musicard fonts", e);
+    }
+})();
 const mongoose   = require('mongoose');
 const fs         = require('fs');
 const path       = require('path');
@@ -92,9 +101,37 @@ client.on('raw', (data) => client.riffy.updateVoiceState(data));
 // Riffy events
 client.riffy.on('nodeConnect',    (node)          => console.log(`🎵 Lavalink node "${node.name}" connected`));
 client.riffy.on('nodeError',      (node, err)     => console.error(`🎵 Lavalink node "${node.name}" error:`, err.message));
-client.riffy.on('trackStart',     (player, track) => {
+client.riffy.on('trackStart', async (player, track) => {
     const channel = client.channels.cache.get(player.textChannel);
-    channel?.send(`▶️ Now playing: **${track.info.title}** — *${track.info.author}*`).catch(() => {});
+    if (!channel) return;
+    
+    try {
+        const musicard = await Bloom({
+            trackName: track.info.title,
+            artistName: track.info.author || 'Unknown',
+            albumArt: track.info.artworkUrl || track.info.thumbnail || 'https://i.imgur.com/Mt8W5pJ.png',
+            progressBar: 10,
+            volumeBar: 100,
+        });
+
+        const attachment = new AttachmentBuilder(musicard, { name: 'musicard.png' });
+
+        const embed = new EmbedBuilder()
+            .setColor('#FF7A00')
+            .setTitle('🎶 Now Playing')
+            .setDescription(`**[${track.info.title}](${track.info.uri})**`)
+            .addFields(
+                { name: '🧑‍🎤 Author', value: track.info.author || 'Unknown', inline: true },
+                { name: '⏱ Duration', value: new Date(track.info.length).toISOString().substring(14, 19), inline: true },
+                { name: '🙋‍♂️ Requested by', value: track.info.requester ? `<@${track.info.requester.id || track.info.requester}>` : 'Unknown', inline: true },
+                { name: '\u200B', value: '**Now playing with vibes 🔥**', inline: false }
+            );
+
+        channel.send({ embeds: [embed], files: [attachment] }).catch(() => {});
+    } catch (err) {
+        console.error("Musicard generation failed:", err);
+        channel.send(`▶️ Now playing: **${track.info.title}** — *${track.info.author}*`).catch(() => {});
+    }
 });
 client.riffy.on('trackEnd',       (player)        => {
     if (!player.queue.size && !player.queue.current) {
