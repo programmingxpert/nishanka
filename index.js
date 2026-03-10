@@ -81,6 +81,9 @@ client.riffy = new Riffy(client, lavalinkNodes, {
     },
     defaultSearchPlatform: 'ytmsearch',
     restVersion: 'v4',
+    bypassChecks: {
+        nodeFetchInfo: true
+    }
 });
 
 // Forward raw WS events to Riffy (required for voice state)
