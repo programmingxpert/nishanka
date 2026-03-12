@@ -12,7 +12,7 @@ module.exports = {
         .setDescription('Set a reminder!')
         .addStringOption(option => 
             option.setName('time')
-            .setDescription('When to remind you (e.g., "in 10 minutes", "tomorrow at 5pm")')
+            .setDescription('When to remind you (e.g., "in 3 days at 4:30 pm", "on March 20th at 2 am")')
             .setRequired(false)
         )
         .addStringOption(option => 
@@ -57,7 +57,7 @@ module.exports = {
         const parsedResults = chrono.parse(inputString, referenceDate, { forwardDate: true });
 
         if (!parsedResults || parsedResults.length === 0) {
-            return message.reply("❌ I couldn't understand the time format. Try something like `-remind in 10 minutes to wash dishes` or just `-remind` to get prompted.");
+            return message.reply("❌ I couldn't understand the time format. Try something like `-remind in 3 days at 4:30 pm to wash dishes` or just `-remind` to get prompted.");
         }
 
         const parsedResult = parsedResults[0];
@@ -121,7 +121,7 @@ module.exports = {
         const aboutStr = aboutMsg.content;
 
         // 2. Ask about WHEN
-        await channel.send(`<@${user.id}>, when should I remind you about that? e.g., 'in 10 minutes', 'tomorrow at 5pm' (Default timezone: Asia/Kolkata)`);
+        await channel.send(`<@${user.id}>, when should I remind you about that? e.g., 'in 3 days at 4:30 pm', 'on March 20th at 2 am' (Default timezone: Asia/Kolkata)`);
         let timeCol;
         try {
             timeCol = await channel.awaitMessages({ filter, time: 60000, max: 1, errors: ['time'] });
@@ -146,7 +146,7 @@ module.exports = {
         const replyMethod = interactionOrMessage.reply ? interactionOrMessage.reply.bind(interactionOrMessage) : interactionOrMessage.channel.send.bind(interactionOrMessage.channel);
 
         if (!parsedDate) {
-            return replyMethod("❌ I couldn't understand that time. Please try again with a format like 'in 10 minutes' or 'tomorrow at 3 PM'.");
+            return replyMethod("❌ I couldn't understand that time. Please try again with a format like 'in 3 days at 4:30 pm' or 'on March 20th at 2 am'.");
         }
 
         if (parsedDate.getTime() <= Date.now()) {
