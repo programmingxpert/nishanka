@@ -131,7 +131,7 @@ module.exports = {
                 ctx.fillText(baubleText, canvasWidth - textWidth - 20, canvasHeight - 20);
             }
 
-            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profile.png' });
+            const attachment = new AttachmentBuilder(await canvas.encode('png'), { name: 'profile.png' });
             await interaction.reply({ files: [attachment] });
 
         } catch (error) {
@@ -266,7 +266,7 @@ module.exports = {
             }
 
             const { AttachmentBuilder } = require('discord.js');
-            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profile.png' });
+            const attachment = new AttachmentBuilder(await canvas.encode('png'), { name: 'profile.png' });
             message.channel.send({ files: [attachment] });
 
         } catch (error) {

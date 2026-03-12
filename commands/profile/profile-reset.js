@@ -12,7 +12,7 @@ module.exports = {
     try {
       const userId = interaction.user.id;
       const guildId = interaction.guild.id;
-      let profileData = await Profile.findOne({ userId, guildId });
+      let profileData = await Profile.findOne({ userId });
       
       if (!profileData) {
         // If no profile exists, create the default profile.
@@ -46,7 +46,7 @@ module.exports = {
     try {
       const userId = message.author.id;
       const guildId = message.guild.id;
-      let profileData = await Profile.findOne({ userId, guildId });
+      let profileData = await Profile.findOne({ userId });
       
       if (!profileData) {
         profileData = new Profile({
