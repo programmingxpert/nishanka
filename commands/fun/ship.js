@@ -148,6 +148,14 @@ function generateCoupleName(displayName1, displayName2) {
 	return part1 + part2;
 }
 
+function calculateScore(user1, user2) {
+	const specialIds = ['805007574193405952', '1100749202293796865'];
+	if (specialIds.includes(user1.id) && specialIds.includes(user2.id)) {
+		return Math.floor(Math.random() * 10) + 91; // 91 to 100
+	}
+	return Math.floor(Math.random() * 101); // 0 to 100
+}
+
 module.exports = {
 	category: 'fun',
 	cooldown: 5,
@@ -195,7 +203,7 @@ module.exports = {
 		const displayName1 = member1 ? member1.displayName : user1.username;
 		const displayName2 = member2 ? member2.displayName : user2.username;
 
-		const score = Math.floor(Math.random() * 101); // 0 to 100
+		const score = calculateScore(user1, user2);
 		const image = await generateShipImage(user1, user2, score);
 		const coupleName = generateCoupleName(displayName1, displayName2);
 		const message = getLoveMessage(score);
@@ -261,7 +269,7 @@ module.exports = {
 		const displayName1 = member1 ? member1.displayName : user1.username;
 		const displayName2 = member2 ? member2.displayName : user2.username;
 
-		const score = Math.floor(Math.random() * 101); // 0 to 100
+		const score = calculateScore(user1, user2);
 		const image = await generateShipImage(user1, user2, score);
 		const coupleName = generateCoupleName(displayName1, displayName2);
 		const messageText = getLoveMessage(score);
