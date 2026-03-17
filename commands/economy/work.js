@@ -19,7 +19,7 @@ function generateProblem() {
 
 module.exports = {
     category: 'economy',
-    cooldown: 3600,
+    cooldown: 10,
     data: new SlashCommandBuilder()
         .setName('work')
         .setDescription('Work a random job to earn Glimmering Baubles!'),
@@ -40,7 +40,6 @@ module.exports = {
 
                 baubleData = new Bauble({ userId, baubles: 0 });
                 await baubleData.save();
-                return;
             }
 
             const { question, answer } = generateProblem();
@@ -51,7 +50,11 @@ module.exports = {
                 .setDescription(`<@${userId}>, your task:\n\n**${question}**\n\nType your answer below! You have **15 seconds**.`)
                 .setFooter({ text: 'Think fast and type your answer!' });
 
-            await interaction.reply({ embeds: [embed], fetchReply: true });
+            if (interaction.replied) {
+                await interaction.followUp({ embeds: [embed] });
+            } else {
+                await interaction.reply({ embeds: [embed], fetchReply: true });
+            }
 
             const messageCollector = interaction.channel.createMessageCollector({
                 filter: m => m.author.id === userId,
@@ -96,7 +99,7 @@ module.exports = {
                         .setDescription(`<@${userId}> you didn’t answer in time. No Baubles this round!`)
                         .setFooter({ text: 'Work fast or lose out!' });
 
-                    interaction.followUp({ embeds: [timeoutEmbed] }).catch(() => {});
+                    interaction.followUp({ embeds: [timeoutEmbed] }).catch(() => { });
                 }
             });
 
@@ -122,7 +125,6 @@ module.exports = {
 
                 baubleData = new Bauble({ userId, baubles: 0 });
                 await baubleData.save();
-                return;
             }
 
             const { question, answer } = generateProblem();
@@ -178,7 +180,7 @@ module.exports = {
                         .setDescription(`<@${userId}> you didn’t answer in time. No Baubles this round.`)
                         .setFooter({ text: 'Work fast or lose out!' });
 
-                    message.channel.send({ embeds: [timeoutEmbed] }).catch(() => {});
+                    message.channel.send({ embeds: [timeoutEmbed] }).catch(() => { });
                 }
             });
         } catch (error) {

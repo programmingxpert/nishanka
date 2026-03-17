@@ -32,8 +32,8 @@ module.exports = {
         if (timestamps.has(message.author.id)) {
             const expiry = timestamps.get(message.author.id) + cooldownMs;
             if (now < expiry) {
-                const remaining = ((expiry - now) / 1000).toFixed(1);
-                return message.reply(`⏳ Please wait **${remaining}s** before using \`${prefix}${commandName}\` again.`);
+                const timestampId = Math.floor(expiry / 1000);
+                return message.reply(`⏳ Please wait, you can use \`${prefix}${commandName}\` again <t:${timestampId}:R>.`);
             }
         }
 

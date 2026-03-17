@@ -26,9 +26,9 @@ module.exports = {
         if (timestamps.has(interaction.user.id)) {
             const expiry = timestamps.get(interaction.user.id) + cooldownMs;
             if (now < expiry) {
-                const remaining = ((expiry - now) / 1000).toFixed(1);
+                const timestampId = Math.floor(expiry / 1000);
                 return interaction.reply({
-                    content: `⏳ Please wait **${remaining}s** before using \`/${command.data.name}\` again.`,
+                    content: `⏳ Please wait, you can use \`/${command.data.name}\` again <t:${timestampId}:R>.`,
                     flags: MessageFlags.Ephemeral,
                 });
             }
