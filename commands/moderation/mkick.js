@@ -29,6 +29,7 @@ module.exports = {
 			return interaction.reply({ content: '🚫 I cannot kick that user.', ephemeral: true });
 		}
 
+		const avatarURL = member.displayAvatarURL({ dynamic: true });
 		await member.kick(reason);
 
 		const embed = new EmbedBuilder()
@@ -39,7 +40,7 @@ module.exports = {
 				{ name: 'By', value: `${interaction.user.tag}`, inline: true },
 				{ name: 'Reason', value: reason }
 			)
-			.setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+			.setThumbnail(avatarURL)
 			.setTimestamp();
 
 		await interaction.reply({ embeds: [embed] });
@@ -59,6 +60,7 @@ module.exports = {
 		if (!member) return message.reply('⚠️ User not found in the guild.');
 		if (!member.kickable) return message.reply('🚫 I cannot kick that user.');
 
+		const avatarURL = member.displayAvatarURL({ dynamic: true });
 		await member.kick(reason);
 
 		const embed = new EmbedBuilder()
@@ -69,7 +71,7 @@ module.exports = {
 				{ name: 'By', value: `${message.author.tag}`, inline: true },
 				{ name: 'Reason', value: reason }
 			)
-			.setThumbnail(user.displayAvatarURL({ dynamic: true }))
+			.setThumbnail(avatarURL)
 			.setTimestamp();
 
 		await message.channel.send({ embeds: [embed] });

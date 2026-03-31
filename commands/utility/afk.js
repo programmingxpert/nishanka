@@ -49,7 +49,7 @@ module.exports = {
             .setTitle('😴 AFK Mode Activated')
             .setDescription(`You are now AFK. Reason: **${reason}**`)
             .setTimestamp()
-            .setFooter({ text: 'AFK Status', iconURL: interaction.user.displayAvatarURL({ dynamic: true }) });
+            .setFooter({ text: 'AFK Status', iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
 
         if (nicknameResult) { // If there was an issue with the nickname, add it to the embed
             embed.addFields({ name: "Nickname Update", value: nicknameResult});
@@ -84,7 +84,7 @@ module.exports = {
             .setTitle('😴 AFK Mode Activated')
             .setDescription(`You are now AFK. Reason: **${reason}**`)
             .setTimestamp()
-            .setFooter({ text: 'AFK Status', iconURL: message.author.displayAvatarURL({ dynamic: true }) });
+            .setFooter({ text: 'AFK Status', iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });
 
          if (nicknameResult) { // If there was an issue with the nickname, add it to the embed
             embed.addFields({ name: "Nickname Update", value: nicknameResult});

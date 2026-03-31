@@ -33,7 +33,7 @@ module.exports = {
                     .setDescription(leaderboardString || 'No data to display.')
                     .setFooter({
                         text: `Page ${page + 1}/${maxPage} • Requested by ${interaction.user.tag}`,
-                        iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+                        iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true })
                     })
                     .setTimestamp();
             };

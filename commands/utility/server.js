@@ -33,6 +33,9 @@ async function createServerEmbed(guild, owner, requestedBy) {
 	const discoverySplash = guild.discoverySplashURL({ size: 1024 });
 	const icon = guild.iconURL({ dynamic: true });
 
+	const requesterMember = guild.members.cache.get(requestedBy.id);
+	const requesterAvatarURL = requesterMember ? requesterMember.displayAvatarURL({ dynamic: true }) : requestedBy.displayAvatarURL({ dynamic: true });
+
 	const embed = new EmbedBuilder()
 		.setTitle(`${guild.name} — Server Details`)
 		.setThumbnail(icon)
@@ -51,7 +54,7 @@ async function createServerEmbed(guild, owner, requestedBy) {
 		)
 		.setFooter({
 			text: `Requested by ${requestedBy.tag}`,
-			iconURL: requestedBy.displayAvatarURL({ dynamic: true }),
+			iconURL: requesterAvatarURL,
 		})
 		.setTimestamp();
 

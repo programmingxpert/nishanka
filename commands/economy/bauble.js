@@ -30,7 +30,7 @@ module.exports = {
                 .setTitle('💰 Bauble Balance')
                 .setDescription(`${user.username} has **${baubleData.baubles}** Glimmering Baubles!`)
                 .setTimestamp()
-                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) });
+                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
 
             await interaction.reply({ embeds: [embed], ephemeral: false }); // Or false if you want it public
         } catch (error) {
@@ -56,7 +56,7 @@ module.exports = {
                 .setTitle('💰 Bauble Balance')
                 .setDescription(`${user.username} has **${baubleData.baubles}** Glimmering Baubles!`)
                 .setTimestamp()
-                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL({ dynamic: true }) });
+                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });
 
             await message.channel.send({ embeds: [embed]}); // Or false if you want it public
         } catch (error) {

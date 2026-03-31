@@ -14,17 +14,43 @@ module.exports = {
 
     async execute(interaction) {
         const user = interaction.options.getUser('target') || interaction.user;
-        const avatarURL = user.displayAvatarURL({ dynamic: true, size: 4096 }); // Largest size available
+        const member = interaction.guild ? interaction.guild.members.cache.get(user.id) : null;
 
-        const embed = new EmbedBuilder()
-            .setColor(0x3498db) // A nice blue color
-            .setTitle(`${user.username}'s Avatar`)
-            .setImage(avatarURL)
-            .setDescription(`[Avatar URL](${avatarURL})`) // Provide a direct link to the avatar
-            .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
-            .setTimestamp();
+        const globalAvatarURL = user.displayAvatarURL({ dynamic: true, size: 4096 });
+        const serverAvatarURL = member ? member.displayAvatarURL({ dynamic: true, size: 4096 }) : globalAvatarURL;
 
-        await interaction.reply({ embeds: [embed] });
+        const embeds = [];
+
+        if (serverAvatarURL !== globalAvatarURL) {
+            const serverEmbed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle(`${user.username}'s Server Avatar`)
+                .setImage(serverAvatarURL)
+                .setDescription(`[Server Avatar URL](${serverAvatarURL})`)
+                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) })
+                .setTimestamp();
+            embeds.push(serverEmbed);
+
+            const globalEmbed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle(`${user.username}'s Global Avatar`)
+                .setImage(globalAvatarURL)
+                .setDescription(`[Global Avatar URL](${globalAvatarURL})`)
+                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) })
+                .setTimestamp();
+            embeds.push(globalEmbed);
+        } else {
+            const embed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle(`${user.username}'s Avatar`)
+                .setImage(globalAvatarURL)
+                .setDescription(`[Avatar URL](${globalAvatarURL})`)
+                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) })
+                .setTimestamp();
+            embeds.push(embed);
+        }
+
+        await interaction.reply({ embeds: embeds });
     },
 
     async executePrefix(message, args) {
@@ -41,16 +67,41 @@ module.exports = {
             user = message.author;
         }
 
-        const avatarURL = user.displayAvatarURL({ dynamic: true, size: 4096 }); // Largest size available
+        const member = message.guild ? message.guild.members.cache.get(user.id) : null;
+        const globalAvatarURL = user.displayAvatarURL({ dynamic: true, size: 4096 });
+        const serverAvatarURL = member ? member.displayAvatarURL({ dynamic: true, size: 4096 }) : globalAvatarURL;
 
-        const embed = new EmbedBuilder()
-            .setColor(0x3498db) // A nice blue color
-            .setTitle(`${user.username}'s Avatar`)
-            .setImage(avatarURL)
-            .setDescription(`[Avatar URL](${avatarURL})`) // Provide a direct link to the avatar
-            .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
-            .setTimestamp();
+        const embeds = [];
 
-        await message.channel.send({ embeds: [embed] });
+        if (serverAvatarURL !== globalAvatarURL) {
+            const serverEmbed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle(`${user.username}'s Server Avatar`)
+                .setImage(serverAvatarURL)
+                .setDescription(`[Server Avatar URL](${serverAvatarURL})`)
+                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) })
+                .setTimestamp();
+            embeds.push(serverEmbed);
+
+            const globalEmbed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle(`${user.username}'s Global Avatar`)
+                .setImage(globalAvatarURL)
+                .setDescription(`[Global Avatar URL](${globalAvatarURL})`)
+                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) })
+                .setTimestamp();
+            embeds.push(globalEmbed);
+        } else {
+            const embed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle(`${user.username}'s Avatar`)
+                .setImage(globalAvatarURL)
+                .setDescription(`[Avatar URL](${globalAvatarURL})`)
+                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) })
+                .setTimestamp();
+            embeds.push(embed);
+        }
+
+        await message.channel.send({ embeds: embeds });
     }
 };

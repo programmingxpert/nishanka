@@ -95,11 +95,13 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
             : `**<@${author.id}>** ${phrase} **<@${targetUser.id}>**`;
     }
 
+    const authorMember = isSlash ? interaction.member : message.member;
+
     const embed = new EmbedBuilder()
         .setColor(color ?? 0x7289DA)
         .setTitle(`${emoji} ${actionType.charAt(0).toUpperCase() + actionType.slice(1)}!`)
         .setDescription(description)
-        .setFooter({ text: `Powered by Nekos.best`, iconURL: author.displayAvatarURL({ dynamic: true }) })
+        .setFooter({ text: `Powered by Nekos.best`, iconURL: authorMember?.displayAvatarURL({ dynamic: true }) || author.displayAvatarURL({ dynamic: true }) })
         .setTimestamp();
 
     if (gifUrl) embed.setImage(gifUrl);

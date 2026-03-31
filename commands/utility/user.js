@@ -98,9 +98,13 @@ function createUserEmbed(user, member, requestedBy, isOwner) {
 		.map(role => role.name)
 		.join(', ') || 'No roles';
 
+	const avatarURL = member ? member.displayAvatarURL({ dynamic: true }) : user.displayAvatarURL({ dynamic: true });
+	const requesterMember = member?.guild.members.cache.get(requestedBy.id);
+	const requesterAvatarURL = requesterMember ? requesterMember.displayAvatarURL({ dynamic: true }) : requestedBy.displayAvatarURL({ dynamic: true });
+
 	const embed = new EmbedBuilder()
 		.setTitle(`${user.username}'s Profile`)
-		.setThumbnail(user.displayAvatarURL({ dynamic: true }))
+		.setThumbnail(avatarURL)
 		.setColor(0x00bcd4)
 		.addFields(
 			{ name: 'ID', value: user.id, inline: true },
@@ -112,7 +116,7 @@ function createUserEmbed(user, member, requestedBy, isOwner) {
 		)
 		.setFooter({
 			text: `Requested by ${requestedBy.tag}`,
-			iconURL: requestedBy.displayAvatarURL({ dynamic: true })
+			iconURL: requesterAvatarURL
 		})
 		.setTimestamp();
 

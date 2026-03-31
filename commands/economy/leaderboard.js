@@ -48,7 +48,7 @@ module.exports = {
                 .setTitle('🏆 Glimmering Bauble Leaderboard (This Server)')
                 .setDescription(leaderboardString)
                 .setTimestamp()
-                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) });
+                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
 
             await interaction.reply({ embeds: [embed] });
 
@@ -98,7 +98,7 @@ module.exports = {
                 .setTitle('🏆 Glimmering Bauble Leaderboard (This Server)')
                 .setDescription(leaderboardString)
                 .setTimestamp()
-                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL({ dynamic: true }) });
+                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });
 
             await message.channel.send({ embeds: [embed] });
 

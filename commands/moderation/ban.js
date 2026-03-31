@@ -36,6 +36,7 @@ module.exports = {
 			console.log(`Couldn't DM ${targetUser.tag}`);
 		}
 
+		const avatarURL = member.displayAvatarURL({ dynamic: true });
 		await member.ban({ reason });
 
 		const embed = new EmbedBuilder()
@@ -46,7 +47,7 @@ module.exports = {
 				{ name: 'By', value: `${interaction.user.tag}`, inline: true },
 				{ name: 'Reason', value: reason }
 			)
-			.setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+			.setThumbnail(avatarURL)
 			.setTimestamp();
 
 		await interaction.reply({ embeds: [embed] });
@@ -73,17 +74,18 @@ module.exports = {
 			console.log(`Couldn't DM ${user.tag}`);
 		}
 
+		const avatarURL = member.displayAvatarURL({ dynamic: true });
 		await member.ban({ reason });
 
 		const embed = new EmbedBuilder()
-			.setTitle('👢 Member Banned')
+			.setTitle('Limited Edition Banned')
 			.setColor(0xff3c38)
 			.addFields(
 				{ name: 'User', value: `${user.tag}`, inline: true },
 				{ name: 'By', value: `${message.author.tag}`, inline: true },
 				{ name: 'Reason', value: reason }
 			)
-			.setThumbnail(user.displayAvatarURL({ dynamic: true }))
+			.setThumbnail(avatarURL)
 			.setTimestamp();
 
 		await message.channel.send({ embeds: [embed] });

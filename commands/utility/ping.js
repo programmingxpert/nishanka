@@ -19,7 +19,7 @@ module.exports = {
 				{ name: '📡 Bot Latency', value: `${sent.createdTimestamp - interaction.createdTimestamp}ms`, inline: true },
 				{ name: '🧠 API Latency', value: `${interaction.client.ws.ping}ms`, inline: true }
 			)
-			.setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+			.setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) })
 			.setTimestamp();
 
 		await interaction.editReply({ content: '', embeds: [embed] });
@@ -36,7 +36,7 @@ module.exports = {
 				{ name: '📡 Bot Latency', value: `${sent.createdTimestamp - message.createdTimestamp}ms`, inline: true },
 				{ name: '🧠 API Latency', value: `${message.client.ws.ping}ms`, inline: true }
 			)
-			.setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
+			.setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) })
 			.setTimestamp();
 
 		await sent.edit({ content: '', embeds: [embed] });

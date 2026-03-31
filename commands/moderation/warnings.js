@@ -36,10 +36,12 @@ module.exports = {
 		const totalPages = Math.ceil(warnings.length / perPage);
 
 		const generateEmbed = (page) => {
+			const member = interaction.guild.members.cache.get(user.id);
+			const avatarURL = member ? member.displayAvatarURL({ dynamic: true }) : user.displayAvatarURL({ dynamic: true });
 			const embed = new EmbedBuilder()
 				.setTitle(`⚠️ Warnings for ${user.tag}`)
 				.setColor(0xffcc00)
-				.setThumbnail(user.displayAvatarURL({ dynamic: true }))
+				.setThumbnail(avatarURL)
 				.setFooter({ text: `Page ${page + 1} of ${totalPages}` })
 				.setTimestamp();
 
@@ -94,10 +96,12 @@ module.exports = {
 		const totalPages = Math.ceil(warnings.length / perPage);
 
 		const generateEmbed = (page) => {
+			const member = message.guild.members.cache.get(user.id);
+			const avatarURL = member ? member.displayAvatarURL({ dynamic: true }) : user.displayAvatarURL({ dynamic: true });
 			const embed = new EmbedBuilder()
 				.setTitle(`⚠️ Warnings for ${user.tag}`)
 				.setColor(0xffcc00)
-				.setThumbnail(user.displayAvatarURL({ dynamic: true }))
+				.setThumbnail(avatarURL)
 				.setFooter({ text: `Page ${page + 1} of ${totalPages}` })
 				.setTimestamp();
 

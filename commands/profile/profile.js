@@ -77,9 +77,10 @@ module.exports = {
 
             // Draw profile picture:
             // Use custom pfpUrl if provided (non-gif) or fall back to Discord avatar.
+            const targetMember = interaction.guild.members.cache.get(targetUser.id);
             const pfpUrl = (profileData.pfpUrl && !profileData.pfpUrl.endsWith('.gif'))
                 ? profileData.pfpUrl
-                : targetUser.displayAvatarURL({ extension: 'png', size: 256 });
+                : (targetMember ? targetMember.displayAvatarURL({ extension: 'png', size: 256 }) : targetUser.displayAvatarURL({ extension: 'png', size: 256 }));
             const avatar = await Canvas.loadImage(pfpUrl);
             const avatarSize = 128;
             ctx.save();
@@ -208,9 +209,10 @@ module.exports = {
             ctx.fillRect(0, 250, canvasWidth, canvasHeight - 250);
 
             // Draw profile picture.
+            const targetMember = message.guild.members.cache.get(targetUser.id);
             const pfpUrl = (profileData.pfpUrl && !profileData.pfpUrl.endsWith('.gif'))
                 ? profileData.pfpUrl
-                : targetUser.displayAvatarURL({ extension: 'png', size: 256 });
+                : (targetMember ? targetMember.displayAvatarURL({ extension: 'png', size: 256 }) : targetUser.displayAvatarURL({ extension: 'png', size: 256 }));
             
             let avatar;
             try {

@@ -34,7 +34,7 @@ module.exports = {
                     .setColor(0xFFC0CB)
                     .setTitle('🎀 Welcome to the Glimmering Workforce!')
                     .setDescription(`<@${userId}> you're now part of the Bauble grind 💼✨\nUse \`/bauble\` to check your balance.\nLet’s get working!`)
-                    .setFooter({ text: 'Baubleverse HR Dept.', iconURL: interaction.user.displayAvatarURL({ dynamic: true }) });
+                    .setFooter({ text: 'Baubleverse HR Dept.', iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
 
                 await interaction.reply({ embeds: [welcomeEmbed] });
 
@@ -119,7 +119,7 @@ module.exports = {
                     .setColor(0xFFC0CB)
                     .setTitle('🎀 Welcome to the Glimmering Workforce!')
                     .setDescription(`<@${userId}>, you’ve joined the hustle 💼\nUse \`/bauble\` to check your balance.`)
-                    .setFooter({ text: 'Baubleverse HR Dept.', iconURL: message.author.displayAvatarURL({ dynamic: true }) });
+                    .setFooter({ text: 'Baubleverse HR Dept.', iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });
 
                 await message.channel.send({ embeds: [welcomeEmbed] });
 

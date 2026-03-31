@@ -38,7 +38,7 @@ module.exports = {
                         "Collect Baubles by being active, using commands, and exploring the bot!\n\n" +
                         "Use `/bauble` to check your balance."
                     )
-                    .setFooter({ text: 'Glimmering Baubles', iconURL: interaction.user.displayAvatarURL({ dynamic: true }) });
+                    .setFooter({ text: 'Glimmering Baubles', iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
 
                 await interaction.reply({ embeds: [welcomeEmbed], ephemeral: false });
                 await baubleData.save();
@@ -100,7 +100,7 @@ module.exports = {
                         "Collect Baubles by being active, using commands, and exploring the bot!\n\n" +
                         "Use `/bauble` to check your balance."
                     )
-                    .setFooter({ text: 'Glimmering Baubles', iconURL: message.author.displayAvatarURL({ dynamic: true }) });
+                    .setFooter({ text: 'Glimmering Baubles', iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });
 
                 await message.channel.send({ embeds: [welcomeEmbed] });
                 await baubleData.save();

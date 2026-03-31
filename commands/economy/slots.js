@@ -33,7 +33,7 @@ module.exports = {
                         "Collect Baubles by being active, using commands, and exploring the bot!\n\n" +
                         "Use `/bauble` to check your balance."
                     )
-                    .setFooter({ text: 'Glimmering Baubles', iconURL: interaction.user.displayAvatarURL({ dynamic: true }) });
+                    .setFooter({ text: 'Glimmering Baubles', iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
 
                 await interaction.reply({ embeds: [welcomeEmbed], ephemeral: false });
 

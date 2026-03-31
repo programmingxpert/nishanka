@@ -204,7 +204,7 @@ module.exports = {
 		const displayName2 = member2 ? member2.displayName : user2.username;
 
 		const score = calculateScore(user1, user2);
-		const image = await generateShipImage(user1, user2, score);
+		const image = await generateShipImage(member1 || user1, member2 || user2, score);
 		const coupleName = generateCoupleName(displayName1, displayName2);
 		const message = getLoveMessage(score);
 
@@ -270,7 +270,7 @@ module.exports = {
 		const displayName2 = member2 ? member2.displayName : user2.username;
 
 		const score = calculateScore(user1, user2);
-		const image = await generateShipImage(user1, user2, score);
+		const image = await generateShipImage(member1 || user1, member2 || user2, score);
 		const coupleName = generateCoupleName(displayName1, displayName2);
 		const messageText = getLoveMessage(score);
 
