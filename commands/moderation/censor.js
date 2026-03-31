@@ -30,7 +30,7 @@ module.exports = {
                         ))
                 .addStringOption(option =>
                     option.setName('word')
-                        .setDescription('The word to censor.')
+                        .setDescription('The word(s) to censor. Separate with commas for multiple.')
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
@@ -46,7 +46,7 @@ module.exports = {
                         ))
                 .addStringOption(option =>
                     option.setName('word')
-                        .setDescription('The word to remove.')
+                        .setDescription('The word(s) to remove. Separate with commas for multiple.')
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
@@ -62,7 +62,7 @@ module.exports = {
                         ))
                 .addStringOption(option =>
                     option.setName('word')
-                        .setDescription('The word to manage.')
+                        .setDescription('The word(s) to manage. Separate with commas for multiple.')
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
@@ -129,48 +129,74 @@ module.exports = {
 
         if (subcommand === 'add') {
             const tier = interaction.options.getString('tier');
-            const word = interaction.options.getString('word').toLowerCase().trim();
+            const wordsInput = interaction.options.getString('word');
+            const words = wordsInput.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
             const listName = tier === 'hardcore' ? 'hardcoreWords' : 'restrictedWords';
 
-            if (settings[listName].includes(word)) {
-                return interaction.reply({ content: `⚠️ "${word}" is already in the **${tier}** list.`, ephemeral: true });
+            const added = [];
+            const skipped = [];
+
+            for (const word of words) {
+                if (settings[listName].includes(word)) {
+                    skipped.push(word);
+                } else {
+                    settings[listName].push(word);
+                    added.push(word);
+                }
             }
 
-            settings[listName].push(word);
             await settings.save();
             interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Added **${word}** to the **${tier}** blocklist.` });
+            
+            let response = `✅ Successfully added **${added.length}** word(s) to the **${tier}** list.`;
+            if (skipped.length > 0) response += `\n⚠️ Skipped (already exist): ${skipped.join(', ')}`;
+            return interaction.reply({ content: response });
         }
 
         if (subcommand === 'remove') {
             const tier = interaction.options.getString('tier');
-            const word = interaction.options.getString('word').toLowerCase().trim();
+            const wordsInput = interaction.options.getString('word');
+            const words = wordsInput.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
             const listName = tier === 'hardcore' ? 'hardcoreWords' : 'restrictedWords';
 
-            if (!settings[listName].includes(word)) {
-                return interaction.reply({ content: `⚠️ "${word}" is not in the **${tier}** list.`, ephemeral: true });
+            const removed = [];
+            const notFound = [];
+
+            for (const word of words) {
+                if (settings[listName].includes(word)) {
+                    settings[listName] = settings[listName].filter(w => w !== word);
+                    removed.push(word);
+                } else {
+                    notFound.push(word);
+                }
             }
 
-            settings[listName] = settings[listName].filter(w => w !== word);
             await settings.save();
             interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Removed **${word}** from the **${tier}** blocklist.` });
+            
+            let response = `✅ Successfully removed **${removed.length}** word(s) from the **${tier}** list.`;
+            if (notFound.length > 0) response += `\n⚠️ Not found: ${notFound.join(', ')}`;
+            return interaction.reply({ content: response });
         }
 
         if (subcommand === 'whitelist') {
             const action = interaction.options.getString('action');
-            const word = interaction.options.getString('word').toLowerCase().trim();
+            const wordsInput = interaction.options.getString('word');
+            const words = wordsInput.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
 
             if (action === 'add') {
-                if (settings.whitelistedWords.includes(word)) return interaction.reply({ content: '⚠️ Word already whitelisted.', ephemeral: true });
-                settings.whitelistedWords.push(word);
+                for (const word of words) {
+                    if (!settings.whitelistedWords.includes(word)) settings.whitelistedWords.push(word);
+                }
             } else {
-                settings.whitelistedWords = settings.whitelistedWords.filter(w => w !== word);
+                for (const word of words) {
+                    settings.whitelistedWords = settings.whitelistedWords.filter(w => w !== word);
+                }
             }
 
             await settings.save();
             interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ **${word}** ${action === 'add' ? 'Added to' : 'Removed from'} the whitelist.` });
+            return interaction.reply({ content: `✅ Whitelist updated for **${words.length}** word(s).` });
         }
 
         if (subcommand === 'setstaff') {
@@ -231,16 +257,25 @@ module.exports = {
 
         if (subcommand === 'add') {
             const tier = args[1]?.toLowerCase();
-            const word = args[2]?.toLowerCase();
-            if (!tier || !['hardcore', 'restricted'].includes(tier) || !word) {
-                return message.reply('⚠️ Usage: `-censor add <hardcore|restricted> <word>`');
+            const wordsInput = args.slice(2).join(' ');
+            if (!tier || !['hardcore', 'restricted'].includes(tier) || !wordsInput) {
+                return message.reply('⚠️ Usage: `-censor add <hardcore|restricted> <word, word2, ...>`');
             }
+            
+            const words = wordsInput.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
             const listName = tier === 'hardcore' ? 'hardcoreWords' : 'restrictedWords';
-            if (settings[listName].includes(word)) return message.reply(`⚠️ Word already in **${tier}** list.`);
-            settings[listName].push(word);
+            const added = [];
+
+            for (const word of words) {
+                if (!settings[listName].includes(word)) {
+                    settings[listName].push(word);
+                    added.push(word);
+                }
+            }
+
             await settings.save();
             message.client.censorCache.delete(guildId);
-            return message.reply(`✅ Added **${word}** to **${tier}** list.`);
+            return message.reply(`✅ Added **${added.length}** word(s) to the **${tier}** list.`);
         }
 
         if (subcommand === 'toggle') {
