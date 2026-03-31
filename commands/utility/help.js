@@ -23,6 +23,13 @@ module.exports = {
 		for (const [, cmd] of commands) {
 			if (cmd.hidden && !isOwner) continue;
 
+			// Permission filtering: Skip if user lacks required permissions (e.g. Administrator)
+			if (cmd.data.default_member_permissions && context.member) {
+				if (!context.member.permissions.has(BigInt(cmd.data.default_member_permissions))) {
+					continue;
+				}
+			}
+
 			const category = cmd.category || 'Uncategorized';
 			if (!grouped[category]) grouped[category] = [];
 			const showDescription = category !== 'actions';

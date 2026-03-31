@@ -13,9 +13,13 @@ module.exports = {
         if (message.author.bot || !message.guild) return;
 
         // Exempt administrators and users with Manage Messages permission
-        if (message.member.permissions.has(PermissionFlagsBits.Administrator) ||
-            message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-            return;
+        // EXCEPT if they are in the ignoredUsers list (Watchlist)
+        const isIgnored = settings.ignoredUsers?.includes(userId);
+        if (!isIgnored) {
+            if (message.member.permissions.has(PermissionFlagsBits.Administrator) ||
+                message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+                return;
+            }
         }
 
         const userId = message.author.id;

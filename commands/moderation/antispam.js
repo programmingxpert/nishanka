@@ -58,6 +58,22 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('duration')
                         .setDescription('Duration (e.g., 1m, 10m, 1h).')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('ignore')
+                .setDescription('Manage users who should ALWAYS be caught by antispam (even if they are Admin).')
+                .addStringOption(option =>
+                    option.setName('action')
+                        .setDescription('Add or remove from the watchlist.')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Add', value: 'add' },
+                            { name: 'Remove', value: 'remove' }
+                        ))
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user to manage.')
                         .setRequired(true))),
 
     async execute(interaction) {
@@ -78,7 +94,8 @@ module.exports = {
                     { name: '🚀 Fast Spam', value: `Enabled: \`${settings.fastSpam.enabled}\`\nThreshold: \`${settings.fastSpam.threshold}\` msgs\nWindow: \`${settings.fastSpam.window / 1000}\`s`, inline: true },
                     { name: '🐢 Slow Spam', value: `Enabled: \`${settings.slowSpam.enabled}\`\nThreshold: \`${settings.slowSpam.threshold}\` msgs\nWindow: \`${settings.slowSpam.window / 1000}\`s`, inline: true },
                     { name: '⚙️ Actions', value: `Warn User: \`${settings.warnUser}\`\nDelete Messages: \`${settings.deleteMessages}\`\nTimeout User: \`${settings.timeoutUser}\`` },
-                    { name: '⏱️ Timeout Duration', value: `\`${settings.timeoutDuration / 60000}\` minute(s)`, inline: true }
+                    { name: '⏱️ Timeout Duration', value: `\`${settings.timeoutDuration / 60000}\` minute(s)`, inline: true },
+                    { name: '🕵️ Watchlist (Always Caught)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
                 )
                 .setFooter({ text: 'Use /antispam to manage these settings.' })
                 .setTimestamp();
@@ -126,6 +143,26 @@ module.exports = {
             await settings.save();
             return interaction.reply({ content: `✅ Timeout duration set to **${ms(msDuration, { long: true })}**.`, ephemeral: true });
         }
+
+        if (subcommand === 'ignore') {
+            const action = interaction.options.getString('action');
+            const targetUser = interaction.options.getUser('user');
+
+            if (action === 'add') {
+                if (settings.ignoredUsers.includes(targetUser.id)) {
+                    return interaction.reply({ content: `❌ <@${targetUser.id}> is already in the watchlist.`, ephemeral: true });
+                }
+                settings.ignoredUsers.push(targetUser.id);
+            } else {
+                if (!settings.ignoredUsers.includes(targetUser.id)) {
+                    return interaction.reply({ content: `❌ <@${targetUser.id}> is not in the watchlist.`, ephemeral: true });
+                }
+                settings.ignoredUsers = settings.ignoredUsers.filter(id => id !== targetUser.id);
+            }
+
+            await settings.save();
+            return interaction.reply({ content: `✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the antispam watchlist.`, ephemeral: true });
+        }
     },
 
     async executePrefix(message, args) {
@@ -150,7 +187,8 @@ module.exports = {
                     { name: '🚀 Fast Spam', value: `Enabled: \`${settings.fastSpam.enabled}\`\nThreshold: \`${settings.fastSpam.threshold}\` msgs\nWindow: \`${settings.fastSpam.window / 1000}\`s`, inline: true },
                     { name: '🐢 Slow Spam', value: `Enabled: \`${settings.slowSpam.enabled}\`\nThreshold: \`${settings.slowSpam.threshold}\` msgs\nWindow: \`${settings.slowSpam.window / 1000}\`s`, inline: true },
                     { name: '⚙️ Actions', value: `Warn User: \`${settings.warnUser}\`\nDelete Messages: \`${settings.deleteMessages}\`\nTimeout User: \`${settings.timeoutUser}\`` },
-                    { name: '⏱️ Timeout Duration', value: `\`${settings.timeoutDuration / 60000}\` minute(s)`, inline: true }
+                    { name: '⏱️ Timeout Duration', value: `\`${settings.timeoutDuration / 60000}\` minute(s)`, inline: true },
+                    { name: '🕵️ Watchlist (Always Caught)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
                 )
                 .setFooter({ text: 'Use -antispam to manage these settings.' })
                 .setTimestamp();
@@ -210,6 +248,31 @@ module.exports = {
             return message.reply(`✅ Timeout duration set to **${ms(msDuration, { long: true })}**.`);
         }
 
-        return message.reply(`❓ Unknown subcommand. Available: \`settings\`, \`toggle\`, \`setfast\`, \`setslow\`, \`settimeout\`.`);
+        if (subcommand === 'ignore') {
+            const action = args[1]?.toLowerCase();
+            const targetUser = message.mentions.users.first() || (args[2] ? await message.client.users.fetch(args[2]).catch(() => null) : null);
+
+            if (!action || !['add', 'remove'].includes(action)) {
+                return message.reply('⚠️ Usage: `-antispam ignore <add|remove> <@user|id>`');
+            }
+            if (!targetUser) return message.reply('⚠️ Please mention a valid user or provide a user ID.');
+
+            if (action === 'add') {
+                if (settings.ignoredUsers.includes(targetUser.id)) {
+                    return message.reply(`❌ <@${targetUser.id}> is already in the watchlist.`);
+                }
+                settings.ignoredUsers.push(targetUser.id);
+            } else {
+                if (!settings.ignoredUsers.includes(targetUser.id)) {
+                    return message.reply(`❌ <@${targetUser.id}> is not in the watchlist.`);
+                }
+                settings.ignoredUsers = settings.ignoredUsers.filter(id => id !== targetUser.id);
+            }
+
+            await settings.save();
+            return message.reply(`✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the antispam watchlist.`);
+        }
+
+        return message.reply(`❓ Unknown subcommand. Available: \`settings\`, \`toggle\`, \`setfast\`, \`setslow\`, \`settimeout\`, \`ignore\`.`);
     },
 };
