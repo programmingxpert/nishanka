@@ -37,6 +37,7 @@ client.spamTracker   = new Collection(); // userId-guildId → timestamps[]
 client.spamViolations = new Collection(); // userId-guildId → count
 client.antispamSettings = new Collection(); // guildId → settings
 client.repetitionTracker = new Collection(); // userId-guildId → { content, count, lastTimestamp }
+client.censorCache = new Collection(); // guildId → settings
 
 // ─── Load Commands ────────────────────────────────────────────────────────────
 const commandsPath = path.join(__dirname, 'commands');
