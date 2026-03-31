@@ -95,6 +95,8 @@ module.exports = {
         const guildId = interaction.guild.id;
         const subcommand = interaction.options.getSubcommand();
 
+        await interaction.deferReply();
+
         let settings = await Censor.findOneAndUpdate(
             { guildId },
             { $setOnInsert: { guildId } },
@@ -117,14 +119,14 @@ module.exports = {
                 .setFooter({ text: 'Hardcore = Global Block | Restricted = Allowed in specific channel' })
                 .setTimestamp();
 
-            return interaction.reply({ embeds: [embed] });
+            return interaction.editReply({ embeds: [embed] });
         }
 
         if (subcommand === 'toggle') {
             settings.enabled = !settings.enabled;
             await settings.save();
             interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Censor system has been **${settings.enabled ? 'Enabled' : 'Disabled'}**.` });
+            return interaction.editReply({ content: `✅ Censor system has been **${settings.enabled ? 'Enabled' : 'Disabled'}**.` });
         }
 
         if (subcommand === 'add') {
@@ -150,7 +152,7 @@ module.exports = {
             
             let response = `✅ Successfully added **${added.length}** word(s) to the **${tier}** list.`;
             if (skipped.length > 0) response += `\n⚠️ Skipped (already exist): ${skipped.join(', ')}`;
-            return interaction.reply({ content: response });
+            return interaction.editReply({ content: response });
         }
 
         if (subcommand === 'remove') {
@@ -176,7 +178,7 @@ module.exports = {
             
             let response = `✅ Successfully removed **${removed.length}** word(s) from the **${tier}** list.`;
             if (notFound.length > 0) response += `\n⚠️ Not found: ${notFound.join(', ')}`;
-            return interaction.reply({ content: response });
+            return interaction.editReply({ content: response });
         }
 
         if (subcommand === 'whitelist') {
@@ -196,7 +198,7 @@ module.exports = {
 
             await settings.save();
             interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Whitelist updated for **${words.length}** word(s).` });
+            return interaction.editReply({ content: `✅ Whitelist updated for **${words.length}** word(s).` });
         }
 
         if (subcommand === 'setstaff') {
@@ -204,7 +206,7 @@ module.exports = {
             settings.staffRoleId = role.id;
             await settings.save();
             interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Staff Team role set to <@&${role.id}>.` });
+            return interaction.editReply({ content: `✅ Staff Team role set to <@&${role.id}>.` });
         }
 
         if (subcommand === 'setagechannel') {
@@ -212,7 +214,7 @@ module.exports = {
             settings.ageRestrictedChannelId = channel.id;
             await settings.save();
             interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Permitted Age-Restricted channel set to <#${channel.id}>.` });
+            return interaction.editReply({ content: `✅ Permitted Age-Restricted channel set to <#${channel.id}>.` });
         }
 
         if (subcommand === 'setlog') {
@@ -220,7 +222,7 @@ module.exports = {
             settings.logChannelId = channel.id;
             await settings.save();
             interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Mod Log channel set to <#${channel.id}>.` });
+            return interaction.editReply({ content: `✅ Mod Log channel set to <#${channel.id}>.` });
         }
     },
 
@@ -276,6 +278,53 @@ module.exports = {
             await settings.save();
             message.client.censorCache.delete(guildId);
             return message.reply(`✅ Added **${added.length}** word(s) to the **${tier}** list.`);
+        }
+
+        if (subcommand === 'remove') {
+            const tier = args[1]?.toLowerCase();
+            const wordsInput = args.slice(2).join(' ');
+            if (!tier || !['hardcore', 'restricted'].includes(tier) || !wordsInput) {
+                return message.reply('⚠️ Usage: `-censor remove <hardcore|restricted> <word, word2, ...>`');
+            }
+            
+            const words = wordsInput.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+            const listName = tier === 'hardcore' ? 'hardcoreWords' : 'restrictedWords';
+            const removed = [];
+
+            for (const word of words) {
+                if (settings[listName].includes(word)) {
+                    settings[listName] = settings[listName].filter(w => w !== word);
+                    removed.push(word);
+                }
+            }
+
+            await settings.save();
+            message.client.censorCache.delete(guildId);
+            return message.reply(`✅ Removed **${removed.length}** word(s) from the **${tier}** list.`);
+        }
+
+        if (subcommand === 'whitelist') {
+            const action = args[1]?.toLowerCase(); // add or remove
+            const wordsInput = args.slice(2).join(' ');
+            if (!action || !['add', 'remove'].includes(action) || !wordsInput) {
+                return message.reply('⚠️ Usage: `-censor whitelist <add|remove> <word, word2, ...>`');
+            }
+
+            const words = wordsInput.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+            
+            if (action === 'add') {
+                for (const word of words) {
+                    if (!settings.whitelistedWords.includes(word)) settings.whitelistedWords.push(word);
+                }
+            } else {
+                for (const word of words) {
+                    settings.whitelistedWords = settings.whitelistedWords.filter(w => w !== word);
+                }
+            }
+
+            await settings.save();
+            message.client.censorCache.delete(guildId);
+            return message.reply(`✅ Whitelist updated for **${words.length}** word(s).`);
         }
 
         if (subcommand === 'toggle') {
