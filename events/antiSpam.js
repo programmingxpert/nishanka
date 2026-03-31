@@ -16,7 +16,7 @@ module.exports = {
         const guildId = message.guild.id;
 
         // Fetch settings from cache or DB (with simple cache logic)
-        let settings = settingsCache.get(guildId);
+        let settings = client.antispamSettings.get(guildId);
         if (!settings || Date.now() - settings.timestamp > 60000) {
             settings = await AntiSpam.findOneAndUpdate(
                 { guildId },
@@ -24,7 +24,7 @@ module.exports = {
                 { upsert: true, new: true }
             );
             settings = { ...settings.toObject(), timestamp: Date.now() };
-            settingsCache.set(guildId, settings);
+            client.antispamSettings.set(guildId, settings);
         }
 
         // Exempt administrators and users with Manage Messages permission

@@ -111,6 +111,7 @@ module.exports = {
                 settings[type] = !settings[type];
             }
             await settings.save();
+            interaction.client.antispamSettings.delete(guildId);
             return interaction.reply({ content: `✅ **${type}** has been ${settings[type]?.enabled ?? settings[type] ? 'Enabled' : 'Disabled'}.`, ephemeral: true });
         }
 
@@ -120,6 +121,7 @@ module.exports = {
             settings.fastSpam.threshold = threshold;
             settings.fastSpam.window = window * 1000;
             await settings.save();
+            interaction.client.antispamSettings.delete(guildId);
             return interaction.reply({ content: `✅ Fast spam set to **${threshold}** messages in **${window}** seconds.`, ephemeral: true });
         }
 
@@ -129,6 +131,7 @@ module.exports = {
             settings.slowSpam.threshold = threshold;
             settings.slowSpam.window = window * 1000;
             await settings.save();
+            interaction.client.antispamSettings.delete(guildId);
             return interaction.reply({ content: `✅ Slow spam set to **${threshold}** messages in **${window}** seconds.`, ephemeral: true });
         }
 
@@ -141,6 +144,7 @@ module.exports = {
             }
             settings.timeoutDuration = msDuration;
             await settings.save();
+            interaction.client.antispamSettings.delete(guildId);
             return interaction.reply({ content: `✅ Timeout duration set to **${ms(msDuration, { long: true })}**.`, ephemeral: true });
         }
 
@@ -161,6 +165,7 @@ module.exports = {
             }
 
             await settings.save();
+            interaction.client.antispamSettings.delete(guildId);
             return interaction.reply({ content: `✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the antispam watchlist.`, ephemeral: true });
         }
     },
@@ -209,6 +214,7 @@ module.exports = {
                 settings[type] = !settings[type];
             }
             await settings.save();
+            message.client.antispamSettings.delete(guildId);
             return message.reply(`✅ **${type}** has been ${settings[type]?.enabled ?? settings[type] ? 'Enabled' : 'Disabled'}.`);
         }
 
@@ -220,6 +226,7 @@ module.exports = {
             settings.fastSpam.threshold = threshold;
             settings.fastSpam.window = window * 1000;
             await settings.save();
+            message.client.antispamSettings.delete(guildId);
             return message.reply(`✅ Fast spam set to **${threshold}** messages in **${window}** seconds.`);
         }
 
@@ -231,6 +238,7 @@ module.exports = {
             settings.slowSpam.threshold = threshold;
             settings.slowSpam.window = window * 1000;
             await settings.save();
+            message.client.antispamSettings.delete(guildId);
             return message.reply(`✅ Slow spam set to **${threshold}** messages in **${window}** seconds.`);
         }
 
@@ -245,6 +253,7 @@ module.exports = {
             }
             settings.timeoutDuration = msDuration;
             await settings.save();
+            message.client.antispamSettings.delete(guildId);
             return message.reply(`✅ Timeout duration set to **${ms(msDuration, { long: true })}**.`);
         }
 
@@ -270,6 +279,7 @@ module.exports = {
             }
 
             await settings.save();
+            message.client.antispamSettings.delete(guildId);
             return message.reply(`✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the antispam watchlist.`);
         }
 
