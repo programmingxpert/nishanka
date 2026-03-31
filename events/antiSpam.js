@@ -18,11 +18,11 @@ module.exports = {
         // Fetch settings from cache or DB (with simple cache logic)
         let settings = settingsCache.get(guildId);
         if (!settings || Date.now() - settings.timestamp > 60000) {
-            settings = await AntiSpam.findOne({ guildId });
-            if (!settings) {
-                settings = new AntiSpam({ guildId });
-                await settings.save();
-            }
+            settings = await AntiSpam.findOneAndUpdate(
+                { guildId },
+                { $setOnInsert: { guildId } },
+                { upsert: true, new: true }
+            );
             settings = { ...settings.toObject(), timestamp: Date.now() };
             settingsCache.set(guildId, settings);
         }

@@ -80,11 +80,11 @@ module.exports = {
         const subcommand = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;
 
-        let settings = await AntiSpam.findOne({ guildId });
-        if (!settings) {
-            settings = new AntiSpam({ guildId });
-            await settings.save();
-        }
+        let settings = await AntiSpam.findOneAndUpdate(
+            { guildId },
+            { $setOnInsert: { guildId } },
+            { upsert: true, new: true }
+        );
 
         if (subcommand === 'settings') {
             const embed = new EmbedBuilder()
@@ -171,11 +171,11 @@ module.exports = {
         }
 
         const guildId = message.guild.id;
-        let settings = await AntiSpam.findOne({ guildId });
-        if (!settings) {
-            settings = new AntiSpam({ guildId });
-            await settings.save();
-        }
+        let settings = await AntiSpam.findOneAndUpdate(
+            { guildId },
+            { $setOnInsert: { guildId } },
+            { upsert: true, new: true }
+        );
 
         const subcommand = args[0]?.toLowerCase();
 
