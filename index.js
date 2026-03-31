@@ -80,11 +80,25 @@ for (const file of eventFiles) {
 // ─── Lavalink / riffy ─────────────────────────────────────────────────────────
 const lavalinkNodes = [
     {
-        name:     'main',
-        host:     process.env.LAVALINK_HOST     ?? 'lava.link',
-        port:     Number(process.env.LAVALINK_PORT ?? 80),
-        password: process.env.LAVALINK_PASSWORD  ?? 'dismusic',
+        name:     'node-1',
+        host:     process.env.LAVALINK_HOST     ?? 'lavalink.jirayu.net',
+        port:     Number(process.env.LAVALINK_PORT ?? 443),
+        password: process.env.LAVALINK_PASSWORD  ?? 'Public',
         secure:   process.env.LAVALINK_SECURE === 'true',
+    },
+    {
+        name:     'node-2',
+        host:     process.env.LAVALINK_HOST_2   ?? 'lavalink.lexis.host',
+        port:     Number(process.env.LAVALINK_PORT_2 ?? 443),
+        password: process.env.LAVALINK_PASSWORD_2 ?? 'lavalink',
+        secure:   process.env.LAVALINK_SECURE_2 === 'true',
+    },
+    {
+        name:     'node-3',
+        host:     process.env.LAVALINK_HOST_3   ?? 'lavalink.shadowgarden.me',
+        port:     Number(process.env.LAVALINK_PORT_3 ?? 443),
+        password: process.env.LAVALINK_PASSWORD_3 ?? 'shadowgarden',
+        secure:   process.env.LAVALINK_SECURE_3 === 'true',
     },
 ];
 

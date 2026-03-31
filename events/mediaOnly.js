@@ -21,11 +21,15 @@ module.exports = {
             // Valid media message - Create a thread
             try {
                 const threadName = `Discussion - ${message.author.username}`;
-                await message.startThread({
+                const thread = await message.startThread({
                     name: threadName.substring(0, 100),
                     autoArchiveDuration: 1440, // 24 hours
                     reason: 'Media-only auto-thread'
                 });
+
+                await thread.send({
+                    content: `💬 **Discussion Thread**\n<@${message.author.id}>, please send all related messages and conversation here only to keep the main channel clean! 📷`
+                }).catch(() => { });
             } catch (error) {
                 console.error('[MediaOnly] Failed to create thread:', error);
             }
@@ -41,7 +45,7 @@ module.exports = {
                     .setFooter({ text: 'This message will self-destruct in 10 seconds.' });
 
                 const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
-                setTimeout(() => warnMsg.delete().catch(() => {}), 10000);
+                setTimeout(() => warnMsg.delete().catch(() => { }), 10000);
             } catch (error) {
                 console.error('[MediaOnly] Failed to handle violation:', error);
             }
