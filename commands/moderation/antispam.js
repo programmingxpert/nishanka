@@ -74,6 +74,22 @@ module.exports = {
                 .addUserOption(option =>
                     option.setName('user')
                         .setDescription('The user to manage.')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('repetition')
+                .setDescription('Toggle repetitive message detection.')
+                .addBooleanOption(option =>
+                    option.setName('enabled')
+                        .setDescription('Enable or disable repetition detection.')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('setrepetition')
+                .setDescription('Set the threshold for repetitive messages.')
+                .addIntegerOption(option =>
+                    option.setName('threshold')
+                        .setDescription('Number of same messages to trigger antispam.')
                         .setRequired(true))),
 
     async execute(interaction) {
@@ -93,6 +109,7 @@ module.exports = {
                 .addFields(
                     { name: '🚀 Fast Spam', value: `Enabled: \`${settings.fastSpam.enabled}\`\nThreshold: \`${settings.fastSpam.threshold}\` msgs\nWindow: \`${settings.fastSpam.window / 1000}\`s`, inline: true },
                     { name: '🐢 Slow Spam', value: `Enabled: \`${settings.slowSpam.enabled}\`\nThreshold: \`${settings.slowSpam.threshold}\` msgs\nWindow: \`${settings.slowSpam.window / 1000}\`s`, inline: true },
+                    { name: '🔁 Repetition', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
                     { name: '⚙️ Actions', value: `Warn User: \`${settings.warnUser}\`\nDelete Messages: \`${settings.deleteMessages}\`\nTimeout User: \`${settings.timeoutUser}\`` },
                     { name: '⏱️ Timeout Duration', value: `\`${settings.timeoutDuration / 60000}\` minute(s)`, inline: true },
                     { name: '🕵️ Watchlist (Always Caught)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
@@ -168,6 +185,22 @@ module.exports = {
             interaction.client.antispamSettings.delete(guildId);
             return interaction.reply({ content: `✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the antispam watchlist.`, ephemeral: true });
         }
+
+        if (subcommand === 'repetition') {
+            const enabled = interaction.options.getBoolean('enabled');
+            settings.repetitionEnabled = enabled;
+            await settings.save();
+            interaction.client.antispamSettings.delete(guildId);
+            return interaction.reply({ content: `✅ Repetition detection has been **${enabled ? 'Enabled' : 'Disabled'}**.`, ephemeral: true });
+        }
+
+        if (subcommand === 'setrepetition') {
+            const threshold = interaction.options.getInteger('threshold');
+            settings.repetitionThreshold = threshold;
+            await settings.save();
+            interaction.client.antispamSettings.delete(guildId);
+            return interaction.reply({ content: `✅ Repetition threshold set to **${threshold}** messages.`, ephemeral: true });
+        }
     },
 
     async executePrefix(message, args) {
@@ -191,6 +224,7 @@ module.exports = {
                 .addFields(
                     { name: '🚀 Fast Spam', value: `Enabled: \`${settings.fastSpam.enabled}\`\nThreshold: \`${settings.fastSpam.threshold}\` msgs\nWindow: \`${settings.fastSpam.window / 1000}\`s`, inline: true },
                     { name: '🐢 Slow Spam', value: `Enabled: \`${settings.slowSpam.enabled}\`\nThreshold: \`${settings.slowSpam.threshold}\` msgs\nWindow: \`${settings.slowSpam.window / 1000}\`s`, inline: true },
+                    { name: '🔁 Repetition', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
                     { name: '⚙️ Actions', value: `Warn User: \`${settings.warnUser}\`\nDelete Messages: \`${settings.deleteMessages}\`\nTimeout User: \`${settings.timeoutUser}\`` },
                     { name: '⏱️ Timeout Duration', value: `\`${settings.timeoutDuration / 60000}\` minute(s)`, inline: true },
                     { name: '🕵️ Watchlist (Always Caught)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
@@ -283,6 +317,25 @@ module.exports = {
             return message.reply(`✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the antispam watchlist.`);
         }
 
-        return message.reply(`❓ Unknown subcommand. Available: \`settings\`, \`toggle\`, \`setfast\`, \`setslow\`, \`settimeout\`, \`ignore\`.`);
+        if (subcommand === 'repetition') {
+            const val = args[1]?.toLowerCase();
+            if (!val || !['true', 'false', 'on', 'off'].includes(val)) return message.reply('⚠️ Usage: `-antispam repetition <on|off>`');
+            const enabled = ['true', 'on'].includes(val);
+            settings.repetitionEnabled = enabled;
+            await settings.save();
+            message.client.antispamSettings.delete(guildId);
+            return message.reply(`✅ Repetition detection has been **${enabled ? 'Enabled' : 'Disabled'}**.`);
+        }
+
+        if (subcommand === 'setrepetition') {
+            const threshold = parseInt(args[1]);
+            if (isNaN(threshold)) return message.reply('⚠️ Usage: `-antispam setrepetition <threshold>`');
+            settings.repetitionThreshold = threshold;
+            await settings.save();
+            message.client.antispamSettings.delete(guildId);
+            return message.reply(`✅ Repetition threshold set to **${threshold}** messages.`);
+        }
+
+        return message.reply(`❓ Unknown subcommand. Available: \`settings\`, \`toggle\`, \`setfast\`, \`setslow\`, \`settimeout\`, \`ignore\`, \`repetition\`, \`setrepetition\`.`);
     },
 };

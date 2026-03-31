@@ -39,6 +39,28 @@ module.exports = {
 
         const trackerKey = `${userId}-${guildId}`;
 
+        // --- Repetition Detection ---
+        if (settings.repetitionEnabled) {
+            const content = message.content.trim().toLowerCase();
+            if (content.length > 0) {
+                const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, lastTimestamp: 0 };
+                
+                if (repData.content === content && (Date.now() - repData.lastTimestamp) < 30000) {
+                    repData.count++;
+                } else {
+                    repData.content = content;
+                    repData.count = 1;
+                }
+                repData.lastTimestamp = Date.now();
+                client.repetitionTracker.set(trackerKey, repData);
+
+                if (repData.count >= settings.repetitionThreshold) {
+                    await handleSpam(message, client, trackerKey, 'Repetitive Spam', settings);
+                    return;
+                }
+            }
+        }
+
         // --- Fast Spam Tracking ---
         if (settings.fastSpam.enabled) {
             if (!client.spamTracker.has(trackerKey)) {
@@ -74,9 +96,22 @@ module.exports = {
 async function handleSpam(message, client, trackerKey, type, settings) {
     const userId = message.author.id;
     try {
-        // Delete message
+        // Retroactive Deletion (Bulk Delete)
         if (settings.deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            // Delete the current message
             await message.delete().catch(() => {});
+
+            // Fetch and delete recent messages from the same user (Retroactive)
+            const messages = await message.channel.messages.fetch({ limit: 50 }).catch(() => null);
+            if (messages) {
+                const toDelete = messages.filter(m => 
+                    m.author.id === userId && 
+                    (Date.now() - m.createdTimestamp) < 15000 // Last 15 seconds
+                );
+                if (toDelete.size > 0) {
+                    await message.channel.bulkDelete(toDelete).catch(() => {});
+                }
+            }
         }
 
         // Increment violations

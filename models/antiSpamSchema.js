@@ -17,6 +17,8 @@ const antiSpamSchema = new mongoose.Schema({
     timeoutUser: { type: Boolean, default: true },
     timeoutDuration: { type: Number, default: 60000 }, // ms (1 minute default)
     ignoredUsers: { type: [String], default: [] }, // Users whose permissions are IGNORED by antispam
+    repetitionEnabled: { type: Boolean, default: true },
+    repetitionThreshold: { type: Number, default: 3 },
 });
 
 module.exports = mongoose.model('AntiSpam', antiSpamSchema);
