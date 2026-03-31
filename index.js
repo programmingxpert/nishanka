@@ -33,6 +33,8 @@ client.commands      = new Collection();
 client.cooldowns     = new Collection();
 client.activePlayers = new Map();
 client.afk           = new Map(); // userId → { reason, time, displayName }
+client.spamTracker   = new Collection(); // userId-guildId → timestamps[]
+client.spamViolations = new Collection(); // userId-guildId → count
 
 // ─── Load Commands ────────────────────────────────────────────────────────────
 const commandsPath = path.join(__dirname, 'commands');
