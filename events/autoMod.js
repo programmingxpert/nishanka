@@ -1,7 +1,6 @@
 /* eslint-disable */
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const Censor = require('../models/censorSchema');
-const axios = require('axios');
 
 module.exports = {
     name: 'messageCreate',
@@ -55,29 +54,8 @@ module.exports = {
             }
         }
 
-        // 3. Check API (PurgoMalum) for general profanity (Default to Hardcore)
-        if (!isBad) {
-            try {
-                const response = await axios.get(`https://www.purgomalum.com/service/containsprofanity?text=${encodeURIComponent(message.content)}`);
-                if (response.data === true) {
-                    isBad = true;
-                    matchedWord = 'Profanity (API)';
-                    tier = 'hardcore';
-                }
-            } catch (err) {
-                console.error('[AutoMod] API Error:', err.message);
-            }
-        }
-
-        // 4. Whitelist check (Only for API/Hardcore)
-        if (isBad && matchedWord === 'Profanity (API)') {
-            for (const word of settings.whitelistedWords) {
-                if (content.includes(word.toLowerCase())) {
-                    isBad = false;
-                    break;
-                }
-            }
-        }
+        // 3. No longer using external API as per request.
+        // The bot now relies solely on hardcoreWords and restrictedWords.
 
         if (isBad) {
             try {
