@@ -1,5 +1,9 @@
 /* eslint-disable */
 const { Collection, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const AntiSpam = require('../models/antiSpamSchema');
+
+// Simple cache to store guild settings for 1 minute
+const settingsCache = new Collection();
 
 module.exports = {
     name: 'messageCreate',
@@ -18,87 +22,99 @@ module.exports = {
         const guildId = message.guild.id;
         const trackerKey = `${userId}-${guildId}`;
 
-        // Initialize spam tracker for the user
-        if (!client.spamTracker.has(trackerKey)) {
-            client.spamTracker.set(trackerKey, []);
+        // Fetch settings from cache or DB
+        let settings = settingsCache.get(guildId);
+        if (!settings || Date.now() - settings.timestamp > 60000) {
+            settings = await AntiSpam.findOne({ guildId });
+            if (!settings) {
+                settings = new AntiSpam({ guildId });
+                await settings.save();
+            }
+            settingsCache.set(guildId, { ...settings.toObject(), timestamp: Date.now() });
         }
 
-        const now = Date.now();
-        const timestamps = client.spamTracker.get(trackerKey);
-        
-        // Add current timestamp
-        timestamps.push(now);
+        // --- Fast Spam Tracking ---
+        if (settings.fastSpam.enabled) {
+            if (!client.spamTracker.has(trackerKey)) {
+                client.spamTracker.set(trackerKey, []);
+            }
+            const fastTimestamps = client.spamTracker.get(trackerKey);
+            fastTimestamps.push(Date.now());
+            if (fastTimestamps.length > settings.fastSpam.threshold) fastTimestamps.shift();
 
-        // Keep only the last 5 timestamps
-        if (timestamps.length > 5) {
-            timestamps.shift();
+            if (fastTimestamps.length === settings.fastSpam.threshold && (Date.now() - fastTimestamps[0]) < settings.fastSpam.window) {
+                await handleSpam(message, client, trackerKey, 'Fast Spam', settings);
+                return; // Stop processing further for this message if caught
+            }
         }
 
-        // Check if 5 messages were sent within 3 seconds
-        if (timestamps.length === 5 && (now - timestamps[0]) < 3000) {
-            try {
-                // Delete the spammy message if the bot has permission
-                if (message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
-                    await message.delete().catch(() => {});
-                }
+        // --- Slow Spam Tracking ---
+        if (settings.slowSpam.enabled) {
+            const slowTrackerKey = `slow-${trackerKey}`;
+            if (!client.spamTracker.has(slowTrackerKey)) {
+                client.spamTracker.set(slowTrackerKey, []);
+            }
+            const slowTimestamps = client.spamTracker.get(slowTrackerKey);
+            slowTimestamps.push(Date.now());
+            if (slowTimestamps.length > settings.slowSpam.threshold) slowTimestamps.shift();
 
-                // Increment violations
-                const violations = (client.spamViolations.get(trackerKey) || 0) + 1;
-                client.spamViolations.set(trackerKey, violations);
-
-                // Define punishment based on violation count
-                let action = '';
-                if (violations === 1) {
-                    action = 'Warning sent.';
-                    const warnEmbed = new EmbedBuilder()
-                        .setColor(0xFFFF00)
-                        .setTitle('⚠️ Fast Spam Detected')
-                        .setDescription(`<@${userId}>, please slow down! You are sending messages too quickly.`)
-                        .setFooter({ text: 'Spamming is not allowed in this server.' });
-                    
-                    const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
-                    // Auto-delete warning after 5 seconds
-                    setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
-
-                } else {
-                    // Timeout user
-                    const timeoutMinutes = violations === 2 ? 1 : 5;
-                    const timeoutMs = timeoutMinutes * 60 * 1000;
-                    
-                    if (message.guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-                        if (message.member.manageable) {
-                            await message.member.timeout(timeoutMs, 'Fast Spamming').catch(console.error);
-                            
-                            const timeoutEmbed = new EmbedBuilder()
-                                .setColor(0xFF0000)
-                                .setTitle('🔇 User Timed Out')
-                                .setDescription(`<@${userId}> has been timed out for **${timeoutMinutes} minute(s)** for persistent fast spamming.`)
-                                .setFooter({ text: 'Auto-Moderation' });
-                            
-                            const timeoutMsg = await message.channel.send({ embeds: [timeoutEmbed] });
-                            setTimeout(() => timeoutMsg.delete().catch(() => {}), 10000);
-                            action = `Timed out for ${timeoutMinutes}m.`;
-                        } else {
-                            action = 'Failed to timeout (User is higher rank).';
-                        }
-                    } else {
-                        action = 'Failed to timeout (Missing permission).';
-                    }
-                }
-
-                console.log(`[AntiSpam] ${message.author.tag} in ${message.guild.name}: ${action}`);
-
-                // Reset violation count after some time of good behavior
-                setTimeout(() => {
-                    const currentViolations = client.spamViolations.get(trackerKey);
-                    if (currentViolations > 0) {
-                        client.spamViolations.set(trackerKey, currentViolations - 1);
-                    }
-                }, 60000); // 1 minute window for violation cooldown
-
-            } catch (error) {
-                console.error('[AntiSpam] Error handling spam:', error);
+            if (slowTimestamps.length === settings.slowSpam.threshold && (Date.now() - slowTimestamps[0]) < settings.slowSpam.window) {
+                await handleSpam(message, client, trackerKey, 'Slow Spam', settings);
             }
         }
     },
 };
+
+async function handleSpam(message, client, trackerKey, type, settings) {
+    const userId = message.author.id;
+    try {
+        // Delete message
+        if (settings.deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            await message.delete().catch(() => {});
+        }
+
+        // Increment violations
+        const violations = (client.spamViolations.get(trackerKey) || 0) + 1;
+        client.spamViolations.set(trackerKey, violations);
+
+        // Warn user
+        if (settings.warnUser) {
+            const warnEmbed = new EmbedBuilder()
+                .setColor(violations === 1 ? 0xFFFF00 : 0xFF0000)
+                .setTitle(`⚠️ ${type} Detected`)
+                .setDescription(`<@${userId}>, please slow down! You are sending messages too quickly.`)
+                .setFooter({ text: 'Spamming is not allowed in this server.' });
+            
+            const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
+            setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+        }
+
+        // Timeout user
+        if (settings.timeoutUser && violations >= 2) {
+            const timeoutMs = settings.timeoutDuration * (violations - 1);
+            if (message.guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers) && message.member.manageable) {
+                await message.member.timeout(timeoutMs, `${type}ming`).catch(console.error);
+                
+                const timeoutEmbed = new EmbedBuilder()
+                    .setColor(0xFF0000)
+                    .setTitle('🔇 User Timed Out')
+                    .setDescription(`<@${userId}> has been timed out for persistent **${type}ming**.`)
+                    .setFooter({ text: 'Auto-Moderation' });
+                
+                const timeoutMsg = await message.channel.send({ embeds: [timeoutEmbed] });
+                setTimeout(() => timeoutMsg.delete().catch(() => {}), 10000);
+            }
+        }
+
+        console.log(`[AntiSpam] ${type} by ${message.author.tag} in ${message.guild.name}. Violations: ${violations}`);
+
+        // Partial violation reset
+        setTimeout(() => {
+            const val = client.spamViolations.get(trackerKey);
+            if (val > 0) client.spamViolations.set(trackerKey, val - 1);
+        }, 60000);
+
+    } catch (error) {
+        console.error(`[AntiSpam] Error handling ${type}:`, error);
+    }
+}
