@@ -12,6 +12,21 @@ module.exports = {
         // Ignore bots and DMs
         if (message.author.bot || !message.guild) return;
 
+        const userId = message.author.id;
+        const guildId = message.guild.id;
+
+        // Fetch settings from cache or DB (with simple cache logic)
+        let settings = settingsCache.get(guildId);
+        if (!settings || Date.now() - settings.timestamp > 60000) {
+            settings = await AntiSpam.findOne({ guildId });
+            if (!settings) {
+                settings = new AntiSpam({ guildId });
+                await settings.save();
+            }
+            settings = { ...settings.toObject(), timestamp: Date.now() };
+            settingsCache.set(guildId, settings);
+        }
+
         // Exempt administrators and users with Manage Messages permission
         // EXCEPT if they are in the ignoredUsers list (Watchlist)
         const isIgnored = settings.ignoredUsers?.includes(userId);
@@ -22,20 +37,7 @@ module.exports = {
             }
         }
 
-        const userId = message.author.id;
-        const guildId = message.guild.id;
         const trackerKey = `${userId}-${guildId}`;
-
-        // Fetch settings from cache or DB
-        let settings = settingsCache.get(guildId);
-        if (!settings || Date.now() - settings.timestamp > 60000) {
-            settings = await AntiSpam.findOne({ guildId });
-            if (!settings) {
-                settings = new AntiSpam({ guildId });
-                await settings.save();
-            }
-            settingsCache.set(guildId, { ...settings.toObject(), timestamp: Date.now() });
-        }
 
         // --- Fast Spam Tracking ---
         if (settings.fastSpam.enabled) {
