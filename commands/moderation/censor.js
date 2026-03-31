@@ -6,12 +6,12 @@ module.exports = {
     category: 'moderation',
     data: new SlashCommandBuilder()
         .setName('censor')
-        .setDescription('Manage the word filter and censorship system.')
+        .setDescription('Manage the tiered word filter and censorship system.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('settings')
-                .setDescription('View current censor settings.'))
+                .setDescription('View current tiered censor settings.'))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('toggle')
@@ -19,7 +19,15 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('add')
-                .setDescription('Add a word to the blocklist.')
+                .setDescription('Add a word to a specific filter tier.')
+                .addStringOption(option =>
+                    option.setName('tier')
+                        .setDescription('Select the target tier.')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Hardcore (Strictly Forbidden)', value: 'hardcore' },
+                            { name: 'Restricted (16+/18+ Only)', value: 'restricted' }
+                        ))
                 .addStringOption(option =>
                     option.setName('word')
                         .setDescription('The word to censor.')
@@ -27,7 +35,15 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('remove')
-                .setDescription('Remove a word from the blocklist.')
+                .setDescription('Remove a word from a specific filter tier.')
+                .addStringOption(option =>
+                    option.setName('tier')
+                        .setDescription('Select the target tier.')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Hardcore', value: 'hardcore' },
+                            { name: 'Restricted', value: 'restricted' }
+                        ))
                 .addStringOption(option =>
                     option.setName('word')
                         .setDescription('The word to remove.')
@@ -50,11 +66,28 @@ module.exports = {
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
-                .setName('setlog')
-                .setDescription('Set the channel for filter violation logs.')
+                .setName('setstaff')
+                .setDescription('Set the staff team role for hardcore pings.')
+                .addRoleOption(option =>
+                    option.setName('role')
+                        .setDescription('The staff role to ping.')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('setagechannel')
+                .setDescription('Set the permitted 16+/18+ channel.')
                 .addChannelOption(option =>
                     option.setName('channel')
-                        .setDescription('The channel to log violations.')
+                        .setDescription('The channel where restricted words are allowed.')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('setlog')
+                .setDescription('Set the channel for hardcore filter violation logs.')
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('The mod channel to log violations.')
                         .addChannelTypes(ChannelType.GuildText)
                         .setRequired(true))),
 
@@ -70,15 +103,18 @@ module.exports = {
 
         if (subcommand === 'settings') {
             const embed = new EmbedBuilder()
-                .setTitle('🛡️ Word Filter Settings')
+                .setTitle('🛡️ Tiered Word Filter Dashboard')
                 .setColor(0x27AE60)
                 .addFields(
-                    { name: 'Status', value: settings.enabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-                    { name: 'Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'None', inline: true },
-                    { name: 'Blocked Words', value: settings.blockedWords.length > 0 ? settings.blockedWords.join(', ') : 'None' },
-                    { name: 'Whitelisted Words', value: settings.whitelistedWords.length > 0 ? settings.whitelistedWords.join(', ') : 'None' }
+                    { name: 'Status', value: settings.enabled ? '✅ Global Filter ON' : '❌ Global Filter OFF', inline: true },
+                    { name: 'Staff Role', value: settings.staffRoleId ? `<@&${settings.staffRoleId}>` : 'None', inline: true },
+                    { name: 'Restricted Channel (16+)', value: settings.ageRestrictedChannelId ? `<#${settings.ageRestrictedChannelId}>` : 'Not Set', inline: true },
+                    { name: 'Mod/Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'None', inline: true },
+                    { name: '🛑 Hardcore Words', value: settings.hardcoreWords.length > 0 ? settings.hardcoreWords.join(', ') : 'None' },
+                    { name: '🔞 Restricted Words', value: settings.restrictedWords.length > 0 ? settings.restrictedWords.join(', ') : 'None' },
+                    { name: '⚪ Whitelisted', value: settings.whitelistedWords.length > 0 ? settings.whitelistedWords.join(', ') : 'None' }
                 )
-                .setFooter({ text: 'Admins are exempt from the filter.' })
+                .setFooter({ text: 'Hardcore = Global Block | Restricted = Allowed in specific channel' })
                 .setTimestamp();
 
             return interaction.reply({ embeds: [embed] });
@@ -87,30 +123,38 @@ module.exports = {
         if (subcommand === 'toggle') {
             settings.enabled = !settings.enabled;
             await settings.save();
-            if (interaction.client.censorCache) interaction.client.censorCache.delete(guildId);
+            interaction.client.censorCache.delete(guildId);
             return interaction.reply({ content: `✅ Censor system has been **${settings.enabled ? 'Enabled' : 'Disabled'}**.` });
         }
 
         if (subcommand === 'add') {
+            const tier = interaction.options.getString('tier');
             const word = interaction.options.getString('word').toLowerCase().trim();
-            if (settings.blockedWords.includes(word)) {
-                return interaction.reply({ content: `⚠️ "${word}" is already in the blocklist.`, ephemeral: true });
+            const listName = tier === 'hardcore' ? 'hardcoreWords' : 'restrictedWords';
+
+            if (settings[listName].includes(word)) {
+                return interaction.reply({ content: `⚠️ "${word}" is already in the **${tier}** list.`, ephemeral: true });
             }
-            settings.blockedWords.push(word);
+
+            settings[listName].push(word);
             await settings.save();
-            if (interaction.client.censorCache) interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Added **${word}** to the blocklist.` });
+            interaction.client.censorCache.delete(guildId);
+            return interaction.reply({ content: `✅ Added **${word}** to the **${tier}** blocklist.` });
         }
 
         if (subcommand === 'remove') {
+            const tier = interaction.options.getString('tier');
             const word = interaction.options.getString('word').toLowerCase().trim();
-            if (!settings.blockedWords.includes(word)) {
-                return interaction.reply({ content: `⚠️ "${word}" is not in the blocklist.`, ephemeral: true });
+            const listName = tier === 'hardcore' ? 'hardcoreWords' : 'restrictedWords';
+
+            if (!settings[listName].includes(word)) {
+                return interaction.reply({ content: `⚠️ "${word}" is not in the **${tier}** list.`, ephemeral: true });
             }
-            settings.blockedWords = settings.blockedWords.filter(w => w !== word);
+
+            settings[listName] = settings[listName].filter(w => w !== word);
             await settings.save();
-            if (interaction.client.censorCache) interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Removed **${word}** from the blocklist.` });
+            interaction.client.censorCache.delete(guildId);
+            return interaction.reply({ content: `✅ Removed **${word}** from the **${tier}** blocklist.` });
         }
 
         if (subcommand === 'whitelist') {
@@ -125,16 +169,32 @@ module.exports = {
             }
 
             await settings.save();
-            if (interaction.client.censorCache) interaction.client.censorCache.delete(guildId);
+            interaction.client.censorCache.delete(guildId);
             return interaction.reply({ content: `✅ **${word}** ${action === 'add' ? 'Added to' : 'Removed from'} the whitelist.` });
+        }
+
+        if (subcommand === 'setstaff') {
+            const role = interaction.options.getRole('role');
+            settings.staffRoleId = role.id;
+            await settings.save();
+            interaction.client.censorCache.delete(guildId);
+            return interaction.reply({ content: `✅ Staff Team role set to <@&${role.id}>.` });
+        }
+
+        if (subcommand === 'setagechannel') {
+            const channel = interaction.options.getChannel('channel');
+            settings.ageRestrictedChannelId = channel.id;
+            await settings.save();
+            interaction.client.censorCache.delete(guildId);
+            return interaction.reply({ content: `✅ Permitted Age-Restricted channel set to <#${channel.id}>.` });
         }
 
         if (subcommand === 'setlog') {
             const channel = interaction.options.getChannel('channel');
             settings.logChannelId = channel.id;
             await settings.save();
-            if (interaction.client.censorCache) interaction.client.censorCache.delete(guildId);
-            return interaction.reply({ content: `✅ Log channel set to <#${channel.id}>.` });
+            interaction.client.censorCache.delete(guildId);
+            return interaction.reply({ content: `✅ Mod Log channel set to <#${channel.id}>.` });
         }
     },
 
@@ -154,45 +214,42 @@ module.exports = {
 
         if (subcommand === 'settings' || !subcommand) {
             const embed = new EmbedBuilder()
-                .setTitle('🛡️ Word Filter Settings')
+                .setTitle('🛡️ Tiered Word Filter Dashboard')
                 .setColor(0x27AE60)
                 .addFields(
-                    { name: 'Status', value: settings.enabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-                    { name: 'Log Channel', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'None', inline: true },
-                    { name: 'Blocked Words', value: settings.blockedWords.length > 0 ? settings.blockedWords.join(', ') : 'None' },
-                    { name: 'Whitelisted Words', value: settings.whitelistedWords.length > 0 ? settings.whitelistedWords.join(', ') : 'None' }
+                    { name: 'Status', value: settings.enabled ? '✅ Global Filter ON' : '❌ Global Filter OFF', inline: true },
+                    { name: 'Staff Role', value: settings.staffRoleId ? `<@&${settings.staffRoleId}>` : 'None', inline: true },
+                    { name: 'Age Channel', value: settings.ageRestrictedChannelId ? `<#${settings.ageRestrictedChannelId}>` : 'None', inline: true },
+                    { name: 'Mod Logs', value: settings.logChannelId ? `<#${settings.logChannelId}>` : 'None', inline: true },
+                    { name: '🛑 Hardcore Words', value: settings.hardcoreWords.length > 0 ? settings.hardcoreWords.join(', ') : 'None' },
+                    { name: '🔞 Restricted Words', value: settings.restrictedWords.length > 0 ? settings.restrictedWords.join(', ') : 'None' }
                 )
-                .setFooter({ text: 'Admins are exempt from the filter.' });
+                .setFooter({ text: 'Use Slash commands for full configuration.' });
 
             return message.channel.send({ embeds: [embed] });
         }
 
         if (subcommand === 'add') {
-            const word = args[1]?.toLowerCase();
-            if (!word) return message.reply('⚠️ Usage: `-censor add <word>`');
-            if (settings.blockedWords.includes(word)) return message.reply('⚠️ Word already blocked.');
-            settings.blockedWords.push(word);
+            const tier = args[1]?.toLowerCase();
+            const word = args[2]?.toLowerCase();
+            if (!tier || !['hardcore', 'restricted'].includes(tier) || !word) {
+                return message.reply('⚠️ Usage: `-censor add <hardcore|restricted> <word>`');
+            }
+            const listName = tier === 'hardcore' ? 'hardcoreWords' : 'restrictedWords';
+            if (settings[listName].includes(word)) return message.reply(`⚠️ Word already in **${tier}** list.`);
+            settings[listName].push(word);
             await settings.save();
-            if (message.client.censorCache) message.client.censorCache.delete(guildId);
-            return message.reply(`✅ Blocked: **${word}**`);
-        }
-
-        if (subcommand === 'remove') {
-            const word = args[1]?.toLowerCase();
-            if (!word) return message.reply('⚠️ Usage: `-censor remove <word>`');
-            settings.blockedWords = settings.blockedWords.filter(w => w !== word);
-            await settings.save();
-            if (message.client.censorCache) message.client.censorCache.delete(guildId);
-            return message.reply(`✅ Removed: **${word}**`);
+            message.client.censorCache.delete(guildId);
+            return message.reply(`✅ Added **${word}** to **${tier}** list.`);
         }
 
         if (subcommand === 'toggle') {
             settings.enabled = !settings.enabled;
             await settings.save();
-            if (message.client.censorCache) message.client.censorCache.delete(guildId);
+            message.client.censorCache.delete(guildId);
             return message.reply(`✅ Filter is now **${settings.enabled ? 'ON' : 'OFF'}**.`);
         }
 
-        return message.reply('❓ Unknown command. Use `settings`, `add`, `remove`, `toggle`.');
+        return message.reply('❓ Unknown command. Use slash commands for full tiered setup.');
     }
 };

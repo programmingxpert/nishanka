@@ -31,33 +31,46 @@ module.exports = {
         const content = message.content.toLowerCase();
         let isBad = false;
         let matchedWord = '';
+        let tier = ''; // hardcore or restricted
 
-        // 1. Check custom blocked words (Local)
-        for (const word of settings.blockedWords) {
+        // 1. Check Hardcore blocked words (Strictly forbidden)
+        for (const word of settings.hardcoreWords) {
             if (content.includes(word.toLowerCase())) {
                 isBad = true;
                 matchedWord = word;
+                tier = 'hardcore';
                 break;
             }
         }
 
-        // 2. Check API (PurgoMalum) if not already marked bad
+        // 2. Check Restricted Words (Allowed only in 16+/18+ channels)
+        if (!isBad && message.channel.id !== settings.ageRestrictedChannelId) {
+            for (const word of settings.restrictedWords) {
+                if (content.includes(word.toLowerCase())) {
+                    isBad = true;
+                    matchedWord = word;
+                    tier = 'restricted';
+                    break;
+                }
+            }
+        }
+
+        // 3. Check API (PurgoMalum) for general profanity (Default to Hardcore)
         if (!isBad) {
             try {
                 const response = await axios.get(`https://www.purgomalum.com/service/containsprofanity?text=${encodeURIComponent(message.content)}`);
                 if (response.data === true) {
                     isBad = true;
-                    matchedWord = 'Profanity (API Detected)';
+                    matchedWord = 'Profanity (API)';
+                    tier = 'hardcore';
                 }
             } catch (err) {
-                console.error('[AutoMod] PurgoMalum API Error:', err.message);
+                console.error('[AutoMod] API Error:', err.message);
             }
         }
 
-        // 3. Whitelist check (Double-check)
-        // If a word is whitelisted, we should not treat it as bad unless it matches a specific blockedWord.
-        // Actually, let's keep it simple: Whitelisted words override API detection but not custom BlockedWords.
-        if (isBad && matchedWord === 'Profanity (API Detected)') {
+        // 4. Whitelist check (Only for API/Hardcore)
+        if (isBad && matchedWord === 'Profanity (API)') {
             for (const word of settings.whitelistedWords) {
                 if (content.includes(word.toLowerCase())) {
                     isBad = false;
@@ -68,39 +81,54 @@ module.exports = {
 
         if (isBad) {
             try {
-                // Delete the original message
+                // Delete message
                 await message.delete().catch(() => {});
 
-                // Send a warning embed
-                const warnEmbed = new EmbedBuilder()
-                    .setColor(0xFF4500)
-                    .setTitle('👮 AutoMod Action')
-                    .setDescription(`<@${message.author.id}>, your message was removed because it contained forbidden language.`)
-                    .setFooter({ text: 'Server Moderation' });
+                if (tier === 'hardcore') {
+                    // Send Hardcore Warning
+                    const warnEmbed = new EmbedBuilder()
+                        .setColor(0xFF0000)
+                        .setTitle('🛑 Strictly Forbidden Content')
+                        .setDescription(`<@${message.author.id}>, your message was removed because it contained **strictly prohibited** language.`)
+                        .setFooter({ text: 'Violation Logged' });
 
-                const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
-                setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+                    const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
+                    setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
 
-                // Log to configured channel
-                if (settings.logChannelId) {
-                    const logChannel = message.guild.channels.cache.get(settings.logChannelId);
-                    if (logChannel) {
-                        const logEmbed = new EmbedBuilder()
-                            .setColor(0xE67E22)
-                            .setTitle('🛡️ Filter Violation')
-                            .addFields(
-                                { name: 'User', value: `${message.author.tag} (${message.author.id})`, inline: true },
-                                { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },
-                                { name: 'Matched', value: `\`${matchedWord}\``, inline: true },
-                                { name: 'Content', value: message.content }
-                            )
-                            .setTimestamp();
-                        
-                        logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+                    // Log to Mod Channel with STAFF PING
+                    if (settings.logChannelId) {
+                        const logChannel = message.guild.channels.cache.get(settings.logChannelId);
+                        if (logChannel) {
+                            const staffPing = settings.staffRoleId ? `<@&${settings.staffRoleId}> ` : '';
+                            const logEmbed = new EmbedBuilder()
+                                .setColor(0xFF0000)
+                                .setTitle('🚨 Hardcore Filter Violation')
+                                .addFields(
+                                    { name: 'User', value: `${message.author.tag} (${message.author.id})`, inline: true },
+                                    { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },
+                                    { name: 'Matched', value: `\`${matchedWord}\``, inline: true },
+                                    { name: 'Content', value: message.content }
+                                )
+                                .setTimestamp();
+                            
+                            logChannel.send({ content: staffPing, embeds: [logEmbed] }).catch(() => {});
+                        }
                     }
+                } else if (tier === 'restricted') {
+                    // Send Age-Restricted Advice
+                    const ageEmbed = new EmbedBuilder()
+                        .setColor(0xFFAA00)
+                        .setTitle('🔞 Age-Restricted Content')
+                        .setDescription(`<@${message.author.id}>, that content is only allowed in our **16+/18+ channel**.`)
+                        .addFields({ name: 'Permitted Channel', value: settings.ageRestrictedChannelId ? `<#${settings.ageRestrictedChannelId}>` : 'Not Configured' })
+                        .setFooter({ text: 'Please move the conversation there.' });
+
+                    const ageMsg = await message.channel.send({ embeds: [ageEmbed] });
+                    setTimeout(() => ageMsg.delete().catch(() => {}), 10000);
                 }
+
             } catch (error) {
-                console.error('[AutoMod] Error processing violation:', error);
+                console.error('[AutoMod] Execution Error:', error);
             }
         }
     }
