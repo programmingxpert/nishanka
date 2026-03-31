@@ -16,7 +16,7 @@ function getOverlayEmoji(score) {
 
 function getLoveMessage(score) {
 	if (score === 100) return "ABSOLUTE CINEMA!";
-	
+
 	if (score >= 90) {
 		const msgs = ["Meant for eachother!", "Soulmates confirmed. 💖", "A match made in heaven!", "True Love! 🥰"];
 		return msgs[Math.floor(Math.random() * msgs.length)];
@@ -37,7 +37,7 @@ function getLoveMessage(score) {
 		const msgs = ["Awkward... maybe just friends. 🥶", "Yikes. Don't force it.", "There is always plenty of fish in the sea."];
 		return msgs[Math.floor(Math.random() * msgs.length)];
 	}
-	
+
 	const msgs = ["💀 Run. Just run.", "Negative chemistry.", "Rest in peace to this relationship.", "Absolutely not."];
 	return msgs[Math.floor(Math.random() * msgs.length)];
 }
@@ -58,7 +58,7 @@ function drawMeter(ctx, score, x, y, width = 500, height = 30) {
 		ctx.fillStyle = fillColor;
 		ctx.beginPath();
 		// minimum width of 15 for rounded corners if score is very low but > 0
-		const fillWidth = Math.max((score / 100) * width, 15); 
+		const fillWidth = Math.max((score / 100) * width, 15);
 		ctx.roundRect(x, y, fillWidth, height, 15);
 		ctx.fill();
 	}
@@ -173,7 +173,7 @@ module.exports = {
 
 	async execute(interaction) {
 		await interaction.deferReply();
-		
+
 		let user1 = interaction.options.getUser('user1');
 		let user2 = interaction.options.getUser('user2');
 
@@ -211,7 +211,7 @@ module.exports = {
 		const embed = new EmbedBuilder()
 			.setColor(0xFF69B4)
 			.setTitle(`💘 Love Match`)
-			.addFields({name: "Couple Name", value: coupleName})
+			.addFields({ name: "Couple Name", value: coupleName })
 			.setDescription(`**${displayName1}** x **${displayName2}**\n\n${message}`)
 			.setImage('attachment://ship.png')
 			.setFooter({ text: 'Nishanka ©️' })
@@ -223,7 +223,7 @@ module.exports = {
 	async executePrefix(message, args) {
 		let user1 = message.mentions.users.at(0);
 		let user2 = message.mentions.users.at(1);
-		
+
 		if (!user1 && args.length > 0) {
 			// fallback check if they just provided IDs
 			const u1ID = args[0].replace(/[<@!>]/g, '');
@@ -232,7 +232,7 @@ module.exports = {
 			} catch (e) {
 				// not a valid ID
 			}
-			
+
 			if (user1 && args.length > 1) {
 				const u2ID = args[1].replace(/[<@!>]/g, '');
 				try {
@@ -277,7 +277,7 @@ module.exports = {
 		const embed = new EmbedBuilder()
 			.setColor(0xFF69B4)
 			.setTitle(`💘 Love Match`)
-			.addFields({name: "Couple Name", value: coupleName})
+			.addFields({ name: "Couple Name", value: coupleName })
 			.setDescription(`**${displayName1}** x **${displayName2}**\n\n${messageText}`)
 			.setImage('attachment://ship.png')
 			.setFooter({ text: 'Nishanka ©️' })
