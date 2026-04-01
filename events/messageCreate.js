@@ -19,6 +19,12 @@ module.exports = {
 
         if (!command || typeof command.executePrefix !== 'function') return;
 
+        // --- devOnly / ownerOnly check ---
+        const config = require('../config.json');
+        if (command.devOnly && message.author.id !== config.devId) {
+            return message.reply('⚠️ This command is restricted to the bot developer.');
+        }
+
         // --- Cooldown logic ---
         const { cooldowns } = client;
         if (!cooldowns.has(command.data.name)) {

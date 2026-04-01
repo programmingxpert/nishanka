@@ -13,6 +13,12 @@ module.exports = {
             return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });
         }
 
+        // --- devOnly / ownerOnly check ---
+        const config = require('../config.json');
+        if (command.devOnly && interaction.user.id !== config.devId) {
+            return interaction.reply({ content: '⚠️ This command is restricted to the bot developer.', ephemeral: true });
+        }
+
         // --- Cooldown logic ---
         const { cooldowns } = client;
         if (!cooldowns.has(command.data.name)) {
