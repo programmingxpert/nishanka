@@ -150,8 +150,9 @@ function generateCoupleName(displayName1, displayName2) {
 
 function calculateScore(user1, user2) {
 	const specialIds = ['805007574193405952', '1100749202293796865'];
+	// 805007574193405952 - me, 1100749202293796865 - lixie
 	if (specialIds.includes(user1.id) && specialIds.includes(user2.id)) {
-		return Math.floor(Math.random() * 10) + 91; // 91 to 100
+		return Math.floor(Math.random() * 10) + 100; // 100 to 100
 	}
 	return Math.floor(Math.random() * 101); // 0 to 100
 }
