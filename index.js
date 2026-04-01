@@ -88,9 +88,9 @@ const lavalinkNodes = [
     },
     {
         name:     'node-2',
-        host:     process.env.LAVALINK_HOST_2   ?? 'lavalinkv4.serenetia.com',
+        host:     process.env.LAVALINK_HOST_2   ?? 'lava-v4.millohost.my.id',
         port:     Number(process.env.LAVALINK_PORT_2 ?? 443),
-        password: process.env.LAVALINK_PASSWORD_2 ?? 'https://seretia.link/discord',
+        password: process.env.LAVALINK_PASSWORD_2 ?? 'https://discord.gg/mjS5J2K3ep',
         secure:   process.env.LAVALINK_SECURE_2 === 'true',
     },
     {
