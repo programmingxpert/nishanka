@@ -152,25 +152,35 @@ client.riffy.on('trackStart', async (player, track) => {
         channel.send(`▶️ Now playing: **${track.info.title}** — *${track.info.author}*`).catch(() => {});
     }
 });
-client.riffy.on('trackEnd',       (player)        => {
+client.riffy.on('trackEnd',       async (player)        => {
     if (!player.queue.size && !player.queue.current) {
-        setTimeout(() => {
+        setTimeout(async () => {
             if (!player.playing) {
+                const settings = await require('./models/guildSettingsSchema').findOne({ guildId: player.guildId }).lean();
+                if (settings?.music?.twentyFourSeven) return; // Prevent bot from leaving
+
                 player.destroy();
                 client.activePlayers.delete(player.guildId);
             }
         }, 30_000);
     }
 });
-client.riffy.on('queueEnd',       (player)        => {
+client.riffy.on('queueEnd',       async (player)        => {
     const channel = client.channels.cache.get(player.textChannel);
-    channel?.send('✅ Queue finished. Disconnecting in 30 seconds if no new tracks are added.').catch(() => {});
-    setTimeout(() => {
-        if (!player.playing) {
-            player.destroy();
-            client.activePlayers.delete(player.guildId);
-        }
-    }, 30_000);
+    const settings = await require('./models/guildSettingsSchema').findOne({ guildId: player.guildId }).lean();
+    const is24hr = settings?.music?.twentyFourSeven;
+
+    if (!is24hr) {
+        channel?.send('✅ Queue finished. Disconnecting in 30 seconds if no new tracks are added.').catch(() => {});
+        setTimeout(() => {
+            if (!player.playing) {
+                player.destroy();
+                client.activePlayers.delete(player.guildId);
+            }
+        }, 30_000);
+    } else {
+        channel?.send('✅ Queue finished. 24/7 Mode is active, staying in the voice channel.').catch(() => {});
+    }
 });
 
 // ─── MongoDB ──────────────────────────────────────────────────────────────────
@@ -458,6 +468,10 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
       Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true }),
       GuildSettings.findOneAndUpdate({ guildId }, { economy: economy || {}, music: music || {} }, { upsert: true, new: true })
     ]);
+
+    // Force bot to reload these from DB next time they're needed
+    if (client.censorCache) client.censorCache.delete(guildId);
+    if (client.antispamSettings) client.antispamSettings.delete(guildId);
 
     res.json({ ok: true });
   } catch (err) {
