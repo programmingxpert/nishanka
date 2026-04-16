@@ -348,12 +348,17 @@ app.get('/api/guilds', async (req, res) => {
   if (!req.session.accessToken) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
-    const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
-      headers: { Authorization: `Bearer ${req.session.accessToken}` },
-    });
-    if (!discordRes.ok) throw new Error('Discord API error');
+    let allGuilds = req.session.guilds;
+    if (!allGuilds) {
+      const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
+        headers: { Authorization: `Bearer ${req.session.accessToken}` },
+      });
+      if (!discordRes.ok) throw new Error('Discord API error');
+      allGuilds = await discordRes.json();
+      req.session.guilds = allGuilds;
+      req.session.save();
+    }
 
-    const allGuilds   = await discordRes.json();
     const adminGuilds = allGuilds.filter(g => (BigInt(g.permissions) & 0x20n) === 0x20n);
     const botGuildIds = client.guilds.cache.map(g => g.id);
 
@@ -376,13 +381,21 @@ app.get('/api/guilds', async (req, res) => {
 // Authenticate helper for guild endpoints
 const checkGuildAccess = async (req, guildId) => {
   if (!req.session.accessToken) return false;
-  // If we already cached in /api/guilds, we can check that, but for simplicity:
+
   try {
-    const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
-      headers: { Authorization: `Bearer ${req.session.accessToken}` },
-    });
-    if (!discordRes.ok) return false;
-    const allGuilds = await discordRes.json();
+    let allGuilds = req.session.guilds;
+    
+    // If we don't have the guilds cached in the session, fetch them
+    if (!allGuilds) {
+      const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
+        headers: { Authorization: `Bearer ${req.session.accessToken}` },
+      });
+      if (!discordRes.ok) return false;
+      allGuilds = await discordRes.json();
+      req.session.guilds = allGuilds; // Cache for the session duration
+      req.session.save(); // Ensure it saves immediately
+    }
+
     const target = allGuilds.find(g => g.id === guildId);
     if (!target) return false;
     return (BigInt(target.permissions) & 0x20n) === 0x20n; // Check administrator logic or manage server
