@@ -27,7 +27,16 @@ module.exports = {
 
         if (!settings.enabled) return;
 
-        const content = message.content.toLowerCase();
+        let content = message.content.toLowerCase();
+        
+        // Remove whitelisted words from the content so they don't trigger substring matches
+        if (settings.whitelistedWords && settings.whitelistedWords.length > 0) {
+            for (const safeWord of settings.whitelistedWords) {
+                // Remove all occurrences of the whitelisted word loosely
+                content = content.split(safeWord.toLowerCase()).join('');
+            }
+        }
+
         let isBad = false;
         let matchedWord = '';
         let tier = ''; // hardcore or restricted
