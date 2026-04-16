@@ -240,6 +240,20 @@ app.get("/", (req, res) => {
   res.send("Nishanka Bot API is running");
 });
 
+app.get("/api/health", (req, res) => {
+  const uptimeSeconds = Math.floor(process.uptime());
+  const hours = Math.floor(uptimeSeconds / 3600);
+  const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+  
+  res.json({
+    status: 'online',
+    discord_ready: client.isReady(),
+    uptime: `${hours}h ${minutes}m`,
+    guilds: client.guilds.cache.size,
+    commands: client.commands.size
+  });
+});
+
 // Internal API to refresh bot caches when dashboard updates settings
 app.post("/api/internal/refresh-cache", express.json(), async (req, res) => {
   const token = req.headers['authorization'];
