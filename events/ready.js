@@ -11,6 +11,8 @@ module.exports = {
         console.log(`📦 Loaded ${client.commands.size} command(s)`);
         console.log(`🌐 Serving ${client.guilds.cache.size} guild(s)`);
 
+        client.user.setActivity('nishanka is going public soon, stay tuned!!');
+
         // Initialize Lavalink nodes (riffy)
         if (client.riffy) {
             client.riffy.init(client.user.id);
