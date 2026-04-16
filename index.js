@@ -187,7 +187,9 @@ const express    = require("express");
 const session    = require('express-session');
 const https      = require('https');
 const app        = express();
-const AntiSpam   = require('./models/antiSpamSchema');
+const AntiSpam      = require('./models/antiSpamSchema');
+const Censor        = require('./models/censorSchema');
+const GuildSettings = require('./models/guildSettingsSchema');
 
 // ─── CORS for Vite Dashboard (Vercel & Local) ────────────────────────────────
 app.use((req, res, next) => {
@@ -286,7 +288,7 @@ app.get('/auth/discord', (req, res) => {
 // Step 2: Exchange code for token, store in session
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
-  if (!code) return res.redirect(`${FRONTEND_URL}/?error=no_code`);
+  if (!code) return res.redirect(`${FRONTEND_URL}/error?error=no_code`);
 
   try {
     // Exchange code for access token
@@ -302,7 +304,10 @@ app.get('/auth/callback', async (req, res) => {
       }),
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) throw new Error('No access token received');
+    if (!tokenData.access_token) {
+      console.error('[Auth] Discord Error Response:', tokenData);
+      throw new Error('No access token received');
+    }
 
     // Fetch Discord user info
     const userRes = await fetch('https://discord.com/api/users/@me', {
@@ -317,7 +322,7 @@ app.get('/auth/callback', async (req, res) => {
     res.redirect(`${FRONTEND_URL}/dashboard`);
   } catch (err) {
     console.error('[Auth] OAuth callback error:', err.message);
-    res.redirect(`${FRONTEND_URL}/?error=auth_failed`);
+    res.redirect(`${FRONTEND_URL}/error?error=auth_failed`);
   }
 });
 
@@ -363,6 +368,88 @@ app.get('/api/guilds', async (req, res) => {
   } catch (err) {
     console.error('[Auth] Guild fetch error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Guild Settings API ─────────────────────────────────────────────────────────
+
+// Authenticate helper for guild endpoints
+const checkGuildAccess = async (req, guildId) => {
+  if (!req.session.accessToken) return false;
+  // If we already cached in /api/guilds, we can check that, but for simplicity:
+  try {
+    const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${req.session.accessToken}` },
+    });
+    if (!discordRes.ok) return false;
+    const allGuilds = await discordRes.json();
+    const target = allGuilds.find(g => g.id === guildId);
+    if (!target) return false;
+    return (BigInt(target.permissions) & 0x20n) === 0x20n; // Check administrator logic or manage server
+  } catch (err) {
+    return false;
+  }
+};
+
+app.get('/api/guilds/:guildId/discord-data', async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
+
+  try {
+    const channels = guild.channels.cache.map(c => ({ id: c.id, name: c.name, type: c.type }));
+    const roles = guild.roles.cache.map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
+    res.json({ channels, roles });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/guilds/:guildId', async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const [antiSpam, censor, guildConfig] = await Promise.all([
+      AntiSpam.findOne({ guildId }).lean(),
+      Censor.findOne({ guildId }).lean(),
+      GuildSettings.findOne({ guildId }).lean()
+    ]);
+
+    res.json({
+      antiSpam: antiSpam || {},
+      censor: censor || {},
+      economy: guildConfig?.economy || {},
+      music: guildConfig?.music || {}
+    });
+  } catch (err) {
+    console.error('Fetch settings error:', err);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const { antiSpam, censor, economy, music } = req.body;
+
+  try {
+    await Promise.all([
+      AntiSpam.findOneAndUpdate({ guildId }, { ...antiSpam }, { upsert: true, new: true }),
+      Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true }),
+      GuildSettings.findOneAndUpdate({ guildId }, { economy: economy || {}, music: music || {} }, { upsert: true, new: true })
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Save settings error:', err);
+    res.status(500).json({ error: 'Failed to save settings' });
   }
 });
 
