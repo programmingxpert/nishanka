@@ -9,4 +9,4 @@ const reminderSchema = new mongoose.Schema({
     remindAt: { type: Date, required: true }
 });
 
-module.exports = mongoose.model('Reminder', reminderSchema);
+module.exports = mongoose.models.Reminder || mongoose.model('Reminder', reminderSchema);

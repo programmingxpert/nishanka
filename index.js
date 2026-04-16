@@ -183,15 +183,193 @@ mongoose
     });
 
 // ─── Web Server ─────────────────────────────────────────────────────────────────
-const express = require("express");
-const app = express();
+const express    = require("express");
+const session    = require('express-session');
+const https      = require('https');
+const app        = express();
+const AntiSpam   = require('./models/antiSpamSchema');
 
-app.get("/", (req, res) => {
-  res.send("Bot is running");
+// ─── CORS for Vite Dashboard (Vercel & Local) ────────────────────────────────
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // In production, you would add your actual Vercel URL here
+  const allowed = [
+    'http://localhost:5173', 
+    'http://localhost:3000',
+    process.env.FRONTEND_URL
+  ].filter(Boolean);
+  
+  if (allowed.includes(origin) || !origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
 });
 
-app.listen(3000, () => {
-  console.log("🌐 Web server running on port 3000");
+// ─── Session Middleware ───────────────────────────────────────────────────────
+const isProd = process.env.NODE_ENV === 'production';
+app.use(session({
+  secret: process.env.BOT_API_TOKEN || 'nishanka_session_secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: isProd, // Must be true if SameSite is none (requires HTTPS)
+    httpOnly: true, 
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    sameSite: isProd ? 'none' : 'lax'
+  }
+}));
+
+
+app.get("/", (req, res) => {
+  res.send("Nishanka Bot API is running");
+});
+
+// Internal API to refresh bot caches when dashboard updates settings
+app.post("/api/internal/refresh-cache", express.json(), async (req, res) => {
+  const token = req.headers['authorization'];
+  if (token !== `Bearer ${process.env.BOT_API_TOKEN}`) {
+    return res.status(401).send("Unauthorized");
+  }
+
+  const { guildId, module } = req.body;
+  if (!guildId) return res.status(400).send("Missing guildId");
+
+  try {
+    if (module === 'antispam') {
+      const settings = await AntiSpam.findOne({ guildId });
+      if (settings) {
+        client.antispamSettings.set(guildId, settings.toObject());
+        console.log(`[Cache] Refreshed AntiSpam settings for ${guildId}`);
+      }
+    }
+    // Add other modules here as needed
+    
+    res.send({ success: true });
+  } catch (err) {
+    console.error(`[Cache] Refresh failed for ${guildId}:`, err);
+    res.status(500).send({ error: err.message });
+  }
+});
+
+// Internal API to get list of guilds the bot is in
+app.get("/api/internal/guilds", (req, res) => {
+  const token = req.headers['authorization'];
+  if (token !== `Bearer ${process.env.BOT_API_TOKEN}`) {
+    return res.status(401).send("Unauthorized");
+  }
+  const guildIds = client.guilds.cache.map(g => g.id);
+  res.send(guildIds);
+});
+
+// ─── Discord OAuth2 Auth Routes ───────────────────────────────────────────────
+// ─── Discord OAuth2 Auth Routes ───────────────────────────────────────────────
+const DISCORD_CLIENT_ID     = process.env.DISCORD_CLIENT_ID || process.env.CLIENT_ID;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+const REDIRECT_URI          = process.env.DISCORD_REDIRECT_URI || 'http://localhost:4000/auth/callback';
+const FRONTEND_URL          = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// Step 1: Redirect user to Discord OAuth
+app.get('/auth/discord', (req, res) => {
+  const params = new URLSearchParams({
+    client_id:     DISCORD_CLIENT_ID,
+    redirect_uri:  REDIRECT_URI,
+    response_type: 'code',
+    scope:         'identify guilds',
+  });
+  res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
+});
+
+// Step 2: Exchange code for token, store in session
+app.get('/auth/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.redirect(`${FRONTEND_URL}/?error=no_code`);
+
+  try {
+    // Exchange code for access token
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     DISCORD_CLIENT_ID,
+        client_secret: DISCORD_CLIENT_SECRET,
+        grant_type:    'authorization_code',
+        code,
+        redirect_uri:  REDIRECT_URI,
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) throw new Error('No access token received');
+
+    // Fetch Discord user info
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const user = await userRes.json();
+
+    // Store in session
+    req.session.user        = { id: user.id, username: user.username, global_name: user.global_name, avatar: user.avatar };
+    req.session.accessToken = tokenData.access_token;
+
+    res.redirect(`${FRONTEND_URL}/dashboard`);
+  } catch (err) {
+    console.error('[Auth] OAuth callback error:', err.message);
+    res.redirect(`${FRONTEND_URL}/?error=auth_failed`);
+  }
+});
+
+// Get current session user
+app.get('/api/me', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  const u = req.session.user;
+  res.json({
+    id:     u.id,
+    name:   u.global_name || u.username,
+    avatar: u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png` : null,
+  });
+});
+
+// Logout
+app.post('/auth/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ ok: true });
+});
+
+// Get admin guilds for the logged-in user
+app.get('/api/guilds', async (req, res) => {
+  if (!req.session.accessToken) return res.status(401).json({ error: 'Not authenticated' });
+
+  try {
+    const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${req.session.accessToken}` },
+    });
+    if (!discordRes.ok) throw new Error('Discord API error');
+
+    const allGuilds   = await discordRes.json();
+    const adminGuilds = allGuilds.filter(g => (BigInt(g.permissions) & 0x20n) === 0x20n);
+    const botGuildIds = client.guilds.cache.map(g => g.id);
+
+    const enriched = adminGuilds.map(g => ({
+      id:     g.id,
+      name:   g.name,
+      icon:   g.icon,
+      hasBot: botGuildIds.includes(g.id),
+    }));
+
+    res.json(enriched);
+  } catch (err) {
+    console.error('[Auth] Guild fetch error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const PORT = process.env.BOT_PORT || 4000;
+
+app.listen(PORT, () => {
+  console.log(`🌐 Bot Internal API running on port ${PORT}`);
 });
 
 // ─── Login ────────────────────────────────────────────────────────────────────

@@ -11,4 +11,4 @@ const censorSchema = new mongoose.Schema({
     enabled: { type: Boolean, default: false },
 });
 
-module.exports = mongoose.model('Censor', censorSchema);
+module.exports = mongoose.models.Censor || mongoose.model('Censor', censorSchema);

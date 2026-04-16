@@ -21,4 +21,4 @@ const antiSpamSchema = new mongoose.Schema({
     repetitionThreshold: { type: Number, default: 3 },
 });
 
-module.exports = mongoose.model('AntiSpam', antiSpamSchema);
+module.exports = mongoose.models.AntiSpam || mongoose.model('AntiSpam', antiSpamSchema);

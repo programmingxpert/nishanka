@@ -1,2 +1,6 @@
 node_modules/
 .env
+dashboard/
+dashboard-v2/
+*.log
+

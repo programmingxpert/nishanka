@@ -5,4 +5,5 @@ const warnCounterSchema = new Schema({
     count:   { type: Number, default: 0 },
 });
 
-module.exports = model('WarnCounter', warnCounterSchema);
+const mongoose = require('mongoose');
+module.exports = mongoose.models.WarnCounter || mongoose.model('WarnCounter', warnCounterSchema);

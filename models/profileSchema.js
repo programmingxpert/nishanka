@@ -12,4 +12,5 @@ const profileSchema = new Schema({
     showBaubles: { type: Boolean, default: true },
 });
 
-module.exports = model('Profile', profileSchema);
+const mongoose = require('mongoose');
+module.exports = mongoose.models.Profile || mongoose.model('Profile', profileSchema);

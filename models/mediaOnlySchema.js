@@ -9,4 +9,4 @@ const mediaOnlySchema = new mongoose.Schema({
 // Compound index to ensure uniqueness per guild/channel
 mediaOnlySchema.index({ guildId: 1, channelId: 1 }, { unique: true });
 
-module.exports = mongoose.model('MediaOnly', mediaOnlySchema);
+module.exports = mongoose.models.MediaOnly || mongoose.model('MediaOnly', mediaOnlySchema);

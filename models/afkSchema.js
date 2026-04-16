@@ -11,4 +11,5 @@ const afkSchema = new Schema({
 // Compound index so each user has one AFK record per guild
 afkSchema.index({ userId: 1, guildId: 1 }, { unique: true });
 
-module.exports = model('Afk', afkSchema);
+const mongoose = require('mongoose');
+module.exports = mongoose.models.Afk || mongoose.model('Afk', afkSchema);

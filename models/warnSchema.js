@@ -9,4 +9,5 @@ const warnSchema = new Schema({
     timestamp:   { type: Date, default: Date.now },
 });
 
-module.exports = model('Warn', warnSchema);
+const mongoose = require('mongoose');
+module.exports = mongoose.models.Warn || mongoose.model('Warn', warnSchema);

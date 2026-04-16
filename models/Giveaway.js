@@ -11,4 +11,5 @@ const giveawaySchema = new Schema({
     ended:       { type: Boolean, default: false },
 });
 
-module.exports = model('Giveaway', giveawaySchema);
+const mongoose = require('mongoose');
+module.exports = mongoose.models.Giveaway || mongoose.model('Giveaway', giveawaySchema);

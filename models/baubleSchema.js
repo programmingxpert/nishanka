@@ -5,4 +5,5 @@ const baubleSchema = new Schema({
     baubles: { type: Number, default: 0 },
 });
 
-module.exports = model('Bauble', baubleSchema);
+const mongoose = require('mongoose');
+module.exports = mongoose.models.Bauble || mongoose.model('Bauble', baubleSchema);
