@@ -6,7 +6,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('fakeban')
 		.setDescription('Fakes a ban for a member.')
-		.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+		// .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
 		.addUserOption(option =>
 			option.setName('user')
 				.setDescription('The user to fake ban')
@@ -17,7 +17,7 @@ module.exports = {
 				.setRequired(false)),
 
 	async execute(interaction) {
-		if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) return;
+		// if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) return;
 
 		const targetUser = interaction.options.getUser('user');
 		const reason = interaction.options.getString('reason') || 'No reason provided.';
@@ -59,7 +59,7 @@ module.exports = {
 	},
 
 	async executePrefix(message, args) {
-		if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) return;
+		// if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) return;
 
 		const user = message.mentions.users.first() || (args[0] ? await message.client.users.fetch(args[0]).catch(() => null) : null);
 		if (!user) return;
