@@ -32,7 +32,7 @@ module.exports = {
             }
         } else {
             // Bypass check for moderators - allow them to post text without deletion
-            if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
+            //if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
 
             // Text only message - Delete and warn
             try {
