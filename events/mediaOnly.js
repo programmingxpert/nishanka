@@ -10,9 +10,6 @@ module.exports = {
         const settings = await MediaOnly.findOne({ guildId: message.guild.id, channelId: message.channel.id, enabled: true });
         if (!settings) return;
 
-        // Bypass check for moderators
-        if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
-
         const hasAttachment = message.attachments.size > 0;
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         const hasLink = urlRegex.test(message.content);
@@ -34,6 +31,9 @@ module.exports = {
                 console.error('[MediaOnly] Failed to create thread:', error);
             }
         } else {
+            // Bypass check for moderators - allow them to post text without deletion
+            if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
+
             // Text only message - Delete and warn
             try {
                 await message.delete();

@@ -26,7 +26,7 @@ client.on('messageCreate', async (message) => {
 
     try {
         await message.channel.sendTyping();
-        
+
         // Indicate typing loop since generation might take time
         const typingInterval = setInterval(() => {
             message.channel.sendTyping().catch(console.error);
@@ -38,7 +38,13 @@ client.on('messageCreate', async (message) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'llama3.2:latest',
-                    messages: [{ role: 'user', content: message.content }],
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are Nishanka, a helpful, fun, and casual friend hanging out in Discord. You chat informally like a real human. Do NOT ever state that you are an AI or a language model. Keep responses friendly, conversational, and relatively short.'
+                        },
+                        { role: 'user', content: message.content }
+                    ],
                     stream: false
                 })
             });
@@ -62,7 +68,7 @@ client.on('messageCreate', async (message) => {
             clearInterval(typingInterval);
             throw error;
         }
-        
+
     } catch (error) {
         console.error('[Ollama Error]:', error);
         message.reply("*(Ollama locally encountered an error. Check console.)*");
