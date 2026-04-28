@@ -14,13 +14,13 @@ module.exports = {
         client.user.setPresence({
             activities: [
                 {
-                    name: 'custom',
-                    type: ActivityType.Custom,
-                    state: 'nishanka is going public soon.. stay tuned!!'
-                },
-                {
                     name: 'eating cookies 🍪',
                     type: ActivityType.Playing
+                },
+                {
+                    name: 'Custom Status',
+                    type: ActivityType.Custom,
+                    state: 'nishanka is going public soon.. stay tuned!!'
                 }
             ],
             status: 'online'
