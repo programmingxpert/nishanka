@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActivityType } = require('discord.js');
 const Reminder = require('../models/Reminder');
 
 module.exports = {
@@ -11,7 +11,20 @@ module.exports = {
         console.log(`📦 Loaded ${client.commands.size} command(s)`);
         console.log(`🌐 Serving ${client.guilds.cache.size} guild(s)`);
 
-        client.user.setActivity('nishanka is going public soon, stay tuned!!');
+        client.user.setPresence({
+            activities: [
+                {
+                    name: 'custom',
+                    type: ActivityType.Custom,
+                    state: 'nishanka is going public soon.. stay tuned!!'
+                },
+                {
+                    name: 'eating cookies 🍪',
+                    type: ActivityType.Playing
+                }
+            ],
+            status: 'online'
+        });
 
         // Initialize Lavalink nodes (riffy)
         if (client.riffy) {
