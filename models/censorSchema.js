@@ -7,6 +7,7 @@ const censorSchema = new mongoose.Schema({
     whitelistedWords: { type: [String], default: [] },
     logChannelId: { type: String, default: null }, // Mod channel
     staffRoleId: { type: String, default: null }, // Role to ping in mod logs
+    pingMode: { type: String, enum: ['both', 'hardcore', 'restricted'], default: 'both' }, // When to ping the staff role
     ageRestrictedChannelId: { type: String, default: null }, // 16+/18+ channel
     logHardcoreWords: { type: Boolean, default: true },
     logRestrictedWords: { type: Boolean, default: true },

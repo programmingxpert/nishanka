@@ -129,7 +129,14 @@ module.exports = {
                 if (shouldLog && settings.logChannelId) {
                     const logChannel = message.guild.channels.cache.get(settings.logChannelId);
                     if (logChannel) {
-                        const staffPing = settings.staffRoleId ? `<@&${settings.staffRoleId}> ` : '';
+                        let staffPing = '';
+                        if (settings.staffRoleId) {
+                            const pingMode = settings.pingMode || 'both';
+                            if (pingMode === 'both' || pingMode === tier) {
+                                staffPing = `<@&${settings.staffRoleId}> `;
+                            }
+                        }
+
                         const logEmbed = new EmbedBuilder()
                             .setColor(logColor)
                             .setTitle(logTitle)
