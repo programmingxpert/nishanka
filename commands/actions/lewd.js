@@ -14,7 +14,7 @@ const lewdGifs = [
 
 
 module.exports = {
-    category: 'fun',
+    category: 'actions',
     data: new SlashCommandBuilder()
         .setName('lewd')
         .setDescription('Lewd someone (in a silly way)!')

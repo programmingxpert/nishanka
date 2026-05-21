@@ -3,7 +3,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
-	category: 'fun',
+	category: 'actions',
 	data: new SlashCommandBuilder()
 		.setName('feed')
 		.setDescription('Feed someone through the screen :P')
