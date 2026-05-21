@@ -653,6 +653,60 @@ app.post('/api/guilds/:guildId/embed', express.json(), async (req, res) => {
   }
 });
 
+// --- Triggers ---
+app.get('/api/guilds/:guildId/triggers', async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const Trigger = require('./models/triggerSchema');
+    const triggers = await Trigger.find({ guildId });
+    res.json(triggers);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch triggers' });
+  }
+});
+
+app.post('/api/guilds/:guildId/triggers', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const { triggerWord, matchType, response } = req.body;
+    if (!triggerWord) return res.status(400).json({ error: 'triggerWord required' });
+
+    const Trigger = require('./models/triggerSchema');
+    const trigger = await Trigger.findOneAndUpdate(
+        { guildId, triggerWord: triggerWord.toLowerCase() },
+        { matchType, response },
+        { upsert: true, new: true }
+    );
+    
+    if (client.triggerCache) client.triggerCache.delete(guildId);
+    
+    res.json(trigger);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save trigger' });
+  }
+});
+
+app.delete('/api/guilds/:guildId/triggers/:id', async (req, res) => {
+  const { guildId, id } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const Trigger = require('./models/triggerSchema');
+    await Trigger.findByIdAndDelete(id);
+    if (client.triggerCache) client.triggerCache.delete(guildId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete trigger' });
+  }
+});
+
 app.delete('/api/guilds/:guildId/giveaways/:messageId', async (req, res) => {
   const { guildId, messageId } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);

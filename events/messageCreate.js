@@ -84,12 +84,13 @@ module.exports = {
 
         // --- Cooldown logic ---
         const { cooldowns } = client;
-        if (!cooldowns.has(command.data.name)) {
-            cooldowns.set(command.data.name, new Collection());
+        const cmdName = command.data?.name || command.name;
+        if (!cooldowns.has(cmdName)) {
+            cooldowns.set(cmdName, new Collection());
         }
 
         const now        = Date.now();
-        const timestamps = cooldowns.get(command.data.name);
+        const timestamps = cooldowns.get(cmdName);
         const cooldownMs = (command.cooldown ?? 3) * 1000;
 
         if (timestamps.has(message.author.id)) {
