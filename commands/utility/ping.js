@@ -9,7 +9,7 @@ module.exports = {
 		.setDescription('Shows the bot and API latency.'),
 	async execute(interaction) {
 		// For slash command
-		const sent = await interaction.reply({ content: 'HAII YOKOSO! 🌀', fetchReply: true });
+		const sent = await interaction.reply({ content: 'Yokoso! 🌀', fetchReply: true });
 
 		const embed = new EmbedBuilder()
 			.setColor(0x2f3136)
@@ -26,7 +26,7 @@ module.exports = {
 	},
 
 	async executePrefix(message) {
-		const sent = await message.channel.send('Yokoso!');
+		const sent = await message.channel.send('HAII YOKOSO!');
 
 		const embed = new EmbedBuilder()
 			.setColor(0x2f3136)
