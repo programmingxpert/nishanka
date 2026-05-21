@@ -8,6 +8,8 @@ const censorSchema = new mongoose.Schema({
     logChannelId: { type: String, default: null }, // Mod channel
     staffRoleId: { type: String, default: null }, // Role to ping in mod logs
     ageRestrictedChannelId: { type: String, default: null }, // 16+/18+ channel
+    logHardcoreWords: { type: Boolean, default: true },
+    logRestrictedWords: { type: Boolean, default: true },
     filterMode: { type: String, enum: ['whitelist', 'blacklist'], default: 'whitelist' }, // Toggle
     whitelistedChannels: { type: [String], default: [] }, // Channels to ignore
     blacklistedChannels: { type: [String], default: [] }, // Only enforce in these channels if not empty

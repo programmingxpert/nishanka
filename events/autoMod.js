@@ -86,6 +86,10 @@ module.exports = {
                 // Delete message
                 await message.delete().catch(() => {});
 
+                let shouldLog = false;
+                let logTitle = '';
+                let logColor = 0xFF0000;
+
                 if (tier === 'hardcore') {
                     // Send Hardcore Warning
                     const warnEmbed = new EmbedBuilder()
@@ -97,24 +101,10 @@ module.exports = {
                     const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
                     setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
 
-                    // Log to Mod Channel with STAFF PING
-                    if (settings.logChannelId) {
-                        const logChannel = message.guild.channels.cache.get(settings.logChannelId);
-                        if (logChannel) {
-                            const staffPing = settings.staffRoleId ? `<@&${settings.staffRoleId}> ` : '';
-                            const logEmbed = new EmbedBuilder()
-                                .setColor(0xFF0000)
-                                .setTitle('🚨 Hardcore Filter Violation')
-                                .addFields(
-                                    { name: 'User', value: `${message.author.tag} (${message.author.id})`, inline: true },
-                                    { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },
-                                    { name: 'Matched', value: `\`${matchedWord}\``, inline: true },
-                                    { name: 'Content', value: message.content }
-                                )
-                                .setTimestamp();
-                            
-                            logChannel.send({ content: staffPing, embeds: [logEmbed] }).catch(() => {});
-                        }
+                    if (settings.logHardcoreWords !== false) {
+                        shouldLog = true;
+                        logTitle = '🚨 Hardcore Filter Violation';
+                        logColor = 0xFF0000;
                     }
                 } else if (tier === 'restricted') {
                     // Send Age-Restricted Advice
@@ -127,6 +117,32 @@ module.exports = {
 
                     const ageMsg = await message.channel.send({ embeds: [ageEmbed] });
                     setTimeout(() => ageMsg.delete().catch(() => {}), 10000);
+
+                    if (settings.logRestrictedWords !== false) {
+                        shouldLog = true;
+                        logTitle = '🔞 Restricted Filter Violation';
+                        logColor = 0xFFAA00;
+                    }
+                }
+
+                // Execute shared logging if required
+                if (shouldLog && settings.logChannelId) {
+                    const logChannel = message.guild.channels.cache.get(settings.logChannelId);
+                    if (logChannel) {
+                        const staffPing = settings.staffRoleId ? `<@&${settings.staffRoleId}> ` : '';
+                        const logEmbed = new EmbedBuilder()
+                            .setColor(logColor)
+                            .setTitle(logTitle)
+                            .addFields(
+                                { name: 'User', value: `${message.author.tag} (${message.author.id})`, inline: true },
+                                { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },
+                                { name: 'Matched', value: `\`${matchedWord}\``, inline: true },
+                                { name: 'Content', value: message.content }
+                            )
+                            .setTimestamp();
+                        
+                        logChannel.send({ content: staffPing, embeds: [logEmbed] }).catch(() => {});
+                    }
                 }
 
             } catch (error) {
