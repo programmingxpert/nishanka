@@ -18,6 +18,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /root/nishanka
-            git pull
-            npm install
+            git fetch origin main
+            git reset --hard origin/main
+            npm install --omit=dev
             pm2 restart nishanka
