@@ -26,7 +26,7 @@ module.exports = {
 	},
 
 	async executePrefix(message) {
-		const sent = await message.channel.send('HAII YOKOSO!');
+		const sent = await message.channel.send('Yokoso!');
 
 		const embed = new EmbedBuilder()
 			.setColor(0x2f3136)
