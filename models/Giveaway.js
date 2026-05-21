@@ -9,6 +9,11 @@ const giveawaySchema = new Schema({
     endTime:     { type: Date,   required: true },
     hostId:      { type: String, required: true },
     ended:       { type: Boolean, default: false },
+    requirements: {
+        minMessages: { type: Number, default: 0 },
+        minInvites: { type: Number, default: 0 },
+        reqRoleId: { type: String, default: null }
+    }
 });
 
 const mongoose = require('mongoose');

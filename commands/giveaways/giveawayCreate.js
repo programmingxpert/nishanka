@@ -28,7 +28,19 @@ module.exports = {
                 .addChannelOption(option =>
                     option.setName('channel')
                         .setDescription('The channel to start the giveaway in.')
-                        .setRequired(true))),
+                        .setRequired(true))
+                .addIntegerOption(option =>
+                    option.setName('min_messages')
+                        .setDescription('Minimum messages required to enter.')
+                        .setRequired(false))
+                .addIntegerOption(option =>
+                    option.setName('min_invites')
+                        .setDescription('Minimum invites required to enter.')
+                        .setRequired(false))
+                .addRoleOption(option =>
+                    option.setName('required_role')
+                        .setDescription('Role required to enter.')
+                        .setRequired(false))),
     async execute(interaction) {
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.MANAGE_GUILD)) {
             return interaction.reply({ content: 'You need to have the manage server permissions to use this command!', ephemeral: true });
@@ -39,6 +51,9 @@ module.exports = {
             const giveawayDuration = interaction.options.getString('duration');
             const giveawayWinnerCount = interaction.options.getInteger('winners');
             const giveawayPrize = interaction.options.getString('prize');
+            const minMessages = interaction.options.getInteger('min_messages') || 0;
+            const minInvites = interaction.options.getInteger('min_invites') || 0;
+            const requiredRole = interaction.options.getRole('required_role');
 
             if (!giveawayChannel.isTextBased()) {
                 return interaction.reply({ content: 'Please provide a valid text channel!', ephemeral: true });
@@ -55,11 +70,16 @@ module.exports = {
                 return interaction.reply({ content: 'Please provide a valid winner count!', ephemeral: true });
             }
 
+            let reqText = '';
+            if (minMessages > 0) reqText += `\n💬 Messages: **${minMessages}**`;
+            if (minInvites > 0) reqText += `\n✉️ Invites: **${minInvites}**`;
+            if (requiredRole) reqText += `\n🛡️ Role: ${requiredRole}`;
+
             // Giveaway Embed
             const embed = new EmbedBuilder()
                 .setColor(0x2f3136)
                 .setTitle('🎉 New Giveaway! 🎉')
-                .setDescription(`Prize: **${giveawayPrize}**\nReact with 🎉 to enter!`)
+                .setDescription(`Prize: **${giveawayPrize}**\nReact with 🎉 to enter!${reqText ? '\n\n**Requirements:**' + reqText : ''}`)
                 .addFields(
                     { name: 'Duration:', value: giveawayDuration, inline: true },
                     { name: 'Hosted By:', value: `${interaction.user}`, inline: true },
@@ -80,7 +100,12 @@ module.exports = {
                     prize: giveawayPrize,
                     winnerCount: giveawayWinnerCount,
                     endTime: new Date(Date.now() + msValue),
-                    hostId: interaction.user.id
+                    hostId: interaction.user.id,
+                    requirements: {
+                        minMessages: minMessages,
+                        minInvites: minInvites,
+                        reqRoleId: requiredRole ? requiredRole.id : null
+                    }
                 });
 
                 await giveaway.save(); // Save to the database
@@ -166,7 +191,12 @@ module.exports = {
                 prize: giveawayPrize,
                 winnerCount: giveawayWinnerCount,
                 endTime: new Date(Date.now() + msValue),
-                hostId: message.author.id
+                hostId: message.author.id,
+                requirements: {
+                    minMessages: 0,
+                    minInvites: 0,
+                    reqRoleId: null
+                }
             });
 
             await giveaway.save(); // Save to the database
@@ -214,15 +244,58 @@ async function scheduleGiveawayEnd(client, messageId, msValue, giveawayPrize, gi
             const nonBotUsers = users.filter(user => !user.bot && user.id !== hostId);
             const winnerList = nonBotUsers.map(user => `<@${user.id}>`).join(', ');
 
-            if (nonBotUsers.size < giveawayWinnerCount) {
-                giveawayChannel.send(`Not enough participants (excluding the host) to determine the winner(s)!`);
+            const MemberStats = require('../../models/MemberStats');
+            
+            // Filter nonBotUsers by requirements
+            let validUsers = new Map();
+            for (const [id, user] of nonBotUsers) {
+                // Fetch member to check roles
+                let member;
+                try {
+                    member = await winnerMessage.guild.members.fetch(id);
+                } catch (err) {
+                    continue; // Member left the server
+                }
+
+                if (giveaway.requirements.reqRoleId && !member.roles.cache.has(giveaway.requirements.reqRoleId)) {
+                    continue;
+                }
+
+                let meetsMsgReq = true;
+                let meetsInvReq = true;
+
+                if (giveaway.requirements.minMessages > 0 || giveaway.requirements.minInvites > 0) {
+                    const stats = await MemberStats.findOne({ guildId: winnerMessage.guild.id, userId: id });
+                    if (giveaway.requirements.minMessages > 0 && (!stats || stats.messagesCount < giveaway.requirements.minMessages)) {
+                        meetsMsgReq = false;
+                    }
+                    if (giveaway.requirements.minInvites > 0 && (!stats || stats.invitesCount < giveaway.requirements.minInvites)) {
+                        meetsInvReq = false;
+                    }
+                }
+
+                if (meetsMsgReq && meetsInvReq) {
+                    validUsers.set(id, user);
+                }
+            }
+
+            if (validUsers.size < giveawayWinnerCount) {
+                giveawayChannel.send(`Not enough participants met the requirements to determine the winner(s)!`);
                 giveaway.ended = true;
                 await giveaway.save();
                 return;
             }
 
             // Pick the winners
-            const winners = nonBotUsers.random(giveawayWinnerCount);
+            // Maps don't have .random(), convert to array
+            const validUsersArray = Array.from(validUsers.values());
+            const winners = [];
+            for (let i = 0; i < giveawayWinnerCount; i++) {
+                const randIndex = Math.floor(Math.random() * validUsersArray.length);
+                winners.push(validUsersArray[randIndex]);
+                validUsersArray.splice(randIndex, 1);
+            }
+            
             const winnersMentions = winners.map(user => `<@${user.id}>`).join(', ');
             const endEmbed = new EmbedBuilder()
                 .setColor(0x2f3136)

@@ -12,6 +12,14 @@ module.exports = {
         let settings = null;
         try {
             settings = await GuildSettings.findOne({ guildId: message.guild.id });
+            
+            // Increment message count in background
+            const MemberStats = require('../models/MemberStats');
+            MemberStats.findOneAndUpdate(
+                { guildId: message.guild.id, userId: message.author.id },
+                { $inc: { messagesCount: 1 } },
+                { upsert: true }
+            ).catch(err => console.error('Error updating MemberStats messageCount:', err));
         } catch (e) {
             console.error('Failed to fetch guild settings in messageCreate:', e);
         }

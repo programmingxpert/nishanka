@@ -26,6 +26,17 @@ module.exports = {
             status: 'online'
         });
 
+        // Initialize Invites Cache
+        client.invites = new Map();
+        client.guilds.cache.forEach(async (guild) => {
+            try {
+                const firstInvites = await guild.invites.fetch();
+                client.invites.set(guild.id, new Map(firstInvites.map((invite) => [invite.code, invite.uses])));
+            } catch (err) {
+                console.error(`Failed to fetch invites for guild ${guild.id}:`, err);
+            }
+        });
+
         // Initialize Lavalink nodes (riffy)
         if (client.riffy) {
             client.riffy.init(client.user.id);
