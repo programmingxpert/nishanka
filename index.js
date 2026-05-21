@@ -221,12 +221,18 @@ app.use((req, res, next) => {
   next();
 });
 
+const MongoStore = require('connect-mongo');
+
 // ─── Session Middleware ───────────────────────────────────────────────────────
 const isProd = process.env.NODE_ENV === 'production';
 app.use(session({
   secret: process.env.BOT_API_TOKEN || 'nishanka_session_secret',
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    collectionName: 'sessions'
+  }),
   cookie: { 
     secure: isProd, // Must be true if SameSite is none (requires HTTPS)
     httpOnly: true, 

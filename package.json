@@ -11,6 +11,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^0.1.96",
     "chrono-node": "^2.9.0",
+    "connect-mongo": "^6.0.0",
     "discord-arts": "^0.7.1",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.7",
