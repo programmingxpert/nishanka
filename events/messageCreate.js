@@ -24,6 +24,51 @@ module.exports = {
             console.error('Failed to fetch guild settings in messageCreate:', e);
         }
 
+        // --- Triggers Logic ---
+        if (!client.triggerCache) client.triggerCache = new Map();
+        if (!client.triggerCache.has(message.guild.id)) {
+            try {
+                const Trigger = require('../models/triggerSchema');
+                const triggers = await Trigger.find({ guildId: message.guild.id }).lean();
+                client.triggerCache.set(message.guild.id, triggers);
+            } catch (err) {
+                console.error('Failed to fetch triggers:', err);
+            }
+        }
+        
+        const guildTriggers = client.triggerCache.get(message.guild.id);
+        if (guildTriggers && guildTriggers.length > 0) {
+            const contentLower = message.content.toLowerCase();
+            for (const t of guildTriggers) {
+                let isMatch = false;
+                if (t.matchType === 'exact' && contentLower === t.triggerWord) isMatch = true;
+                else if (t.matchType === 'includes' && contentLower.includes(t.triggerWord)) isMatch = true;
+                else if (t.matchType === 'startsWith' && contentLower.startsWith(t.triggerWord)) isMatch = true;
+
+                if (isMatch) {
+                    const payload = {};
+                    if (t.response.text) payload.content = t.response.text;
+                    
+                    const e = t.response.embed;
+                    if (e && (e.title || e.description || e.author || e.footer)) {
+                        const { EmbedBuilder } = require('discord.js');
+                        const embed = new EmbedBuilder();
+                        if (e.title) embed.setTitle(e.title);
+                        if (e.description) embed.setDescription(e.description);
+                        if (e.color) embed.setColor(e.color);
+                        if (e.author) embed.setAuthor({ name: e.author });
+                        if (e.footer) embed.setFooter({ text: e.footer });
+                        payload.embeds = [embed];
+                    }
+
+                    if (payload.content || payload.embeds) {
+                        message.reply(payload).catch(() => {});
+                    }
+                    break; // Trigger only the first match to prevent spam
+                }
+            }
+        }
+
         const prefix = settings?.bot?.prefix || process.env.PREFIX || '-';
         if (!message.content.startsWith(prefix)) return;
 
@@ -34,16 +79,7 @@ module.exports = {
             ?? client.commands.find(cmd => cmd.aliases?.includes(commandName));
 
         if (!command || typeof command.executePrefix !== 'function') {
-            if (settings?.bot?.unknownCommandMsg && commandName.length > 0) {
-                message.reply(`❌ Unknown command \`${commandName}\`.`).then(msg => {
-                    setTimeout(() => msg.delete().catch(() => {}), 5000);
-                }).catch(() => {});
-            }
             return;
-        }
-
-        if (settings?.bot?.deleteInvoke) {
-            message.delete().catch(() => {});
         }
 
         // --- Cooldown logic ---
