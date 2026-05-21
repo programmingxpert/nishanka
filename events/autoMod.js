@@ -27,6 +27,13 @@ module.exports = {
 
         if (!settings.enabled) return;
 
+        const channelId = message.channel.id;
+        // Ignore Whitelisted Channels
+        if (settings.whitelistedChannels && settings.whitelistedChannels.includes(channelId)) return;
+        // If Blacklisted Channels exist, ONLY enforce on those channels
+        if (settings.blacklistedChannels && settings.blacklistedChannels.length > 0) {
+            if (!settings.blacklistedChannels.includes(channelId)) return;
+        }
         let content = message.content.toLowerCase();
         
         // Remove whitelisted words from the content so they don't trigger substring matches
