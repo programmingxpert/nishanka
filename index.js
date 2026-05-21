@@ -449,7 +449,7 @@ app.get('/api/guilds/:guildId/discord-data', async (req, res) => {
     const bot = {
       username: client.user.username,
       nickname: guild.members.me.nickname || client.user.username,
-      avatarURL: client.user.displayAvatarURL({ format: 'png', size: 128 })
+      avatarURL: client.user.displayAvatarURL({ extension: 'png', size: 128 })
     };
 
     res.json({ channels, roles, bot });
