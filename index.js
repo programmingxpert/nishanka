@@ -491,7 +491,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
         try {
           const currentNickname = guild.members.me.nickname || '';
           if (bot.nickname !== currentNickname) {
-            await guild.members.me.setNickname(bot.nickname);
+            await guild.members.me.setNickname(bot.nickname || null);
           }
         } catch (e) {
           console.error(`Failed to update nickname in guild ${guildId}:`, e);
