@@ -5,6 +5,7 @@ const {
 } = require('discord.js');
 
 module.exports = {
+    category: 'music',
     // Slash command data for registration
     data: new SlashCommandBuilder()
         .setName('play')
