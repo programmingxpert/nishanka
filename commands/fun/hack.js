@@ -27,7 +27,7 @@ module.exports = {
             `📡 IP found: \`192.168.1.1\` (*Wait, that's my router?*)`,
             `🔓 Bypassing 2FA...`,
             `📁 Accessing personal files...`,
-            `😱 **1TB of "Secret Memes" found!**`,
+            `😱 **1TB of "Secret Memes" found! DAMNNN**`,
             `💳 Selling credit card data to the dark web...`,
             `📩 Reporting the hack to Discord TOS...`,
             `✅ **Hack complete for ${targetUser.username}.**`
