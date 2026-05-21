@@ -12,6 +12,12 @@ const guildSettingsSchema = new mongoose.Schema({
         djRoleId: { type: String, default: null },
         announceSongs: { type: Boolean, default: true },
         twentyFourSeven: { type: Boolean, default: false }
+    },
+    bot: {
+        prefix: { type: String, default: '' }, // empty string means it will fallback to process.env.PREFIX
+        nickname: { type: String, default: '' },
+        deleteInvoke: { type: Boolean, default: false },
+        unknownCommandMsg: { type: Boolean, default: false }
     }
 });
 

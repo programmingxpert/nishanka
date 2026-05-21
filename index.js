@@ -467,7 +467,8 @@ app.get('/api/guilds/:guildId', async (req, res) => {
       antiSpam: antiSpam || {},
       censor: censor || {},
       economy: guildConfig?.economy || {},
-      music: guildConfig?.music || {}
+      music: guildConfig?.music || {},
+      bot: guildConfig?.bot || {}
     });
   } catch (err) {
     console.error('Fetch settings error:', err);
@@ -480,13 +481,28 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
-  const { antiSpam, censor, economy, music } = req.body;
+  const { antiSpam, censor, economy, music, bot } = req.body;
 
   try {
+    // Check nickname update
+    if (bot && bot.nickname !== undefined) {
+      const guild = client.guilds.cache.get(guildId);
+      if (guild) {
+        try {
+          const currentNickname = guild.members.me.nickname || '';
+          if (bot.nickname !== currentNickname) {
+            await guild.members.me.setNickname(bot.nickname);
+          }
+        } catch (e) {
+          console.error(`Failed to update nickname in guild ${guildId}:`, e);
+        }
+      }
+    }
+
     await Promise.all([
       AntiSpam.findOneAndUpdate({ guildId }, { ...antiSpam }, { upsert: true, new: true }),
       Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true }),
-      GuildSettings.findOneAndUpdate({ guildId }, { economy: economy || {}, music: music || {} }, { upsert: true, new: true })
+      GuildSettings.findOneAndUpdate({ guildId }, { economy: economy || {}, music: music || {}, bot: bot || {} }, { upsert: true, new: true })
     ]);
 
     // Force bot to reload these from DB next time they're needed

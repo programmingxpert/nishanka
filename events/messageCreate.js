@@ -1,5 +1,6 @@
 /* eslint-disable */
 const { Collection } = require('discord.js');
+const GuildSettings = require('../models/guildSettingsSchema');
 
 module.exports = {
     name: 'messageCreate',
@@ -8,7 +9,14 @@ module.exports = {
         // Ignore bots and DMs
         if (message.author.bot || !message.guild) return;
 
-        const prefix = process.env.PREFIX ?? '-';
+        let settings = null;
+        try {
+            settings = await GuildSettings.findOne({ guildId: message.guild.id });
+        } catch (e) {
+            console.error('Failed to fetch guild settings in messageCreate:', e);
+        }
+
+        const prefix = settings?.bot?.prefix || process.env.PREFIX || '-';
         if (!message.content.startsWith(prefix)) return;
 
         const args        = message.content.slice(prefix.length).trim().split(/\s+/);
@@ -17,7 +25,18 @@ module.exports = {
         const command = client.commands.get(commandName)
             ?? client.commands.find(cmd => cmd.aliases?.includes(commandName));
 
-        if (!command || typeof command.executePrefix !== 'function') return;
+        if (!command || typeof command.executePrefix !== 'function') {
+            if (settings?.bot?.unknownCommandMsg && commandName.length > 0) {
+                message.reply(`❌ Unknown command \`${commandName}\`.`).then(msg => {
+                    setTimeout(() => msg.delete().catch(() => {}), 5000);
+                }).catch(() => {});
+            }
+            return;
+        }
+
+        if (settings?.bot?.deleteInvoke) {
+            message.delete().catch(() => {});
+        }
 
         // --- Cooldown logic ---
         const { cooldowns } = client;
