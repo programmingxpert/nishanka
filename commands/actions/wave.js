@@ -10,7 +10,7 @@ module.exports = {
 		.addUserOption(option =>
 			option.setName('user')
 				.setDescription('The user you want to wave')
-				.setRequired(true))
+				.setRequired(false))
 		.addStringOption(option =>
 			option.setName('message')
 				.setDescription('An optional message to send with your wave')),
@@ -27,7 +27,7 @@ module.exports = {
 		await sendAnimeAction({
 			interaction: context.deferReply ? context : null, // If slash, pass interaction
 			message: context.message || null,                 // If prefix, pass message
-			targetUser: user,
+			targetUser: user || context.user || context.author,
 			customMsg,
 			actionType: 'wave',
 			emoji: '👋',

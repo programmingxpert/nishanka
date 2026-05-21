@@ -8,11 +8,13 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('nom')
 		.setDescription('Nom nom nom...')
+		.addUserOption(option => option.setName("user").setDescription("The user to nom at (optional)").setRequired(false))
 		.addStringOption(option =>
 			option.setName('message')
 				.setDescription('An optional message to send with your nom.')),
 
 	async execute(context) {
+		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');
 
 			if (context.deferReply) await context.deferReply();
@@ -20,7 +22,7 @@ module.exports = {
 		await sendAnimeAction({
 			interaction: context.deferReply ? context : null,
 			message: context.message || null,
-			targetUser: context.user || context.author,
+			targetUser: user || context.user || context.author,
 			customMsg,
 			actionType: 'nom',
 			emoji: '😋',
