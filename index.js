@@ -221,21 +221,12 @@ app.use((req, res, next) => {
   next();
 });
 
-const MongoStore = require('connect-mongo');
-
-// Support both connect-mongo v3 (new MongoStore) and v4+ (MongoStore.create)
-const mongoStoreOptions = { mongoUrl: process.env.MONGO_URI, collectionName: 'sessions' };
-const sessionStore = typeof MongoStore.create === 'function'
-  ? MongoStore.create(mongoStoreOptions)
-  : new MongoStore(mongoStoreOptions);
-
 // ─── Session Middleware ───────────────────────────────────────────────────────
 const isProd = process.env.NODE_ENV === 'production';
 app.use(session({
   secret: process.env.BOT_API_TOKEN || 'nishanka_session_secret',
   resave: false,
   saveUninitialized: false,
-  store: sessionStore,
   cookie: { 
     secure: isProd,
     httpOnly: true, 
