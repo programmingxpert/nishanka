@@ -445,7 +445,14 @@ app.get('/api/guilds/:guildId/discord-data', async (req, res) => {
   try {
     const channels = guild.channels.cache.map(c => ({ id: c.id, name: c.name, type: c.type }));
     const roles = guild.roles.cache.map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
-    res.json({ channels, roles });
+    
+    const bot = {
+      username: client.user.username,
+      nickname: guild.members.me.nickname || client.user.username,
+      avatarURL: client.user.displayAvatarURL({ format: 'png', size: 128 })
+    };
+
+    res.json({ channels, roles, bot });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -605,6 +612,44 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create giveaway' });
+  }
+});
+
+app.post('/api/guilds/:guildId/embed', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const { channelId, title, description, color, author, footer, textPing } = req.body;
+
+  try {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return res.status(400).json({ error: 'Guild not found' });
+    const channel = guild.channels.cache.get(channelId);
+    if (!channel || !channel.isTextBased()) return res.status(400).json({ error: 'Invalid channel' });
+
+    const { EmbedBuilder } = require('discord.js');
+    const embed = new EmbedBuilder();
+    
+    if (title) embed.setTitle(title);
+    if (description) embed.setDescription(description);
+    if (color) embed.setColor(color);
+    if (author) embed.setAuthor({ name: author });
+    if (footer) embed.setFooter({ text: footer });
+
+    // Validate that the embed isn't completely empty
+    if (!title && !description && !author && !footer) {
+      return res.status(400).json({ error: 'Embed must have at least a title, description, author, or footer.' });
+    }
+
+    const payload = { embeds: [embed] };
+    if (textPing) payload.content = textPing;
+
+    await channel.send(payload);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to send embed:', err);
+    res.status(500).json({ error: 'Failed to send embed' });
   }
 });
 
