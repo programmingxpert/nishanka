@@ -18,56 +18,57 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
     const author  = isSlash ? interaction.user : message.author;
 
     // Build a readable action phrase, e.g. "hugs", "pats", "kisses"
+    // Use {target} to specify where the target's mention should go in the sentence.
     const actionPhrases = {
-        angry:      { alone: 'is angry', targeted: 'is angry at' },
-        baka:       { alone: 'is acting like a baka', targeted: 'calls out baka at' },
-        bite:       { alone: 'bites themselves', targeted: 'bites' },
-        blush:      { alone: 'blushes', targeted: 'blushes at' },
-        bored:      { alone: 'is bored', targeted: 'is bored with' },
-        cry:        { alone: 'cries', targeted: 'cries to' },
-        cuddle:     { alone: 'cuddles alone', targeted: 'cuddles with' },
-        dance:      { alone: 'dances', targeted: 'dances with' },
-        facepalm:   { alone: 'facepalms', targeted: 'facepalms at' },
-        feed:       { alone: 'eats', targeted: 'feeds' },
-        handhold:   { alone: 'holds their own hands', targeted: 'holds hands with' },
-        handshake:  { alone: 'shakes their own hand', targeted: 'shakes hands with' },
-        happy:      { alone: 'is happy', targeted: 'is happy with' },
-        highfive:   { alone: 'high fives themselves', targeted: 'high fives' },
-        hug:        { alone: 'hugs themselves', targeted: 'hugs' },
-        husbando:   { alone: 'claims a husbando', targeted: 'claims as husbando' },
-        kick:       { alone: 'kicks the air', targeted: 'kicks' },
-        kiss:       { alone: 'kisses themselves', targeted: 'kisses' },
-        kitsune:    { alone: 'shows off a kitsune', targeted: 'shows a kitsune to' },
-        laugh:      { alone: 'laughs', targeted: 'laughs with' },
-        lewd:       { alone: 'is being lewd', targeted: 'is lewd towards' },
-        lurk:       { alone: 'lurks', targeted: 'lurks at' },
-        neko:       { alone: 'shows off a neko', targeted: 'shows a neko to' },
-        nod:        { alone: 'nods', targeted: 'nods at' },
-        nom:        { alone: 'is munching on something', targeted: 'noms on' },
-        nope:       { alone: 'says nope', targeted: 'says nope to' },
-        pat:        { alone: 'pats themselves', targeted: 'pats' },
-        peck:       { alone: 'pecks themselves', targeted: 'pecks' },
-        pout:       { alone: 'pouts', targeted: 'pouts at' },
-        punch:      { alone: 'punches the air', targeted: 'punches' },
-        run:        { alone: 'runs', targeted: 'runs from' },
-        shoot:      { alone: 'shoots the air', targeted: 'shoots at' },
-        shrug:      { alone: 'shrugs', targeted: 'shrugs at' },
-        slap:       { alone: 'slaps themselves', targeted: 'slaps' },
-        sleep:      { alone: 'sleeps', targeted: 'sleeps next to' },
-        smug:       { alone: 'is being smug', targeted: 'is smug towards' },
-        stare:      { alone: 'stares', targeted: 'stares at' },
-        think:      { alone: 'thinks', targeted: 'thinks about' },
-        thumbsup:   { alone: 'gives a thumbs up', targeted: 'gives a thumbs up to' },
-        tickle:     { alone: 'tickles themselves', targeted: 'tickles' },
-        touch:      { alone: 'touches themselves', targeted: 'touches' },
-        waifu:      { alone: 'claims a waifu', targeted: 'claims as waifu' },
-        wave:       { alone: 'waves', targeted: 'waves at' },
-        wink:       { alone: 'winks', targeted: 'winks at' },
-        yawn:       { alone: 'yawns', targeted: 'yawns at' },
-        yeet:       { alone: 'yeets something', targeted: 'yeets' },
+        angry:      { alone: 'is angry', targeted: 'is angry at {target}' },
+        baka:       { alone: 'is acting like a baka!', targeted: 'calls {target} a baka!' },
+        bite:       { alone: 'bites themselves', targeted: 'bites {target}' },
+        blush:      { alone: 'blushes', targeted: 'blushes at {target}' },
+        bored:      { alone: 'is bored', targeted: 'is bored with {target}' },
+        cry:        { alone: 'cries', targeted: 'cries with {target}' },
+        cuddle:     { alone: 'cuddles alone', targeted: 'cuddles with {target}' },
+        dance:      { alone: 'dances', targeted: 'dances with {target}' },
+        facepalm:   { alone: 'facepalms', targeted: 'facepalms at {target}' },
+        feed:       { alone: 'eats', targeted: 'feeds {target}' },
+        handhold:   { alone: 'holds their own hands', targeted: 'holds hands with {target}' },
+        handshake:  { alone: 'shakes their own hand', targeted: 'shakes hands with {target}' },
+        happy:      { alone: 'is happy', targeted: 'is happy with {target}' },
+        highfive:   { alone: 'high fives themselves', targeted: 'high fives {target}' },
+        hug:        { alone: 'hugs themselves', targeted: 'hugs {target}' },
+        husbando:   { alone: 'claims a husbando', targeted: 'claims {target} as their husbando!' },
+        kick:       { alone: 'kicks the air', targeted: 'kicks {target}' },
+        kiss:       { alone: 'kisses themselves', targeted: 'kisses {target}' },
+        kitsune:    { alone: 'shows off a kitsune', targeted: 'shows a kitsune to {target}' },
+        laugh:      { alone: 'laughs', targeted: 'laughs with {target}' },
+        lewd:       { alone: 'is being lewd', targeted: 'is lewd towards {target}' },
+        lurk:       { alone: 'lurks', targeted: 'lurks at {target}' },
+        neko:       { alone: 'shows off a neko', targeted: 'shows a neko to {target}' },
+        nod:        { alone: 'nods', targeted: 'nods at {target}' },
+        nom:        { alone: 'is munching on something', targeted: 'noms on {target}' },
+        nope:       { alone: 'says nope', targeted: 'says nope to {target}' },
+        pat:        { alone: 'pats themselves', targeted: 'pats {target}' },
+        peck:       { alone: 'pecks themselves', targeted: 'pecks {target}' },
+        pout:       { alone: 'pouts', targeted: 'pouts at {target}' },
+        punch:      { alone: 'punches the air', targeted: 'punches {target}' },
+        run:        { alone: 'runs', targeted: 'runs from {target}' },
+        shoot:      { alone: 'shoots the air', targeted: 'shoots at {target}' },
+        shrug:      { alone: 'shrugs', targeted: 'shrugs at {target}' },
+        slap:       { alone: 'slaps themselves', targeted: 'slaps {target}' },
+        sleep:      { alone: 'sleeps', targeted: 'sleeps next to {target}' },
+        smug:       { alone: 'is being smug', targeted: 'is smug towards {target}' },
+        stare:      { alone: 'stares', targeted: 'stares at {target}' },
+        think:      { alone: 'thinks', targeted: 'thinks about {target}' },
+        thumbsup:   { alone: 'gives a thumbs up', targeted: 'gives a thumbs up to {target}' },
+        tickle:     { alone: 'tickles themselves', targeted: 'tickles {target}' },
+        touch:      { alone: 'touches themselves', targeted: 'touches {target}' },
+        waifu:      { alone: 'claims a waifu', targeted: 'claims {target} as their waifu!' },
+        wave:       { alone: 'waves', targeted: 'waves at {target}' },
+        wink:       { alone: 'winks', targeted: 'winks at {target}' },
+        yawn:       { alone: 'yawns', targeted: 'yawns at {target}' },
+        yeet:       { alone: 'yeets something', targeted: 'yeets {target}' },
     };
 
-    const phrases = actionPhrases[actionType] || { alone: actionType, targeted: `${actionType}s at` };
+    const phrases = actionPhrases[actionType] || { alone: actionType, targeted: `${actionType}s at {target}` };
 
     let gifUrl = null;
     try {
@@ -81,17 +82,24 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
     }
 
     const isAlone = !targetUser || targetUser.id === author.id;
-    const phrase = isAlone ? phrases.alone : phrases.targeted;
+    const phraseDef = isAlone ? phrases.alone : phrases.targeted;
+
+    let actionText = '';
+    if (isAlone) {
+        actionText = `**<@${author.id}>** ${phraseDef}`;
+    } else {
+        if (phraseDef.includes('{target}')) {
+            actionText = `**<@${author.id}>** ${phraseDef.replace('{target}', `**<@${targetUser.id}>**`)}`;
+        } else {
+            actionText = `**<@${author.id}>** ${phraseDef} **<@${targetUser.id}>**`;
+        }
+    }
 
     let description;
-    if (isAlone) {
-        description = customMsg
-            ? `**<@${author.id}>** ${phrase}\n*"${customMsg}"*`
-            : `**<@${author.id}>** ${phrase}`;
+    if (customMsg) {
+        description = `${actionText}\n*"${customMsg}"*`;
     } else {
-        description = customMsg
-            ? `**<@${author.id}>** ${phrase} **<@${targetUser.id}>**\n*"${customMsg}"*`
-            : `**<@${author.id}>** ${phrase} **<@${targetUser.id}>**`;
+        description = actionText;
     }
 
     const authorMember = isSlash ? interaction.member : message.member;

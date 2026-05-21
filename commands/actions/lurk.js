@@ -44,7 +44,13 @@ module.exports = {
 			args: args,
 			options: {
 				getUser: () => message.mentions.users.first(),
-				getString: () => args.join(' ')
+				getString: () => {
+					// If the first argument is a mention, omit it from the custom message
+					if (args[0] && args[0].match(/^<@!?\d+>$/)) {
+						return args.slice(1).join(' ');
+					}
+					return args.join(' ');
+				}
 			}
 		});
 	}
