@@ -3,6 +3,7 @@ const {
     SlashCommandBuilder,
     EmbedBuilder
   } = require('discord.js');
+  const GuildSettings = require('../../models/guildSettingsSchema');
   
   module.exports = {
     category: 'music',
@@ -18,6 +19,13 @@ const {
         ),
   
     async execute(interaction) {
+      const settings = await GuildSettings.findOne({ guildId: interaction.guild.id });
+      if (settings?.music?.djRoleId) {
+          if (!interaction.member.roles.cache.has(settings.music.djRoleId)) {
+              return interaction.reply({ content: '❌ Only members with the DJ role can use this command.', ephemeral: true });
+          }
+      }
+
       const trackNumber = interaction.options.getInteger('tracknumber');
       const player = interaction.client.activePlayers.get(interaction.guild.id);
   
@@ -50,6 +58,13 @@ const {
     },
   
     async executePrefix(message, args) {
+        const settings = await GuildSettings.findOne({ guildId: message.guild.id });
+        if (settings?.music?.djRoleId) {
+            if (!message.member.roles.cache.has(settings.music.djRoleId)) {
+                return message.reply('❌ Only members with the DJ role can use this command.');
+            }
+        }
+
         if (!args.length) {
             return message.reply('❌ Please provide the track number to remove.');
         }

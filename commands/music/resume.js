@@ -4,11 +4,13 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
+const GuildSettings = require('../../models/guildSettingsSchema');
+
 module.exports = {
     category: 'music',
     data: new SlashCommandBuilder()
         .setName('resume')
-        .setDescription('Resumes the currently paused song.'),
+        .setDescription('Resumes the paused song.'),
 
     async execute(interaction) {
         await this.resumeCommand(interaction, interaction.client, interaction.guild.id, true);
@@ -19,6 +21,18 @@ module.exports = {
     },
 
     async resumeCommand(interactionOrMessage, client, guildId, isSlash) {
+        const member = isSlash ? interactionOrMessage.member : interactionOrMessage.member;
+        
+        const settings = await GuildSettings.findOne({ guildId });
+        if (settings?.music?.djRoleId) {
+            if (!member.roles.cache.has(settings.music.djRoleId)) {
+                const msg = '❌ Only members with the DJ role can use this command.';
+                return isSlash
+                    ? interactionOrMessage.reply({ content: msg, ephemeral: true })
+                    : interactionOrMessage.reply(msg);
+            }
+        }
+
         const player = client.activePlayers.get(guildId);
 
         if (!player) {

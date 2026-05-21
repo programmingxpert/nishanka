@@ -2,6 +2,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const skipVotes = new Map(); // key: guildId, value: Set of user IDs who voted
+const GuildSettings = require('../../models/guildSettingsSchema');
 
 module.exports = {
     category: 'music',
@@ -44,6 +45,16 @@ module.exports = {
             return isSlash
                 ? interactionOrMessage.reply({ content: msg, ephemeral: true })
                 : interactionOrMessage.reply(msg);
+        }
+
+        const settings = await GuildSettings.findOne({ guildId });
+        if (settings?.music?.djRoleId) {
+            if (!member.roles.cache.has(settings.music.djRoleId)) {
+                const msg = '❌ Only members with the DJ role can use this command.';
+                return isSlash
+                    ? interactionOrMessage.reply({ content: msg, ephemeral: true })
+                    : interactionOrMessage.reply(msg);
+            }
         }
 
         if (!player) {

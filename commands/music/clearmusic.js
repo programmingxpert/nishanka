@@ -4,22 +4,36 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
+const GuildSettings = require('../../models/guildSettingsSchema');
+
 module.exports = {
     category: 'music',
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('clearmusic')
-        .setDescription('Clears the entire music queue.'),
+        .setDescription('Clears all songs from the current queue.'),
 
     async execute(interaction) {
-        await this.clearQueue(interaction, interaction.client, interaction.guild.id, true);
+        await this.clearCommand(interaction, interaction.client, interaction.guild.id, true);
     },
 
     async executePrefix(message) {
-        await this.clearQueue(message, message.client, message.guild.id, false);
+        await this.clearCommand(message, message.client, message.guild.id, false);
     },
 
-    async clearQueue(interactionOrMessage, client, guildId, isSlash) {
+    async clearCommand(interactionOrMessage, client, guildId, isSlash) {
+        const member = isSlash ? interactionOrMessage.member : interactionOrMessage.member;
+        
+        const settings = await GuildSettings.findOne({ guildId });
+        if (settings?.music?.djRoleId) {
+            if (!member.roles.cache.has(settings.music.djRoleId)) {
+                const msg = '❌ Only members with the DJ role can use this command.';
+                return isSlash
+                    ? interactionOrMessage.reply({ content: msg, ephemeral: true })
+                    : interactionOrMessage.reply(msg);
+            }
+        }
+
         const player = client.activePlayers.get(guildId);
 
         if (!player || !player.queue || player.queue.size === 0) {
