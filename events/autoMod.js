@@ -28,11 +28,19 @@ module.exports = {
         if (!settings.enabled) return;
 
         const channelId = message.channel.id;
-        // Ignore Whitelisted Channels
-        if (settings.whitelistedChannels && settings.whitelistedChannels.includes(channelId)) return;
-        // If Blacklisted Channels exist, ONLY enforce on those channels
-        if (settings.blacklistedChannels && settings.blacklistedChannels.length > 0) {
-            if (!settings.blacklistedChannels.includes(channelId)) return;
+        const mode = settings.filterMode || 'whitelist';
+
+        if (mode === 'whitelist') {
+            // Ignore Whitelisted Channels
+            if (settings.whitelistedChannels && settings.whitelistedChannels.includes(channelId)) return;
+        } else {
+            // ONLY enforce on Blacklisted Channels
+            if (settings.blacklistedChannels && settings.blacklistedChannels.length > 0) {
+                if (!settings.blacklistedChannels.includes(channelId)) return;
+            } else {
+                // If blacklist mode is on but no channels are selected, ignore completely
+                return;
+            }
         }
         let content = message.content.toLowerCase();
         
