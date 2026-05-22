@@ -211,10 +211,15 @@ app.use((req, res, next) => {
     process.env.FRONTEND_URL
   ].filter(Boolean);
   
-  if (allowed.includes(origin) || !origin) {
+  const isAllowed = !origin || 
+                    allowed.includes(origin) || 
+                    origin.endsWith('.zeyuki.app') || 
+                    origin === 'https://zeyuki.app';
+
+  if (isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   }
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -517,6 +522,104 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   }
 });
 
+// --- Giveaways API Helper ---
+async function endAndAnnounceGiveaway(giveaway, earlyEndedBy = null) {
+  if (giveaway.ended) return;
+  giveaway.ended = true;
+  await giveaway.save();
+
+  const guild = client.guilds.cache.get(giveaway.guildId);
+  if (!guild) return;
+
+  const channel = guild.channels.cache.get(giveaway.channelId);
+  if (!channel) return;
+
+  const winnerMessage = await channel.messages.fetch(giveaway.messageId).catch(() => null);
+  if (!winnerMessage) return;
+
+  const reaction = winnerMessage.reactions.cache.get('🎉');
+  if (!reaction) {
+    const noWinnerEmbed = new EmbedBuilder()
+      .setColor(0x2f3136)
+      .setTitle('🎉 Giveaway Ended! 🎉')
+      .setDescription(`Prize: **${giveaway.prize}**\nNo winner(s) - Not enough participants.`)
+      .setTimestamp()
+      .setFooter({ text: 'Giveaway ended' });
+    await winnerMessage.edit({ embeds: [noWinnerEmbed] }).catch(() => {});
+    channel.send(`Giveaway for **${giveaway.prize}** ended${earlyEndedBy ? ' early via dashboard' : ''}, but no participants reacted.`).catch(() => {});
+    return;
+  }
+
+  const users = await reaction.users.fetch();
+  const nonBotUsers = users.filter(user => !user.bot && user.id !== giveaway.hostId);
+
+  const MemberStats = require('./models/MemberStats');
+  
+  // Filter nonBotUsers by requirements
+  let validUsers = new Map();
+  for (const [id, user] of nonBotUsers) {
+    let member;
+    try {
+      member = await guild.members.fetch(id);
+    } catch (err) {
+      continue; // Member left the server
+    }
+
+    if (giveaway.requirements?.reqRoleId && !member.roles.cache.has(giveaway.requirements.reqRoleId)) {
+      continue;
+    }
+
+    let meetsMsgReq = true;
+    let meetsInvReq = true;
+
+    if (giveaway.requirements?.minMessages > 0 || giveaway.requirements?.minInvites > 0) {
+      const stats = await MemberStats.findOne({ guildId: guild.id, userId: id });
+      if (giveaway.requirements.minMessages > 0 && (!stats || stats.messagesCount < giveaway.requirements.minMessages)) {
+        meetsMsgReq = false;
+      }
+      if (giveaway.requirements.minInvites > 0 && (!stats || stats.invitesCount < giveaway.requirements.minInvites)) {
+        meetsInvReq = false;
+      }
+    }
+
+    if (meetsMsgReq && meetsInvReq) {
+      validUsers.set(id, user);
+    }
+  }
+
+  if (validUsers.size === 0) {
+    const noWinnerEmbed = new EmbedBuilder()
+      .setColor(0x2f3136)
+      .setTitle('🎉 Giveaway Ended! 🎉')
+      .setDescription(`Prize: **${giveaway.prize}**\nNo winner(s) - Not enough participants.`)
+      .setTimestamp()
+      .setFooter({ text: 'Giveaway ended' });
+    await winnerMessage.edit({ embeds: [noWinnerEmbed] }).catch(() => {});
+    channel.send(`Giveaway for **${giveaway.prize}** ended${earlyEndedBy ? ' early via dashboard' : ''}, but no valid participants met the requirements.`).catch(() => {});
+    return;
+  }
+
+  const validUsersArray = Array.from(validUsers.values());
+  const winners = [];
+  const countToPick = Math.min(giveaway.winnerCount, validUsersArray.length);
+  for (let i = 0; i < countToPick; i++) {
+    const randIndex = Math.floor(Math.random() * validUsersArray.length);
+    winners.push(validUsersArray[randIndex]);
+    validUsersArray.splice(randIndex, 1);
+  }
+
+  const winnersMentions = winners.map(user => `<@${user.id}>`).join(', ');
+  const endEmbed = new EmbedBuilder()
+    .setColor(0x2f3136)
+    .setTitle('🎉 Giveaway Ended! 🎉')
+    .setDescription(`Prize: **${giveaway.prize}**\nWinner(s): ${winnersMentions}`)
+    .setTimestamp()
+    .setFooter({ text: 'Giveaway ended' });
+
+  await winnerMessage.edit({ embeds: [endEmbed] }).catch(() => {});
+  channel.send(`🎉 Congratulations ${winnersMentions}! You won **${giveaway.prize}**!${earlyEndedBy ? ' (Ended early via dashboard)' : ''}`).catch(() => {});
+}
+
 // --- Giveaways API ---
 app.get('/api/guilds/:guildId/giveaways', async (req, res) => {
   const { guildId } = req.params;
@@ -553,6 +656,8 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
     if (reqInvites > 0) reqText += `\n✉️ Invites: **${reqInvites}**`;
     if (reqRole) reqText += `\n🛡️ Role: <@&${reqRole}>`;
 
+    const hostDisplay = req.session.user ? `<@${req.session.user.id}>` : 'Dashboard';
+
     const { EmbedBuilder } = require('discord.js');
     const embed = new EmbedBuilder()
         .setColor(0x2f3136)
@@ -560,7 +665,7 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
         .setDescription(`Prize: **${prize}**\nReact with 🎉 to enter!${reqText ? '\n\n**Requirements:**' + reqText : ''}`)
         .addFields(
             { name: 'Duration:', value: duration, inline: true },
-            { name: 'Hosted By:', value: `Dashboard`, inline: true },
+            { name: 'Hosted By:', value: hostDisplay, inline: true },
             { name: 'Winners:', value: `${winners}`, inline: true }
         )
         .setTimestamp(Date.now() + msValue)
@@ -577,7 +682,7 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
         prize: prize,
         winnerCount: winners,
         endTime: new Date(Date.now() + msValue),
-        hostId: client.user.id,
+        hostId: req.session.user?.id || client.user.id,
         requirements: {
             minMessages: reqMessages || 0,
             minInvites: reqInvites || 0,
@@ -587,25 +692,75 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
 
     await giveaway.save();
     
-    // We cannot easily import the schedule function from the command file,
-    // so we set a timeout here.
     setTimeout(async () => {
-        // Basic end logic
         const g = await Giveaway.findOne({ messageId: m.id });
-        if (!g || g.ended) return;
-        g.ended = true;
-        await g.save();
-        channel.send(`Giveaway for **${prize}** has ended! (Scheduled from Dashboard)`).catch(() => {});
-        // Full winner picking logic runs via the existing command if we imported it, 
-        // but for safety we'll let the command's existing interval handle it if we implement one.
-        // Wait, the bot only schedules timeouts on creation. So if it reboots, it loses them anyway unless we have a checker!
-        // The bot doesn't have a startup checker for giveaways. I will just rely on the command's schedule function.
+        if (g && !g.ended) {
+            await endAndAnnounceGiveaway(g);
+        }
     }, msValue);
 
     res.json(giveaway);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create giveaway' });
+  }
+});
+
+app.put('/api/guilds/:guildId/giveaways/:messageId', express.json(), async (req, res) => {
+  const { guildId, messageId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const { prize, winners, reqMessages, reqInvites, reqRole } = req.body;
+
+  try {
+    const Giveaway = require('./models/Giveaway');
+    const giveaway = await Giveaway.findOne({ messageId, guildId });
+    if (!giveaway) return res.status(404).json({ error: 'Giveaway not found' });
+    if (giveaway.ended) return res.status(400).json({ error: 'Giveaway already ended' });
+
+    giveaway.prize = prize || giveaway.prize;
+    giveaway.winnerCount = winners !== undefined ? parseInt(winners) || giveaway.winnerCount : giveaway.winnerCount;
+    if (!giveaway.requirements) giveaway.requirements = {};
+    giveaway.requirements.minMessages = reqMessages !== undefined ? parseInt(reqMessages) || 0 : giveaway.requirements.minMessages;
+    giveaway.requirements.minInvites = reqInvites !== undefined ? parseInt(reqInvites) || 0 : giveaway.requirements.minInvites;
+    giveaway.requirements.reqRoleId = reqRole !== undefined ? reqRole || null : giveaway.requirements.reqRoleId;
+
+    await giveaway.save();
+
+    // Now edit the Discord message embed
+    const guild = client.guilds.cache.get(guildId);
+    if (guild) {
+        const channel = guild.channels.cache.get(giveaway.channelId);
+        if (channel) {
+            const m = await channel.messages.fetch(messageId).catch(() => null);
+            if (m && m.embeds && m.embeds[0]) {
+                const oldEmbed = m.embeds[0];
+                let reqText = '';
+                if (giveaway.requirements.minMessages > 0) reqText += `\n💬 Messages: **${giveaway.requirements.minMessages}**`;
+                if (giveaway.requirements.minInvites > 0) reqText += `\n✉️ Invites: **${giveaway.requirements.minInvites}**`;
+                if (giveaway.requirements.reqRoleId) reqText += `\n🛡️ Role: <@&${giveaway.requirements.reqRoleId}>`;
+
+                const hostedByField = oldEmbed.fields.find(f => f.name === 'Hosted By:');
+                const durationField = oldEmbed.fields.find(f => f.name === 'Duration:');
+
+                const newEmbed = EmbedBuilder.from(oldEmbed)
+                    .setTitle('🎉 New Giveaway! 🎉')
+                    .setDescription(`Prize: **${giveaway.prize}**\nReact with 🎉 to enter!${reqText ? '\n\n**Requirements:**' + reqText : ''}`)
+                    .setFields([
+                        { name: 'Duration:', value: durationField ? durationField.value : 'Active', inline: true },
+                        { name: 'Hosted By:', value: hostedByField ? hostedByField.value : 'Dashboard', inline: true },
+                        { name: 'Winners:', value: `${giveaway.winnerCount}`, inline: true }
+                    ]);
+                await m.edit({ embeds: [newEmbed] }).catch(() => {});
+            }
+        }
+    }
+
+    res.json(giveaway);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update giveaway' });
   }
 });
 
@@ -686,6 +841,31 @@ app.post('/api/guilds/:guildId/triggers', express.json(), async (req, res) => {
   }
 });
 
+app.put('/api/guilds/:guildId/triggers/:id', express.json(), async (req, res) => {
+  const { guildId, id } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const { triggerWord, matchType, response } = req.body;
+    if (!triggerWord) return res.status(400).json({ error: 'triggerWord required' });
+
+    const Trigger = require('./models/triggerSchema');
+    const trigger = await Trigger.findOneAndUpdate(
+        { _id: id, guildId },
+        { triggerWord: triggerWord.toLowerCase(), matchType, response },
+        { new: true }
+    );
+    if (!trigger) return res.status(404).json({ error: 'Trigger not found' });
+    
+    if (client.triggerCache) client.triggerCache.delete(guildId);
+    
+    res.json(trigger);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save trigger' });
+  }
+});
+
 app.delete('/api/guilds/:guildId/triggers/:id', async (req, res) => {
   const { guildId, id } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);
@@ -736,23 +916,11 @@ app.post('/api/guilds/:guildId/giveaways/:messageId/end', async (req, res) => {
     if (!giveaway) return res.status(404).json({ error: 'Giveaway not found' });
     if (giveaway.ended) return res.status(400).json({ error: 'Already ended' });
 
-    giveaway.ended = true;
-    await giveaway.save();
-
-    const guild = client.guilds.cache.get(guildId);
-    if (guild) {
-        const channel = guild.channels.cache.get(giveaway.channelId);
-        if (channel) {
-            const m = await channel.messages.fetch(messageId).catch(()=>null);
-            if (m) {
-                // To do full winner picking we'd need the whole logic. 
-                // For now, simply announce it was ended early.
-                channel.send(`Giveaway for **${giveaway.prize}** was ended early via dashboard!`).catch(()=>null);
-            }
-        }
-    }
+    // Pick winners immediately and announce
+    await endAndAnnounceGiveaway(giveaway, true);
     res.json(giveaway);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to end giveaway' });
   }
 });
