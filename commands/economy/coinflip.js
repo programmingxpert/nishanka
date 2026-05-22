@@ -328,6 +328,72 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         finalEmbed.setFooter({ text: 'Better luck next time... 🍀' });
     }
 
-    // Edit message and remove buttons completely
-    await initialMsg.edit({ embeds: [finalEmbed], components: [] });
+    // Create the "Play Again" button
+    const playAgainRow = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('play_again')
+                .setLabel('Play Again')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('🔄')
+        );
+
+    // Edit message and show play again button
+    await initialMsg.edit({ embeds: [finalEmbed], components: [playAgainRow] });
+
+    // Setup collector for Play Again
+    const playAgainFilter = i => {
+        if (i.user.id !== userId) {
+            i.reply({ content: '❌ This coinflip session is not for you!', ephemeral: true });
+            return false;
+        }
+        return true;
+    };
+
+    const playAgainCollector = initialMsg.createMessageComponentCollector({
+        filter: playAgainFilter,
+        componentType: ComponentType.Button,
+        time: 15000 // 15 seconds to decide to play again
+    });
+
+    playAgainCollector.on('collect', async (i) => {
+        playAgainCollector.stop();
+        await i.deferUpdate();
+
+        // Disable "Play Again" button on the old message
+        const disabledPlayAgain = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('play_again')
+                    .setLabel('Play Again')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('🔄')
+                    .setDisabled(true)
+            );
+        await initialMsg.edit({ components: [disabledPlayAgain] }).catch(() => {});
+
+        // Run coinflip again in a new embed!
+        await runCoinflip({
+            userId,
+            amount,
+            side: null,
+            interaction: i,
+            isSlash: true
+        });
+    });
+
+    playAgainCollector.on('end', async (collected, reason) => {
+        if (reason === 'time') {
+            const disabledPlayAgain = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('play_again')
+                        .setLabel('Play Again')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji('🔄')
+                        .setDisabled(true)
+                );
+            await initialMsg.edit({ components: [disabledPlayAgain] }).catch(() => {});
+        }
+    });
 }
