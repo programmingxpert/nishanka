@@ -4,18 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('bite')
-		.setDescription('bite a user')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('The user you want to bite')
-				.setRequired(true))
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your bite')),
+	data: { name: 'bite' },
 
-	// Supports both slash and prefix via fakeInteraction.js
+	
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');

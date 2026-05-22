@@ -4,18 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('kitsune')
-		.setDescription('kitsune any user nya~!')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('The user you want to kitsune')
-				.setRequired(false))
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your kitsune')),
+	data: { name: 'kitsune' },
 
-	// Supports both slash and prefix via fakeInteraction.js
+	
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');

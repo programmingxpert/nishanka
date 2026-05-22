@@ -4,16 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('touch')
-		.setDescription('Touch someone... gently 😏')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('Who you want to touch 😳')
-				.setRequired(true))
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional naughty message to send 😌')),
+	data: { name: 'touch' },
+
+	
 
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();

@@ -4,17 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('lurk')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('Optional user to target'))
-		.setDescription('Lurk and observe... (you\'re lurking!)')
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your lurk')),
+	data: { name: 'lurk' },
 
-	// Supports both slash and prefix via fakeInteraction.js
+	
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');

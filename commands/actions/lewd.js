@@ -15,16 +15,9 @@ const lewdGifs = [
 
 module.exports = {
     category: 'actions',
-    data: new SlashCommandBuilder()
-        .setName('lewd')
-        .setDescription('Lewd someone (in a silly way)!')
-        .addUserOption(option =>
-            option.setName('user')
-                .setDescription('The user you want to lewd.')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('message')
-                .setDescription('An optional message to send with your lewd action.')),
+    data: { name: 'lewd' },
+
+	
 
     async execute(context) {
         const user = context.options?.getUser?.('user') || context.mentions?.users.first();

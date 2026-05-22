@@ -5,6 +5,19 @@ module.exports = {
     name: 'interactionCreate',
 
     async execute(interaction, client) {
+        // Handle autocomplete interactions
+        if (interaction.isAutocomplete()) {
+            const command = client.commands.get(interaction.commandName);
+            if (command && typeof command.autocomplete === 'function') {
+                try {
+                    await command.autocomplete(interaction);
+                } catch (error) {
+                    console.error(`[interactionCreate] Error in autocomplete for /${interaction.commandName}:`, error);
+                }
+            }
+            return;
+        }
+
         // Only handle slash/chat-input commands
         if (!interaction.isChatInputCommand()) return;
 

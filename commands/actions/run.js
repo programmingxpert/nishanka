@@ -5,15 +5,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('run')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('Optional user to target'))
-		.setDescription('Running away!')
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your action of run.')),
+	data: { name: 'run' },
+
+	
 
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();

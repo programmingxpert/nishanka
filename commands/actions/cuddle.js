@@ -4,18 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('cuddle')
-		.setDescription('Cuddle a user :3')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('The user you want to cuddle with')
-				.setRequired(true))
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your cuddle')),
+	data: { name: 'cuddle' },
 
-	// Supports both slash and prefix via fakeInteraction.js
+	
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
 		const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');

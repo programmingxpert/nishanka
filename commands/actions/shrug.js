@@ -4,15 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('shrug')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('Optional user to target'))
-		.setDescription('¯\\_(ツ)_/¯ Shrug it off!')
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your shrug.')),
+	data: { name: 'shrug' },
+
+	
 
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();

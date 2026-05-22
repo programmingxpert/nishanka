@@ -4,13 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('yeet')
-		.setDescription('YEET!')
-		.addUserOption(option => option.setName("user").setDescription("The user to yeet at (optional)").setRequired(false))
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your yeet.')),
+	data: { name: 'yeet' },
+
+	
 
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();

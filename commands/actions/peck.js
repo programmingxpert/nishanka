@@ -5,16 +5,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('peck')
-		.setDescription('Peck another user!')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('The user to peck')
-				.setRequired(true))
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your peck.')),
+	data: { name: 'peck' },
+
+	
 
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();

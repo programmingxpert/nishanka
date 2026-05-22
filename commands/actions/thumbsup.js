@@ -5,16 +5,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('thumbsup')
-		.setDescription('Give a thumbs up...')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('The user to give a thumbs up to (optional)')
-		)
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your thumbs up.')),
+	data: { name: 'thumbsup' },
+
+	
 
 	async execute(context) {
 		const user = context.options?.getUser?.('user');

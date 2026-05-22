@@ -4,16 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('hug')
-		.setDescription('Send a hug to someone with an anime GIF!')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('The user you want to hug')
-				.setRequired(true))
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your hug')),
+	data: { name: 'hug' },
+
+	
 
 				async execute(context) {
 					const user = context.options?.getUser?.('user') || context.mentions?.users.first();

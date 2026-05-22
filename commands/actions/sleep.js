@@ -4,15 +4,9 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
-	data: new SlashCommandBuilder()
-		.setName('sleep')
-		.addUserOption(option =>
-			option.setName('user')
-				.setDescription('Optional user to target'))
-		.setDescription('Go to sleep and dream sweet dreams! Zzz...')
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to send with your sleepy action.')),
+	data: { name: 'sleep' },
+
+	
 
 	async execute(context) {
 		const user = context.options?.getUser?.('user') || context.mentions?.users.first();
