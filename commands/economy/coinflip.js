@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
@@ -16,8 +16,8 @@ module.exports = {
         )
         .addStringOption(option =>
             option.setName('side')
-                .setDescription('Choose heads, tails, or a sideways draw.')
-                .setRequired(true)
+                .setDescription('Choose heads, tails, or a sideways draw (optional).')
+                .setRequired(false)
                 .addChoices(
                     { name: 'Heads (49.95% win, 2x)', value: 'heads' },
                     { name: 'Tails (49.95% win, 2x)', value: 'tails' },
@@ -28,7 +28,7 @@ module.exports = {
     async execute(interaction) {
         const userId = interaction.user.id;
         const amount = interaction.options.getInteger('amount');
-        const side = interaction.options.getString('side').toLowerCase();
+        const side = interaction.options.getString('side')?.toLowerCase() || null;
 
         await runCoinflip({
             userId,
@@ -46,16 +46,22 @@ module.exports = {
         let amountArg = args[1];
 
         // Handle both orders: prefix <amount> <side> or prefix <side> <amount>
-        if (isNaN(parseInt(sideArg)) && !isNaN(parseInt(amountArg))) {
-            // sideArg is first, amountArg is second
-        } else if (!isNaN(parseInt(sideArg)) && isNaN(parseInt(amountArg))) {
-            // amountArg is first, sideArg is second
-            amountArg = args[0];
-            sideArg = args[1] || '';
+        if (args.length >= 2) {
+            if (isNaN(parseInt(sideArg)) && !isNaN(parseInt(amountArg))) {
+                // sideArg is first, amountArg is second
+            } else if (!isNaN(parseInt(sideArg)) && isNaN(parseInt(amountArg))) {
+                // amountArg is first, sideArg is second
+                amountArg = args[0];
+                sideArg = args[1] || '';
+            } else {
+                // Fallback: amountArg is first, sideArg is second
+                amountArg = args[0];
+                sideArg = args[1] || '';
+            }
         } else {
-            // Fallback: amountArg is first, sideArg is second
+            // Only 1 argument provided, must be amount
             amountArg = args[0];
-            sideArg = args[1] || '';
+            sideArg = '';
         }
 
         const amount = parseInt(amountArg);
@@ -63,13 +69,16 @@ module.exports = {
             return message.reply('❌ Please provide a valid amount of Baubles to gamble.');
         }
 
-        let side = sideArg.toLowerCase();
-        if (side === 'h' || side === 'head') side = 'heads';
-        else if (side === 't' || side === 'tail') side = 'tails';
-        else if (side === 'd' || side === 'draw' || side === 'side' || side === 'sideways' || side === 'upright') side = 'draw';
-        
-        if (side !== 'heads' && side !== 'tails' && side !== 'draw') {
-            return message.reply('❌ Please choose a valid side: `heads`, `tails`, or `draw`.');
+        let side = null;
+        if (sideArg) {
+            let tempSide = sideArg.toLowerCase();
+            if (tempSide === 'h' || tempSide === 'head') side = 'heads';
+            else if (tempSide === 't' || tempSide === 'tail') side = 'tails';
+            else if (tempSide === 'd' || tempSide === 'draw' || tempSide === 'side' || tempSide === 'sideways' || tempSide === 'upright') side = 'draw';
+            
+            if (side !== 'heads' && side !== 'tails' && side !== 'draw') {
+                return message.reply('❌ Please choose a valid side: `heads`, `tails`, or `draw`.');
+            }
         }
 
         await runCoinflip({
@@ -83,7 +92,6 @@ module.exports = {
 };
 
 async function runCoinflip({ userId, amount, side, interaction, message, isSlash }) {
-    let replyMsg;
     try {
         // Find or create user bauble data
         let baubleData = await Bauble.findOne({ userId });
@@ -101,115 +109,225 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
             }
         }
 
-        // Deduct bet amount immediately
-        baubleData.baubles -= amount;
-        await baubleData.save();
+        // If side was provided upfront, run the coinflip directly (fast mode)
+        if (side) {
+            return await executeCoinflipFlip({ userId, amount, side, interaction, message, isSlash, baubleData });
+        }
 
-        // 1. Send the spinning/flipping embed
+        // Otherwise, show the interactive buttons!
         const initialEmbed = new EmbedBuilder()
-            .setColor(0x7c6cf0) // Primary color
-            .setTitle('🪙 Coinflip')
-            .setDescription('Flipping the coin... 🔄')
+            .setColor(0x7c6cf0) // Aesthetic primary purple
+            .setTitle('🪙  COINFLIP CHALLENGE')
+            .setDescription(`⚡ *Double or nothing!*\n\nSelect a side below to flip the coin and test your luck.`)
             .addFields(
-                { name: 'Bet Amount', value: `${amount} Baubles`, inline: true },
-                { name: 'Your Guess', value: side.toUpperCase(), inline: true }
+                { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
+                { name: '👛 Your Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true }
             )
-            .setFooter({ text: 'The coin is spinning in the air...' });
-
-        if (isSlash) {
-            await interaction.reply({ embeds: [initialEmbed] });
-        } else {
-            replyMsg = await message.reply({ embeds: [initialEmbed] });
-        }
-
-        // Wait 1.5 seconds for dramatic effect
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        // Determine outcome:
-        // Draw (sideways) has 0.1% chance (0.001)
-        // Heads has 49.95% chance (0.4995)
-        // Tails has 49.95% chance (0.4995)
-        const rand = Math.random();
-        let outcome;
-        if (rand < 0.001) {
-            outcome = 'draw';
-        } else if (rand < 0.5005) { // 0.001 + 0.4995 = 0.5005
-            outcome = 'heads';
-        } else {
-            outcome = 'tails';
-        }
-
-        // Calculate win/loss
-        const didWin = (side === outcome);
-        let winnings = 0;
-        if (didWin) {
-            winnings = amount * 2;
-        }
-
-        // Refetch/reload baubleData to prevent race conditions during the setTimeout
-        baubleData = await Bauble.findOne({ userId });
-        if (didWin) {
-            baubleData.baubles += winnings;
-        }
-        await baubleData.save();
-
-        // Create the final embed
-        const finalEmbed = new EmbedBuilder()
+            .setFooter({ text: 'Payout: 2x | Draw (Sideways): 0.1% chance' })
             .setTimestamp();
 
-        if (didWin) {
-            finalEmbed.setColor(0x4ade80); // Success/Green
-            if (outcome === 'draw') {
-                finalEmbed.setTitle('🏆 UNBELIEVABLE DRAW!')
-                    .setDescription(`🪙 The coin landed perfectly **sideways/upright**!\nYou guessed the **0.1% chance** draw correctly! Absolutely insane luck!`);
-            } else {
-                finalEmbed.setTitle('🎉 YOU WON!')
-                    .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly!`);
-            }
-            finalEmbed.addFields(
-                { name: '💰 Bet', value: `${amount} Baubles`, inline: true },
-                { name: '📈 Winnings', value: `+${winnings} Baubles`, inline: true },
-                { name: '🪙 New Balance', value: `${baubleData.baubles} Baubles`, inline: true }
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('heads')
+                    .setLabel('Heads')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('🪙'),
+                new ButtonBuilder()
+                    .setCustomId('tails')
+                    .setLabel('Tails')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('🪙'),
+                new ButtonBuilder()
+                    .setCustomId('draw')
+                    .setLabel('Draw (Sideways)')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('📐')
             );
-            finalEmbed.setFooter({ text: 'Luck is on your side today! ✨' });
+
+        let initialMsg;
+        if (isSlash) {
+            initialMsg = await interaction.reply({ embeds: [initialEmbed], components: [row], fetchReply: true });
         } else {
-            finalEmbed.setColor(0xf87171); // Red/Failure
-            if (outcome === 'draw') {
-                finalEmbed.setTitle('💔 Coin Stood Upright!')
-                    .setDescription(`🪙 The coin landed perfectly **sideways/upright** (0.1% chance)!\nYou guessed **${side.toUpperCase()}** and got nothing.`);
-            } else {
-                finalEmbed.setTitle('💔 You Lost...')
-                    .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed **${side.toUpperCase()}** and got nothing.`);
-            }
-            finalEmbed.addFields(
-                { name: '💰 Bet', value: `${amount} Baubles`, inline: true },
-                { name: '📉 Loss', value: `-${amount} Baubles`, inline: true },
-                { name: '🪙 New Balance', value: `${baubleData.baubles} Baubles`, inline: true }
-            );
-            finalEmbed.setFooter({ text: 'Better luck next time... 🍀' });
+            initialMsg = await message.reply({ embeds: [initialEmbed], components: [row] });
         }
 
-        if (isSlash) {
-            await interaction.editReply({ embeds: [finalEmbed] });
-        } else {
-            await replyMsg.edit({ embeds: [finalEmbed] });
-        }
+        const filter = i => {
+            if (i.user.id !== userId) {
+                i.reply({ content: '❌ This coinflip session is not for you!', ephemeral: true });
+                return false;
+            }
+            return true;
+        };
 
-    } catch (error) {
-        console.error('Error running coinflip command:', error);
-        const errorMsg = '❌ Something went wrong while flipping the coin. Please try again later.';
-        if (isSlash) {
-            if (interaction.replied || interaction.deferred) {
-                await interaction.editReply({ content: errorMsg, embeds: [] }).catch(() => {});
-            } else {
-                await interaction.reply({ content: errorMsg, ephemeral: true }).catch(() => {});
+        const collector = initialMsg.createMessageComponentCollector({
+            filter,
+            componentType: ComponentType.Button,
+            time: 30000
+        });
+
+        collector.on('collect', async (i) => {
+            collector.stop();
+            await i.deferUpdate();
+
+            const chosenSide = i.customId; // 'heads', 'tails', or 'draw'
+
+            // Refetch baubleData to prevent race conditions
+            baubleData = await Bauble.findOne({ userId });
+            if (!baubleData || baubleData.baubles < amount) {
+                const errorEmbed = new EmbedBuilder()
+                    .setColor(0xf87171)
+                    .setTitle('❌ Bet Cancelled')
+                    .setDescription(`You no longer have enough Baubles to complete this bet.`);
+                await initialMsg.edit({ embeds: [errorEmbed], components: [] });
+                return;
             }
-        } else {
-            if (replyMsg) {
-                await replyMsg.edit({ content: errorMsg, embeds: [] }).catch(() => {});
-            } else {
-                await message.reply(errorMsg).catch(() => {});
+
+            // Deduct bet amount immediately upon selecting
+            baubleData.baubles -= amount;
+            await baubleData.save();
+
+            // Edit to spinning state
+            const spinningEmbed = new EmbedBuilder()
+                .setColor(0x7c6cf0)
+                .setTitle('🪙  COINFLIP')
+                .setDescription(`*The coin is spinning high in the air...* 🌀\n\nYou chose **${chosenSide.toUpperCase()}**!`)
+                .addFields(
+                    { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
+                    { name: '✨ Your Choice', value: `\`${chosenSide.toUpperCase()}\``, inline: true }
+                )
+                .setFooter({ text: 'Flipping...' })
+                .setTimestamp();
+
+            // Disable buttons
+            const disabledRow = new ActionRowBuilder()
+                .addComponents(
+                    row.components.map(button => ButtonBuilder.from(button).setDisabled(true))
+                );
+
+            await initialMsg.edit({ embeds: [spinningEmbed], components: [disabledRow] });
+
+            // Wait 1.5s for dramatic effect
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            // Complete the flip
+            await executeCoinflipOutcome({ userId, amount, side: chosenSide, initialMsg, baubleData });
+        });
+
+        collector.on('end', async (collected, reason) => {
+            if (reason === 'time') {
+                const timeoutEmbed = new EmbedBuilder()
+                    .setColor(0x747f8d)
+                    .setTitle('⏰  COINFLIP TIMED OUT')
+                    .setDescription('You did not select a side in time. Coinflip challenge cancelled.');
+                
+                const disabledRow = new ActionRowBuilder()
+                    .addComponents(
+                        row.components.map(button => ButtonBuilder.from(button).setDisabled(true))
+                    );
+
+                await initialMsg.edit({ embeds: [timeoutEmbed], components: [disabledRow] }).catch(() => {});
             }
-        }
+        });
+
+    } catch (err) {
+        console.error('Error starting coinflip:', err);
     }
+}
+
+// Fast mode execute (when side is provided upfront)
+async function executeCoinflipFlip({ userId, amount, side, interaction, message, isSlash, baubleData }) {
+    let replyMsg;
+    // Deduct bet amount immediately
+    baubleData.baubles -= amount;
+    await baubleData.save();
+
+    // 1. Send the spinning/flipping embed
+    const initialEmbed = new EmbedBuilder()
+        .setColor(0x7c6cf0)
+        .setTitle('🪙  COINFLIP')
+        .setDescription(`*The coin is spinning high in the air...* 🌀`)
+        .addFields(
+            { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
+            { name: '✨ Your Choice', value: `\`${side.toUpperCase()}\``, inline: true }
+        )
+        .setFooter({ text: 'Flipping...' });
+
+    if (isSlash) {
+        replyMsg = await interaction.reply({ embeds: [initialEmbed], fetchReply: true });
+    } else {
+        replyMsg = await message.reply({ embeds: [initialEmbed] });
+    }
+
+    // Wait 1.5 seconds for dramatic effect
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    await executeCoinflipOutcome({ userId, amount, side, initialMsg: replyMsg, baubleData });
+}
+
+// Calculate outcome and edit the embed
+async function executeCoinflipOutcome({ userId, amount, side, initialMsg, baubleData }) {
+    // Determine outcome
+    const rand = Math.random();
+    let outcome;
+    if (rand < 0.001) {
+        outcome = 'draw';
+    } else if (rand < 0.5005) {
+        outcome = 'heads';
+    } else {
+        outcome = 'tails';
+    }
+
+    // Calculate win/loss
+    const didWin = (side === outcome);
+    let winnings = 0;
+    if (didWin) {
+        winnings = amount * 2;
+    }
+
+    // Refetch/reload baubleData to prevent race conditions during the setTimeout
+    baubleData = await Bauble.findOne({ userId });
+    if (didWin) {
+        baubleData.baubles += winnings;
+    }
+    await baubleData.save();
+
+    // Create the final embed
+    const finalEmbed = new EmbedBuilder()
+        .setTimestamp();
+
+    if (didWin) {
+        finalEmbed.setColor(0x2ecc71); // Aesthetic emerald green
+        if (outcome === 'draw') {
+            finalEmbed.setTitle('🏆  UNBELIEVABLE DRAW!')
+                .setDescription(`🪙 The coin landed perfectly **sideways/upright**!\nYou guessed the **0.1% chance** draw correctly! Absolutely insane luck! 💫`);
+        } else {
+            finalEmbed.setTitle('🎉  VICTORY!')
+                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟`);
+        }
+        finalEmbed.addFields(
+            { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },
+            { name: '📈 Winnings', value: `\`+${winnings} Baubles\``, inline: true },
+            { name: '🪙 New Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true }
+        );
+        finalEmbed.setFooter({ text: 'Luck is on your side today! ✨' });
+    } else {
+        finalEmbed.setColor(0xe74c3c); // Aesthetic alizarin red
+        if (outcome === 'draw') {
+            finalEmbed.setTitle('💔  COIN STOOD UPRIGHT!')
+                .setDescription(`🪙 The coin landed perfectly **sideways/upright** (0.1% chance)!\nYou guessed **${side.toUpperCase()}** and got nothing.`);
+        } else {
+            finalEmbed.setTitle('💔  DEFEAT...')
+                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**.\nYou guessed **${side.toUpperCase()}** and lost your bet.`);
+        }
+        finalEmbed.addFields(
+            { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },
+            { name: '📉 Loss', value: `\`-${amount} Baubles\``, inline: true },
+            { name: '🪙 New Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true }
+        );
+        finalEmbed.setFooter({ text: 'Better luck next time... 🍀' });
+    }
+
+    // Edit message and remove buttons completely
+    await initialMsg.edit({ embeds: [finalEmbed], components: [] });
 }
