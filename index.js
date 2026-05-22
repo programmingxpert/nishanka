@@ -360,9 +360,10 @@ app.get('/api/me', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
   const u = req.session.user;
   res.json({
-    id:     u.id,
-    name:   u.global_name || u.username,
-    avatar: u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png` : null,
+    id:       u.id,
+    username: u.username,
+    name:     u.global_name || u.username,
+    avatar:   u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png` : null,
   });
 });
 
