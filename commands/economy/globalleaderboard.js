@@ -14,13 +14,13 @@ module.exports = {
             let page = 0;
 
             const total = await Bauble.countDocuments();
-            const maxPage = Math.ceil(Math.min(total, 100) / pageSize);
+            const maxPage = Math.ceil(Math.min(total, 50) / pageSize) || 1;
 
             const getLeaderboardEmbed = async (page) => {
                 const leaderboardData = await Bauble.find()
                     .sort({ baubles: -1 })
-                    .limit(100) // only top 100
                     .skip(page * pageSize)
+                    .limit(pageSize)
                     .exec();
 
                 const leaderboardString = leaderboardData.map((entry, index) => {
@@ -85,13 +85,13 @@ module.exports = {
             let page = 0;
 
             const total = await Bauble.countDocuments();
-            const maxPage = Math.ceil(Math.min(total, 100) / pageSize);
+            const maxPage = Math.ceil(Math.min(total, 50) / pageSize) || 1;
 
             const getLeaderboardEmbed = async (page) => {
                 const leaderboardData = await Bauble.find()
                     .sort({ baubles: -1 })
-                    .limit(100)
                     .skip(page * pageSize)
+                    .limit(pageSize)
                     .exec();
 
                 const leaderboardString = leaderboardData.map((entry, index) => {
