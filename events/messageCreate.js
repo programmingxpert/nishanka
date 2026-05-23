@@ -78,7 +78,13 @@ module.exports = {
         const command = client.commands.get(commandName)
             ?? client.commands.find(cmd => cmd.aliases?.includes(commandName));
 
-        if (!command || typeof command.executePrefix !== 'function') {
+        if (!command) return;
+
+        if (command.slashOnly) {
+            return message.reply(`❌ The \`${commandName}\` command is only available as a slash command (use \`/${command.data?.name || commandName}\`).`).catch(() => {});
+        }
+
+        if (typeof command.executePrefix !== 'function') {
             return;
         }
 

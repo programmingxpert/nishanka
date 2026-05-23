@@ -9,6 +9,7 @@ const maxReward = 30;
 
 module.exports = {
     category: 'economy',
+    slashOnly: true,
     cooldown: 60, // 1-minute cooldown
     data: new SlashCommandBuilder()
         .setName('grab')

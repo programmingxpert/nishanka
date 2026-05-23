@@ -6,6 +6,7 @@ const slotEmojis = ['💎', '💰', '🍀', '🔔', '🍒']; // Slot machine emo
 
 module.exports = {
     category: 'economy',
+    slashOnly: true,
     cooldown: 30, // 30-second cooldown
     data: new SlashCommandBuilder()
         .setName('slots')
