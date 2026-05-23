@@ -3,7 +3,6 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
 const LOSS_TRACKER = new Map(); // Hidden 5-loss safety net
-const WIN_STREAK = new Map();   // Visible public win streak
 
 function getWinChance(risk) {
     switch (risk) {
@@ -100,12 +99,13 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
         if (didWin) {
             const earnings = Math.floor(amount * multiplier);
             baubleData.baubles += earnings;
+            baubleData.gambleStreak = (baubleData.gambleStreak || 0) + 1;
+            if (baubleData.gambleStreak > (baubleData.gambleMaxStreak || 0)) {
+                baubleData.gambleMaxStreak = baubleData.gambleStreak;
+            }
             await retryDatabaseOperation(() => baubleData.save());
 
             LOSS_TRACKER.set(userId, 0); // reset loss streak
-
-            let streak = (WIN_STREAK.get(userId) || 0) + 1;
-            WIN_STREAK.set(userId, streak);
 
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
@@ -113,7 +113,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
                 .setDescription(`Risk: **${risk}**\nYou gambled **${amount}** and won **${earnings}**!`)
                 .addFields(
                     { name: '💰 New Balance', value: `${baubleData.baubles} Baubles`, inline: true },
-                    { name: '🔥 Win Streak', value: `${streak}`, inline: true }
+                    { name: '🔥 Win Streak', value: `\`${baubleData.gambleStreak} wins\` (Best: \`${baubleData.gambleMaxStreak}\`)`, inline: true }
                 )
                 .setFooter({ text: 'Luck was on your side today... ✨' })
                 .setTimestamp();
@@ -122,17 +122,26 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
         } else {
             const pity = Math.ceil(amount * 0.1); // 10% refund
             baubleData.baubles = baubleData.baubles - amount + pity;
+            const previousStreak = baubleData.gambleStreak || 0;
+            baubleData.gambleStreak = 0;
             await retryDatabaseOperation(() => baubleData.save());
 
             const newStreak = losses + 1;
             LOSS_TRACKER.set(userId, newStreak);
-            WIN_STREAK.set(userId, 0); // reset win streak
+
+            let streakLossDesc = '';
+            if (previousStreak > 0) {
+                streakLossDesc = `\n\n*💔 Loss ended your winning streak of **${previousStreak}** wins!*`;
+            }
 
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle('💔 You Lost...')
-                .setDescription(`Risk: **${risk}**\nYou lost **${amount}**, but got **${pity}** Baubles back out of pity.`)
-                .addFields({ name: '💸 New Balance', value: `${baubleData.baubles} Baubles` })
+                .setDescription(`Risk: **${risk}**\nYou lost **${amount}**, but got **${pity}** Baubles back out of pity.${streakLossDesc}`)
+                .addFields(
+                    { name: '💸 New Balance', value: `${baubleData.baubles} Baubles`, inline: true },
+                    { name: '🪹 Win Streak', value: `\`0 wins\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)`, inline: true }
+                )
                 .setFooter({ text: 'Oof... maybe next time.' })
                 .setTimestamp();
 

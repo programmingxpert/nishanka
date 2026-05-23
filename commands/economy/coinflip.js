@@ -299,8 +299,16 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
 
     // Refetch/reload baubleData to prevent race conditions during the setTimeout
     baubleData = await Bauble.findOne({ userId });
+    const previousStreak = baubleData.coinflipStreak || 0;
+
     if (didWin) {
         baubleData.baubles += winnings;
+        baubleData.coinflipStreak = (baubleData.coinflipStreak || 0) + 1;
+        if (baubleData.coinflipStreak > (baubleData.coinflipMaxStreak || 0)) {
+            baubleData.coinflipMaxStreak = baubleData.coinflipStreak;
+        }
+    } else {
+        baubleData.coinflipStreak = 0;
     }
     await baubleData.save();
 
@@ -320,22 +328,29 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         finalEmbed.addFields(
             { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },
             { name: '📈 Winnings', value: `\`+${winnings} Baubles\``, inline: true },
-            { name: '🪙 New Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true }
+            { name: '🪙 New Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true },
+            { name: '🔥 Win Streak', value: `\`${baubleData.coinflipStreak} wins\` (Best: \`${baubleData.coinflipMaxStreak}\`)`, inline: true }
         );
         finalEmbed.setFooter({ text: 'Luck is on your side today! ✨' });
     } else {
         finalEmbed.setColor(0xe74c3c); // Aesthetic alizarin red
+        let streakLossDesc = '';
+        if (previousStreak > 0) {
+            streakLossDesc = `\n\n*💔 Loss ended your winning streak of **${previousStreak}** wins!*`;
+        }
+
         if (outcome === 'draw') {
             finalEmbed.setTitle('💔  COIN STOOD UPRIGHT!')
-                .setDescription(`🪙 The coin landed perfectly **sideways/upright** (0.1% chance)!\nYou guessed **${side.toUpperCase()}** and got nothing.`);
+                .setDescription(`🪙 The coin landed perfectly **sideways/upright** (0.1% chance)!\nYou guessed **${side.toUpperCase()}** and got nothing.${streakLossDesc}`);
         } else {
             finalEmbed.setTitle('💔  DEFEAT...')
-                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**.\nYou guessed **${side.toUpperCase()}** and lost your bet.`);
+                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**.\nYou guessed **${side.toUpperCase()}** and lost your bet.${streakLossDesc}`);
         }
         finalEmbed.addFields(
             { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },
             { name: '📉 Loss', value: `\`-${amount} Baubles\``, inline: true },
-            { name: '🪙 New Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true }
+            { name: '🪙 New Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true },
+            { name: '🪹 Win Streak', value: `\`0 wins\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)`, inline: true }
         );
         finalEmbed.setFooter({ text: 'Better luck next time... 🍀' });
     }

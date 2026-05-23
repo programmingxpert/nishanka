@@ -93,23 +93,50 @@ module.exports = {
                 .setFooter({ text: `Cost: ${bet} Baubles` });
 
             let winnings = 0;
+            const previousStreak = baubleData.slotsStreak || 0;
+            let isWin = false;
 
             // Check for win conditions
             if (slotResults[0] === slotResults[1] && slotResults[1] === slotResults[2]) {
                 winnings = bet * 5; // Three in a row: 5x payout
+                isWin = true;
                 finalEmbed.setColor(0x00FF00).setDescription('🎉 Jackpot! Three in a row!');
             } else if (slotResults[0] === slotResults[1] || slotResults[1] === slotResults[2] || slotResults[0] === slotResults[2]) {
                 winnings = bet * 2; // Two in a row: 2x payout
+                isWin = true;
                 finalEmbed.setColor(0x00FFFF).setDescription('✨ Two in a row!');
             } else {
                 finalEmbed.setColor(0xFF0000).setDescription('🙁 No luck this time!');
             }
 
+            if (isWin) {
+                baubleData.slotsStreak = (baubleData.slotsStreak || 0) + 1;
+                if (baubleData.slotsStreak > (baubleData.slotsMaxStreak || 0)) {
+                    baubleData.slotsMaxStreak = baubleData.slotsStreak;
+                }
+            } else {
+                baubleData.slotsStreak = 0;
+            }
+
             baubleData.baubles += winnings;
             await baubleData.save();
 
-            finalEmbed.addFields({ name: 'Winnings', value: `${winnings} Baubles`, inline: true });
-            finalEmbed.addFields({ name: 'New Balance', value: `${baubleData.baubles} Baubles`, inline: true });
+            let streakLossDesc = '';
+            if (!isWin && previousStreak > 0) {
+                streakLossDesc = `\n\n*💔 Loss ended your winning streak of **${previousStreak}** spins!*`;
+                finalEmbed.setDescription((finalEmbed.data.description || '') + streakLossDesc);
+            }
+
+            finalEmbed.addFields(
+                { name: 'Winnings', value: `\`${winnings} Baubles\``, inline: true },
+                { name: 'New Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true }
+            );
+
+            if (isWin) {
+                finalEmbed.addFields({ name: '🔥 Win Streak', value: `\`${baubleData.slotsStreak} wins\` (Best: \`${baubleData.slotsMaxStreak}\`)`, inline: true });
+            } else {
+                finalEmbed.addFields({ name: '🪹 Win Streak', value: `\`0 wins\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)`, inline: true });
+            }
 
             await interaction.editReply({ embeds: [finalEmbed] });
 

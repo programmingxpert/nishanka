@@ -29,6 +29,11 @@ module.exports = {
                 .setColor(0xFFA500) // Gold color
                 .setTitle('💰 Bauble Balance')
                 .setDescription(`${user.username} has **${baubleData.baubles}** Glimmering Baubles!`)
+                .addFields(
+                    { name: '🪙 Coinflip Streak', value: `\`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)`, inline: true },
+                    { name: '🎲 Gamble Streak', value: `\`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)`, inline: true },
+                    { name: '🎰 Slots Streak', value: `\`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)`, inline: true }
+                )
                 .setTimestamp()
                 .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
 
@@ -55,6 +60,11 @@ module.exports = {
                 .setColor(0xFFA500) // Gold color
                 .setTitle('💰 Bauble Balance')
                 .setDescription(`${user.username} has **${baubleData.baubles}** Glimmering Baubles!`)
+                .addFields(
+                    { name: '🪙 Coinflip Streak', value: `\`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)`, inline: true },
+                    { name: '🎲 Gamble Streak', value: `\`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)`, inline: true },
+                    { name: '🎰 Slots Streak', value: `\`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)`, inline: true }
+                )
                 .setTimestamp()
                 .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });
 
