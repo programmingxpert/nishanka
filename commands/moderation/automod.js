@@ -1,28 +1,30 @@
 /* eslint-disable */
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const AntiSpam = require('../../models/antiSpamSchema');
+const AutoMod = require('../../models/autoModSchema');
 
 module.exports = {
     category: 'moderation',
     data: new SlashCommandBuilder()
-        .setName('antispam')
-        .setDescription('Manage the antispam system settings.')
+        .setName('automod')
+        .setDescription('Manage the AutoMod (Anti-Spam & Anti-Link) system settings.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('settings')
-                .setDescription('View current antispam settings.'))
+                .setDescription('View current AutoMod settings.'))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('toggle')
-                .setDescription('Toggle fast or slow spam detection.')
+                .setDescription('Toggle AutoMod modules or actions.')
                 .addStringOption(option =>
                     option.setName('type')
-                        .setDescription('Select the spam type to toggle.')
+                        .setDescription('Select what to toggle.')
                         .setRequired(true)
                         .addChoices(
-                            { name: 'Fast Spam', value: 'fastSpam' },
-                            { name: 'Slow Spam', value: 'slowSpam' },
+                            { name: 'Anti-Spam System', value: 'antiSpamEnabled' },
+                            { name: 'Anti-Link System', value: 'antiLink' },
+                            { name: 'Fast Spam Detection', value: 'fastSpam' },
+                            { name: 'Slow Spam Detection', value: 'slowSpam' },
                             { name: 'Warn User', value: 'warnUser' },
                             { name: 'Delete Messages', value: 'deleteMessages' },
                             { name: 'Timeout User', value: 'timeoutUser' }
@@ -62,7 +64,7 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('ignore')
-                .setDescription('Manage users who should ALWAYS be caught by antispam (even if they are Admin).')
+                .setDescription('Manage users who should ALWAYS be caught by AutoMod (even if Admin/Mod).')
                 .addStringOption(option =>
                     option.setName('action')
                         .setDescription('Add or remove from the watchlist.')
@@ -89,32 +91,43 @@ module.exports = {
                 .setDescription('Set the threshold for repetitive messages.')
                 .addIntegerOption(option =>
                     option.setName('threshold')
-                        .setDescription('Number of same messages to trigger antispam.')
+                        .setDescription('Number of same messages to trigger AutoMod.')
                         .setRequired(true))),
 
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;
 
-        let settings = await AntiSpam.findOneAndUpdate(
+        let settings = await AutoMod.findOneAndUpdate(
             { guildId },
             { $setOnInsert: { guildId } },
             { upsert: true, new: true }
         );
 
         if (subcommand === 'settings') {
+            const spamChs = settings.antiSpamFilterMode === 'whitelist' 
+                ? (settings.antiSpamWhitelistedChannels?.length > 0 ? settings.antiSpamWhitelistedChannels.map(id => `<#${id}>`).join(', ') : 'None')
+                : (settings.antiSpamBlacklistedChannels?.length > 0 ? settings.antiSpamBlacklistedChannels.map(id => `<#${id}>`).join(', ') : 'None');
+
+            const linkChs = settings.antiLink?.filterMode === 'whitelist'
+                ? (settings.antiLink?.whitelistedChannels?.length > 0 ? settings.antiLink.whitelistedChannels.map(id => `<#${id}>`).join(', ') : 'None')
+                : (settings.antiLink?.blacklistedChannels?.length > 0 ? settings.antiLink.blacklistedChannels.map(id => `<#${id}>`).join(', ') : 'None');
+
             const embed = new EmbedBuilder()
-                .setTitle('🛡️ Antispam Settings')
+                .setTitle('🛡️ AutoMod System Settings')
                 .setColor(0x3498DB)
                 .addFields(
-                    { name: '🚀 Fast Spam', value: `Enabled: \`${settings.fastSpam.enabled}\`\nThreshold: \`${settings.fastSpam.threshold}\` msgs\nWindow: \`${settings.fastSpam.window / 1000}\`s`, inline: true },
-                    { name: '🐢 Slow Spam', value: `Enabled: \`${settings.slowSpam.enabled}\`\nThreshold: \`${settings.slowSpam.threshold}\` msgs\nWindow: \`${settings.slowSpam.window / 1000}\`s`, inline: true },
-                    { name: '🔁 Repetition', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
-                    { name: '⚙️ Actions', value: `Warn User: \`${settings.warnUser}\`\nDelete Messages: \`${settings.deleteMessages}\`\nTimeout User: \`${settings.timeoutUser}\`` },
-                    { name: '⏱️ Timeout Duration', value: `\`${settings.timeoutDuration / 60000}\` minute(s)`, inline: true },
-                    { name: '🕵️ Watchlist (Always Caught)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
+                    { name: '⚙️ General Status', value: `Spam Protection: \`${settings.antiSpamEnabled !== false ? 'Enabled' : 'Disabled'}\`\nLink Protection: \`${settings.antiLink?.enabled ? 'Enabled' : 'Disabled'}\`` },
+                    { name: '🚀 Spam Channel Rules', value: `Mode: \`${settings.antiSpamFilterMode || 'whitelist'}\`\nChannels: ${spamChs}` },
+                    { name: '🔗 Link Channel Rules', value: `Mode: \`${settings.antiLink?.filterMode || 'whitelist'}\`\nChannels: ${linkChs}` },
+                    { name: '⚡ Fast Spam Detection', value: `Enabled: \`${settings.fastSpam?.enabled}\`\nThreshold: \`${settings.fastSpam?.threshold}\` msgs\nWindow: \`${(settings.fastSpam?.window || 0) / 1000}\`s`, inline: true },
+                    { name: '🐢 Slow Spam Detection', value: `Enabled: \`${settings.slowSpam?.enabled}\`\nThreshold: \`${settings.slowSpam?.threshold}\` msgs\nWindow: \`${(settings.slowSpam?.window || 0) / 1000}\`s`, inline: true },
+                    { name: '🔁 Repetition Detection', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
+                    { name: '⚖️ Action Penalties', value: `Warn: \`${settings.warnUser}\` | Delete: \`${settings.deleteMessages}\` | Timeout: \`${settings.timeoutUser}\`` },
+                    { name: '⏱️ Timeout Duration', value: `\`${(settings.timeoutDuration || 60000) / 60000}\` minute(s)`, inline: true },
+                    { name: '🕵️ Watchlist (Always Moderated)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
                 )
-                .setFooter({ text: 'Use /antispam to manage these settings.' })
+                .setFooter({ text: 'Use /automod to manage these settings.' })
                 .setTimestamp();
 
             return interaction.reply({ embeds: [embed] });
@@ -122,14 +135,24 @@ module.exports = {
 
         if (subcommand === 'toggle') {
             const type = interaction.options.getString('type');
-            if (type === 'fastSpam' || type === 'slowSpam') {
+            let updatedVal;
+            if (type === 'antiSpamEnabled') {
+                settings.antiSpamEnabled = !settings.antiSpamEnabled;
+                updatedVal = settings.antiSpamEnabled;
+            } else if (type === 'antiLink') {
+                if (!settings.antiLink) settings.antiLink = { enabled: false, filterMode: 'whitelist', whitelistedChannels: [], blacklistedChannels: [] };
+                settings.antiLink.enabled = !settings.antiLink.enabled;
+                updatedVal = settings.antiLink.enabled;
+            } else if (type === 'fastSpam' || type === 'slowSpam') {
                 settings[type].enabled = !settings[type].enabled;
+                updatedVal = settings[type].enabled;
             } else {
                 settings[type] = !settings[type];
+                updatedVal = settings[type];
             }
             await settings.save();
-            interaction.client.antispamSettings.delete(guildId);
-            return interaction.reply({ content: `✅ **${type}** has been ${settings[type]?.enabled ?? settings[type] ? 'Enabled' : 'Disabled'}.`, ephemeral: true });
+            if (interaction.client.autoModSettings) interaction.client.autoModSettings.delete(guildId);
+            return interaction.reply({ content: `✅ **${type}** has been ${updatedVal ? 'Enabled' : 'Disabled'}.`, ephemeral: true });
         }
 
         if (subcommand === 'setfast') {
@@ -138,7 +161,7 @@ module.exports = {
             settings.fastSpam.threshold = threshold;
             settings.fastSpam.window = window * 1000;
             await settings.save();
-            interaction.client.antispamSettings.delete(guildId);
+            if (interaction.client.autoModSettings) interaction.client.autoModSettings.delete(guildId);
             return interaction.reply({ content: `✅ Fast spam set to **${threshold}** messages in **${window}** seconds.`, ephemeral: true });
         }
 
@@ -148,7 +171,7 @@ module.exports = {
             settings.slowSpam.threshold = threshold;
             settings.slowSpam.window = window * 1000;
             await settings.save();
-            interaction.client.antispamSettings.delete(guildId);
+            if (interaction.client.autoModSettings) interaction.client.autoModSettings.delete(guildId);
             return interaction.reply({ content: `✅ Slow spam set to **${threshold}** messages in **${window}** seconds.`, ephemeral: true });
         }
 
@@ -157,11 +180,11 @@ module.exports = {
             const ms = require('ms');
             const msDuration = ms(durationInput);
             if (!msDuration || msDuration < 5000) {
-                return interaction.reply({ content: '❌ Invalid duration. Please use values like `1m`, `1h`.', ephemeral: true });
+                return interaction.reply({ content: '❌ Invalid duration. Please use values like `1m`, `10m`, `1h`.', ephemeral: true });
             }
             settings.timeoutDuration = msDuration;
             await settings.save();
-            interaction.client.antispamSettings.delete(guildId);
+            if (interaction.client.autoModSettings) interaction.client.autoModSettings.delete(guildId);
             return interaction.reply({ content: `✅ Timeout duration set to **${ms(msDuration, { long: true })}**.`, ephemeral: true });
         }
 
@@ -182,15 +205,15 @@ module.exports = {
             }
 
             await settings.save();
-            interaction.client.antispamSettings.delete(guildId);
-            return interaction.reply({ content: `✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the antispam watchlist.`, ephemeral: true });
+            if (interaction.client.autoModSettings) interaction.client.autoModSettings.delete(guildId);
+            return interaction.reply({ content: `✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the AutoMod watchlist.`, ephemeral: true });
         }
 
         if (subcommand === 'repetition') {
             const enabled = interaction.options.getBoolean('enabled');
             settings.repetitionEnabled = enabled;
             await settings.save();
-            interaction.client.antispamSettings.delete(guildId);
+            if (interaction.client.autoModSettings) interaction.client.autoModSettings.delete(guildId);
             return interaction.reply({ content: `✅ Repetition detection has been **${enabled ? 'Enabled' : 'Disabled'}**.`, ephemeral: true });
         }
 
@@ -198,18 +221,18 @@ module.exports = {
             const threshold = interaction.options.getInteger('threshold');
             settings.repetitionThreshold = threshold;
             await settings.save();
-            interaction.client.antispamSettings.delete(guildId);
+            if (interaction.client.autoModSettings) interaction.client.autoModSettings.delete(guildId);
             return interaction.reply({ content: `✅ Repetition threshold set to **${threshold}** messages.`, ephemeral: true });
         }
     },
 
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('❌ You don’t have permission to manage antispam settings.');
+            return message.reply('❌ You don’t have permission to manage AutoMod settings.');
         }
 
         const guildId = message.guild.id;
-        let settings = await AntiSpam.findOneAndUpdate(
+        let settings = await AutoMod.findOneAndUpdate(
             { guildId },
             { $setOnInsert: { guildId } },
             { upsert: true, new: true }
@@ -218,67 +241,88 @@ module.exports = {
         const subcommand = args[0]?.toLowerCase();
 
         if (subcommand === 'settings' || !subcommand) {
+            const spamChs = settings.antiSpamFilterMode === 'whitelist' 
+                ? (settings.antiSpamWhitelistedChannels?.length > 0 ? settings.antiSpamWhitelistedChannels.map(id => `<#${id}>`).join(', ') : 'None')
+                : (settings.antiSpamBlacklistedChannels?.length > 0 ? settings.antiSpamBlacklistedChannels.map(id => `<#${id}>`).join(', ') : 'None');
+
+            const linkChs = settings.antiLink?.filterMode === 'whitelist'
+                ? (settings.antiLink?.whitelistedChannels?.length > 0 ? settings.antiLink.whitelistedChannels.map(id => `<#${id}>`).join(', ') : 'None')
+                : (settings.antiLink?.blacklistedChannels?.length > 0 ? settings.antiLink.blacklistedChannels.map(id => `<#${id}>`).join(', ') : 'None');
+
             const embed = new EmbedBuilder()
-                .setTitle('🛡️ Antispam Settings')
+                .setTitle('🛡️ AutoMod System Settings')
                 .setColor(0x3498DB)
                 .addFields(
-                    { name: '🚀 Fast Spam', value: `Enabled: \`${settings.fastSpam.enabled}\`\nThreshold: \`${settings.fastSpam.threshold}\` msgs\nWindow: \`${settings.fastSpam.window / 1000}\`s`, inline: true },
-                    { name: '🐢 Slow Spam', value: `Enabled: \`${settings.slowSpam.enabled}\`\nThreshold: \`${settings.slowSpam.threshold}\` msgs\nWindow: \`${settings.slowSpam.window / 1000}\`s`, inline: true },
-                    { name: '🔁 Repetition', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
-                    { name: '⚙️ Actions', value: `Warn User: \`${settings.warnUser}\`\nDelete Messages: \`${settings.deleteMessages}\`\nTimeout User: \`${settings.timeoutUser}\`` },
-                    { name: '⏱️ Timeout Duration', value: `\`${settings.timeoutDuration / 60000}\` minute(s)`, inline: true },
-                    { name: '🕵️ Watchlist (Always Caught)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
+                    { name: '⚙️ General Status', value: `Spam Protection: \`${settings.antiSpamEnabled !== false ? 'Enabled' : 'Disabled'}\`\nLink Protection: \`${settings.antiLink?.enabled ? 'Enabled' : 'Disabled'}\`` },
+                    { name: '🚀 Spam Channel Rules', value: `Mode: \`${settings.antiSpamFilterMode || 'whitelist'}\`\nChannels: ${spamChs}` },
+                    { name: '🔗 Link Channel Rules', value: `Mode: \`${settings.antiLink?.filterMode || 'whitelist'}\`\nChannels: ${linkChs}` },
+                    { name: '⚡ Fast Spam Detection', value: `Enabled: \`${settings.fastSpam?.enabled}\`\nThreshold: \`${settings.fastSpam?.threshold}\` msgs\nWindow: \`${(settings.fastSpam?.window || 0) / 1000}\`s`, inline: true },
+                    { name: '🐢 Slow Spam Detection', value: `Enabled: \`${settings.slowSpam?.enabled}\`\nThreshold: \`${settings.slowSpam?.threshold}\` msgs\nWindow: \`${(settings.slowSpam?.window || 0) / 1000}\`s`, inline: true },
+                    { name: '🔁 Repetition Detection', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
+                    { name: '⚖️ Action Penalties', value: `Warn: \`${settings.warnUser}\` | Delete: \`${settings.deleteMessages}\` | Timeout: \`${settings.timeoutUser}\`` },
+                    { name: '⏱️ Timeout Duration', value: `\`${(settings.timeoutDuration || 60000) / 60000}\` minute(s)`, inline: true },
+                    { name: '🕵️ Watchlist (Always Moderated)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
                 )
-                .setFooter({ text: 'Use -antispam to manage these settings.' })
+                .setFooter({ text: 'Use -automod to manage these settings.' })
                 .setTimestamp();
 
             return message.channel.send({ embeds: [embed] });
         }
 
         if (subcommand === 'toggle') {
-            const type = args[1]; // e.g. fastSpam, slowSpam, warnUser, deleteMessages, timeoutUser
-            if (!type) return message.reply('⚠️ Specify a toggle type: `fastSpam`, `slowSpam`, `warnUser`, `deleteMessages`, or `timeoutUser`.');
+            const type = args[1];
+            if (!type) return message.reply('⚠️ Specify what to toggle: `antiSpamEnabled`, `antiLink`, `fastSpam`, `slowSpam`, `warnUser`, `deleteMessages`, or `timeoutUser`.');
             
-            const validTypes = ['fastSpam', 'slowSpam', 'warnUser', 'deleteMessages', 'timeoutUser'];
+            const validTypes = ['antiSpamEnabled', 'antiLink', 'fastSpam', 'slowSpam', 'warnUser', 'deleteMessages', 'timeoutUser'];
             if (!validTypes.includes(type)) return message.reply(`⚠️ Invalid type. Use one of: ${validTypes.join(', ')}`);
 
-            if (type === 'fastSpam' || type === 'slowSpam') {
+            let updatedVal;
+            if (type === 'antiSpamEnabled') {
+                settings.antiSpamEnabled = !settings.antiSpamEnabled;
+                updatedVal = settings.antiSpamEnabled;
+            } else if (type === 'antiLink') {
+                if (!settings.antiLink) settings.antiLink = { enabled: false, filterMode: 'whitelist', whitelistedChannels: [], blacklistedChannels: [] };
+                settings.antiLink.enabled = !settings.antiLink.enabled;
+                updatedVal = settings.antiLink.enabled;
+            } else if (type === 'fastSpam' || type === 'slowSpam') {
                 settings[type].enabled = !settings[type].enabled;
+                updatedVal = settings[type].enabled;
             } else {
                 settings[type] = !settings[type];
+                updatedVal = settings[type];
             }
             await settings.save();
-            message.client.antispamSettings.delete(guildId);
-            return message.reply(`✅ **${type}** has been ${settings[type]?.enabled ?? settings[type] ? 'Enabled' : 'Disabled'}.`);
+            if (message.client.autoModSettings) message.client.autoModSettings.delete(guildId);
+            return message.reply(`✅ **${type}** has been ${updatedVal ? 'Enabled' : 'Disabled'}.`);
         }
 
         if (subcommand === 'setfast') {
             const threshold = parseInt(args[1]);
             const window = parseInt(args[2]);
-            if (isNaN(threshold) || isNaN(window)) return message.reply('⚠️ Usage: `-antispam setfast <threshold> <window_in_seconds>`');
+            if (isNaN(threshold) || isNaN(window)) return message.reply('⚠️ Usage: `-automod setfast <threshold> <window_in_seconds>`');
             
             settings.fastSpam.threshold = threshold;
             settings.fastSpam.window = window * 1000;
             await settings.save();
-            message.client.antispamSettings.delete(guildId);
+            if (message.client.autoModSettings) message.client.autoModSettings.delete(guildId);
             return message.reply(`✅ Fast spam set to **${threshold}** messages in **${window}** seconds.`);
         }
 
         if (subcommand === 'setslow') {
             const threshold = parseInt(args[1]);
             const window = parseInt(args[2]);
-            if (isNaN(threshold) || isNaN(window)) return message.reply('⚠️ Usage: `-antispam setslow <threshold> <window_in_seconds>`');
+            if (isNaN(threshold) || isNaN(window)) return message.reply('⚠️ Usage: `-automod setslow <threshold> <window_in_seconds>`');
             
             settings.slowSpam.threshold = threshold;
             settings.slowSpam.window = window * 1000;
             await settings.save();
-            message.client.antispamSettings.delete(guildId);
+            if (message.client.autoModSettings) message.client.autoModSettings.delete(guildId);
             return message.reply(`✅ Slow spam set to **${threshold}** messages in **${window}** seconds.`);
         }
 
         if (subcommand === 'settimeout') {
             const durationInput = args[1];
-            if (!durationInput) return message.reply('⚠️ Usage: `-antispam settimeout <duration_like_10m>`');
+            if (!durationInput) return message.reply('⚠️ Usage: `-automod settimeout <duration_like_10m>`');
             
             const ms = require('ms');
             const msDuration = ms(durationInput);
@@ -287,7 +331,7 @@ module.exports = {
             }
             settings.timeoutDuration = msDuration;
             await settings.save();
-            message.client.antispamSettings.delete(guildId);
+            if (message.client.autoModSettings) message.client.autoModSettings.delete(guildId);
             return message.reply(`✅ Timeout duration set to **${ms(msDuration, { long: true })}**.`);
         }
 
@@ -296,7 +340,7 @@ module.exports = {
             const targetUser = message.mentions.users.first() || (args[2] ? await message.client.users.fetch(args[2]).catch(() => null) : null);
 
             if (!action || !['add', 'remove'].includes(action)) {
-                return message.reply('⚠️ Usage: `-antispam ignore <add|remove> <@user|id>`');
+                return message.reply('⚠️ Usage: `-automod ignore <add|remove> <@user|id>`');
             }
             if (!targetUser) return message.reply('⚠️ Please mention a valid user or provide a user ID.');
 
@@ -313,26 +357,26 @@ module.exports = {
             }
 
             await settings.save();
-            message.client.antispamSettings.delete(guildId);
-            return message.reply(`✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the antispam watchlist.`);
+            if (message.client.autoModSettings) message.client.autoModSettings.delete(guildId);
+            return message.reply(`✅ <@${targetUser.id}> has been ${action === 'add' ? 'Added to' : 'Removed from'} the AutoMod watchlist.`);
         }
 
         if (subcommand === 'repetition') {
             const val = args[1]?.toLowerCase();
-            if (!val || !['true', 'false', 'on', 'off'].includes(val)) return message.reply('⚠️ Usage: `-antispam repetition <on|off>`');
+            if (!val || !['true', 'false', 'on', 'off'].includes(val)) return message.reply('⚠️ Usage: `-automod repetition <on|off>`');
             const enabled = ['true', 'on'].includes(val);
             settings.repetitionEnabled = enabled;
             await settings.save();
-            message.client.antispamSettings.delete(guildId);
+            if (message.client.autoModSettings) message.client.autoModSettings.delete(guildId);
             return message.reply(`✅ Repetition detection has been **${enabled ? 'Enabled' : 'Disabled'}**.`);
         }
 
         if (subcommand === 'setrepetition') {
             const threshold = parseInt(args[1]);
-            if (isNaN(threshold)) return message.reply('⚠️ Usage: `-antispam setrepetition <threshold>`');
+            if (isNaN(threshold)) return message.reply('⚠️ Usage: `-automod setrepetition <threshold>`');
             settings.repetitionThreshold = threshold;
             await settings.save();
-            message.client.antispamSettings.delete(guildId);
+            if (message.client.autoModSettings) message.client.autoModSettings.delete(guildId);
             return message.reply(`✅ Repetition threshold set to **${threshold}** messages.`);
         }
 

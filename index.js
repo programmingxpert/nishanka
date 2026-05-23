@@ -35,7 +35,7 @@ client.activePlayers = new Map();
 client.afk           = new Map(); // userId → { reason, time, displayName }
 client.spamTracker   = new Collection(); // userId-guildId → timestamps[]
 client.spamViolations = new Collection(); // userId-guildId → count
-client.antispamSettings = new Collection(); // guildId → settings
+client.autoModSettings = new Collection(); // guildId → settings
 client.repetitionTracker = new Collection(); // userId-guildId → { content, count, lastTimestamp }
 client.censorCache = new Collection(); // guildId → settings
 
@@ -197,7 +197,7 @@ const express    = require("express");
 const session    = require('express-session');
 const https      = require('https');
 const app        = express();
-const AntiSpam      = require('./models/antiSpamSchema');
+const AutoMod       = require('./models/autoModSchema');
 const Censor        = require('./models/censorSchema');
 const GuildSettings = require('./models/guildSettingsSchema');
 
@@ -270,11 +270,11 @@ app.post("/api/internal/refresh-cache", express.json(), async (req, res) => {
   if (!guildId) return res.status(400).send("Missing guildId");
 
   try {
-    if (module === 'antispam') {
-      const settings = await AntiSpam.findOne({ guildId });
+    if (module === 'automod') {
+      const settings = await AutoMod.findOne({ guildId });
       if (settings) {
-        client.antispamSettings.set(guildId, settings.toObject());
-        console.log(`[Cache] Refreshed AntiSpam settings for ${guildId}`);
+        client.autoModSettings.set(guildId, settings.toObject());
+        console.log(`[Cache] Refreshed AutoMod settings for ${guildId}`);
       }
     }
     // Add other modules here as needed
@@ -464,14 +464,14 @@ app.get('/api/guilds/:guildId', async (req, res) => {
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
   try {
-    const [antiSpam, censor, guildConfig] = await Promise.all([
-      AntiSpam.findOne({ guildId }).lean(),
+    const [autoMod, censor, guildConfig] = await Promise.all([
+      AutoMod.findOne({ guildId }).lean(),
       Censor.findOne({ guildId }).lean(),
       GuildSettings.findOne({ guildId }).lean()
     ]);
 
     res.json({
-      antiSpam: antiSpam || {},
+      autoMod: autoMod || {},
       censor: censor || {},
       economy: guildConfig?.economy || {},
       music: guildConfig?.music || {},
@@ -488,7 +488,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
-  const { antiSpam, censor, economy, music, bot } = req.body;
+  const { autoMod, censor, economy, music, bot } = req.body;
 
   try {
     // Check nickname update
@@ -507,14 +507,14 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
     }
 
     await Promise.all([
-      AntiSpam.findOneAndUpdate({ guildId }, { ...antiSpam }, { upsert: true, new: true }),
+      AutoMod.findOneAndUpdate({ guildId }, { ...autoMod }, { upsert: true, new: true }),
       Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true }),
       GuildSettings.findOneAndUpdate({ guildId }, { economy: economy || {}, music: music || {}, bot: bot || {} }, { upsert: true, new: true })
     ]);
 
     // Force bot to reload these from DB next time they're needed
     if (client.censorCache) client.censorCache.delete(guildId);
-    if (client.antispamSettings) client.antispamSettings.delete(guildId);
+    if (client.autoModSettings) client.autoModSettings.delete(guildId);
 
     res.json({ ok: true });
   } catch (err) {

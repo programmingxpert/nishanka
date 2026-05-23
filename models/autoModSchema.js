@@ -1,7 +1,15 @@
 const mongoose = require('mongoose');
 
-const antiSpamSchema = new mongoose.Schema({
+const autoModSchema = new mongoose.Schema({
     guildId: { type: String, required: true, unique: true },
+
+    // Top-Level Modules
+    antiSpamEnabled: { type: Boolean, default: true },
+    antiSpamFilterMode: { type: String, default: 'whitelist' }, // 'whitelist' or 'blacklist'
+    antiSpamWhitelistedChannels: { type: [String], default: [] },
+    antiSpamBlacklistedChannels: { type: [String], default: [] },
+    
+    // Existing AntiSpam configuration
     fastSpam: {
         enabled: { type: Boolean, default: true },
         threshold: { type: Number, default: 5 },
@@ -19,6 +27,14 @@ const antiSpamSchema = new mongoose.Schema({
     ignoredUsers: { type: [String], default: [] }, // Users whose permissions are IGNORED by antispam
     repetitionEnabled: { type: Boolean, default: true },
     repetitionThreshold: { type: Number, default: 3 },
-});
 
-module.exports = mongoose.models.AntiSpam || mongoose.model('AntiSpam', antiSpamSchema);
+    // Anti-Link Configuration
+    antiLink: {
+        enabled: { type: Boolean, default: false },
+        filterMode: { type: String, default: 'whitelist' }, // 'whitelist' or 'blacklist'
+        whitelistedChannels: { type: [String], default: [] },
+        blacklistedChannels: { type: [String], default: [] },
+    }
+}, { collection: 'antispams' }); // Preserve existing collection data
+
+module.exports = mongoose.models.AutoMod || mongoose.model('AutoMod', autoModSchema);

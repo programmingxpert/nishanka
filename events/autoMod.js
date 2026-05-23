@@ -1,161 +1,209 @@
 /* eslint-disable */
-const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const Censor = require('../models/censorSchema');
+const { Collection, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const AutoMod = require('../models/autoModSchema');
 
 module.exports = {
     name: 'messageCreate',
 
     async execute(message, client) {
+        // Ignore bots and DMs
         if (message.author.bot || !message.guild) return;
 
+        const userId = message.author.id;
         const guildId = message.guild.id;
+        const channelId = message.channel.id;
 
-        // Fetch settings from cache or DB
-        let settings = client.censorCache.get(guildId);
+        // Fetch settings from cache or DB (with simple cache logic)
+        let settings = client.autoModSettings.get(guildId);
         if (!settings || Date.now() - settings.timestamp > 60000) {
-            settings = await Censor.findOneAndUpdate(
+            settings = await AutoMod.findOneAndUpdate(
                 { guildId },
                 { $setOnInsert: { guildId } },
                 { upsert: true, new: true }
             );
             settings = { ...settings.toObject(), timestamp: Date.now() };
-            client.censorCache.set(guildId, settings);
+            client.autoModSettings.set(guildId, settings);
         }
 
-        // Exempt moderators/administrators unless applyToEveryone is enabled
-        const isMod = message.member.permissions.has(PermissionFlagsBits.ManageMessages) || message.member.permissions.has(PermissionFlagsBits.Administrator);
-        if (isMod && !settings.applyToEveryone) return;
-
-        if (!settings.enabled) return;
-
-        const channelId = message.channel.id;
-        const mode = settings.filterMode || 'whitelist';
-
-        if (mode === 'whitelist') {
-            // Ignore Whitelisted Channels
-            if (settings.whitelistedChannels && settings.whitelistedChannels.includes(channelId)) return;
-        } else {
-            // ONLY enforce on Blacklisted Channels
-            if (settings.blacklistedChannels && settings.blacklistedChannels.length > 0) {
-                if (!settings.blacklistedChannels.includes(channelId)) return;
-            } else {
-                // If blacklist mode is on but no channels are selected, ignore completely
-                return;
-            }
-        }
-        let content = message.content.toLowerCase();
+        // Exempt administrators and users with Manage Messages permission
+        // EXCEPT if they are in the ignoredUsers list (Watchlist)
+        const isIgnored = settings.ignoredUsers?.includes(userId);
+        const isMod = message.member.permissions.has(PermissionFlagsBits.Administrator) ||
+                      message.member.permissions.has(PermissionFlagsBits.ManageMessages);
         
-        // Remove whitelisted words from the content so they don't trigger substring matches
-        if (settings.whitelistedWords && settings.whitelistedWords.length > 0) {
-            for (const safeWord of settings.whitelistedWords) {
-                // Remove all occurrences of the whitelisted word loosely
-                content = content.split(safeWord.toLowerCase()).join('');
-            }
+        if (!isIgnored && isMod) {
+            return; // Mods bypass everything unless ignored
         }
 
-        let isBad = false;
-        let matchedWord = '';
-        let tier = ''; // hardcore or restricted
+        // --- Anti-Link Logic ---
+        if (settings.antiLink?.enabled) {
+            const linkMode = settings.antiLink.filterMode || 'whitelist';
+            let enforceLink = false;
 
-        // 1. Check Hardcore blocked words (Strictly forbidden)
-        for (const word of settings.hardcoreWords) {
-            if (content.includes(word.toLowerCase())) {
-                isBad = true;
-                matchedWord = word;
-                tier = 'hardcore';
-                break;
-            }
-        }
-
-        // 2. Check Restricted Words (Allowed only in 16+/18+ channels)
-        if (!isBad && message.channel.id !== settings.ageRestrictedChannelId) {
-            for (const word of settings.restrictedWords) {
-                if (content.includes(word.toLowerCase())) {
-                    isBad = true;
-                    matchedWord = word;
-                    tier = 'restricted';
-                    break;
+            if (linkMode === 'whitelist') {
+                if (!settings.antiLink.whitelistedChannels?.includes(channelId)) {
+                    enforceLink = true; // Enforce everywhere EXCEPT whitelisted channels
+                }
+            } else { // blacklist
+                if (settings.antiLink.blacklistedChannels?.includes(channelId)) {
+                    enforceLink = true; // ONLY enforce in blacklisted channels
                 }
             }
-        }
 
-        // 3. No longer using external API as per request.
-        // The bot now relies solely on hardcoreWords and restrictedWords.
-
-        if (isBad) {
-            try {
-                // Delete message
-                await message.delete().catch(() => {});
-
-                let shouldLog = false;
-                let logTitle = '';
-                let logColor = 0xFF0000;
-
-                if (tier === 'hardcore') {
-                    // Send Hardcore Warning
-                    const warnEmbed = new EmbedBuilder()
-                        .setColor(0xFF0000)
-                        .setTitle('🛑 Strictly Forbidden Content')
-                        .setDescription(`<@${message.author.id}>, your message was removed because it contained **strictly prohibited** language.`)
-                        .setFooter({ text: 'Violation Logged' });
-
-                    const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
+            if (enforceLink) {
+                const urlRegex = /(https?:\/\/[^\s]+)/g;
+                if (urlRegex.test(message.content)) {
+                    await message.delete().catch(() => {});
+                    const warnMsg = await message.channel.send({
+                        embeds: [new EmbedBuilder()
+                            .setColor(0xFF0000)
+                            .setTitle('🚫 Links Not Allowed')
+                            .setDescription(`<@${userId}>, you are not allowed to post links in this channel.`)
+                        ]
+                    });
                     setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
-
-                    if (settings.logHardcoreWords !== false) {
-                        shouldLog = true;
-                        logTitle = '🚨 Hardcore Filter Violation';
-                        logColor = 0xFF0000;
-                    }
-                } else if (tier === 'restricted') {
-                    // Send Age-Restricted Advice
-                    const ageEmbed = new EmbedBuilder()
-                        .setColor(0xFFAA00)
-                        .setTitle('🔞 Age-Restricted Content')
-                        .setDescription(`<@${message.author.id}>, that content is only allowed in our **16+/18+ channel**.`)
-                        .addFields({ name: 'Permitted Channel', value: settings.ageRestrictedChannelId ? `<#${settings.ageRestrictedChannelId}>` : 'Not Configured' })
-                        .setFooter({ text: 'Please move the conversation there.' });
-
-                    const ageMsg = await message.channel.send({ embeds: [ageEmbed] });
-                    setTimeout(() => ageMsg.delete().catch(() => {}), 10000);
-
-                    if (settings.logRestrictedWords !== false) {
-                        shouldLog = true;
-                        logTitle = '🔞 Restricted Filter Violation';
-                        logColor = 0xFFAA00;
-                    }
+                    return; // Stop processing further
                 }
-
-                // Execute shared logging if required
-                if (shouldLog && settings.logChannelId) {
-                    const logChannel = message.guild.channels.cache.get(settings.logChannelId);
-                    if (logChannel) {
-                        let staffPing = '';
-                        if (settings.staffRoleId) {
-                            const pingMode = settings.pingMode || 'both';
-                            if (pingMode === 'both' || pingMode === tier) {
-                                staffPing = `<@&${settings.staffRoleId}> `;
-                            }
-                        }
-
-                        const logEmbed = new EmbedBuilder()
-                            .setColor(logColor)
-                            .setTitle(logTitle)
-                            .addFields(
-                                { name: 'User', value: `${message.author.tag} (${message.author.id})`, inline: true },
-                                { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },
-                                { name: 'Matched', value: `\`${matchedWord}\``, inline: true },
-                                { name: 'Content', value: message.content }
-                            )
-                            .setTimestamp();
-                        
-                        logChannel.send({ content: staffPing, embeds: [logEmbed] }).catch(() => {});
-                    }
-                }
-
-            } catch (error) {
-                console.error('[AutoMod] Execution Error:', error);
             }
         }
-    }
+
+        // --- Anti-Spam Logic ---
+        if (!settings.antiSpamEnabled) return;
+
+        const spamMode = settings.antiSpamFilterMode || 'whitelist';
+        let enforceSpam = false;
+
+        if (spamMode === 'whitelist') {
+            if (!settings.antiSpamWhitelistedChannels?.includes(channelId)) {
+                enforceSpam = true; // Enforce everywhere EXCEPT whitelisted channels
+            }
+        } else { // blacklist
+            if (settings.antiSpamBlacklistedChannels?.includes(channelId)) {
+                enforceSpam = true; // ONLY enforce in blacklisted channels
+            }
+        }
+
+        if (!enforceSpam) return;
+
+        const trackerKey = `${userId}-${guildId}`;
+
+        // --- Repetition Detection ---
+        if (settings.repetitionEnabled) {
+            const content = message.content.trim().toLowerCase();
+            if (content.length > 0) {
+                const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, lastTimestamp: 0 };
+                
+                if (repData.content === content && (Date.now() - repData.lastTimestamp) < 30000) {
+                    repData.count++;
+                } else {
+                    repData.content = content;
+                    repData.count = 1;
+                }
+                repData.lastTimestamp = Date.now();
+                client.repetitionTracker.set(trackerKey, repData);
+
+                if (repData.count >= settings.repetitionThreshold) {
+                    await handleSpam(message, client, trackerKey, 'Repetitive Spam', settings);
+                    return;
+                }
+            }
+        }
+
+        // --- Fast Spam Tracking ---
+        if (settings.fastSpam.enabled) {
+            if (!client.spamTracker.has(trackerKey)) {
+                client.spamTracker.set(trackerKey, []);
+            }
+            const fastTimestamps = client.spamTracker.get(trackerKey);
+            fastTimestamps.push(Date.now());
+            if (fastTimestamps.length > settings.fastSpam.threshold) fastTimestamps.shift();
+
+            if (fastTimestamps.length === settings.fastSpam.threshold && (Date.now() - fastTimestamps[0]) < settings.fastSpam.window) {
+                await handleSpam(message, client, trackerKey, 'Fast Spam', settings);
+                return; // Stop processing further for this message if caught
+            }
+        }
+
+        // --- Slow Spam Tracking ---
+        if (settings.slowSpam.enabled) {
+            const slowTrackerKey = `slow-${trackerKey}`;
+            if (!client.spamTracker.has(slowTrackerKey)) {
+                client.spamTracker.set(slowTrackerKey, []);
+            }
+            const slowTimestamps = client.spamTracker.get(slowTrackerKey);
+            slowTimestamps.push(Date.now());
+            if (slowTimestamps.length > settings.slowSpam.threshold) slowTimestamps.shift();
+
+            if (slowTimestamps.length === settings.slowSpam.threshold && (Date.now() - slowTimestamps[0]) < settings.slowSpam.window) {
+                await handleSpam(message, client, trackerKey, 'Slow Spam', settings);
+            }
+        }
+    },
 };
+
+async function handleSpam(message, client, trackerKey, type, settings) {
+    const userId = message.author.id;
+    try {
+        // Retroactive Deletion (Bulk Delete)
+        if (settings.deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            // Delete the current message
+            await message.delete().catch(() => {});
+
+            // Fetch and delete recent messages from the same user (Retroactive)
+            const messages = await message.channel.messages.fetch({ limit: 50 }).catch(() => null);
+            if (messages) {
+                const toDelete = messages.filter(m => 
+                    m.author.id === userId && 
+                    (Date.now() - m.createdTimestamp) < 15000 // Last 15 seconds
+                );
+                if (toDelete.size > 0) {
+                    await message.channel.bulkDelete(toDelete).catch(() => {});
+                }
+            }
+        }
+
+        // Increment violations
+        const violations = (client.spamViolations.get(trackerKey) || 0) + 1;
+        client.spamViolations.set(trackerKey, violations);
+
+        // Warn user
+        if (settings.warnUser) {
+            const warnEmbed = new EmbedBuilder()
+                .setColor(violations === 1 ? 0xFFFF00 : 0xFF0000)
+                .setTitle(`⚠️ ${type} Detected`)
+                .setDescription(`<@${userId}>, please slow down! You are sending messages too quickly.`)
+                .setFooter({ text: 'Spamming is not allowed in this server.' });
+            
+            const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
+            setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+        }
+
+        // Timeout user
+        if (settings.timeoutUser && violations >= 2) {
+            const timeoutMs = settings.timeoutDuration * (violations - 1);
+            if (message.guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers) && message.member.manageable) {
+                await message.member.timeout(timeoutMs, `${type}ming`).catch(console.error);
+                
+                const timeoutEmbed = new EmbedBuilder()
+                    .setColor(0xFF0000)
+                    .setTitle('🔇 User Timed Out')
+                    .setDescription(`<@${userId}> has been timed out for persistent **${type}ming**.`)
+                    .setFooter({ text: 'Auto-Moderation' });
+                
+                const timeoutMsg = await message.channel.send({ embeds: [timeoutEmbed] });
+                setTimeout(() => timeoutMsg.delete().catch(() => {}), 10000);
+            }
+        }
+
+        console.log(`[AutoMod] ${type} by ${message.author.tag} in ${message.guild.name}. Violations: ${violations}`);
+
+        // Partial violation reset
+        setTimeout(() => {
+            const val = client.spamViolations.get(trackerKey);
+            if (val > 0) client.spamViolations.set(trackerKey, val - 1);
+        }, 60000);
+
+    } catch (error) {
+        console.error(`[AutoMod] Error handling ${type}:`, error);
+    }
+}
