@@ -926,6 +926,59 @@ app.post('/api/guilds/:guildId/giveaways/:messageId/end', async (req, res) => {
   }
 });
 
+// --- Media Only Channels ---
+app.get('/api/guilds/:guildId/media-only-channels', async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const MediaOnly = require('./models/mediaOnlySchema');
+    const channels = await MediaOnly.find({ guildId }).lean();
+    res.json(channels);
+  } catch (err) {
+    console.error('Failed to fetch media-only channels:', err);
+    res.status(500).json({ error: 'Failed to fetch media-only channels' });
+  }
+});
+
+app.post('/api/guilds/:guildId/media-only-channels', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const { channelId, enabled } = req.body;
+    if (!channelId) return res.status(400).json({ error: 'channelId required' });
+
+    const MediaOnly = require('./models/mediaOnlySchema');
+    const mediaChannel = await MediaOnly.findOneAndUpdate(
+      { guildId, channelId },
+      { enabled: enabled !== false },
+      { upsert: true, new: true }
+    );
+    res.json(mediaChannel);
+  } catch (err) {
+    console.error('Failed to save media-only channel:', err);
+    res.status(500).json({ error: 'Failed to save media-only channel' });
+  }
+});
+
+app.delete('/api/guilds/:guildId/media-only-channels/:channelId', async (req, res) => {
+  const { guildId, channelId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const MediaOnly = require('./models/mediaOnlySchema');
+    const result = await MediaOnly.deleteOne({ guildId, channelId });
+    res.json({ ok: result.deletedCount > 0 });
+  } catch (err) {
+    console.error('Failed to delete media-only channel:', err);
+    res.status(500).json({ error: 'Failed to delete media-only channel' });
+  }
+});
+
 const PORT = process.env.BOT_PORT || 4000;
 
 app.listen(PORT, () => {
