@@ -15,6 +15,7 @@ const censorSchema = new mongoose.Schema({
     whitelistedChannels: { type: [String], default: [] }, // Channels to ignore
     blacklistedChannels: { type: [String], default: [] }, // Only enforce in these channels if not empty
     enabled: { type: Boolean, default: false },
+    applyToEveryone: { type: Boolean, default: false },
 });
 
 module.exports = mongoose.models.Censor || mongoose.model('Censor', censorSchema);

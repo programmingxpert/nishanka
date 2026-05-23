@@ -948,13 +948,20 @@ app.post('/api/guilds/:guildId/media-only-channels', express.json(), async (req,
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
   try {
-    const { channelId, enabled } = req.body;
+    const { channelId, enabled, customWarning, createThread, applyToEveryone } = req.body;
     if (!channelId) return res.status(400).json({ error: 'channelId required' });
 
     const MediaOnly = require('./models/mediaOnlySchema');
+    
+    const updateData = {};
+    if (enabled !== undefined) updateData.enabled = (enabled !== false);
+    if (customWarning !== undefined) updateData.customWarning = customWarning;
+    if (createThread !== undefined) updateData.createThread = (createThread !== false);
+    if (applyToEveryone !== undefined) updateData.applyToEveryone = (applyToEveryone === true);
+
     const mediaChannel = await MediaOnly.findOneAndUpdate(
       { guildId, channelId },
-      { enabled: enabled !== false },
+      { $set: updateData },
       { upsert: true, new: true }
     );
     res.json(mediaChannel);

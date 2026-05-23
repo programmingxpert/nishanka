@@ -8,9 +8,6 @@ module.exports = {
     async execute(message, client) {
         if (message.author.bot || !message.guild) return;
 
-        // Exempt Administrators
-        if (message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-
         const guildId = message.guild.id;
 
         // Fetch settings from cache or DB
@@ -24,6 +21,10 @@ module.exports = {
             settings = { ...settings.toObject(), timestamp: Date.now() };
             client.censorCache.set(guildId, settings);
         }
+
+        // Exempt moderators/administrators unless applyToEveryone is enabled
+        const isMod = message.member.permissions.has(PermissionFlagsBits.ManageMessages) || message.member.permissions.has(PermissionFlagsBits.Administrator);
+        if (isMod && !settings.applyToEveryone) return;
 
         if (!settings.enabled) return;
 

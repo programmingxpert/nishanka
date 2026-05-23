@@ -26,11 +26,15 @@ module.exports = {
 
             if (status === null) {
                 // Toggle mode
-                if (settings) {
-                    await MediaOnly.deleteOne({ _id: settings._id });
+                if (settings && settings.enabled) {
+                    await MediaOnly.findOneAndUpdate({ guildId, channelId: channel.id }, { enabled: false });
                     return interaction.reply({ content: `✅ Media-only mode disabled for <#${channel.id}>.` });
                 } else {
-                    await MediaOnly.create({ guildId, channelId: channel.id, enabled: true });
+                    await MediaOnly.findOneAndUpdate(
+                        { guildId, channelId: channel.id },
+                        { enabled: true },
+                        { upsert: true }
+                    );
                     return interaction.reply({ content: `✅ Media-only mode enabled for <#${channel.id}>. Only images, videos, and links are allowed.` });
                 }
             } else {
@@ -43,7 +47,10 @@ module.exports = {
                     );
                     return interaction.reply({ content: `✅ Media-only mode enabled for <#${channel.id}>.` });
                 } else {
-                    await MediaOnly.deleteOne({ guildId, channelId: channel.id });
+                    await MediaOnly.findOneAndUpdate(
+                        { guildId, channelId: channel.id },
+                        { enabled: false }
+                    );
                     return interaction.reply({ content: `✅ Media-only mode disabled for <#${channel.id}>.` });
                 }
             }
@@ -64,11 +71,15 @@ module.exports = {
         try {
             let settings = await MediaOnly.findOne({ guildId, channelId: channel.id });
 
-            if (settings) {
-                await MediaOnly.deleteOne({ _id: settings._id });
+            if (settings && settings.enabled) {
+                await MediaOnly.findOneAndUpdate({ guildId, channelId: channel.id }, { enabled: false });
                 return message.reply(`✅ Media-only mode disabled for <#${channel.id}>.`);
             } else {
-                await MediaOnly.create({ guildId, channelId: channel.id, enabled: true });
+                await MediaOnly.findOneAndUpdate(
+                    { guildId, channelId: channel.id },
+                    { enabled: true },
+                    { upsert: true }
+                );
                 return message.reply(`✅ Media-only mode enabled for <#${channel.id}>. Only images, videos, and links are allowed.`);
             }
         } catch (error) {
