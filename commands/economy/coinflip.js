@@ -103,7 +103,11 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
         if (baubleData.baubles < amount) {
             const errorMsg = `❌ You only have **${baubleData.baubles}** Baubles, you cannot gamble **${amount}**.`;
             if (isSlash) {
-                return interaction.reply({ content: errorMsg, ephemeral: true });
+                if (interaction.deferred || interaction.replied) {
+                    return interaction.followUp({ content: errorMsg, ephemeral: true });
+                } else {
+                    return interaction.reply({ content: errorMsg, ephemeral: true });
+                }
             } else {
                 return message.reply(errorMsg);
             }
@@ -147,7 +151,11 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
 
         let initialMsg;
         if (isSlash) {
-            initialMsg = await interaction.reply({ embeds: [initialEmbed], components: [row], fetchReply: true });
+            if (interaction.deferred || interaction.replied) {
+                initialMsg = await interaction.followUp({ embeds: [initialEmbed], components: [row], fetchReply: true });
+            } else {
+                initialMsg = await interaction.reply({ embeds: [initialEmbed], components: [row], fetchReply: true });
+            }
         } else {
             initialMsg = await message.reply({ embeds: [initialEmbed], components: [row] });
         }
@@ -254,7 +262,11 @@ async function executeCoinflipFlip({ userId, amount, side, interaction, message,
         .setFooter({ text: 'Flipping...' });
 
     if (isSlash) {
-        replyMsg = await interaction.reply({ embeds: [initialEmbed], fetchReply: true });
+        if (interaction.deferred || interaction.replied) {
+            replyMsg = await interaction.followUp({ embeds: [initialEmbed], fetchReply: true });
+        } else {
+            replyMsg = await interaction.reply({ embeds: [initialEmbed], fetchReply: true });
+        }
     } else {
         replyMsg = await message.reply({ embeds: [initialEmbed] });
     }
