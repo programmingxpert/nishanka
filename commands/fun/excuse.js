@@ -130,51 +130,107 @@ function buildProgressBar(score) {
 }
 
 function generateFallbackScenario() {
-    const actions = [
-        "eating dog food to see how it tastes",
-        "practicing wedding vows with a mop",
-        "doing a dramatic anime fight in the mirror",
-        "sleeping under your desk during a meeting",
-        "stealing your roommate's dinosaur chicken nuggets",
-        "singing opera loudly in a public restroom stall",
-        "stalking your ex's grandmother on Instagram",
-        "trying to pay for groceries with Monopoly money",
-        "copying your cat's homework",
-        "sniffing a scented candle for 20 minutes in a store",
-        "learning how to meow at strangers online",
-        "smuggling a whole watermelon under your shirt into a movie theater",
-        "dancing like a chicken to summon rain",
-        "putting ketchup on your salad in a fancy restaurant",
-        "trying to high-five a mannequin"
+    const templates = [
+        () => {
+            const actions = [
+                "eating dog food to see how it tastes",
+                "practicing wedding vows with a mop",
+                "doing a dramatic anime fight in the mirror",
+                "sleeping under your desk during a meeting",
+                "stealing your roommate's dinosaur chicken nuggets",
+                "singing opera loudly in a public restroom stall",
+                "stalking your ex's grandmother on Instagram",
+                "trying to pay for groceries with Monopoly money",
+                "copying your cat's homework",
+                "sniffing a scented candle for 20 minutes in a store",
+                "learning how to meow at strangers online",
+                "smuggling a whole watermelon under your shirt into a movie theater",
+                "dancing like a chicken to summon rain",
+                "putting ketchup on your salad in a fancy restaurant",
+                "trying to high-five a mannequin"
+            ];
+            const witnesses = [
+                "your boss", "your crush", "a police officer", "your mother-in-law",
+                "the cashier", "your landlord", "a very confused toddler", "your teacher",
+                "a security guard", "your dentist", "your job interviewer", "a delivery driver"
+            ];
+            return `You got caught ${actions[Math.floor(Math.random() * actions.length)]} by ${witnesses[Math.floor(Math.random() * witnesses.length)]}.`;
+        },
+        () => {
+            const accidents = [
+                "texted a complaint about your boss",
+                "sent a screenshot of a conversation",
+                "liked your ex's post from 7 years ago",
+                "called your teacher 'Mom'",
+                "shared your screen showing a recipe for potato cannons",
+                "unmuted yourself while talking trash",
+                "spilled hot coffee all over a toddler's artwork",
+                "waved back at a stranger who was waving to someone else"
+            ];
+            const targets = [
+                "TO your boss.",
+                "to the group chat.",
+                "at 3:00 AM.",
+                "in front of the whole class.",
+                "during a major business pitch.",
+                "to the entire Zoom call.",
+                "and blamed it on the dog.",
+                "in the middle of a quiet library."
+            ];
+            return `You accidentally ${accidents[Math.floor(Math.random() * accidents.length)]} ${targets[Math.floor(Math.random() * targets.length)]}`;
+        },
+        () => {
+            const people = ["mother", "boss", "crush", "partner", "roommate", "landlord", "teacher"];
+            const actions = [
+                "dramatically practicing an argument in the mirror.",
+                "giving a motivational speech to your house plants.",
+                "eating cheese slices directly from the fridge at 4 AM.",
+                "trying on their shoes backward.",
+                "trying to teach your cat how to do taxes.",
+                "hiding under the kitchen table with a box of donuts."
+            ];
+            return `Your ${people[Math.floor(Math.random() * people.length)]} caught you ${actions[Math.floor(Math.random() * actions.length)]}`;
+        },
+        () => {
+            const lies = [
+                "you were a strict vegan",
+                "you were fluent in French",
+                "you were too sick to work",
+                "you were extremely busy",
+                "you don't watch reality TV"
+            ];
+            const truths = [
+                "devouring a triple bacon cheeseburger.",
+                "not knowing what 'Bonjour' means.",
+                "riding a rollercoaster at a theme park.",
+                "taking a 4-hour nap on the couch.",
+                "crying over the Season 5 finale of Love Island."
+            ];
+            return `You told everyone ${lies[Math.floor(Math.random() * lies.length)]}, but got caught ${truths[Math.floor(Math.random() * truths.length)]}`;
+        }
     ];
-    const witnesses = [
-        "your boss",
-        "your crush",
-        "a police officer",
-        "your mother-in-law",
-        "the cashier",
-        "your landlord",
-        "a very confused toddler",
-        "your teacher",
-        "a security guard",
-        "your dentist",
-        "your job interviewer",
-        "a delivery driver"
-    ];
-    const action = actions[Math.floor(Math.random() * actions.length)];
-    const witness = witnesses[Math.floor(Math.random() * witnesses.length)];
-    return `You got caught ${action} by ${witness}.`;
+
+    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+    return randomTemplate();
 }
 
 async function generateAIScenario(apiKey) {
-    const prompt = `Generate a single, extremely short, hilarious, and instantly understandable scenario (maximum 10 words) of a person getting caught doing something embarrassing.
-Use the second person format: "You got caught [doing something funny] by [someone]".
-Keep it simple, punchy, and highly relatable. Do NOT make it complex or write a paragraph.
+    const prompt = `Generate a single, extremely short, hilarious, and instantly understandable scenario (maximum 12 words) of a person getting into a funny sticky situation.
+Keep it simple, punchy, and highly relatable. Do NOT make it complex or write a paragraph. 
+
+Use one of these dynamic formats:
+- "You got caught [doing something funny] by [someone]."
+- "You accidentally [did something embarrassing] [somewhere/to someone]."
+- "Your [someone] caught you [doing something funny]."
+- "You told everyone [a lie], but got caught [doing the opposite]."
+- "You fell asleep [somewhere inappropriate] and [did something embarrassing]."
+
 Examples:
 - You got caught eating dog food to see how it tastes by your crush.
-- You got caught practicing wedding vows with a mop by your boss.
-- You got caught doing a dramatic anime fight in the mirror by a toddler.
-- You got caught sleeping under your desk during a meeting by your landlord.
+- You accidentally texted a complaint about your boss TO your boss.
+- Your mother caught you practicing wedding vows with a mop.
+- You told everyone you were vegan, but got caught eating a bacon cheeseburger.
+- You fell asleep during a crucial zoom meeting and started snoring loudly.
 
 Output ONLY the scenario itself, with no quotation marks, no introductory text, no markdown, and no explanation.`;
 
