@@ -3,45 +3,25 @@ const Bauble = require('../../models/baubleSchema');
 
 const FALLBACK_SCENARIOS = [
     "Your boss caught you sleeping under your desk during a major client presentation.",
-    "You accidentally texted your boss a complaint about them.",
-    "You got caught practicing wedding vows with a mop by your crush.",
-    "Your roommate caught you eating their leftover pizza at 4:00 AM.",
-    "You accidentally unmuted your mic while complaining about a boring meeting.",
-    "Your crush walked in on you singing opera in a public restroom stall.",
-    "You got caught trying to pay for groceries with Monopoly money.",
-    "Your mother-in-law caught you hiding under the kitchen table with a box of donuts.",
-    "You accidentally liked a 7-year-old Instagram photo of your ex at 3:00 AM.",
-    "You told everyone you were sick, but got caught on a rollercoaster on your boss's Instagram.",
-    "Your teacher caught you using ChatGPT to write your personal diary entries.",
-    "You got caught waving back at someone who was waving to the person behind you.",
-    "Your landlord caught you trying to teach your cat how to do taxes.",
+    "You accidentally texted your boss a highly detailed complaint about them.",
+    "Your roommate caught you eating their expensive leftovers at 4:00 AM with sauce all over your face.",
+    "You accidentally unmuted your mic while calling your teacher a complete clown.",
+    "You got caught trying to pay for groceries with Monopoly money at the cashier.",
+    "Your mother-in-law caught you hiding under the bed with her birthday cake.",
+    "You told everyone you were too sick to work, but got caught on a rollercoaster on your boss's live stream.",
+    "Your teacher caught you using ChatGPT to write your personal apology letter to them.",
+    "Your landlord caught you trying to slide down the banister while holding a stolen street sign.",
     "You got caught smuggling a whole watermelon under your shirt into a movie theater.",
-    "Your doctor caught you eating a giant bag of potato chips in the waiting room.",
-    "You accidentally called your teacher 'Mom' in front of the whole class.",
-    "Your trainer caught you eating a donut on the treadmill.",
-    "You got caught trying on a mannequin's clothes at a department store.",
-    "You accidentally sent a text badmouthing your best friend to that exact friend.",
-    "Your roommate caught you drinking milk directly from the carton and putting it back empty.",
-    "You got caught doing a dramatic anime fight in the mirror by your boss.",
-    "You accidentally shared your screen showing a recipe for 'how to make potato cannons'.",
-    "Your boss caught you looking at flights to Hawaii during a performance review.",
-    "You got caught taking a nap on a display bed in IKEA.",
-    "Your partner caught you buying a replica sword instead of paying rent.",
-    "You got caught walking out of the communal office kitchen with the microwave.",
-    "You accidentally texted your crush a screenshot of their own profile.",
-    "Your teacher caught you sleeping with your eyes drawn on your eyelids.",
-    "You got caught sniffing scented candles for 20 minutes in a quiet store.",
-    "You got caught trying to high-five a person who was just hailing a cab.",
-    "Your dentist caught you eating gummy bears in the waiting room.",
-    "You accidentally liked a TikTok of your boss doing a dance trend.",
-    "Your mom caught you pretending to be in a music video in the rain.",
-    "You got caught trying to sneak into a kids' bouncy castle.",
-    "Your landlord caught you trying to slide down the banister.",
-    "You got caught using a fake accent to get free food.",
-    "Your roommate caught you hiding their keys so they wouldn't leave.",
-    "You got caught trying to pet a raccoon behind the restaurant.",
-    "Your boss caught you playing games on your phone during a one-on-one meeting.",
-    "You accidentally walked into the wrong house thinking it was yours."
+    "Your doctor caught you eating a giant bag of potato chips in the waiting room while on a strict fast.",
+    "You accidentally called your job interviewer 'darling' and tried to play it cool.",
+    "Your trainer caught you eating a glazed donut while walking slowly on the treadmill.",
+    "You got caught trying to sneak a communal office microwave into your car.",
+    "You accidentally texted your crush a screenshot of their own profile saying 'look at this idiot'.",
+    "Your teacher caught you sleeping with realistic eyeballs drawn on your eyelids.",
+    "You told everyone you were a strict vegan, but got caught devouring a triple bacon cheeseburger.",
+    "You got caught using a fake British accent to get free meals at a fancy restaurant.",
+    "Your roommate caught you hiding their car keys so they wouldn't leave.",
+    "Your boss caught you playing games on your phone under the table during a one-on-one performance review."
 ];
 
 module.exports = {
@@ -392,12 +372,25 @@ function generateFallbackScenario() {
 }
 
 async function generateAIScenario(apiKey) {
-    const prompt = `Generate a single, extremely short, hilarious, and instantly understandable scenario (maximum 12 words) of a person getting caught in a funny, embarrassing situation.
-Make it simple, punchy, and highly relatable to daily life.
-Ensure the scenario makes absolute sense logically (e.g. do not say "double-tapping your own post" or other nonsensical combinations).
-Do NOT write complex stories or paragraph scripts.
-Do NOT use the exact template "You told everyone X, but got caught Y" repeatedly. Vary the scenario format (e.g., "Your crush caught you...", "You accidentally unmuted while...", "You got caught...").
-Output ONLY the scenario itself, with no quotation marks, no introductory text, no markdown, and no explanation.`;
+    const keywords = [
+        "funeral vs theme park", "job interview calling interviewer darling", "cheating on exam", 
+        "stealing office microwave", "stealing roommate leftovers", "unmuted zoom meeting trash talk", 
+        "paying with monopoly money", "fake doctor note on vacation", "sleeping under boss desk", 
+        "fake vegan eating cheeseburger", "sleeping with eyes painted on eyelids", "apology letter written by chatgpt", 
+        "texting crush screenshot of themselves", "accidentally texting boss complaint about them", 
+        "eating cake from mother-in-law fridge", "fake accent for free meals", "sliding down landlord banister"
+    ];
+    const keyword = keywords[Math.floor(Math.random() * keywords.length)];
+
+    const prompt = `Generate a single, short, hilarious, and instantly understandable scenario (maximum 15 words) of a person getting caught red-handed in a highly embarrassing, high-stakes situation where they MUST make a desperate excuse to save themselves.
+    
+    CRITICAL REQUIREMENTS:
+    - The situation must require a clear, urgent defense or excuse (e.g., caught stealing, caught in a massive lie, caught doing something highly inappropriate, forbidden, or weird).
+    - Avoid boring, low-stakes scenarios (do NOT generate scenarios like "waving at someone", "looking at flights", "practicing speeches", or "liking old photos" - these do not require an excuse).
+    - It must be funny and make perfect logical sense.
+    - Output ONLY the scenario itself in the second person ("You...").
+    - Do NOT wrap in quotes, do NOT include markdown, and do NOT write introductory/explanatory text.
+    - Incorporate the following theme/keyword: "${keyword}".`;
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
@@ -410,7 +403,7 @@ Output ONLY the scenario itself, with no quotation marks, no introductory text, 
             messages: [
                 { role: 'user', content: prompt }
             ],
-            temperature: 0.9,
+            temperature: 0.95,
             max_tokens: 100
         })
     });
