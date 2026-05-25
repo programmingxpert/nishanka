@@ -62,6 +62,32 @@ module.exports = {
                         ]
                     });
                     setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+
+                    // Send log to configured channel
+                    if (settings.logChannelId && (settings.logFeatures?.antiLink !== false)) {
+                        const logChannel = message.guild.channels.cache.get(settings.logChannelId) || 
+                                           await message.guild.channels.fetch(settings.logChannelId).catch(() => null);
+                        if (logChannel) {
+                            const contentSnippet = message.content.length > 200 
+                                ? message.content.substring(0, 197) + '...' 
+                                : message.content;
+
+                            const logEmbed = new EmbedBuilder()
+                                .setColor(0xE74C3C) // Red
+                                .setTitle('🛡️ AutoMod: Link Blocked')
+                                .addFields(
+                                    { name: '👤 User', value: `${message.author} (${message.author.tag})`, inline: true },
+                                    { name: '💬 Channel', value: `${message.channel}`, inline: true },
+                                    { name: '⚙️ Action Taken', value: '`Deleted & Warned`', inline: true },
+                                    { name: '📄 Message Snippet', value: contentSnippet ? `\`\`\`\n${contentSnippet}\n\`\`\`` : '*No content*' }
+                                )
+                                .setFooter({ text: `User ID: ${message.author.id}` })
+                                .setTimestamp();
+
+                            await logChannel.send({ embeds: [logEmbed] }).catch(console.error);
+                        }
+                    }
+
                     return; // Stop processing further
                 }
             }
@@ -192,6 +218,42 @@ async function handleSpam(message, client, trackerKey, type, settings) {
                 
                 const timeoutMsg = await message.channel.send({ embeds: [timeoutEmbed] });
                 setTimeout(() => timeoutMsg.delete().catch(() => {}), 10000);
+            }
+        }
+
+        // Send log to configured channel
+        if (settings.logChannelId && (settings.logFeatures?.antiSpam !== false)) {
+            const logChannel = message.guild.channels.cache.get(settings.logChannelId) || 
+                               await message.guild.channels.fetch(settings.logChannelId).catch(() => null);
+            if (logChannel) {
+                let actions = [];
+                if (settings.deleteMessages) actions.push('Deleted Message(s)');
+                if (settings.warnUser) actions.push('Warned User');
+                if (settings.timeoutUser && violations >= 2 && message.guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers) && message.member.manageable) {
+                    const timeoutMs = settings.timeoutDuration * (violations - 1);
+                    actions.push(`Timed out (${Math.round(timeoutMs / 60000)}m)`);
+                }
+                if (actions.length === 0) actions.push('None');
+
+                const contentSnippet = message.content.length > 200 
+                    ? message.content.substring(0, 197) + '...' 
+                    : message.content;
+
+                const logEmbed = new EmbedBuilder()
+                    .setColor(0xE67E22) // Amber
+                    .setTitle('🛡️ AutoMod: Spam Detected')
+                    .addFields(
+                        { name: '👤 User', value: `${message.author} (${message.author.tag})`, inline: true },
+                        { name: '💬 Channel', value: `${message.channel}`, inline: true },
+                        { name: '🚨 Violation Type', value: `\`${type}\``, inline: true },
+                        { name: '📊 Violations Count', value: `\`${violations}\``, inline: true },
+                        { name: '⚙️ Action Taken', value: `\`${actions.join(', ')}\``, inline: true },
+                        { name: '📄 Message Snippet', value: contentSnippet ? `\`\`\`\n${contentSnippet}\n\`\`\`` : '*No content*' }
+                    )
+                    .setFooter({ text: `User ID: ${message.author.id}` })
+                    .setTimestamp();
+
+                await logChannel.send({ embeds: [logEmbed] }).catch(console.error);
             }
         }
 

@@ -3,6 +3,13 @@ const mongoose = require('mongoose');
 const autoModSchema = new mongoose.Schema({
     guildId: { type: String, required: true, unique: true },
 
+    // Logging Configuration
+    logChannelId: { type: String, default: null },
+    logFeatures: {
+        antiSpam: { type: Boolean, default: true },
+        antiLink: { type: Boolean, default: true }
+    },
+
     // Top-Level Modules
     antiSpamEnabled: { type: Boolean, default: true },
     antiSpamFilterMode: { type: String, default: 'whitelist' }, // 'whitelist' or 'blacklist'

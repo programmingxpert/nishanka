@@ -125,7 +125,8 @@ module.exports = {
                     { name: '🔁 Repetition Detection', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
                     { name: '⚖️ Action Penalties', value: `Warn: \`${settings.warnUser}\` | Delete: \`${settings.deleteMessages}\` | Timeout: \`${settings.timeoutUser}\`` },
                     { name: '⏱️ Timeout Duration', value: `\`${(settings.timeoutDuration || 60000) / 60000}\` minute(s)`, inline: true },
-                    { name: '🕵️ Watchlist (Always Moderated)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
+                    { name: '🕵️ Watchlist (Always Moderated)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' },
+                    { name: '📋 Activity Log Settings', value: `Log Channel: ${settings.logChannelId ? `<#${settings.logChannelId}>` : '`Disabled`'}\nLogged Events:\n• Spam Protection: \`${settings.logFeatures?.antiSpam !== false ? 'Enabled' : 'Disabled'}\`\n• Link Protection: \`${settings.logFeatures?.antiLink !== false ? 'Enabled' : 'Disabled'}\`` }
                 )
                 .setFooter({ text: 'Use /automod to manage these settings.' })
                 .setTimestamp();
