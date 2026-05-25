@@ -193,6 +193,13 @@ module.exports = {
                       }
                   });
               } else if (selection === 'edit_banner') {
+                  const Bauble = require('../../models/baubleSchema');
+                  const baubleData = await Bauble.findOne({ userId });
+                  const hasPaintbrush = baubleData?.inventory?.some(item => item.itemId === 'paintbrush' && item.quantity > 0);
+                  if (!hasPaintbrush) {
+                      return i.reply({ content: '❌ You need a 🎨 **Profile Paintbrush** in your inventory to customize your profile banner! Buy one from the `/shop`.', ephemeral: true });
+                  }
+
                    // Using Message component instead of modal for ease of use.
                   await i.reply({content: "Please send the picture you want to use as your banner. (GIFs are not supported) or enter a URL or a hex color code (e.g. #FF0000)", ephemeral: true});
 
@@ -347,6 +354,13 @@ module.exports = {
 
               profileData.pfpUrl = newPfp;
           } else if (selection === 'banner') {
+              const Bauble = require('../../models/baubleSchema');
+              const baubleData = await Bauble.findOne({ userId });
+              const hasPaintbrush = baubleData?.inventory?.some(item => item.itemId === 'paintbrush' && item.quantity > 0);
+              if (!hasPaintbrush) {
+                  return message.channel.send(`<@${userId}>, you need a 🎨 **Profile Paintbrush** in your inventory to customize your profile banner! Buy one from the shop.`);
+              }
+
               message.channel.send(`<@${userId}>, please send a URL for your new banner, upload a picture or enter a hex color code (e.g. #FF0000). GIFs are not supported for banners:`);
 
               const colBanner = await message.channel.awaitMessages({ filter, time: 30000, max: 1 });

@@ -31,7 +31,7 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('gift')
-        .setDescription('Gift items from your inventory to another member.')
+        .setDescription('Gift items from your inventory to another member with a custom message.')
         .addUserOption(option =>
             option.setName('user')
                 .setDescription('The user to gift items to')
@@ -44,6 +44,11 @@ module.exports = {
             option.setName('quantity')
                 .setDescription('How many items to gift')
                 .setMinValue(1)
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('message')
+                .setDescription('An optional message for the recipient')
+                .setMaxLength(250)
                 .setRequired(false)),
 
     async execute(interaction) {
@@ -52,6 +57,7 @@ module.exports = {
             const targetUser = interaction.options.getUser('user');
             const itemId = interaction.options.getString('item').trim().toLowerCase();
             const quantity = interaction.options.getInteger('quantity') || 1;
+            const customMessage = interaction.options.getString('message');
 
             if (targetUser.bot) {
                 return interaction.reply({ content: '❌ You cannot gift items to bots!', ephemeral: true });
@@ -97,6 +103,25 @@ module.exports = {
                 .setTimestamp()
                 .setFooter({ text: 'Glimmering Gifting System' });
 
+            if (customMessage) {
+                successEmbed.addFields({ name: '✉️ Message from Sender', value: `*"${customMessage}"*` });
+            }
+
+            // Attempt to DM the recipient
+            try {
+                const dmEmbed = new EmbedBuilder()
+                    .setColor(0x9B59B6)
+                    .setTitle('🎁 You received a Gift!')
+                    .setDescription(`**${interaction.user.username}** sent you **${quantity}x ${item.name}** in **${interaction.guild.name}**!`)
+                    .setTimestamp();
+                if (customMessage) {
+                    dmEmbed.addFields({ name: '✉️ Message', value: `*"${customMessage}"*` });
+                }
+                await targetUser.send({ embeds: [dmEmbed] });
+            } catch (err) {
+                console.log(`Could not send gift DM to ${targetUser.tag}`);
+            }
+
             return interaction.reply({ embeds: [successEmbed] });
 
         } catch (error) {
@@ -110,10 +135,9 @@ module.exports = {
             const senderId = message.author.id;
             const targetUser = message.mentions.users.first();
             const itemId = args[1]?.toLowerCase();
-            const quantity = parseInt(args[2]) || 1;
 
             if (!targetUser) {
-                return message.reply('⚠️ Please mention a user to gift. Example: `-gift @username coffee 1`');
+                return message.reply('⚠️ Please mention a user to gift. Example: `-gift @username coffee 1 [message]`');
             }
 
             if (targetUser.bot) {
@@ -132,6 +156,15 @@ module.exports = {
             if (!item) {
                 return message.reply(`⚠️ Invalid item ID. Choose from: \`${Object.keys(ITEMS).join(', ')}\``);
             }
+
+            // Parse quantity and message
+            let quantity = 1;
+            let messageIndex = 2;
+            if (args[2] && !isNaN(parseInt(args[2]))) {
+                quantity = parseInt(args[2]);
+                messageIndex = 3;
+            }
+            const customMessage = args.slice(messageIndex).join(' ') || null;
 
             const senderData = await Bauble.findOne({ userId: senderId });
             if (!senderData) {
@@ -161,6 +194,25 @@ module.exports = {
                 .setDescription(`You successfully gifted **${quantity}x ${item.name}** to **${targetUser.username}**!`)
                 .setTimestamp()
                 .setFooter({ text: 'Glimmering Gifting System' });
+
+            if (customMessage) {
+                successEmbed.addFields({ name: '✉️ Message from Sender', value: `*"${customMessage}"*` });
+            }
+
+            // Attempt to DM the recipient
+            try {
+                const dmEmbed = new EmbedBuilder()
+                    .setColor(0x9B59B6)
+                    .setTitle('🎁 You received a Gift!')
+                    .setDescription(`**${message.author.username}** sent you **${quantity}x ${item.name}** in **${message.guild.name}**!`)
+                    .setTimestamp();
+                if (customMessage) {
+                    dmEmbed.addFields({ name: '✉️ Message', value: `*"${customMessage}"*` });
+                }
+                await targetUser.send({ embeds: [dmEmbed] });
+            } catch (err) {
+                console.log(`Could not send gift DM to ${targetUser.tag}`);
+            }
 
             return message.reply({ embeds: [successEmbed] });
 

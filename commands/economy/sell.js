@@ -43,6 +43,10 @@ module.exports = {
                 return interaction.reply({ content: `❌ Invalid item ID. Choose from: \`${Object.keys(ITEMS).join(', ')}\``, ephemeral: true });
             }
 
+            if (item.sellPrice === null || item.sellPrice === undefined) {
+                return interaction.reply({ content: `❌ **${item.name}** cannot be sold back to the shop. Only collectibles like the Golden Nugget can be sold.`, ephemeral: true });
+            }
+
             const baubleData = await Bauble.findOne({ userId });
             if (!baubleData) {
                 return interaction.reply({ content: '❌ You do not have any items to sell.', ephemeral: true });
@@ -86,12 +90,16 @@ module.exports = {
             const quantity = parseInt(args[1]) || 1;
 
             if (!itemId) {
-                return message.reply(`⚠️ Please specify an item to sell. Example: \`-sell coffee 2\`. Options: \`${Object.keys(ITEMS).join(', ')}\``);
+                return message.reply(`⚠️ Please specify an item to sell. Example: \`-sell nugget 2\`. Options: \`${Object.keys(ITEMS).join(', ')}\``);
             }
 
             const item = ITEMS[itemId];
             if (!item) {
                 return message.reply(`⚠️ Invalid item ID. Choose from: \`${Object.keys(ITEMS).join(', ')}\``);
+            }
+
+            if (item.sellPrice === null || item.sellPrice === undefined) {
+                return message.reply(`❌ **${item.name}** cannot be sold back to the shop. Only collectibles like the Golden Nugget can be sold.`);
             }
 
             const baubleData = await Bauble.findOne({ userId });

@@ -8,52 +8,90 @@ const {
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-// Define our shop items catalog
+// Define our shop items catalog with categories and premium pricing
 const ITEMS = {
+    // --- Economy & Utility Boosters ---
     coffee: {
         id: 'coffee',
         name: '☕ Energizing Coffee',
         emoji: '☕',
         description: 'Halves work (10s -> 5s) and scavenge (10m -> 5m) cooldowns for 30 minutes.',
-        price: 150,
-        sellPrice: 75,
-        type: 'consumable'
+        price: 15000,
+        sellPrice: null,
+        type: 'consumable',
+        category: 'boosters'
     },
     clover: {
         id: 'clover',
         name: '🍀 Lucky Clover',
         emoji: '🍀',
         description: 'Increases Coinflip and Gamble win rates by 10% for 15 minutes.',
-        price: 300,
-        sellPrice: 150,
-        type: 'consumable'
+        price: 30000,
+        sellPrice: null,
+        type: 'consumable',
+        category: 'boosters'
     },
     shield: {
         id: 'shield',
         name: '🛡️ Aegis Shield',
         emoji: '🛡️',
         description: 'Passive. Protects you from wager loss on your next failed Brawl duel (consumed on use).',
-        price: 600,
-        sellPrice: 300,
-        type: 'collectible'
+        price: 100000,
+        sellPrice: null,
+        type: 'collectible',
+        category: 'boosters'
     },
     mystery_box: {
         id: 'mystery_box',
         name: '📦 Mystery Box',
         emoji: '📦',
-        description: 'Open to win Coffee, Clovers, Aegis Shields, or up to 400 bonus Baubles.',
-        price: 200,
-        sellPrice: 100,
-        type: 'consumable'
+        description: 'Open to win Coffee, Clovers, Aegis Shields, or bonus Baubles.',
+        price: 25000,
+        sellPrice: null,
+        type: 'consumable',
+        category: 'boosters'
+    },
+
+    // --- Cosmetics & Premium Collectibles ---
+    tag: {
+        id: 'tag',
+        name: '🏷️ Custom Tag',
+        emoji: '🏷️',
+        description: 'Cosmetic. Gives you a custom tag role in the server (ask an admin to apply!).',
+        price: 50000,
+        sellPrice: null,
+        type: 'collectible',
+        category: 'cosmetics'
+    },
+    paintbrush: {
+        id: 'paintbrush',
+        name: '🎨 Profile Paintbrush',
+        emoji: '🎨',
+        description: 'Cosmetic tool. Required to customize profile banners (color and URL) using /profile-edit.',
+        price: 120000,
+        sellPrice: null,
+        type: 'collectible',
+        category: 'cosmetics'
     },
     nugget: {
         id: 'nugget',
         name: '💎 Golden Nugget',
         emoji: '💎',
-        description: 'A premium gold chunk. High value for selling back (800 Baubles) or gifting.',
-        price: 1000,
-        sellPrice: 800,
-        type: 'collectible'
+        description: 'A premium gold chunk. High value for selling back (150,000 Baubles) or gifting.',
+        price: 250000,
+        sellPrice: 150000,
+        type: 'collectible',
+        category: 'cosmetics'
+    },
+    crown: {
+        id: 'crown',
+        name: '👑 Crown of Royalty',
+        emoji: '👑',
+        description: 'The ultimate status symbol of absolute wealth. Displays proudly in your inventory.',
+        price: 2500000,
+        sellPrice: null,
+        type: 'collectible',
+        category: 'cosmetics'
     }
 };
 
@@ -129,12 +167,23 @@ module.exports = {
             }
 
             // Interactive catalog menu
+            const boostersList = Object.values(ITEMS)
+                .filter(item => item.category === 'boosters')
+                .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
+                .join('\n\n');
+
+            const cosmeticsList = Object.values(ITEMS)
+                .filter(item => item.category === 'cosmetics')
+                .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
+                .join('\n\n');
+
             const shopEmbed = new EmbedBuilder()
                 .setColor(0x00AE86)
                 .setTitle('🛍️ Glimmering Bauble Shop')
-                .setDescription(
-                    `You currently have **${baubleData.baubles.toLocaleString()}** Baubles.\n\n` +
-                    Object.values(ITEMS).map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`).join('\n\n')
+                .setDescription(`You currently have **${baubleData.baubles.toLocaleString()}** Baubles.`)
+                .addFields(
+                    { name: '⚡ Economy & Utility Boosters', value: boostersList },
+                    { name: '🎨 Cosmetics & Premium Collectibles', value: cosmeticsList }
                 )
                 .setFooter({ text: 'Use /shop buy:<id> to purchase items instantly.' });
 
@@ -144,7 +193,7 @@ module.exports = {
                 .addOptions(
                     Object.values(ITEMS).map(item => ({
                         label: item.name.replace(/^[^\s]+\s+/, ''),
-                        description: `${item.price} Baubles - ${item.description.substring(0, 50)}`,
+                        description: `${item.price.toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
                         value: item.id
                     }))
                 );
@@ -219,12 +268,23 @@ module.exports = {
             }
 
             // Default display
+            const boostersList = Object.values(ITEMS)
+                .filter(item => item.category === 'boosters')
+                .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
+                .join('\n\n');
+
+            const cosmeticsList = Object.values(ITEMS)
+                .filter(item => item.category === 'cosmetics')
+                .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
+                .join('\n\n');
+
             const shopEmbed = new EmbedBuilder()
                 .setColor(0x00AE86)
                 .setTitle('🛍️ Glimmering Bauble Shop')
-                .setDescription(
-                    `You currently have **${baubleData.baubles.toLocaleString()}** Baubles.\n\n` +
-                    Object.values(ITEMS).map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`).join('\n\n')
+                .setDescription(`You currently have **${baubleData.baubles.toLocaleString()}** Baubles.`)
+                .addFields(
+                    { name: '⚡ Economy & Utility Boosters', value: boostersList },
+                    { name: '🎨 Cosmetics & Premium Collectibles', value: cosmeticsList }
                 )
                 .setFooter({ text: 'Type "-shop buy <id> [quantity]" to purchase items.' });
 

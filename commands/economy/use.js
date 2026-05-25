@@ -54,7 +54,7 @@ module.exports = {
             // Check inventory
             const hasItem = baubleData.inventory && baubleData.inventory.some(i => i.itemId === itemId && i.quantity > 0);
             if (!hasItem) {
-                return interaction.reply({ content: `❌ You do not own any **${ITEMS[itemId].name}**. Buy one from the `/shop`!`, ephemeral: true });
+                return interaction.reply({ content: `❌ You do not own any **${ITEMS[itemId].name}**. Buy one from the \`/shop\`!`, ephemeral: true });
             }
 
             // Resolve item effects
@@ -92,7 +92,13 @@ module.exports = {
             } else if (itemId === 'shield') {
                 return interaction.reply({ content: '🛡️ The **Aegis Shield** is a passive item. As long as it sits in your inventory, it will automatically consume itself to prevent wager loss in your next failed `/battle` duel!', ephemeral: true });
             } else if (itemId === 'nugget') {
-                return interaction.reply({ content: '💎 The **Golden Nugget** is a collectible item. You cannot consume it, but you can sell it using `/sell item:nugget` or gift it to a friend using `/gift`!', ephemeral: true });
+                return interaction.reply({ content: '💎 The **Golden Nugget** is a collectible item. You cannot consume it, but you can sell it using `/sell item:nugget` or gift it using `/gift`!', ephemeral: true });
+            } else if (itemId === 'tag') {
+                return interaction.reply({ content: '🏷️ The **Custom Tag** is a cosmetic item. Please contact a server administrator to create and assign your custom tag role!', ephemeral: true });
+            } else if (itemId === 'crown') {
+                return interaction.reply({ content: '👑 The **Crown of Royalty** is the ultimate status symbol of absolute wealth. You cannot consume it, but it displays proudly in your inventory!', ephemeral: true });
+            } else if (itemId === 'paintbrush') {
+                return interaction.reply({ content: '🎨 The **Profile Paintbrush** is a tool used to customize your profile banner (both custom Hex colors and URLs) using `/profile-edit`!', ephemeral: true });
             }
 
             await baubleData.save();
@@ -170,6 +176,12 @@ module.exports = {
                 return message.reply('🛡️ The **Aegis Shield** is a passive item. As long as it sits in your inventory, it will automatically consume itself to prevent wager loss in your next failed Brawl duel!');
             } else if (itemId === 'nugget') {
                 return message.reply('💎 The **Golden Nugget** is a collectible item. You cannot consume it, but you can sell it using `-sell nugget` or gift it using `-gift <user> nugget`!');
+            } else if (itemId === 'tag') {
+                return message.reply('🏷️ The **Custom Tag** is a cosmetic item. Please contact a server administrator to create and assign your custom tag role!');
+            } else if (itemId === 'crown') {
+                return message.reply('👑 The **Crown of Royalty** is the ultimate status symbol of absolute wealth. You cannot consume it, but it displays proudly in your inventory!');
+            } else if (itemId === 'paintbrush') {
+                return message.reply('🎨 The **Profile Paintbrush** is a tool used to customize your profile banner (both custom Hex colors and URLs) using `-profile-edit`!');
             }
 
             await baubleData.save();
