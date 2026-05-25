@@ -1,23 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
-const SCENARIOS = [
-    "You got caught cheating on your math final by the strictest teacher in the state.",
-    "You were supposed to be at a funeral, but your boss saw you on a rollercoaster at a theme park.",
-    "Your partner found a receipt for a $5,000 diamond ring, but their birthday passed and they got nothing.",
-    "You accidentally sent a text complaining about your best friend... TO your best friend.",
-    "You were caught sneaking out of the office with the communal microwave in your arms.",
-    "Your mom walked into your room while you were dramatically practicing an argument in the mirror.",
-    "You accidentally liked your ex's photo from 6 years ago at 3:00 AM.",
-    "You called in sick, but you just posted a highly produced TikTok of yourself doing a dance trend.",
-    "You got pulled over for going 110 mph in a school zone.",
-    "The fire alarm went off, and you were the only one holding a lighter and a melted marshmallow.",
-    "Your roommate's expensive leftovers are gone, and you have pasta sauce all over your shirt.",
-    "You told everyone you were a strict vegan, but you were just caught devouring a triple bacon cheeseburger.",
-    "You tried to forge your parents' signature on a bad report card, but you misspelled your own last name.",
-    "You told the interviewer you were fluent in French, and they immediately started speaking French to you.",
-    "You fell asleep during a crucial zoom meeting and started loudly snoring while unmuted."
-];
-
 module.exports = {
     category: 'fun',
     cooldown: 15,
@@ -35,17 +17,29 @@ module.exports = {
 };
 
 async function runExcuseGame(initialData, channel, user) {
+    const isSlash = !!initialData.deferReply;
     const apiKey = process.env.DEEPSEEK_API_KEY;
+
     if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
         const msg = '⚠️ The AI features are currently unavailable. Please check back later!';
-        if (initialData.reply) {
+        if (isSlash) {
             return initialData.reply({ content: msg, ephemeral: true });
         } else {
             return channel.send(msg);
         }
     }
 
-    const scenario = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
+    if (isSlash) {
+        await initialData.deferReply();
+    }
+
+    let scenario;
+    try {
+        scenario = await generateAIScenario(apiKey);
+    } catch (err) {
+        console.error('Failed to generate scenario via AI, using fallback:', err);
+        scenario = generateFallbackScenario();
+    }
 
     const embed = new EmbedBuilder()
         .setColor(0xe74c3c)
@@ -53,8 +47,8 @@ async function runExcuseGame(initialData, channel, user) {
         .setDescription(`**SCENARIO:**\n${scenario}\n\n*You have 60 seconds to type your excuse in this channel. Make it good!*`)
         .setFooter({ text: 'The AI Judge is waiting...', iconURL: user.displayAvatarURL({ dynamic: true }) });
 
-    if (initialData.reply) {
-        await initialData.reply({ embeds: [embed] });
+    if (isSlash) {
+        await initialData.editReply({ embeds: [embed] });
     } else {
         await channel.send({ embeds: [embed] });
     }
@@ -75,20 +69,38 @@ async function runExcuseGame(initialData, channel, user) {
         try {
             const result = await evaluateExcuse(scenario, excuseText, apiKey);
             
+            let metrics = result.metrics;
+            if (!Array.isArray(metrics) || metrics.length === 0) {
+                metrics = [
+                    { name: 'Believability', score: result.believability || 50 },
+                    { name: 'Confidence', score: result.confidence || 50 },
+                    { name: 'Manipulation', score: result.manipulation || 50 },
+                    { name: 'Stupidity', score: result.stupidity || 50 }
+                ];
+            }
+
+            // Limit to exactly 4 metrics
+            metrics = metrics.slice(0, 4);
+
+            const fields = [
+                { name: 'Your Excuse', value: `*"${excuseText}"*` }
+            ];
+
+            metrics.forEach((m, idx) => {
+                const mName = m.name ? String(m.name).trim() : `Metric ${idx + 1}`;
+                fields.push({ name: mName, value: buildProgressBar(m.score), inline: true });
+                if (idx === 1 || idx === 3) {
+                    fields.push({ name: '\u200B', value: '\u200B', inline: true });
+                }
+            });
+
+            fields.push({ name: 'Verdict', value: result.verdict || 'No verdict provided.' });
+
             const resultEmbed = new EmbedBuilder()
                 .setColor(0x9b59b6)
                 .setTitle('⚖️ THE AI HAS SPOKEN')
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-                .addFields(
-                    { name: 'Your Excuse', value: `*"${excuseText}"*` },
-                    { name: 'Believability', value: buildProgressBar(result.believability), inline: true },
-                    { name: 'Confidence', value: buildProgressBar(result.confidence), inline: true },
-                    { name: '\u200B', value: '\u200B', inline: true },
-                    { name: 'Manipulation', value: buildProgressBar(result.manipulation), inline: true },
-                    { name: 'Stupidity', value: buildProgressBar(result.stupidity), inline: true },
-                    { name: '\u200B', value: '\u200B', inline: true },
-                    { name: 'Verdict', value: result.verdict }
-                )
+                .addFields(fields)
                 .setFooter({ text: 'Excuse by AI (Powered by DeepSeek)' });
 
             await thinkingMessage.edit({ embeds: [resultEmbed] });
@@ -114,7 +126,88 @@ function buildProgressBar(score) {
     const filled = Math.round(safeScore / 10);
     const empty = 10 - filled;
     
-    return '\`' + '█'.repeat(filled) + '░'.repeat(empty) + ` ${safeScore}%\``;
+    return '`' + '█'.repeat(filled) + '░'.repeat(empty) + ` ${safeScore}%\``;
+}
+
+function generateFallbackScenario() {
+    const subjects = [
+        "Your boss", "Your teacher", "Your partner", "Your mother", "A police officer", 
+        "The job interviewer", "Your roommate", "A security guard", "Your dentist", "A TSA agent",
+        "Your principal", "The head chef", "A gym trainer", "Your doctor", "Your landlord"
+    ];
+    const actions = [
+        "caught you trying to forge their signature",
+        "spotted you eating raw cookie dough directly from the tub",
+        "walked in on you doing a highly dramatic TikTok dance",
+        "found a hidden box of expensive chocolate wrappers",
+        "caught you taking a nap under your desk",
+        "saw you driving a lawnmower on the highway",
+        "heard you loudly snoring while unmuted",
+        "spotted you wearing a complete clown suit",
+        "caught you sneaking a communal microwave out of the office",
+        "found you talking to your reflection in a public restroom mirror",
+        "saw you trying to pay for coffee using Monopoly money",
+        "caught you wearing their clothes backwards",
+        "saw you searching 'how to build a potato cannon' during a meeting"
+    ];
+    const details = [
+        "during a crucial performance review.",
+        "at 3:00 AM in the kitchen.",
+        "while pretending to be extremely busy.",
+        "and immediately demanded an explanation.",
+        "with pasta sauce all over your face.",
+        "while you were supposed to be on sick leave.",
+        "in front of the entire executive board.",
+        "and they are absolutely not amused.",
+        "during a highly solemn ceremony.",
+        "and they just stared at you in absolute silence."
+    ];
+    const s = subjects[Math.floor(Math.random() * subjects.length)];
+    const a = actions[Math.floor(Math.random() * actions.length)];
+    const d = details[Math.floor(Math.random() * details.length)];
+    return `${s} ${a} ${d}`;
+}
+
+async function generateAIScenario(apiKey) {
+    const prompt = `Generate a single, short (1-2 sentences), highly embarrassing and funny scenario where someone gets caught red-handed doing something they shouldn't.
+Output ONLY the scenario text itself, with no introductory text, no quotes, and no formatting (no markdown). Just the raw sentence.`;
+
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.9,
+            max_tokens: 150
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`DeepSeek API error during scenario generation: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    let content = data.choices[0].message.content.trim();
+    
+    // Remove wrapping quotes if any
+    content = content.replace(/^["']|["']$/g, '');
+    
+    // If it starts with "Here is...", clean it up
+    if (content.toLowerCase().startsWith('here is') || content.toLowerCase().startsWith('here\'s')) {
+        const colonIdx = content.indexOf(':');
+        if (colonIdx !== -1) {
+            content = content.slice(colonIdx + 1).trim();
+        }
+    }
+    
+    content = content.replace(/^["']|["']$/g, '');
+    return content;
 }
 
 async function evaluateExcuse(scenario, excuse, apiKey) {
@@ -126,10 +219,12 @@ They provided this excuse:
 
 Evaluate their excuse. You MUST return your evaluation strictly as a valid JSON object matching exactly this structure (no markdown, no backticks, no other text):
 {
-  "believability": <integer 0-100>,
-  "confidence": <integer 0-100>,
-  "manipulation": <integer 0-100>,
-  "stupidity": <integer 0-100>,
+  "metrics": [
+    { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
+    { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
+    { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
+    { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> }
+  ],
   "verdict": "<A funny, roasting 1-2 sentence verdict>"
 }`;
 
@@ -145,7 +240,7 @@ Evaluate their excuse. You MUST return your evaluation strictly as a valid JSON 
                 { role: 'system', content: prompt }
             ],
             temperature: 0.8,
-            max_tokens: 300
+            max_tokens: 350
         })
     });
 
@@ -156,11 +251,18 @@ Evaluate their excuse. You MUST return your evaluation strictly as a valid JSON 
     const data = await response.json();
     let content = data.choices[0].message.content.trim();
     
-    // Try to strip markdown if the AI stubbornly adds it
-    if (content.startsWith('\`\`\`json')) {
-        content = content.replace(/^\`\`\`json\n?/, '').replace(/\n?\`\`\`$/, '');
-    } else if (content.startsWith('\`\`\`')) {
-        content = content.replace(/^\`\`\`\n?/, '').replace(/\n?\`\`\`$/, '');
+    // Strip markdown if present
+    if (content.startsWith('```json')) {
+        content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    } else if (content.startsWith('```')) {
+        content = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+
+    // Try to extract only the JSON object
+    const firstBrace = content.indexOf('{');
+    const lastBrace = content.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        content = content.slice(firstBrace, lastBrace + 1);
     }
 
     return JSON.parse(content);
