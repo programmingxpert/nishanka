@@ -52,9 +52,25 @@ module.exports = {
             return message.reply('❌ You are not authorized to use this command.');
         }
 
-        const user = message.mentions.users.first();
+        const targetArg = args[0];
+        if (!targetArg) {
+            return message.reply('⚠️ Please mention a user or provide their ID to reset Baubles for.');
+        }
+
+        let userId = targetArg;
+        if (targetArg.startsWith('<@') && targetArg.endsWith('>')) {
+            userId = targetArg.replace(/[<@!>]/g, '');
+        }
+
+        let user;
+        try {
+            user = await message.client.users.fetch(userId);
+        } catch {
+            user = null;
+        }
+
         if (!user) {
-            return message.reply('⚠️ Please mention a user to reset Baubles for.');
+            return message.reply('⚠️ Could not find that user. Please provide a valid mention or ID.');
         }
 
         let amount = 0;
