@@ -44,7 +44,7 @@ async function runExcuseGame(initialData, channel, user) {
     const embed = new EmbedBuilder()
         .setColor(0xe74c3c)
         .setTitle('🚨 BUSTED! EXCUSE BY AI')
-        .setDescription(`**SCENARIO:**\n${scenario}\n\n*You have 60 seconds to type your excuse in this channel. Make it good!*`)
+        .setDescription(`**SCENARIO:**\n${scenario}\n\n*You have 90 seconds to type your excuse in this channel. Make it good!*`)
         .setFooter({ text: 'The AI Judge is waiting...', iconURL: user.displayAvatarURL({ dynamic: true }) });
 
     if (isSlash) {
@@ -56,7 +56,7 @@ async function runExcuseGame(initialData, channel, user) {
     const filter = m => m.author.id === user.id && !m.author.bot;
     
     try {
-        const collected = await channel.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] });
+        const collected = await channel.awaitMessages({ filter, max: 1, time: 90000, errors: ['time'] });
         const excuseMsg = collected.first();
         const excuseText = excuseMsg.content;
 
@@ -101,7 +101,7 @@ async function runExcuseGame(initialData, channel, user) {
                 .setTitle('⚖️ THE AI HAS SPOKEN')
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                 .addFields(fields)
-                .setFooter({ text: 'Excuse by AI (Powered by DeepSeek)' });
+                .setFooter({ text: 'Excuse by AI' });
 
             await thinkingMessage.edit({ embeds: [resultEmbed] });
 
@@ -116,7 +116,7 @@ async function runExcuseGame(initialData, channel, user) {
     } catch (timeout) {
         const timeoutEmbed = new EmbedBuilder()
             .setColor(0x34495e)
-            .setDescription('⏰ You stood there in silence for 60 seconds. The AI Judge finds you guilty by default.');
+            .setDescription('⏰ You stood there in silence for 90 seconds. The AI Judge finds you guilty by default.');
         await channel.send({ embeds: [timeoutEmbed] });
     }
 }
@@ -130,47 +130,53 @@ function buildProgressBar(score) {
 }
 
 function generateFallbackScenario() {
-    const subjects = [
-        "Your boss", "Your teacher", "Your partner", "Your mother", "A police officer", 
-        "The job interviewer", "Your roommate", "A security guard", "Your dentist", "A TSA agent",
-        "Your principal", "The head chef", "A gym trainer", "Your doctor", "Your landlord"
-    ];
     const actions = [
-        "caught you trying to forge their signature",
-        "spotted you eating raw cookie dough directly from the tub",
-        "walked in on you doing a highly dramatic TikTok dance",
-        "found a hidden box of expensive chocolate wrappers",
-        "caught you taking a nap under your desk",
-        "saw you driving a lawnmower on the highway",
-        "heard you loudly snoring while unmuted",
-        "spotted you wearing a complete clown suit",
-        "caught you sneaking a communal microwave out of the office",
-        "found you talking to your reflection in a public restroom mirror",
-        "saw you trying to pay for coffee using Monopoly money",
-        "caught you wearing their clothes backwards",
-        "saw you searching 'how to build a potato cannon' during a meeting"
+        "eating dog food to see how it tastes",
+        "practicing wedding vows with a mop",
+        "doing a dramatic anime fight in the mirror",
+        "sleeping under your desk during a meeting",
+        "stealing your roommate's dinosaur chicken nuggets",
+        "singing opera loudly in a public restroom stall",
+        "stalking your ex's grandmother on Instagram",
+        "trying to pay for groceries with Monopoly money",
+        "copying your cat's homework",
+        "sniffing a scented candle for 20 minutes in a store",
+        "learning how to meow at strangers online",
+        "smuggling a whole watermelon under your shirt into a movie theater",
+        "dancing like a chicken to summon rain",
+        "putting ketchup on your salad in a fancy restaurant",
+        "trying to high-five a mannequin"
     ];
-    const details = [
-        "during a crucial performance review.",
-        "at 3:00 AM in the kitchen.",
-        "while pretending to be extremely busy.",
-        "and immediately demanded an explanation.",
-        "with pasta sauce all over your face.",
-        "while you were supposed to be on sick leave.",
-        "in front of the entire executive board.",
-        "and they are absolutely not amused.",
-        "during a highly solemn ceremony.",
-        "and they just stared at you in absolute silence."
+    const witnesses = [
+        "your boss",
+        "your crush",
+        "a police officer",
+        "your mother-in-law",
+        "the cashier",
+        "your landlord",
+        "a very confused toddler",
+        "your teacher",
+        "a security guard",
+        "your dentist",
+        "your job interviewer",
+        "a delivery driver"
     ];
-    const s = subjects[Math.floor(Math.random() * subjects.length)];
-    const a = actions[Math.floor(Math.random() * actions.length)];
-    const d = details[Math.floor(Math.random() * details.length)];
-    return `${s} ${a} ${d}`;
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    const witness = witnesses[Math.floor(Math.random() * witnesses.length)];
+    return `You got caught ${action} by ${witness}.`;
 }
 
 async function generateAIScenario(apiKey) {
-    const prompt = `Generate a single, short (1-2 sentences), highly embarrassing and funny scenario where someone gets caught red-handed doing something they shouldn't.
-Output ONLY the scenario text itself, with no introductory text, no quotes, and no formatting (no markdown). Just the raw sentence.`;
+    const prompt = `Generate a single, extremely short, hilarious, and instantly understandable scenario (maximum 10 words) of a person getting caught doing something embarrassing.
+Use the second person format: "You got caught [doing something funny] by [someone]".
+Keep it simple, punchy, and highly relatable. Do NOT make it complex or write a paragraph.
+Examples:
+- You got caught eating dog food to see how it tastes by your crush.
+- You got caught practicing wedding vows with a mop by your boss.
+- You got caught doing a dramatic anime fight in the mirror by a toddler.
+- You got caught sleeping under your desk during a meeting by your landlord.
+
+Output ONLY the scenario itself, with no quotation marks, no introductory text, no markdown, and no explanation.`;
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
@@ -184,7 +190,7 @@ Output ONLY the scenario text itself, with no introductory text, no quotes, and 
                 { role: 'user', content: prompt }
             ],
             temperature: 0.9,
-            max_tokens: 150
+            max_tokens: 100
         })
     });
 
