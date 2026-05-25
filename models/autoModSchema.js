@@ -21,11 +21,21 @@ const autoModSchema = new mongoose.Schema({
         enabled: { type: Boolean, default: true },
         threshold: { type: Number, default: 5 },
         window: { type: Number, default: 3000 }, // ms
+        warnUser: { type: Boolean, default: true },
+        deleteMessages: { type: Boolean, default: true },
+        timeoutUser: { type: Boolean, default: true },
+        timeoutDuration: { type: Number, default: 60000 }, // ms (1 minute default)
+        ignoredUsers: { type: [String], default: [] },
     },
     slowSpam: {
         enabled: { type: Boolean, default: true },
         threshold: { type: Number, default: 10 },
         window: { type: Number, default: 12000 }, // ms
+        warnUser: { type: Boolean, default: true },
+        deleteMessages: { type: Boolean, default: true },
+        timeoutUser: { type: Boolean, default: true },
+        timeoutDuration: { type: Number, default: 60000 }, // ms (1 minute default)
+        ignoredUsers: { type: [String], default: [] },
     },
     warnUser: { type: Boolean, default: true },
     deleteMessages: { type: Boolean, default: true },
@@ -41,6 +51,17 @@ const autoModSchema = new mongoose.Schema({
         filterMode: { type: String, default: 'whitelist' }, // 'whitelist' or 'blacklist'
         whitelistedChannels: { type: [String], default: [] },
         blacklistedChannels: { type: [String], default: [] },
+        warnUser: { type: Boolean, default: true },
+        deleteMessages: { type: Boolean, default: true },
+        timeoutUser: { type: Boolean, default: true },
+        timeoutDuration: { type: Number, default: 60000 }, // ms (1 minute default)
+        ignoredUsers: { type: [String], default: [] },
+        allowedFormats: {
+            images: { type: Boolean, default: false },
+            gifs: { type: Boolean, default: false },
+            videos: { type: Boolean, default: false }
+        },
+        whitelistedWebsites: { type: [String], default: [] }
     }
 }, { collection: 'antispams' }); // Preserve existing collection data
 

@@ -27,68 +27,42 @@ module.exports = {
 
         // Exempt administrators and users with Manage Messages permission
         // EXCEPT if they are in the ignoredUsers list (Watchlist)
-        const isIgnored = settings.ignoredUsers?.includes(userId);
         const isMod = message.member.permissions.has(PermissionFlagsBits.Administrator) ||
                       message.member.permissions.has(PermissionFlagsBits.ManageMessages);
-        
-        if (!isIgnored && isMod) {
-            return; // Mods bypass everything unless ignored
-        }
 
         // --- Anti-Link Logic ---
         if (settings.antiLink?.enabled) {
-            const linkMode = settings.antiLink.filterMode || 'whitelist';
-            let enforceLink = false;
+            const isLinkIgnored = settings.antiLink.ignoredUsers?.includes(userId) || settings.ignoredUsers?.includes(userId);
+            if (isLinkIgnored || !isMod) {
+                const linkMode = settings.antiLink.filterMode || 'whitelist';
+                let enforceLink = false;
 
-            if (linkMode === 'whitelist') {
-                if (!settings.antiLink.whitelistedChannels?.includes(channelId)) {
-                    enforceLink = true; // Enforce everywhere EXCEPT whitelisted channels
+                if (linkMode === 'whitelist') {
+                    if (!settings.antiLink.whitelistedChannels?.includes(channelId)) {
+                        enforceLink = true; // Enforce everywhere EXCEPT whitelisted channels
+                    }
+                } else { // blacklist
+                    if (settings.antiLink.blacklistedChannels?.includes(channelId)) {
+                        enforceLink = true; // ONLY enforce in blacklisted channels
+                    }
                 }
-            } else { // blacklist
-                if (settings.antiLink.blacklistedChannels?.includes(channelId)) {
-                    enforceLink = true; // ONLY enforce in blacklisted channels
-                }
-            }
 
-            if (enforceLink) {
-                const urlRegex = /(https?:\/\/[^\s]+)/g;
-                if (urlRegex.test(message.content)) {
-                    await message.delete().catch(() => {});
-                    const warnMsg = await message.channel.send({
-                        embeds: [new EmbedBuilder()
-                            .setColor(0xFF0000)
-                            .setTitle('🚫 Links Not Allowed')
-                            .setDescription(`<@${userId}>, you are not allowed to post links in this channel.`)
-                        ]
-                    });
-                    setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
-
-                    // Send log to configured channel
-                    if (settings.logChannelId && (settings.logFeatures?.antiLink !== false)) {
-                        const logChannel = message.guild.channels.cache.get(settings.logChannelId) || 
-                                           await message.guild.channels.fetch(settings.logChannelId).catch(() => null);
-                        if (logChannel) {
-                            const contentSnippet = message.content.length > 200 
-                                ? message.content.substring(0, 197) + '...' 
-                                : message.content;
-
-                            const logEmbed = new EmbedBuilder()
-                                .setColor(0xE74C3C) // Red
-                                .setTitle('🛡️ AutoMod: Link Blocked')
-                                .addFields(
-                                    { name: '👤 User', value: `${message.author} (${message.author.tag})`, inline: true },
-                                    { name: '💬 Channel', value: `${message.channel}`, inline: true },
-                                    { name: '⚙️ Action Taken', value: '`Deleted & Warned`', inline: true },
-                                    { name: '📄 Message Snippet', value: contentSnippet ? `\`\`\`\n${contentSnippet}\n\`\`\`` : '*No content*' }
-                                )
-                                .setFooter({ text: `User ID: ${message.author.id}` })
-                                .setTimestamp();
-
-                            await logChannel.send({ embeds: [logEmbed] }).catch(console.error);
+                if (enforceLink) {
+                    const urlRegex = /(https?:\/\/[^\s]+)/g;
+                    const urls = message.content.match(urlRegex);
+                    if (urls && urls.length > 0) {
+                        let hasUnauthorizedLink = false;
+                        for (const urlStr of urls) {
+                            if (!isUrlAllowed(urlStr, settings.antiLink)) {
+                                hasUnauthorizedLink = true;
+                                break;
+                            }
+                        }
+                        if (hasUnauthorizedLink) {
+                            await handleViolation(message, client, `${userId}-${guildId}`, 'Link Violation', 'antiLink', settings);
+                            return; // Stop processing further
                         }
                     }
-
-                    return; // Stop processing further
                 }
             }
         }
@@ -115,105 +89,180 @@ module.exports = {
 
         // --- Repetition Detection ---
         if (settings.repetitionEnabled) {
-            const content = message.content.trim().toLowerCase();
-            if (content.length > 0) {
-                const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, lastTimestamp: 0 };
-                
-                if (repData.content === content && (Date.now() - repData.lastTimestamp) < 30000) {
-                    repData.count++;
-                } else {
-                    repData.content = content;
-                    repData.count = 1;
-                }
-                repData.lastTimestamp = Date.now();
-                client.repetitionTracker.set(trackerKey, repData);
+            const isRepetitionIgnored = settings.ignoredUsers?.includes(userId);
+            if (isRepetitionIgnored || !isMod) {
+                const content = message.content.trim().toLowerCase();
+                if (content.length > 0) {
+                    const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, lastTimestamp: 0 };
+                    
+                    if (repData.content === content && (Date.now() - repData.lastTimestamp) < 30000) {
+                        repData.count++;
+                    } else {
+                        repData.content = content;
+                        repData.count = 1;
+                    }
+                    repData.lastTimestamp = Date.now();
+                    client.repetitionTracker.set(trackerKey, repData);
 
-                if (repData.count >= settings.repetitionThreshold) {
-                    await handleSpam(message, client, trackerKey, 'Repetitive Spam', settings);
-                    return;
+                    if (repData.count >= settings.repetitionThreshold) {
+                        await handleViolation(message, client, trackerKey, 'Repetitive Spam', 'repetition', settings);
+                        return;
+                    }
                 }
             }
         }
 
         // --- Fast Spam Tracking ---
-        if (settings.fastSpam.enabled) {
-            if (!client.spamTracker.has(trackerKey)) {
-                client.spamTracker.set(trackerKey, []);
-            }
-            const fastTimestamps = client.spamTracker.get(trackerKey);
-            fastTimestamps.push(Date.now());
-            if (fastTimestamps.length > settings.fastSpam.threshold) fastTimestamps.shift();
+        if (settings.fastSpam?.enabled) {
+            const isFastIgnored = settings.fastSpam.ignoredUsers?.includes(userId) || settings.ignoredUsers?.includes(userId);
+            if (isFastIgnored || !isMod) {
+                if (!client.spamTracker.has(trackerKey)) {
+                    client.spamTracker.set(trackerKey, []);
+                }
+                const fastTimestamps = client.spamTracker.get(trackerKey);
+                fastTimestamps.push(Date.now());
+                if (fastTimestamps.length > settings.fastSpam.threshold) fastTimestamps.shift();
 
-            if (fastTimestamps.length === settings.fastSpam.threshold && (Date.now() - fastTimestamps[0]) < settings.fastSpam.window) {
-                await handleSpam(message, client, trackerKey, 'Fast Spam', settings);
-                return; // Stop processing further for this message if caught
+                if (fastTimestamps.length === settings.fastSpam.threshold && (Date.now() - fastTimestamps[0]) < settings.fastSpam.window) {
+                    await handleViolation(message, client, trackerKey, 'Fast Spam', 'fastSpam', settings);
+                    return; // Stop processing further for this message if caught
+                }
             }
         }
 
         // --- Slow Spam Tracking ---
-        if (settings.slowSpam.enabled) {
-            const slowTrackerKey = `slow-${trackerKey}`;
-            if (!client.spamTracker.has(slowTrackerKey)) {
-                client.spamTracker.set(slowTrackerKey, []);
-            }
-            const slowTimestamps = client.spamTracker.get(slowTrackerKey);
-            slowTimestamps.push(Date.now());
-            if (slowTimestamps.length > settings.slowSpam.threshold) slowTimestamps.shift();
+        if (settings.slowSpam?.enabled) {
+            const isSlowIgnored = settings.slowSpam.ignoredUsers?.includes(userId) || settings.ignoredUsers?.includes(userId);
+            if (isSlowIgnored || !isMod) {
+                const slowTrackerKey = `slow-${trackerKey}`;
+                if (!client.spamTracker.has(slowTrackerKey)) {
+                    client.spamTracker.set(slowTrackerKey, []);
+                }
+                const slowTimestamps = client.spamTracker.get(slowTrackerKey);
+                slowTimestamps.push(Date.now());
+                if (slowTimestamps.length > settings.slowSpam.threshold) slowTimestamps.shift();
 
-            if (slowTimestamps.length === settings.slowSpam.threshold && (Date.now() - slowTimestamps[0]) < settings.slowSpam.window) {
-                await handleSpam(message, client, trackerKey, 'Slow Spam', settings);
+                if (slowTimestamps.length === settings.slowSpam.threshold && (Date.now() - slowTimestamps[0]) < settings.slowSpam.window) {
+                    await handleViolation(message, client, trackerKey, 'Slow Spam', 'slowSpam', settings);
+                }
             }
         }
     },
 };
 
-async function handleSpam(message, client, trackerKey, type, settings) {
-    const userId = message.author.id;
+function isUrlAllowed(urlStr, antiLinkConfig) {
+    if (!antiLinkConfig) return false;
     try {
-        // Retroactive Deletion (Bulk Delete)
-        if (settings.deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
-            // Delete the current message
-            await message.delete().catch(() => {});
+        let parsedUrl = new URL(urlStr);
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const pathname = parsedUrl.pathname.toLowerCase();
 
-            // Fetch and delete recent messages from the same user (Retroactive)
-            const messages = await message.channel.messages.fetch({ limit: 50 }).catch(() => null);
-            if (messages) {
-                const toDelete = messages.filter(m => 
-                    m.author.id === userId && 
-                    (Date.now() - m.createdTimestamp) < 15000 // Last 15 seconds
-                );
-                if (toDelete.size > 0) {
-                    await message.channel.bulkDelete(toDelete).catch(() => {});
+        // 1. Check whitelisted websites
+        if (antiLinkConfig.whitelistedWebsites && Array.isArray(antiLinkConfig.whitelistedWebsites)) {
+            for (const site of antiLinkConfig.whitelistedWebsites) {
+                const cleanSite = site.trim().toLowerCase();
+                if (!cleanSite) continue;
+                // Match domain exactly, or match subdomains
+                if (hostname === cleanSite || hostname.endsWith('.' + cleanSite)) {
+                    return true;
                 }
             }
         }
 
-        // Increment violations
-        const violations = (client.spamViolations.get(trackerKey) || 0) + 1;
-        client.spamViolations.set(trackerKey, violations);
+        // 2. Check allowed formats (images, gifs, videos)
+        const allowedFormats = antiLinkConfig.allowedFormats || {};
+        if (allowedFormats.images || allowedFormats.gifs || allowedFormats.videos) {
+            // Get file extension from pathname
+            const extMatch = pathname.match(/\.([a-z0-9]+)(?:[\?#]|$)/i);
+            if (extMatch) {
+                const ext = extMatch[1].toLowerCase();
+                const imageExts = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff', 'heic'];
+                const gifExts = ['gif'];
+                const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv'];
+
+                if (allowedFormats.images && imageExts.includes(ext)) return true;
+                if (allowedFormats.gifs && gifExts.includes(ext)) return true;
+                if (allowedFormats.videos && videoExts.includes(ext)) return true;
+            }
+        }
+
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function handleViolation(message, client, trackerKey, type, moduleKey, settings) {
+    const userId = message.author.id;
+    
+    // Extract module-specific config
+    let moduleConfig = {};
+    if (moduleKey === 'fastSpam') {
+        moduleConfig = settings.fastSpam || {};
+    } else if (moduleKey === 'slowSpam') {
+        moduleConfig = settings.slowSpam || {};
+    } else if (moduleKey === 'antiLink') {
+        moduleConfig = settings.antiLink || {};
+    }
+    
+    // Fallback to global setting if undefined
+    const warnUser = moduleConfig.warnUser !== undefined ? moduleConfig.warnUser : settings.warnUser;
+    const deleteMessages = moduleConfig.deleteMessages !== undefined ? moduleConfig.deleteMessages : settings.deleteMessages;
+    const timeoutUser = moduleConfig.timeoutUser !== undefined ? moduleConfig.timeoutUser : settings.timeoutUser;
+    const timeoutDuration = moduleConfig.timeoutDuration !== undefined ? moduleConfig.timeoutDuration : settings.timeoutDuration;
+
+    try {
+        // Retroactive Deletion / Deletion
+        if (deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            // Delete the current message
+            await message.delete().catch(() => {});
+
+            // Retroactive delete for spam modules only
+            if (moduleKey !== 'antiLink') {
+                const messages = await message.channel.messages.fetch({ limit: 50 }).catch(() => null);
+                if (messages) {
+                    const toDelete = messages.filter(m => 
+                        m.author.id === userId && 
+                        (Date.now() - m.createdTimestamp) < 15000 // Last 15 seconds
+                    );
+                    if (toDelete.size > 0) {
+                        await message.channel.bulkDelete(toDelete).catch(() => {});
+                    }
+                }
+            }
+        }
+
+        // Increment violations (using trackerKey + moduleKey to isolate them)
+        const violationKey = `${trackerKey}-${moduleKey}`;
+        const violations = (client.spamViolations.get(violationKey) || 0) + 1;
+        client.spamViolations.set(violationKey, violations);
 
         // Warn user
-        if (settings.warnUser) {
+        if (warnUser) {
             const warnEmbed = new EmbedBuilder()
                 .setColor(violations === 1 ? 0xFFFF00 : 0xFF0000)
                 .setTitle(`⚠️ ${type} Detected`)
-                .setDescription(`<@${userId}>, please slow down! You are sending messages too quickly.`)
-                .setFooter({ text: 'Spamming is not allowed in this server.' });
+                .setDescription(
+                    moduleKey === 'antiLink'
+                        ? `<@${userId}>, you are not allowed to post links in this channel.`
+                        : `<@${userId}>, please slow down! You are sending messages too quickly.`
+                )
+                .setFooter({ text: moduleKey === 'antiLink' ? 'Links are restricted in this server.' : 'Spamming is not allowed in this server.' });
             
             const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
             setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
         }
 
         // Timeout user
-        if (settings.timeoutUser && violations >= 2) {
-            const timeoutMs = settings.timeoutDuration * (violations - 1);
+        if (timeoutUser && violations >= 2) {
+            const timeoutMs = timeoutDuration * (violations - 1);
             if (message.guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers) && message.member.manageable) {
-                await message.member.timeout(timeoutMs, `${type}ming`).catch(console.error);
+                await message.member.timeout(timeoutMs, `${type} violation`).catch(console.error);
                 
                 const timeoutEmbed = new EmbedBuilder()
                     .setColor(0xFF0000)
                     .setTitle('🔇 User Timed Out')
-                    .setDescription(`<@${userId}> has been timed out for persistent **${type}ming**.`)
+                    .setDescription(`<@${userId}> has been timed out for persistent **${type}** violations.`)
                     .setFooter({ text: 'Auto-Moderation' });
                 
                 const timeoutMsg = await message.channel.send({ embeds: [timeoutEmbed] });
@@ -222,15 +271,20 @@ async function handleSpam(message, client, trackerKey, type, settings) {
         }
 
         // Send log to configured channel
-        if (settings.logChannelId && (settings.logFeatures?.antiSpam !== false)) {
+        const shouldLog = settings.logChannelId && (
+            (moduleKey === 'antiLink' && settings.logFeatures?.antiLink !== false) ||
+            (moduleKey !== 'antiLink' && settings.logFeatures?.antiSpam !== false)
+        );
+
+        if (shouldLog) {
             const logChannel = message.guild.channels.cache.get(settings.logChannelId) || 
                                await message.guild.channels.fetch(settings.logChannelId).catch(() => null);
             if (logChannel) {
                 let actions = [];
-                if (settings.deleteMessages) actions.push('Deleted Message(s)');
-                if (settings.warnUser) actions.push('Warned User');
-                if (settings.timeoutUser && violations >= 2 && message.guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers) && message.member.manageable) {
-                    const timeoutMs = settings.timeoutDuration * (violations - 1);
+                if (deleteMessages) actions.push('Deleted Message(s)');
+                if (warnUser) actions.push('Warned User');
+                if (timeoutUser && violations >= 2 && message.guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers) && message.member.manageable) {
+                    const timeoutMs = timeoutDuration * (violations - 1);
                     actions.push(`Timed out (${Math.round(timeoutMs / 60000)}m)`);
                 }
                 if (actions.length === 0) actions.push('None');
@@ -240,8 +294,8 @@ async function handleSpam(message, client, trackerKey, type, settings) {
                     : message.content;
 
                 const logEmbed = new EmbedBuilder()
-                    .setColor(0xE67E22) // Amber
-                    .setTitle('🛡️ AutoMod: Spam Detected')
+                    .setColor(moduleKey === 'antiLink' ? 0xE74C3C : 0xE67E22) // Red for link, Amber for spam
+                    .setTitle(moduleKey === 'antiLink' ? '🛡️ AutoMod: Link Blocked' : '🛡️ AutoMod: Spam Detected')
                     .addFields(
                         { name: '👤 User', value: `${message.author} (${message.author.tag})`, inline: true },
                         { name: '💬 Channel', value: `${message.channel}`, inline: true },
@@ -261,8 +315,8 @@ async function handleSpam(message, client, trackerKey, type, settings) {
 
         // Partial violation reset
         setTimeout(() => {
-            const val = client.spamViolations.get(trackerKey);
-            if (val > 0) client.spamViolations.set(trackerKey, val - 1);
+            const val = client.spamViolations.get(violationKey);
+            if (val > 0) client.spamViolations.set(violationKey, val - 1);
         }, 60000);
 
     } catch (error) {

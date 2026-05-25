@@ -113,6 +113,24 @@ module.exports = {
                 ? (settings.antiLink?.whitelistedChannels?.length > 0 ? settings.antiLink.whitelistedChannels.map(id => `<#${id}>`).join(', ') : 'None')
                 : (settings.antiLink?.blacklistedChannels?.length > 0 ? settings.antiLink.blacklistedChannels.map(id => `<#${id}>`).join(', ') : 'None');
 
+            const formatModule = (modConfig, globalConfig) => {
+                const warn = modConfig?.warnUser !== undefined ? modConfig.warnUser : globalConfig.warnUser;
+                const del = modConfig?.deleteMessages !== undefined ? modConfig.deleteMessages : globalConfig.deleteMessages;
+                const timeout = modConfig?.timeoutUser !== undefined ? modConfig.timeoutUser : globalConfig.timeoutUser;
+                const duration = modConfig?.timeoutDuration !== undefined ? modConfig.timeoutDuration : globalConfig.timeoutDuration;
+                const watchlist = modConfig?.ignoredUsers?.length > 0
+                    ? modConfig.ignoredUsers.map(id => `<@${id}>`).join(', ')
+                    : 'None';
+                return `Warn: \`${warn}\` | Delete: \`${del}\` | Timeout: \`${timeout}\` (${Math.round(duration / 60000)}m)\nWatchlist: ${watchlist}`;
+            };
+
+            const linkFormats = [];
+            if (settings.antiLink?.allowedFormats?.images) linkFormats.push('Images');
+            if (settings.antiLink?.allowedFormats?.gifs) linkFormats.push('GIFs');
+            if (settings.antiLink?.allowedFormats?.videos) linkFormats.push('Videos');
+            const allowedFormatsStr = linkFormats.length > 0 ? linkFormats.join(', ') : 'None';
+            const whitelistedSitesStr = settings.antiLink?.whitelistedWebsites?.length > 0 ? settings.antiLink.whitelistedWebsites.map(s => `\`${s}\``).join(', ') : 'None';
+
             const embed = new EmbedBuilder()
                 .setTitle('🛡️ AutoMod System Settings')
                 .setColor(0x3498DB)
@@ -120,12 +138,11 @@ module.exports = {
                     { name: '⚙️ General Status', value: `Spam Protection: \`${settings.antiSpamEnabled !== false ? 'Enabled' : 'Disabled'}\`\nLink Protection: \`${settings.antiLink?.enabled ? 'Enabled' : 'Disabled'}\`` },
                     { name: '🚀 Spam Channel Rules', value: `Mode: \`${settings.antiSpamFilterMode || 'whitelist'}\`\nChannels: ${spamChs}` },
                     { name: '🔗 Link Channel Rules', value: `Mode: \`${settings.antiLink?.filterMode || 'whitelist'}\`\nChannels: ${linkChs}` },
-                    { name: '⚡ Fast Spam Detection', value: `Enabled: \`${settings.fastSpam?.enabled}\`\nThreshold: \`${settings.fastSpam?.threshold}\` msgs\nWindow: \`${(settings.fastSpam?.window || 0) / 1000}\`s`, inline: true },
-                    { name: '🐢 Slow Spam Detection', value: `Enabled: \`${settings.slowSpam?.enabled}\`\nThreshold: \`${settings.slowSpam?.threshold}\` msgs\nWindow: \`${(settings.slowSpam?.window || 0) / 1000}\`s`, inline: true },
+                    { name: '⚡ Fast Spam Detection', value: `Enabled: \`${settings.fastSpam?.enabled}\`\nThreshold: \`${settings.fastSpam?.threshold}\` msgs\nWindow: \`${(settings.fastSpam?.window || 0) / 1000}\`s\n${formatModule(settings.fastSpam, settings)}` },
+                    { name: '🐢 Slow Spam Detection', value: `Enabled: \`${settings.slowSpam?.enabled}\`\nThreshold: \`${settings.slowSpam?.threshold}\` msgs\nWindow: \`${(settings.slowSpam?.window || 0) / 1000}\`s\n${formatModule(settings.slowSpam, settings)}` },
                     { name: '🔁 Repetition Detection', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
-                    { name: '⚖️ Action Penalties', value: `Warn: \`${settings.warnUser}\` | Delete: \`${settings.deleteMessages}\` | Timeout: \`${settings.timeoutUser}\`` },
-                    { name: '⏱️ Timeout Duration', value: `\`${(settings.timeoutDuration || 60000) / 60000}\` minute(s)`, inline: true },
-                    { name: '🕵️ Watchlist (Always Moderated)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' },
+                    { name: '🔗 Link Protection Rules', value: `${formatModule(settings.antiLink, settings)}\nAllowed Formats: \`${allowedFormatsStr}\`\nWhitelisted Sites: ${whitelistedSitesStr}` },
+                    { name: '🕵️ Global Watchlist', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' },
                     { name: '📋 Activity Log Settings', value: `Log Channel: ${settings.logChannelId ? `<#${settings.logChannelId}>` : '`Disabled`'}\nLogged Events:\n• Spam Protection: \`${settings.logFeatures?.antiSpam !== false ? 'Enabled' : 'Disabled'}\`\n• Link Protection: \`${settings.logFeatures?.antiLink !== false ? 'Enabled' : 'Disabled'}\`` }
                 )
                 .setFooter({ text: 'Use /automod to manage these settings.' })
@@ -250,6 +267,24 @@ module.exports = {
                 ? (settings.antiLink?.whitelistedChannels?.length > 0 ? settings.antiLink.whitelistedChannels.map(id => `<#${id}>`).join(', ') : 'None')
                 : (settings.antiLink?.blacklistedChannels?.length > 0 ? settings.antiLink.blacklistedChannels.map(id => `<#${id}>`).join(', ') : 'None');
 
+            const formatModule = (modConfig, globalConfig) => {
+                const warn = modConfig?.warnUser !== undefined ? modConfig.warnUser : globalConfig.warnUser;
+                const del = modConfig?.deleteMessages !== undefined ? modConfig.deleteMessages : globalConfig.deleteMessages;
+                const timeout = modConfig?.timeoutUser !== undefined ? modConfig.timeoutUser : globalConfig.timeoutUser;
+                const duration = modConfig?.timeoutDuration !== undefined ? modConfig.timeoutDuration : globalConfig.timeoutDuration;
+                const watchlist = modConfig?.ignoredUsers?.length > 0
+                    ? modConfig.ignoredUsers.map(id => `<@${id}>`).join(', ')
+                    : 'None';
+                return `Warn: \`${warn}\` | Delete: \`${del}\` | Timeout: \`${timeout}\` (${Math.round(duration / 60000)}m)\nWatchlist: ${watchlist}`;
+            };
+
+            const linkFormats = [];
+            if (settings.antiLink?.allowedFormats?.images) linkFormats.push('Images');
+            if (settings.antiLink?.allowedFormats?.gifs) linkFormats.push('GIFs');
+            if (settings.antiLink?.allowedFormats?.videos) linkFormats.push('Videos');
+            const allowedFormatsStr = linkFormats.length > 0 ? linkFormats.join(', ') : 'None';
+            const whitelistedSitesStr = settings.antiLink?.whitelistedWebsites?.length > 0 ? settings.antiLink.whitelistedWebsites.map(s => `\`${s}\``).join(', ') : 'None';
+
             const embed = new EmbedBuilder()
                 .setTitle('🛡️ AutoMod System Settings')
                 .setColor(0x3498DB)
@@ -257,12 +292,11 @@ module.exports = {
                     { name: '⚙️ General Status', value: `Spam Protection: \`${settings.antiSpamEnabled !== false ? 'Enabled' : 'Disabled'}\`\nLink Protection: \`${settings.antiLink?.enabled ? 'Enabled' : 'Disabled'}\`` },
                     { name: '🚀 Spam Channel Rules', value: `Mode: \`${settings.antiSpamFilterMode || 'whitelist'}\`\nChannels: ${spamChs}` },
                     { name: '🔗 Link Channel Rules', value: `Mode: \`${settings.antiLink?.filterMode || 'whitelist'}\`\nChannels: ${linkChs}` },
-                    { name: '⚡ Fast Spam Detection', value: `Enabled: \`${settings.fastSpam?.enabled}\`\nThreshold: \`${settings.fastSpam?.threshold}\` msgs\nWindow: \`${(settings.fastSpam?.window || 0) / 1000}\`s`, inline: true },
-                    { name: '🐢 Slow Spam Detection', value: `Enabled: \`${settings.slowSpam?.enabled}\`\nThreshold: \`${settings.slowSpam?.threshold}\` msgs\nWindow: \`${(settings.slowSpam?.window || 0) / 1000}\`s`, inline: true },
+                    { name: '⚡ Fast Spam Detection', value: `Enabled: \`${settings.fastSpam?.enabled}\`\nThreshold: \`${settings.fastSpam?.threshold}\` msgs\nWindow: \`${(settings.fastSpam?.window || 0) / 1000}\`s\n${formatModule(settings.fastSpam, settings)}` },
+                    { name: '🐢 Slow Spam Detection', value: `Enabled: \`${settings.slowSpam?.enabled}\`\nThreshold: \`${settings.slowSpam?.threshold}\` msgs\nWindow: \`${(settings.slowSpam?.window || 0) / 1000}\`s\n${formatModule(settings.slowSpam, settings)}` },
                     { name: '🔁 Repetition Detection', value: `Enabled: \`${settings.repetitionEnabled}\`\nThreshold: \`${settings.repetitionThreshold}\` msgs`, inline: true },
-                    { name: '⚖️ Action Penalties', value: `Warn: \`${settings.warnUser}\` | Delete: \`${settings.deleteMessages}\` | Timeout: \`${settings.timeoutUser}\`` },
-                    { name: '⏱️ Timeout Duration', value: `\`${(settings.timeoutDuration || 60000) / 60000}\` minute(s)`, inline: true },
-                    { name: '🕵️ Watchlist (Always Moderated)', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
+                    { name: '🔗 Link Protection Rules', value: `${formatModule(settings.antiLink, settings)}\nAllowed Formats: \`${allowedFormatsStr}\`\nWhitelisted Sites: ${whitelistedSitesStr}` },
+                    { name: '🕵️ Global Watchlist', value: settings.ignoredUsers?.length > 0 ? settings.ignoredUsers.map(id => `<@${id}>`).join(', ') : 'None' }
                 )
                 .setFooter({ text: 'Use -automod to manage these settings.' })
                 .setTimestamp();

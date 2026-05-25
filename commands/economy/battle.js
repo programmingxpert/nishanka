@@ -10,118 +10,68 @@ const {
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-// ─── Battle Move System ──────────────────────────────────────────────────────
-//
-// 5 moves in a rock-paper-scissors-style cycle:
-//   CLEAVE  →  beats GUARD   (raw force smashes the shield)
-//   GUARD   →  beats ZEPHYR  (anchored stance resists the dodge)
-//   ZEPHYR  →  beats VENOM   (agility sidesteps the poison)
-//   VENOM   →  beats SURGE   (toxin seeps through the energy blast)
-//   SURGE   →  beats CLEAVE  (pure energy overwhelms brute strength)
-//
-// Draws earn 0 points each. Winning a round earns 1 point.
-// First to 2 points wins. Max 3 rounds.
-
-const MOVES = {
-    CLEAVE: {
-        id: 'cleave',
-        label: '⚔️ Cleave',
-        emoji: '⚔️',
-        beats: 'GUARD',
-        description: 'A savage overhead strike.',
-        winVerbs: ['absolutely **cleaves through**', 'sends a devastating blow past', '**obliterates** the defense of'],
-        loseVerbs: ['swings wildly but is **zapped down** by', 'gets their momentum **completely reversed** by'],
-    },
-    GUARD: {
-        id: 'guard',
-        label: '🛡️ Guard',
-        emoji: '🛡️',
-        beats: 'ZEPHYR',
-        description: 'An immovable iron stance.',
-        winVerbs: ['**catches and counters**', 'tanks the hit and **body-slams**', 'holds steady and **outpowers**'],
-        loseVerbs: ['stands firm but gets **poisoned through the cracks** by', 'can\'t block the brute force of'],
-    },
-    ZEPHYR: {
-        id: 'zephyr',
-        label: '💨 Zephyr',
-        emoji: '💨',
-        beats: 'VENOM',
-        description: 'A ghost-like vanishing step.',
-        winVerbs: ['**vanishes** and reappears behind', 'sidesteps clean and **blindsides**', '**outpaces** and dismantles'],
-        loseVerbs: ['dashes in but **can\'t hold the ground** against', 'slips up and gets **firmly blocked** by'],
-    },
-    VENOM: {
-        id: 'venom',
-        label: '☠️ Venom',
-        emoji: '☠️',
-        beats: 'SURGE',
-        description: 'A slow-crawling, deadly poison.',
-        winVerbs: ['**seeps through the cracks** of', 'poisons the energy core of', '**corrodes** the power of'],
-        loseVerbs: ['oozes forward but gets **dodged effortlessly** by', 'drips with malice but **can\'t catch** the speed of'],
-    },
-    SURGE: {
-        id: 'surge',
-        label: '⚡ Surge',
-        emoji: '⚡',
-        beats: 'CLEAVE',
-        description: 'An explosive burst of raw energy.',
-        winVerbs: ['**blasts clean through** the attack of', 'channels pure force and **overwhelms**', '**electrifies** and disarms'],
-        loseVerbs: ['fires a burst but gets **poisoned mid-channel** by', 'overloads and is **shut down** by'],
-    },
-};
-
-const MOVE_KEYS = Object.keys(MOVES);
-
 // ─── HP Bar Renderer ─────────────────────────────────────────────────────────
-function buildHpBar(hp, maxHp = 3) {
-    const filled = Math.max(0, hp);
-    const empty = maxHp - filled;
-    const blocks = {
-        3: '🟩🟩🟩',
-        2: '🟨🟨⬛',
-        1: '🟥⬛⬛',
-        0: '💀💀💀',
-    };
-    return blocks[filled] ?? '⬛⬛⬛';
+function buildHpBar(hp, maxHp = 100) {
+    const filledBlocks = Math.round((hp / maxHp) * 10);
+    const filled = Math.max(0, Math.min(10, filledBlocks));
+    const empty = 10 - filled;
+    
+    // 🟥 for low health, 🟨 for medium, 🟩 for high
+    let blockChar = '🟩';
+    if (filled <= 3) blockChar = '🟥';
+    else if (filled <= 6) blockChar = '🟨';
+    
+    return `${blockChar.repeat(filled)}${'⬛'.repeat(empty)}`;
 }
 
-// ─── Pick a random flavor verb from array ────────────────────────────────────
-function pickVerb(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
+// ─── Energy Renderer ─────────────────────────────────────────────────────────
+function buildEnergy(energy) {
+    const maxEnergy = 3;
+    const current = Math.max(0, Math.min(maxEnergy, energy));
+    return `${'⚡'.repeat(current)}${'⚪'.repeat(maxEnergy - current)}`;
 }
 
-// ─── Build the 5-button move row ─────────────────────────────────────────────
-function buildMoveRow(disabled = false) {
-    const row = new ActionRowBuilder();
-    for (const key of MOVE_KEYS) {
-        const move = MOVES[key];
-        row.addComponents(
-            new ButtonBuilder()
-                .setCustomId(`battle_move_${move.id}`)
-                .setLabel(move.label)
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(disabled)
-        );
-    }
-    return row;
+// ─── Build Action Row ────────────────────────────────────────────────────────
+function buildActionRow(playerEnergy) {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('battle_strike')
+            .setLabel('Strike (+1 ⚡)')
+            .setEmoji('👊')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('battle_defend')
+            .setLabel('Defend (+1 ⚡)')
+            .setEmoji('🛡️')
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('battle_heavy')
+            .setLabel('Heavy (-1 ⚡)')
+            .setEmoji('🗡️')
+            .setStyle(ButtonStyle.Danger)
+            .setDisabled(playerEnergy < 1),
+        new ButtonBuilder()
+            .setCustomId('battle_heal')
+            .setLabel('Heal (-2 ⚡)')
+            .setEmoji('🩹')
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(playerEnergy < 2),
+        new ButtonBuilder()
+            .setCustomId('battle_ultimate')
+            .setLabel('Ultimate (-3 ⚡)')
+            .setEmoji('💥')
+            .setStyle(ButtonStyle.Danger)
+            .setDisabled(playerEnergy < 3)
+    );
 }
 
-// ─── Resolve round outcome: 'challenger' | 'opponent' | 'draw' ───────────────
-function resolveRound(challengerMoveKey, opponentMoveKey) {
-    if (challengerMoveKey === opponentMoveKey) return 'draw';
-    const cMove = MOVES[challengerMoveKey];
-    if (cMove.beats === opponentMoveKey) return 'challenger';
-    return 'opponent';
-}
-
-// ─── Module Exports ──────────────────────────────────────────────────────────
 module.exports = {
     category: 'economy',
     cooldown: 15,
 
     data: new SlashCommandBuilder()
         .setName('battle')
-        .setDescription('Challenge someone to a Bauble Brawl — a 3-round card duel!')
+        .setDescription('Challenge someone to a Turn-Based Arena Brawl!')
         .addUserOption(o =>
             o.setName('opponent')
                 .setDescription('The user you want to fight.')
@@ -185,35 +135,23 @@ module.exports = {
 // ─── Main Battle Runner ──────────────────────────────────────────────────────
 async function runBattle({ isSlash, interaction, message, challenger, opponent, wager }) {
     const channel = isSlash ? interaction.channel : message.channel;
-    const client = isSlash ? interaction.client : message.client;
 
     // ── Validate players ──────────────────────────────────────────────────────
     if (!opponent) {
         const err = '❌ Please mention a valid user to challenge.';
-        return isSlash
-            ? interaction.reply({ content: err, ephemeral: true })
-            : message.reply(err);
+        return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
     }
-
     if (opponent.bot) {
         const err = '❌ Bots don\'t carry Baubles. Challenge a real player!';
-        return isSlash
-            ? interaction.reply({ content: err, ephemeral: true })
-            : message.reply(err);
+        return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
     }
-
     if (opponent.id === challenger.id) {
         const err = '❌ You can\'t battle yourself… or can you? (No, you can\'t.)';
-        return isSlash
-            ? interaction.reply({ content: err, ephemeral: true })
-            : message.reply(err);
+        return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
     }
-
     if (wager < 1000) {
         const err = '❌ Minimum wager is **1,000 Baubles**.';
-        return isSlash
-            ? interaction.reply({ content: err, ephemeral: true })
-            : message.reply(err);
+        return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
     }
 
     // ── Fetch balances ────────────────────────────────────────────────────────
@@ -222,43 +160,22 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
 
     if (!cData || cData.baubles < wager) {
         const err = `❌ ${cData ? 'You don\'t have enough Baubles for this wager.' : 'You have no Baubles at all!'}`;
-        return isSlash
-            ? interaction.reply({ content: err, ephemeral: true })
-            : message.reply(err);
+        return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
     }
 
     if (!oData || oData.baubles < wager) {
         const err = `❌ **${opponent.username}** ${oData ? 'doesn\'t have enough Baubles for this wager.' : 'has no Baubles at all!'}`;
-        return isSlash
-            ? interaction.reply({ content: err, ephemeral: true })
-            : message.reply(err);
+        return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
     }
 
     // ── Challenge embed ───────────────────────────────────────────────────────
     const challengeEmbed = new EmbedBuilder()
         .setColor(0x7c6cf0)
-        .setTitle('⚔️  BAUBLE BRAWL — CHALLENGE ISSUED')
+        .setTitle('⚔️  ARENA BRAWL — CHALLENGE ISSUED')
         .setDescription(
             `${opponent} — **${challenger.displayName ?? challenger.username}** is calling you out!\n\n` +
-            `They're wagering **${wager.toLocaleString()} Baubles** on a 3-round card duel.\n` +
-            `Do you have the guts to accept?`
-        )
-        .addFields(
-            { name: '📖 How It Works', value:
-                '> Each round, both players secretly choose a move.\n' +
-                '> Moves are revealed simultaneously — the winner scores a point.\n' +
-                '> **First to 2 points wins** the entire wager.\n' +
-                '> You have **25 seconds** per round to pick.',
-                inline: false
-            },
-            { name: '🃏 The 5 Moves', value:
-                '⚔️ **Cleave** → beats 🛡️ Guard\n' +
-                '🛡️ **Guard** → beats 💨 Zephyr\n' +
-                '💨 **Zephyr** → beats ☠️ Venom\n' +
-                '☠️ **Venom** → beats ⚡ Surge\n' +
-                '⚡ **Surge** → beats ⚔️ Cleave',
-                inline: false
-            }
+            `They're wagering **${wager.toLocaleString()} Baubles** on a Turn-Based Street Fight.\n` +
+            `Do you accept?`
         )
         .setFooter({ text: 'Challenge expires in 30 seconds.' })
         .setTimestamp();
@@ -313,17 +230,8 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
         }
 
         accepted = true;
-        await btnInteraction.update({
-            content: '',
-            embeds: [new EmbedBuilder()
-                .setColor(0x4ADE80)
-                .setTitle('⚔️  Challenge Accepted — Brawl Starting!')
-                .setDescription(`**${challenger.username}** vs **${opponent.username}** — ${wager.toLocaleString()} Baubles on the line!\n\nCheck your **DMs** for move selection each round!`)
-            ],
-            components: [],
-        });
+        await btnInteraction.deferUpdate(); // Acknowledge so we can freely edit challengeMsg
     } catch {
-        // Timed out
         await challengeMsg.edit({
             content: '',
             embeds: [new EmbedBuilder()
@@ -339,277 +247,202 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
     if (!accepted) return;
 
     // ── Game state ────────────────────────────────────────────────────────────
-    let challengerScore = 0;
-    let opponentScore   = 0;
-    const totalRounds = 3;
-    const roundHistory = [];
+    let p1 = {
+        user: challenger,
+        hp: 100,
+        energy: 0,
+        defending: false
+    };
+    let p2 = {
+        user: opponent,
+        hp: 100,
+        energy: 0,
+        defending: false
+    };
+
+    let turnPlayer = p1;
+    let idlePlayer = p2;
+    let turnCount = 1;
+    let lastActionText = `The fight begins! **${p1.user.username}** gets the first move.`;
 
     // ── Scoreboard embed builder ──────────────────────────────────────────────
-    function buildScoreboardEmbed(roundNum, description, color = 0x7c6cf0) {
+    function buildGameEmbed() {
         return new EmbedBuilder()
-            .setColor(color)
-            .setTitle(`⚔️  BAUBLE BRAWL — Round ${roundNum > totalRounds ? 'FINAL' : roundNum}`)
-            .setDescription(description)
-            .addFields(
-                {
-                    name: `${challenger.username}`,
-                    value: `${buildHpBar(challengerScore)} **${challengerScore}pt**`,
-                    inline: true,
-                },
-                { name: '╸╸╸', value: '**VS**', inline: true },
-                {
-                    name: `${opponent.username}`,
-                    value: `${buildHpBar(opponentScore)} **${opponentScore}pt**`,
-                    inline: true,
-                }
-            )
-            .setFooter({ text: `${wager.toLocaleString()} Baubles at stake` })
-            .setTimestamp();
-    }
-
-    // ── DM a player to pick their move ────────────────────────────────────────
-    async function collectMoveViaDM(player, roundNum) {
-        let dmChannel;
-        try {
-            dmChannel = await player.createDM();
-        } catch {
-            return null; // Can't DM
-        }
-
-        const dmEmbed = new EmbedBuilder()
             .setColor(0x7c6cf0)
-            .setTitle(`⚔️  Round ${roundNum} — Choose Your Move`)
-            .setDescription(
-                `**${wager.toLocaleString()} Baubles** are on the line in your battle against **${player.id === challenger.id ? opponent.username : challenger.username}**!\n\n` +
-                `Pick your move below. You have **25 seconds**.\n\n` +
-                `⚔️ **Cleave** → beats 🛡️ Guard\n` +
-                `🛡️ **Guard** → beats 💨 Zephyr\n` +
-                `💨 **Zephyr** → beats ☠️ Venom\n` +
-                `☠️ **Venom** → beats ⚡ Surge\n` +
-                `⚡ **Surge** → beats ⚔️ Cleave`
-            )
-            .setFooter({ text: 'Your choice is hidden until both players pick!' });
-
-        let dmMsg;
-        try {
-            dmMsg = await dmChannel.send({
-                embeds: [dmEmbed],
-                components: [buildMoveRow()],
-            });
-        } catch {
-            return null;
-        }
-
-        try {
-            const picked = await dmMsg.awaitMessageComponent({
-                filter: i => i.user.id === player.id && i.customId.startsWith('battle_move_'),
-                componentType: ComponentType.Button,
-                time: 25_000,
-            });
-
-            // Acknowledge and disable buttons
-            const moveKey = MOVE_KEYS.find(k => MOVES[k].id === picked.customId.replace('battle_move_', ''));
-            const chosenMove = MOVES[moveKey];
-
-            await picked.update({
-                embeds: [new EmbedBuilder()
-                    .setColor(0x4ADE80)
-                    .setTitle('✅  Move Locked In!')
-                    .setDescription(`You chose **${chosenMove.emoji} ${chosenMove.label.replace(/^.\s/, '')}**.\n\nWaiting for your opponent…`)
-                ],
-                components: [buildMoveRow(true)],
-            });
-
-            return moveKey;
-        } catch {
-            // Timed out — pick a random move as forfeit
-            await dmMsg.edit({
-                embeds: [new EmbedBuilder()
-                    .setColor(0xff9900)
-                    .setTitle('⏰  Time\'s Up!')
-                    .setDescription('You didn\'t pick in time — a random move was played for you!')
-                ],
-                components: [buildMoveRow(true)],
-            });
-
-            return MOVE_KEYS[Math.floor(Math.random() * MOVE_KEYS.length)];
-        }
-    }
-
-    // ── Round loop ────────────────────────────────────────────────────────────
-    // Post "round starting" status in the channel
-    let statusMsg = await channel.send({
-        embeds: [buildScoreboardEmbed(1, `🏁 **Round 1 begins!** Both players — **check your DMs** to choose your move!\n\nYou have **25 seconds**.`)],
-    });
-
-    for (let round = 1; round <= totalRounds; round++) {
-        // Update channel status at round start (after round 1, already sent above)
-        if (round > 1) {
-            await statusMsg.edit({
-                embeds: [buildScoreboardEmbed(round,
-                    `🏁 **Round ${round} begins!** Both players — **check your DMs** to choose your move!\n\nYou have **25 seconds**.`
-                )],
-            });
-        }
-
-        // Collect both moves simultaneously (both DMs sent at same time)
-        const [challengerMoveKey, opponentMoveKey] = await Promise.all([
-            collectMoveViaDM(challenger, round),
-            collectMoveViaDM(opponent, round),
-        ]);
-
-        // Handle DM failure — forfeit that player
-        const cMove = challengerMoveKey ?? MOVE_KEYS[Math.floor(Math.random() * MOVE_KEYS.length)];
-        const oMove = opponentMoveKey ?? MOVE_KEYS[Math.floor(Math.random() * MOVE_KEYS.length)];
-
-        const result = resolveRound(cMove, oMove);
-        const cMoveData = MOVES[cMove];
-        const oMoveData = MOVES[oMove];
-
-        let roundColor, resultLine, pointLine;
-
-        if (result === 'draw') {
-            roundColor = 0x747f8d;
-            resultLine = `**${cMoveData.emoji} ${challenger.username}** vs **${oMoveData.emoji} ${opponent.username}** — It's a **DRAW!** No points scored.`;
-            pointLine  = '';
-        } else if (result === 'challenger') {
-            challengerScore++;
-            roundColor = 0x7c6cf0;
-            const verb = pickVerb(cMoveData.winVerbs);
-            resultLine = `${cMoveData.emoji} **${challenger.username}** ${verb} ${oMoveData.emoji} **${opponent.username}**!`;
-            pointLine  = `🏆 **+1 point** to ${challenger.username}`;
-        } else {
-            opponentScore++;
-            roundColor = 0xe8547a;
-            const verb = pickVerb(oMoveData.winVerbs);
-            resultLine = `${oMoveData.emoji} **${opponent.username}** ${verb} ${cMoveData.emoji} **${challenger.username}**!`;
-            pointLine  = `🏆 **+1 point** to ${opponent.username}`;
-        }
-
-        roundHistory.push({ round, cMove, oMove, result });
-
-        const roundResultEmbed = new EmbedBuilder()
-            .setColor(roundColor)
-            .setTitle(`⚔️  Round ${round} — REVEAL!`)
-            .setDescription(`${resultLine}\n${pointLine}`)
+            .setTitle(`⚔️  ARENA BRAWL — Turn ${turnCount}`)
+            .setDescription(`**Wager:** ${wager.toLocaleString()} Baubles\n\n> ${lastActionText}\n\nIt is **${turnPlayer.user.username}**'s turn!`)
             .addFields(
                 {
-                    name: `${challenger.username}`,
-                    value: `${buildHpBar(challengerScore)} **${challengerScore}pt**`,
+                    name: `🛡️ ${p1.user.username}`,
+                    value: `**HP:** ${buildHpBar(p1.hp)}\n**Energy:** ${buildEnergy(p1.energy)}`,
                     inline: true,
                 },
                 { name: '╸╸╸', value: '**VS**', inline: true },
                 {
-                    name: `${opponent.username}`,
-                    value: `${buildHpBar(opponentScore)} **${opponentScore}pt**`,
+                    name: `🛡️ ${p2.user.username}`,
+                    value: `**HP:** ${buildHpBar(p2.hp)}\n**Energy:** ${buildEnergy(p2.energy)}`,
                     inline: true,
                 }
             )
-            .setFooter({ text: `${wager.toLocaleString()} Baubles at stake · Round ${round}/${totalRounds}` })
+            .setFooter({ text: 'You have 30 seconds to make a move.' })
             .setTimestamp();
+    }
 
-        await statusMsg.edit({ embeds: [roundResultEmbed] });
+    // ── Game Loop ─────────────────────────────────────────────────────────────
+    let gameEnded = false;
+    let forfeit = null;
 
-        // Early exit if someone already has 2 points
-        if (challengerScore >= 2 || opponentScore >= 2) break;
+    while (!gameEnded) {
+        await challengeMsg.edit({
+            content: `${turnPlayer.user}`,
+            embeds: [buildGameEmbed()],
+            components: [buildActionRow(turnPlayer.energy)]
+        });
 
-        // Brief pause between rounds for drama
-        if (round < totalRounds) {
-            await new Promise(r => setTimeout(r, 2500));
+        try {
+            const btnInteraction = await challengeMsg.awaitMessageComponent({
+                filter: i => i.user.id === turnPlayer.user.id && i.customId.startsWith('battle_'),
+                componentType: ComponentType.Button,
+                time: 30_000,
+            });
+
+            await btnInteraction.deferUpdate();
+            const action = btnInteraction.customId.replace('battle_', '');
+            
+            // Reset defender's block status if it's their turn (block only lasts until their next turn)
+            turnPlayer.defending = false;
+
+            let damage = 0;
+            let healAmount = 0;
+
+            if (action === 'strike') {
+                damage = Math.floor(Math.random() * 6) + 10; // 10-15
+                turnPlayer.energy = Math.min(3, turnPlayer.energy + 1);
+                
+                if (idlePlayer.defending) damage = Math.floor(damage / 2);
+                idlePlayer.hp -= damage;
+                lastActionText = `👊 **${turnPlayer.user.username}** strikes for **${damage} damage** and gains 1 Energy!`;
+                if (idlePlayer.defending) lastActionText += `\n*(${idlePlayer.user.username} deflected half the damage!)*`;
+            } 
+            else if (action === 'defend') {
+                turnPlayer.defending = true;
+                turnPlayer.energy = Math.min(3, turnPlayer.energy + 1);
+                lastActionText = `🛡️ **${turnPlayer.user.username}** takes a defensive stance and gains 1 Energy!\n*(They will take 50% less damage next turn)*`;
+            }
+            else if (action === 'heavy') {
+                turnPlayer.energy -= 1;
+                damage = Math.floor(Math.random() * 11) + 20; // 20-30
+                
+                if (idlePlayer.defending) damage = Math.floor(damage / 2);
+                idlePlayer.hp -= damage;
+                lastActionText = `🗡️ **${turnPlayer.user.username}** lands a heavy attack for **${damage} damage**!`;
+                if (idlePlayer.defending) lastActionText += `\n*(${idlePlayer.user.username} deflected half the damage!)*`;
+            }
+            else if (action === 'heal') {
+                turnPlayer.energy -= 2;
+                healAmount = Math.floor(Math.random() * 11) + 25; // 25-35
+                turnPlayer.hp = Math.min(100, turnPlayer.hp + healAmount);
+                lastActionText = `🩹 **${turnPlayer.user.username}** patches themselves up, restoring **${healAmount} HP**!`;
+            }
+            else if (action === 'ultimate') {
+                turnPlayer.energy -= 3;
+                damage = Math.floor(Math.random() * 16) + 45; // 45-60
+                
+                // Ultimate is unblockable
+                idlePlayer.hp -= damage;
+                lastActionText = `💥 **${turnPlayer.user.username}** unleashes an unblockable **ULTIMATE** for **${damage} massive damage**!`;
+            }
+
+            if (idlePlayer.hp <= 0) {
+                idlePlayer.hp = 0;
+                gameEnded = true;
+            } else {
+                // Swap turns
+                turnCount++;
+                let temp = turnPlayer;
+                turnPlayer = idlePlayer;
+                idlePlayer = temp;
+            }
+
+        } catch (error) {
+            // Timeout
+            gameEnded = true;
+            forfeit = turnPlayer;
+            lastActionText = `⏰ **${turnPlayer.user.username}** took too long to move and forfeited the match!`;
         }
     }
 
-    // ── Determine final winner ────────────────────────────────────────────────
+    // ── Determine winner ──────────────────────────────────────────────────────
+    let winnerUser, loserUser;
+    
+    if (forfeit) {
+        loserUser = forfeit.user;
+        winnerUser = forfeit.user.id === p1.user.id ? p2.user : p1.user;
+    } else {
+        winnerUser = p1.hp > p2.hp ? p1.user : p2.user;
+        loserUser = p1.hp > p2.hp ? p2.user : p1.user;
+    }
+
     cData = await Bauble.findOne({ userId: challenger.id });
     oData = await Bauble.findOne({ userId: opponent.id });
 
-    let finalColor, finalTitle, finalDesc, winnerUser, loserUser;
+    const isChallengerWinner = winnerUser.id === challenger.id;
+    let shieldSavedLoser = false;
 
-    if (challengerScore > opponentScore) {
-        winnerUser = challenger;
-        loserUser  = opponent;
-    } else if (opponentScore > challengerScore) {
-        winnerUser = opponent;
-        loserUser  = challenger;
-    } else {
-        winnerUser = null; // Impossible in current 3-round system but just in case
-    }
-
-    if (winnerUser) {
-        const isChallenger = winnerUser.id === challenger.id;
-        finalColor = 0x4ADE80;
-        let shieldSavedLoser = false;
-
-        if (isChallenger) {
-            const shieldIndex = oData.inventory ? oData.inventory.findIndex(item => item.itemId === 'shield' && item.quantity > 0) : -1;
-            if (shieldIndex !== -1) {
-                oData.inventory[shieldIndex].quantity -= 1;
-                if (oData.inventory[shieldIndex].quantity <= 0) {
-                    oData.inventory.splice(shieldIndex, 1);
-                }
-                oData.markModified('inventory');
-                shieldSavedLoser = true;
-                cData.baubles += wager;
-            } else {
-                cData.baubles += wager;
-                oData.baubles -= wager;
+    if (isChallengerWinner) {
+        const shieldIndex = oData.inventory ? oData.inventory.findIndex(item => item.itemId === 'shield' && item.quantity > 0) : -1;
+        if (shieldIndex !== -1) {
+            oData.inventory[shieldIndex].quantity -= 1;
+            if (oData.inventory[shieldIndex].quantity <= 0) {
+                oData.inventory.splice(shieldIndex, 1);
             }
+            oData.markModified('inventory');
+            shieldSavedLoser = true;
+            cData.baubles += wager;
         } else {
-            const shieldIndex = cData.inventory ? cData.inventory.findIndex(item => item.itemId === 'shield' && item.quantity > 0) : -1;
-            if (shieldIndex !== -1) {
-                cData.inventory[shieldIndex].quantity -= 1;
-                if (cData.inventory[shieldIndex].quantity <= 0) {
-                    cData.inventory.splice(shieldIndex, 1);
-                }
-                cData.markModified('inventory');
-                shieldSavedLoser = true;
-                oData.baubles += wager;
-            } else {
-                cData.baubles -= wager;
-                oData.baubles += wager;
-            }
+            cData.baubles += wager;
+            oData.baubles -= wager;
         }
-
-        finalTitle = `🏆  BAUBLE BRAWL — ${winnerUser.username.toUpperCase()} WINS!`;
-        finalDesc  = `**${winnerUser.username}** defeated **${loserUser.username}** **${isChallenger ? challengerScore : opponentScore}–${isChallenger ? opponentScore : challengerScore}** and claims the spoils!` +
-            (shieldSavedLoser ? `\n\n🛡️ **${loserUser.username}**'s **Aegis Shield** broke, protecting them from losing any Baubles!` : '');
-
-        await cData.save();
-        await oData.save();
     } else {
-        // Absolute draw — refund both
-        finalColor = 0x747f8d;
-        finalTitle = `🤝  BAUBLE BRAWL — DRAW!`;
-        finalDesc  = `Both players finished **${challengerScore}–${opponentScore}**. No Baubles were transferred.`;
+        const shieldIndex = cData.inventory ? cData.inventory.findIndex(item => item.itemId === 'shield' && item.quantity > 0) : -1;
+        if (shieldIndex !== -1) {
+            cData.inventory[shieldIndex].quantity -= 1;
+            if (cData.inventory[shieldIndex].quantity <= 0) {
+                cData.inventory.splice(shieldIndex, 1);
+            }
+            cData.markModified('inventory');
+            shieldSavedLoser = true;
+            oData.baubles += wager;
+        } else {
+            cData.baubles -= wager;
+            oData.baubles += wager;
+        }
     }
 
-    // Build round-by-round recap
-    const recap = roundHistory.map(h => {
-        const cEmoji = MOVES[h.cMove].emoji;
-        const oEmoji = MOVES[h.oMove].emoji;
-        const resultEmoji = h.result === 'challenger' ? '🏅' : h.result === 'opponent' ? '🥈' : '🤝';
-        return `Round ${h.round}: ${cEmoji} vs ${oEmoji} ${resultEmoji}`;
-    }).join('\n');
+    await cData.save();
+    await oData.save();
+
+    const finalTitle = `🏆  ARENA BRAWL — ${winnerUser.username.toUpperCase()} WINS!`;
+    const finalDesc = `${lastActionText}\n\n**${winnerUser.username}** defeated **${loserUser.username}** and claims the spoils!` +
+        (shieldSavedLoser ? `\n\n🛡️ **${loserUser.username}**'s **Aegis Shield** broke, protecting them from losing any Baubles!` : '');
 
     const finalEmbed = new EmbedBuilder()
-        .setColor(finalColor)
+        .setColor(0x4ADE80)
         .setTitle(finalTitle)
         .setDescription(finalDesc)
         .addFields(
-            { name: '📜 Round Recap', value: recap || '—', inline: false },
             {
-                name: `${challenger.username}'s Balance`,
-                value: `**${cData.baubles.toLocaleString()}** Baubles`,
+                name: `🏆 ${winnerUser.username}'s Balance`,
+                value: `**${(isChallengerWinner ? cData.baubles : oData.baubles).toLocaleString()}** Baubles`,
                 inline: true,
             },
             {
-                name: `${opponent.username}'s Balance`,
-                value: `**${oData.baubles.toLocaleString()}** Baubles`,
+                name: `💀 ${loserUser.username}'s Balance`,
+                value: `**${(isChallengerWinner ? oData.baubles : cData.baubles).toLocaleString()}** Baubles`,
                 inline: true,
             }
         )
-        .setFooter({ text: 'Rematch? Issue a new challenge!' })
         .setTimestamp();
 
-    await statusMsg.edit({ embeds: [finalEmbed] });
+    await challengeMsg.edit({ content: '', embeds: [finalEmbed], components: [] });
 }
