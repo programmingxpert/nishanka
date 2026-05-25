@@ -160,12 +160,14 @@ module.exports = {
                   // Using Message component instead of modal for ease of use.
                   await i.reply({content: "Please send the picture you want to use as your profile picture. (GIFs are not supported) or enter a URL", ephemeral: true});
 
+                  const filter = m => m.author.id === userId;
                   const pfpCollector = interaction.channel.createMessageCollector({
-                      filter: m => m.author.id === userId,
+                      filter,
                       time: 30000,
                       max: 1
                   });
                   pfpCollector.on('collect', async m => {
+                      if (m.author.id !== userId) return;
                       try {
                           let newPfp = m.attachments.size > 0 ? m.attachments.first().url : m.content;
                           if (newPfp.endsWith('.gif')) {
@@ -194,13 +196,15 @@ module.exports = {
                    // Using Message component instead of modal for ease of use.
                   await i.reply({content: "Please send the picture you want to use as your banner. (GIFs are not supported) or enter a URL or a hex color code (e.g. #FF0000)", ephemeral: true});
 
+                  const filter = m => m.author.id === userId;
                   const bannerCollector = interaction.channel.createMessageCollector({
-                      filter: m => m.author.id === userId,
+                      filter,
                       time: 30000,
                       max: 1
                   });
 
                   bannerCollector.on('collect', async m => {
+                      if (m.author.id !== userId) return;
                       try {
                           let newBanner = m.attachments.size > 0 ? m.attachments.first().url : m.content;
 

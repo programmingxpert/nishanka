@@ -184,6 +184,7 @@ async function handleBattle(interaction) {
                     const answerCollector = interaction.channel.createMessageCollector({ filter, time: 15000, max: 1 }); //15 second response time
 
                     answerCollector.on('collect', async m => {
+                        if (m.author.id !== challenger.id && m.author.id !== opponent.id) return;
                         const userAnswer = parseInt(m.content, 10);
 
                         if (isNaN(userAnswer)) {

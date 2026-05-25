@@ -239,14 +239,15 @@ module.exports = {
 
             await message.channel.send({ content: `<@${userId}>`, embeds: [shopEmbed] });
 
-            // Create a message collector to wait for the user to type an item id.
+            const filter = m => m.author.id === userId;
             const collector = message.channel.createMessageCollector({
-                filter: m => m.author.id === userId,
+                filter,
                 time: 30000, // 30 seconds to respond
                 max: 1
             });
 
             collector.on('collect', async m => {
+                if (m.author.id !== userId) return;
                 const input = m.content.trim().toLowerCase();
                 const selectedItem = shopItems.find(item => item.id === input);
                 if (!selectedItem) {

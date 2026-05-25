@@ -56,13 +56,15 @@ module.exports = {
                 await interaction.reply({ embeds: [embed], fetchReply: true });
             }
 
+            const filter = m => m.author.id === userId;
             const messageCollector = interaction.channel.createMessageCollector({
-                filter: m => m.author.id === userId,
+                filter,
                 time: 15000,
                 max: 1
             });
 
             messageCollector.on('collect', async msg => {
+                if (msg.author.id !== userId) return;
                 const userAnswer = parseInt(msg.content);
 
                 if (userAnswer === answer) {
@@ -137,13 +139,15 @@ module.exports = {
 
             await message.channel.send({ embeds: [embed] });
 
+            const filter = m => m.author.id === userId;
             const collector = message.channel.createMessageCollector({
-                filter: m => m.author.id === userId,
+                filter,
                 time: 15000,
                 max: 1
             });
 
             collector.on('collect', async m => {
+                if (m.author.id !== userId) return;
                 const userAnswer = parseInt(m.content);
 
                 if (userAnswer === answer) {
