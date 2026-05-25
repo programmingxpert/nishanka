@@ -11,26 +11,26 @@ const {
 const Bauble = require('../../models/baubleSchema');
 
 const FALLBACK_SCENARIOS = [
-    "Your boss caught you sleeping under your desk during a major client presentation.",
-    "You accidentally texted your boss a highly detailed complaint about them.",
-    "Your roommate caught you eating their expensive leftovers at 4:00 AM with sauce all over your face.",
-    "You accidentally unmuted your mic while calling your teacher a complete clown.",
-    "You got caught trying to pay for groceries with Monopoly money at the cashier.",
-    "Your mother-in-law caught you hiding under the bed with her birthday cake.",
-    "You told everyone you were too sick to work, but got caught on a rollercoaster on your boss's live stream.",
-    "Your teacher caught you using ChatGPT to write your personal apology letter to them.",
-    "Your landlord caught you trying to slide down the banister while holding a stolen street sign.",
-    "You got caught smuggling a whole watermelon under your shirt into a movie theater.",
-    "Your doctor caught you eating a giant bag of potato chips in the waiting room while on a strict fast.",
-    "You accidentally called your job interviewer 'darling' and tried to play it cool.",
-    "Your trainer caught you eating a glazed donut while walking slowly on the treadmill.",
-    "You got caught trying to sneak a communal office microwave into your car.",
-    "You accidentally texted your crush a screenshot of their own profile saying 'look at this idiot'.",
-    "Your teacher caught you sleeping with realistic eyeballs drawn on your eyelids.",
-    "You told everyone you were a strict vegan, but got caught devouring a triple bacon cheeseburger.",
-    "You got caught using a fake British accent to get free meals at a fancy restaurant.",
-    "Your roommate caught you hiding their car keys so they wouldn't leave.",
-    "Your boss caught you playing games on your phone under the table during a one-on-one performance review."
+    "Your boss caught you trying to ride the office vacuum like a stallion.",
+    "You got caught trying to feed spaghetti directly into the office printer.",
+    "Your landlord walked in on you attempting to teach your cat how to do taxes.",
+    "You got caught attempting a solo flash mob in the middle of a quiet library.",
+    "Your roommate caught you wearing a tin foil hat and whispering secrets to the microwave.",
+    "You got caught trying to smuggle a live goose under your hoodie into a movie theater.",
+    "You accidentally unmuted your mic while explaining why your teacher looks like a wet owl.",
+    "Your partner caught you practicing wedding vows in the mirror with a mop.",
+    "Your dentist walked in while you were trying to perform dental surgery on a plush bear.",
+    "You got caught trying to pay for high-end jewelry with Monopoly money.",
+    "You got caught trying to high-five a mannequin in a clothing store for 5 minutes.",
+    "Your mother-in-law caught you hiding under the kitchen table eating a whole birthday cake with your hands.",
+    "You got caught using a fake British accent to get free chicken nuggets at a drive-thru.",
+    "Your roommate caught you drinking milk directly from the carton with a crazy straw.",
+    "You accidentally texted your boss a selfie of you wearing a clown wig with the caption 'my boss'.",
+    "Your teacher caught you sleeping in class with realistic eyes drawn on your eyelids.",
+    "You told everyone you were a strict vegan, but got caught eating a raw steak in the garden.",
+    "Your doctor caught you hiding a bag of cheeseburgers inside a hollowed-out anatomy book.",
+    "Your roommate caught you trying to tape their room door shut so they couldn't go on a date.",
+    "You got caught trying to pet a wild raccoon behind the restaurant because it 'looked polite'."
 ];
 
 module.exports = {
@@ -208,7 +208,7 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
 
             let prize = 0;
             let prizeMsg = '';
-            if (successScore >= 50) {
+            if (successScore >= 40) {
                 prize = successScore;
                 try {
                     let userBaubles = await Bauble.findOne({ userId: user.id });
@@ -289,6 +289,7 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
     await new Promise(resolve => setTimeout(resolve, 5000));
 
     const scores = {}; 
+    const playerPrizes = {};
     const userMap = new Map(); 
 
     for (let round = 1; round <= 3; round++) {
@@ -429,6 +430,9 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
             }
             scores[res.userId] = (scores[res.userId] || 0) + successScore;
 
+            const roundPrize = successScore >= 40 ? Math.round(successScore * 2) : 0;
+            playerPrizes[res.userId] = (playerPrizes[res.userId] || 0) + roundPrize;
+
             const shortExcuse = res.shortExcuse ? String(res.shortExcuse).trim() : playerObj.text.slice(0, 40) + (playerObj.text.length > 40 ? '...' : '');
 
             const metricsStr = metrics.map(m => `**${m.name}**: ${m.score}%`).join(' | ');
@@ -474,13 +478,8 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
         const [userId, totalScore] = sortedPlayers[i];
         const isWinner = i === 0;
         
-        // Calculate average success score across rounds
-        const avgSuccess = totalScore / 3;
-        
-        let prize = 0;
-        if (avgSuccess >= 50) {
-            prize = isWinner ? 500 + totalScore * 2 : totalScore * 2;
-        }
+        const accumulatedPrize = playerPrizes[userId] || 0;
+        const prize = (isWinner && accumulatedPrize > 0) ? accumulatedPrize + 500 : accumulatedPrize;
 
         const username = userMap.get(userId) || `<@${userId}>`;
         
@@ -533,12 +532,11 @@ async function generateAIScenario(apiKey) {
     ];
     const keyword = keywords[Math.floor(Math.random() * keywords.length)];
 
-    const prompt = `Generate a single, short, hilarious, and instantly understandable scenario (maximum 15 words) of a person getting caught red-handed in a highly embarrassing, high-stakes situation where they MUST make a desperate excuse to save themselves.
+    const prompt = `Generate a single, extremely short, highly unhinged, hilarious, and instantly understandable scenario (maximum 12 words) of a person getting caught red-handed in a ridiculous, embarrassing situation where they MUST make a desperate excuse.
     
     CRITICAL REQUIREMENTS:
-    - The situation must require a clear, urgent defense or excuse (e.g., caught stealing, caught in a massive lie, caught doing something highly inappropriate, forbidden, or weird).
-    - Avoid boring, low-stakes scenarios (do NOT generate scenarios like "waving at someone", "looking at flights", "practicing speeches", or "liking old photos" - these do not require an excuse).
-    - It must be funny and make perfect logical sense.
+    - Make it wild, funny, and chaotic! (e.g. caught trying to ride a roommate's vacuum like a horse, caught doing a solo flash mob in the office kitchen, caught trying to smuggle a live goose into a library, caught trying to feed spaghetti to a printer, etc.)
+    - The situation must require a clear, urgent excuse/defense.
     - Output ONLY the scenario itself in the second person ("You...").
     - Do NOT wrap in quotes, do NOT include markdown, and do NOT write introductory/explanatory text.
     - Incorporate the following theme/keyword: "${keyword}".`;
