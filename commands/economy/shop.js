@@ -4,6 +4,8 @@ const {
     EmbedBuilder,
     ActionRowBuilder,
     StringSelectMenuBuilder,
+    ButtonBuilder,
+    ButtonStyle,
     ComponentType
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
@@ -61,7 +63,8 @@ const ITEMS = {
         price: 50000,
         sellPrice: null,
         type: 'collectible',
-        category: 'cosmetics'
+        category: 'cosmetics',
+        giftable: false
     },
     paintbrush: {
         id: 'paintbrush',
@@ -91,7 +94,8 @@ const ITEMS = {
         price: 2500000,
         sellPrice: null,
         type: 'collectible',
-        category: 'cosmetics'
+        category: 'cosmetics',
+        giftable: false
     }
 };
 
@@ -116,6 +120,174 @@ async function executePurchase(userId, itemId, quantity, baubleData) {
 
     await baubleData.save();
     return { success: true, totalPrice, itemName: item.name };
+}
+
+// Embed and component helper functions for pagination
+function getHomePageEmbed(baubles) {
+    return new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle('🛍️ Glimmering Bauble Shop')
+        .setDescription(
+            `Spend your hard-earned **Glimmering Baubles** here!\n\n` +
+            `💰 **Your Balance:** **${baubles.toLocaleString()}** Baubles\n\n` +
+            `Please select a category button below to browse items:\n` +
+            `⚡ **Economy & Utility Boosters:** Lower cooldowns, boost gamble win rates, and protect wagers.\n` +
+            `🎨 **Cosmetics & Collectibles:** Flaunt your status, customize profile banners, and stand out.`
+        )
+        .addFields({
+            name: '🛍️ How to Buy Items',
+            value: `1️⃣ Select a category using the buttons below.\n` +
+                   `2️⃣ Choose an item from the dropdown menu to purchase **1x** instantly!\n` +
+                   `*Or buy directly:* \`/shop buy:<id> [quantity]\` or \`-shop buy <id> [quantity]\``
+        })
+        .setFooter({ text: 'Select a category below to browse items.' });
+}
+
+function getHomePageComponents() {
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('shop_btn_boosters')
+            .setLabel('⚡ Boosters')
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_cosmetics')
+            .setLabel('🎨 Cosmetics & Profile')
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_help')
+            .setLabel('❓ Help Guide')
+            .setStyle(ButtonStyle.Secondary)
+    );
+    return [row];
+}
+
+function getBoostersPageEmbed(baubles) {
+    const list = Object.values(ITEMS)
+        .filter(item => item.category === 'boosters')
+        .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
+        .join('\n\n');
+
+    return new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle('⚡ Shop: Economy & Utility Boosters')
+        .setDescription(`💰 **Your Balance:** **${baubles.toLocaleString()}** Baubles\n\n${list}`)
+        .setFooter({ text: 'Select a booster from the dropdown below to buy 1x.' });
+}
+
+function getBoostersComponents() {
+    const items = Object.values(ITEMS).filter(item => item.category === 'boosters');
+    
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('shop_select_buy')
+        .setPlaceholder('Select an item to buy 1x')
+        .addOptions(
+            items.map(item => ({
+                label: item.name.replace(/^[^\s]+\s+/, ''),
+                description: `${item.price.toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
+                value: item.id
+            }))
+        );
+
+    const row1 = new ActionRowBuilder().addComponents(selectMenu);
+
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('shop_btn_home')
+            .setLabel('⬅️ Back to Categories')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_cosmetics')
+            .setLabel('🎨 Cosmetics & Profile')
+            .setStyle(ButtonStyle.Primary)
+    );
+
+    return [row1, row2];
+}
+
+function getCosmeticsPageEmbed(baubles) {
+    const list = Object.values(ITEMS)
+        .filter(item => item.category === 'cosmetics')
+        .map(item => {
+            const giftableSuffix = item.giftable === false ? ' 🔒 *Non-giftable*' : '';
+            return `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_${giftableSuffix}`;
+        })
+        .join('\n\n');
+
+    return new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle('🎨 Shop: Cosmetics & Premium Collectibles')
+        .setDescription(`💰 **Your Balance:** **${baubles.toLocaleString()}** Baubles\n\n${list}`)
+        .setFooter({ text: 'Select an item from the dropdown below to buy 1x.' });
+}
+
+function getCosmeticsComponents() {
+    const items = Object.values(ITEMS).filter(item => item.category === 'cosmetics');
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('shop_select_buy')
+        .setPlaceholder('Select an item to buy 1x')
+        .addOptions(
+            items.map(item => ({
+                label: item.name.replace(/^[^\s]+\s+/, ''),
+                description: `${item.price.toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
+                value: item.id
+            }))
+        );
+
+    const row1 = new ActionRowBuilder().addComponents(selectMenu);
+
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('shop_btn_home')
+            .setLabel('⬅️ Back to Categories')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_boosters')
+            .setLabel('⚡ Boosters')
+            .setStyle(ButtonStyle.Success)
+    );
+
+    return [row1, row2];
+}
+
+function getHelpPageEmbed(baubles) {
+    return new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle('🛍️ Shop: Help & FAQ')
+        .setDescription(
+            `**🛒 How to purchase items from the catalog:**\n\n` +
+            `**Method A: Dropdown Menu (Interactive)**\n` +
+            `1. Click on the \`⚡ Boosters\` or \`🎨 Cosmetics\` category buttons.\n` +
+            `2. Select any item from the dropdown list to purchase exactly **1x** of that item instantly.\n\n` +
+            `**Method B: Slash Command (Fast)**\n` +
+            `- Use \`/shop buy:<item_id> quantity:<num>\`\n` +
+            `- *Example:* \`/shop buy:coffee quantity:2\`\n\n` +
+            `**Method C: Prefix Command (Fast)**\n` +
+            `- Use \`-shop buy <item_id> [quantity]\`\n` +
+            `- *Example:* \`-shop buy coffee 2\`\n\n` +
+            `**💸 Economy Rules & Constraints:**\n` +
+            `- **Gifting:** Use \`/gift\` to send items to friends with a custom message. Note that select items like Custom Tags and Crown of Royalty are non-giftable.\n` +
+            `- **Selling:** Only the Golden Nugget can be sold back to the shop using \`/sell\` (refunds **150,000** Baubles). All other items are non-sellable.`
+        )
+        .setFooter({ text: 'Use the buttons below to browse items.' });
+}
+
+function getHelpComponents() {
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('shop_btn_home')
+            .setLabel('⬅️ Back to Categories')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_boosters')
+            .setLabel('⚡ Boosters')
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_cosmetics')
+            .setLabel('🎨 Cosmetics & Profile')
+            .setStyle(ButtonStyle.Primary)
+    );
+    return [row];
 }
 
 module.exports = {
@@ -166,71 +338,76 @@ module.exports = {
                 return interaction.reply({ embeds: [successEmbed] });
             }
 
-            // Interactive catalog menu
-            const boostersList = Object.values(ITEMS)
-                .filter(item => item.category === 'boosters')
-                .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
-                .join('\n\n');
+            // Interactive catalog menu starting at 'home'
+            let currentPage = 'home';
 
-            const cosmeticsList = Object.values(ITEMS)
-                .filter(item => item.category === 'cosmetics')
-                .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
-                .join('\n\n');
+            function getPageData(page, baubles) {
+                switch (page) {
+                    case 'home':
+                        return { embeds: [getHomePageEmbed(baubles)], components: getHomePageComponents() };
+                    case 'boosters':
+                        return { embeds: [getBoostersPageEmbed(baubles)], components: getBoostersComponents() };
+                    case 'cosmetics':
+                        return { embeds: [getCosmeticsPageEmbed(baubles)], components: getCosmeticsComponents() };
+                    case 'help':
+                        return { embeds: [getHelpPageEmbed(baubles)], components: getHelpComponents() };
+                }
+            }
 
-            const shopEmbed = new EmbedBuilder()
-                .setColor(0x00AE86)
-                .setTitle('🛍️ Glimmering Bauble Shop')
-                .setDescription(`You currently have **${baubleData.baubles.toLocaleString()}** Baubles.`)
-                .addFields(
-                    { name: '⚡ Economy & Utility Boosters', value: boostersList },
-                    { name: '🎨 Cosmetics & Premium Collectibles', value: cosmeticsList }
-                )
-                .setFooter({ text: 'Use /shop buy:<id> to purchase items instantly.' });
-
-            const selectMenu = new StringSelectMenuBuilder()
-                .setCustomId('shop_select')
-                .setPlaceholder('Select an item to buy 1x')
-                .addOptions(
-                    Object.values(ITEMS).map(item => ({
-                        label: item.name.replace(/^[^\s]+\s+/, ''),
-                        description: `${item.price.toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
-                        value: item.id
-                    }))
-                );
-
-            const row = new ActionRowBuilder().addComponents(selectMenu);
-            const response = await interaction.reply({ embeds: [shopEmbed], components: [row], fetchReply: true });
+            const initialData = getPageData(currentPage, baubleData.baubles);
+            const response = await interaction.reply({
+                embeds: initialData.embeds,
+                components: initialData.components,
+                fetchReply: true
+            });
 
             const collector = response.createMessageComponentCollector({
-                componentType: ComponentType.StringSelect,
-                filter: i => i.user.id === userId && i.customId === 'shop_select',
-                time: 30000,
-                max: 1
+                filter: i => i.user.id === userId,
+                time: 60000
             });
 
             collector.on('collect', async i => {
-                const selectedId = i.values[0];
-                const freshData = await Bauble.findOne({ userId });
-                const result = await executePurchase(userId, selectedId, 1, freshData);
-                
-                if (result.error) {
-                    return i.reply({ content: result.error, ephemeral: true });
+                collector.resetTimer();
+
+                if (i.isButton()) {
+                    const btnId = i.customId;
+                    if (btnId === 'shop_btn_home') currentPage = 'home';
+                    else if (btnId === 'shop_btn_boosters') currentPage = 'boosters';
+                    else if (btnId === 'shop_btn_cosmetics') currentPage = 'cosmetics';
+                    else if (btnId === 'shop_btn_help') currentPage = 'help';
+
+                    const freshData = await Bauble.findOne({ userId }) || { baubles: 0 };
+                    const pageData = getPageData(currentPage, freshData.baubles);
+                    await i.update({
+                        embeds: pageData.embeds,
+                        components: pageData.components
+                    });
+                } else if (i.isStringSelectMenu() && i.customId === 'shop_select_buy') {
+                    const selectedId = i.values[0];
+                    const freshData = await Bauble.findOne({ userId });
+                    const result = await executePurchase(userId, selectedId, 1, freshData);
+                    
+                    if (result.error) {
+                        return i.reply({ content: result.error, ephemeral: true });
+                    }
+
+                    // Success reply
+                    await i.reply({
+                        content: `🛍️ **Purchase Successful!** You bought **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles.`,
+                        ephemeral: true
+                    });
+
+                    // Update main shop embed with new balance
+                    const pageData = getPageData(currentPage, freshData.baubles);
+                    await interaction.editReply({
+                        embeds: pageData.embeds,
+                        components: pageData.components
+                    });
                 }
-
-                const resultEmbed = new EmbedBuilder()
-                    .setColor(0x2ECC71)
-                    .setTitle('🛍️ Purchase Successful!')
-                    .setDescription(`You successfully purchased **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!\n\nYour new balance is **${freshData.baubles.toLocaleString()}** Baubles.`)
-                    .setFooter({ text: 'Use /inventory to view your items.' })
-                    .setTimestamp();
-
-                await i.update({ embeds: [resultEmbed], components: [] });
             });
 
             collector.on('end', (_, reason) => {
-                if (reason === 'time') {
-                    interaction.editReply({ components: [] }).catch(() => {});
-                }
+                interaction.editReply({ components: [] }).catch(() => {});
             });
 
         } catch (error) {
@@ -267,30 +444,79 @@ module.exports = {
                 return message.reply({ embeds: [successEmbed] });
             }
 
-            // Default display
-            const boostersList = Object.values(ITEMS)
-                .filter(item => item.category === 'boosters')
-                .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
-                .join('\n\n');
+            // Interactive catalog menu starting at 'home'
+            let currentPage = 'home';
 
-            const cosmeticsList = Object.values(ITEMS)
-                .filter(item => item.category === 'cosmetics')
-                .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
-                .join('\n\n');
+            function getPageData(page, baubles) {
+                switch (page) {
+                    case 'home':
+                        return { embeds: [getHomePageEmbed(baubles)], components: getHomePageComponents() };
+                    case 'boosters':
+                        return { embeds: [getBoostersPageEmbed(baubles)], components: getBoostersComponents() };
+                    case 'cosmetics':
+                        return { embeds: [getCosmeticsPageEmbed(baubles)], components: getCosmeticsComponents() };
+                    case 'help':
+                        return { embeds: [getHelpPageEmbed(baubles)], components: getHelpComponents() };
+                }
+            }
 
-            const shopEmbed = new EmbedBuilder()
-                .setColor(0x00AE86)
-                .setTitle('🛍️ Glimmering Bauble Shop')
-                .setDescription(`You currently have **${baubleData.baubles.toLocaleString()}** Baubles.`)
-                .addFields(
-                    { name: '⚡ Economy & Utility Boosters', value: boostersList },
-                    { name: '🎨 Cosmetics & Premium Collectibles', value: cosmeticsList }
-                )
-                .setFooter({ text: 'Type "-shop buy <id> [quantity]" to purchase items.' });
+            const initialData = getPageData(currentPage, baubleData.baubles);
+            const response = await message.reply({
+                embeds: initialData.embeds,
+                components: initialData.components
+            });
 
-            await message.reply({ embeds: [shopEmbed] });
+            const collector = response.createMessageComponentCollector({
+                filter: i => i.user.id === userId,
+                time: 60000
+            });
+
+            collector.on('collect', async i => {
+                collector.resetTimer();
+
+                if (i.isButton()) {
+                    const btnId = i.customId;
+                    if (btnId === 'shop_btn_home') currentPage = 'home';
+                    else if (btnId === 'shop_btn_boosters') currentPage = 'boosters';
+                    else if (btnId === 'shop_btn_cosmetics') currentPage = 'cosmetics';
+                    else if (btnId === 'shop_btn_help') currentPage = 'help';
+
+                    const freshData = await Bauble.findOne({ userId }) || { baubles: 0 };
+                    const pageData = getPageData(currentPage, freshData.baubles);
+                    await i.update({
+                        embeds: pageData.embeds,
+                        components: pageData.components
+                    });
+                } else if (i.isStringSelectMenu() && i.customId === 'shop_select_buy') {
+                    const selectedId = i.values[0];
+                    const freshData = await Bauble.findOne({ userId });
+                    const result = await executePurchase(userId, selectedId, 1, freshData);
+                    
+                    if (result.error) {
+                        return i.reply({ content: result.error, ephemeral: true });
+                    }
+
+                    // Success reply (ephemeral is fine for components collected from prefix messages!)
+                    await i.reply({
+                        content: `🛍️ **Purchase Successful!** You bought **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles.`,
+                        ephemeral: true
+                    });
+
+                    // Update main shop embed with new balance
+                    const pageData = getPageData(currentPage, freshData.baubles);
+                    await response.edit({
+                        embeds: pageData.embeds,
+                        components: pageData.components
+                    });
+                }
+            });
+
+            collector.on('end', (_, reason) => {
+                response.edit({ components: [] }).catch(() => {});
+            });
+
         } catch (error) {
-            console.error('Error in shop command:', error);
+            console.error('Error in shop command (prefix):', error);
             await message.reply('❌ An error occurred while accessing the shop.');
         }
     }

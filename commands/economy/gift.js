@@ -72,6 +72,10 @@ module.exports = {
                 return interaction.reply({ content: `❌ Invalid item ID. Choose from: \`${Object.keys(ITEMS).join(', ')}\``, ephemeral: true });
             }
 
+            if (item.giftable === false) {
+                return interaction.reply({ content: `❌ **${item.name}** is a premium/personal item and cannot be gifted!`, ephemeral: true });
+            }
+
             const senderData = await Bauble.findOne({ userId: senderId });
             if (!senderData) {
                 return interaction.reply({ content: '❌ You do not have any items to gift.', ephemeral: true });
@@ -155,6 +159,10 @@ module.exports = {
             const item = ITEMS[itemId];
             if (!item) {
                 return message.reply(`⚠️ Invalid item ID. Choose from: \`${Object.keys(ITEMS).join(', ')}\``);
+            }
+
+            if (item.giftable === false) {
+                return message.reply(`❌ **${item.name}** is a premium/personal item and cannot be gifted!`);
             }
 
             // Parse quantity and message
