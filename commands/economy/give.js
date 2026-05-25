@@ -28,7 +28,7 @@ module.exports = {
             let giverBaubleData = await Bauble.findOne({ userId: giverId});
 
             if (!giverBaubleData) {
-                return interaction.reply({content: "You don't have any baubles! Use /bauble."});
+                return interaction.reply({content: "❌ You don't have any baubles! Use /bauble."});
             }
 
             if (giverId === receiverId) {
@@ -90,7 +90,7 @@ module.exports = {
             let giverBaubleData = await Bauble.findOne({ userId: giverId});
 
             if (!giverBaubleData) {
-                return message.reply({content: "You don't have any baubles! Use /bauble."});
+                return message.reply({content: "❌ You don't have any baubles! Use /bauble."});
             }
 
             if (giverId === receiverId) {

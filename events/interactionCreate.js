@@ -58,10 +58,45 @@ module.exports = {
         timestamps.set(interaction.user.id, now);
         setTimeout(() => timestamps.delete(interaction.user.id), cooldownMs);
 
+        // Wrap reply and followUp to clear cooldown on error response
+        const originalReply = interaction.reply;
+        const originalFollowUp = interaction.followUp;
+
+        const checkAndClearCooldown = (options) => {
+            let content = '';
+            let embedDesc = '';
+            if (typeof options === 'string') {
+                content = options;
+            } else if (options) {
+                content = options.content || '';
+                if (options.embeds && options.embeds.length > 0) {
+                    const embed = options.embeds[0];
+                    embedDesc = embed.description || (typeof embed.data === 'object' ? embed.data.description : '') || '';
+                }
+            }
+            if (
+                content.startsWith('❌') || content.startsWith('⚠️') ||
+                embedDesc.startsWith('❌') || embedDesc.startsWith('⚠️')
+            ) {
+                timestamps.delete(interaction.user.id);
+            }
+        };
+
+        interaction.reply = async function (options, ...args) {
+            checkAndClearCooldown(options);
+            return originalReply.apply(this, [options, ...args]);
+        };
+
+        interaction.followUp = async function (options, ...args) {
+            checkAndClearCooldown(options);
+            return originalFollowUp.apply(this, [options, ...args]);
+        };
+
         // --- Execute command ---
         try {
             await command.execute(interaction);
         } catch (error) {
+            timestamps.delete(interaction.user.id); // Clear cooldown on command error
             console.error(`[interactionCreate] Error in /${interaction.commandName}:`, error);
             const msg = { content: '❌ An error occurred while executing that command.', flags: MessageFlags.Ephemeral };
             if (interaction.replied || interaction.deferred) {

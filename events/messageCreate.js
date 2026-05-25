@@ -118,10 +118,34 @@ module.exports = {
         timestamps.set(message.author.id, now);
         setTimeout(() => timestamps.delete(message.author.id), cooldownMs);
 
+        // Wrap reply to clear cooldown on error response
+        const originalMessageReply = message.reply;
+        message.reply = async function (options, ...args) {
+            let content = '';
+            let embedDesc = '';
+            if (typeof options === 'string') {
+                content = options;
+            } else if (options) {
+                content = options.content || '';
+                if (options.embeds && options.embeds.length > 0) {
+                    const embed = options.embeds[0];
+                    embedDesc = embed.description || (typeof embed.data === 'object' ? embed.data.description : '') || '';
+                }
+            }
+            if (
+                content.startsWith('❌') || content.startsWith('⚠️') ||
+                embedDesc.startsWith('❌') || embedDesc.startsWith('⚠️')
+            ) {
+                timestamps.delete(message.author.id);
+            }
+            return originalMessageReply.apply(this, [options, ...args]);
+        };
+
         // --- Execute command ---
         try {
             await command.executePrefix(message, args);
         } catch (error) {
+            timestamps.delete(message.author.id); // Clear cooldown on command error
             console.error(`[messageCreate] Error in prefix command "${commandName}":`, error);
             message.reply('❌ An error occurred while executing that command.').catch(() => {});
         }
