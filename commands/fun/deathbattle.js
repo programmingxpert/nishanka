@@ -7,6 +7,7 @@ const {
     ButtonStyle,
     ComponentType
 } = require('discord.js');
+const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
     category: 'fun',
@@ -109,7 +110,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
             .setColor(0xff1a1a)
             .setTitle('⚔️ DEATH BATTLE CHALLENGE')
             .setDescription(`**${user1.username}** has challenged **${user2.username}** to a death battle!\n\nDo you accept this challenge?`)
-            .setFooter({ text: 'Expires in 30 seconds.' });
+            .setFooter({ text: 'Expires in 60 seconds.' });
 
         const challengeRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -141,7 +142,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
             const btnInteraction = await battleMsg.awaitMessageComponent({
                 filter: i => i.user.id === user2.id && ['db_challenge_accept', 'db_challenge_decline'].includes(i.customId),
                 componentType: ComponentType.Button,
-                time: 30_000
+                time: 60_000
             });
 
             if (btnInteraction.customId === 'db_challenge_decline') {
@@ -364,7 +365,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
                 const btnInteraction = await battleMsg.awaitMessageComponent({
                     filter: i => i.user.id === turnPlayer.user.id && i.customId.startsWith('db_play_'),
                     componentType: ComponentType.Button,
-                    time: 30_000
+                    time: 60_000
                 });
 
                 await btnInteraction.deferUpdate();
@@ -372,7 +373,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
             } catch (e) {
                 gameEnded = true;
                 forfeit = turnPlayer;
-                lastActionText = `⏰ **${turnPlayer.user.username}** took too long to move and forfeited the battle!`;
+                lastActionText = `⏰ **${turnPlayer.user.username}** took too long to move and forfeited the battle! (60s limit)`;
                 break;
             }
         }
@@ -525,13 +526,29 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
     }
 
     // Determine end results
+    const winnerUser = forfeit ? (forfeit.user.id === p1.user.id ? p2.user : p1.user) : winner.user;
+    let rewardText = '';
+    if (!winnerUser.bot) {
+        const reward = Math.floor(Math.random() * 401) + 200; // 200-600 Baubles
+        try {
+            let baubleData = await Bauble.findOne({ userId: winnerUser.id });
+            if (!baubleData) {
+                baubleData = new Bauble({ userId: winnerUser.id, baubles: 0 });
+            }
+            baubleData.baubles += reward;
+            await baubleData.save();
+            rewardText = `\n\n💰 **Prize:** **${reward.toLocaleString()} Baubles** has been awarded to **${winnerUser.username}**!`;
+        } catch (err) {
+            console.error('Error awarding deathbattle baubles:', err);
+        }
+    }
+
     let finalEmbed;
     if (forfeit) {
-        const winnerUser = forfeit.user.id === p1.user.id ? p2.user : p1.user;
         finalEmbed = new EmbedBuilder()
             .setColor(0x2ecc71)
             .setTitle('🏆 DEATH BATTLE OVER')
-            .setDescription(`**${forfeit.user.username}** forfeited the battle.\n\n👑 **Winner:** **${winnerUser.username}**`);
+            .setDescription(`**${forfeit.user.username}** forfeited the battle.\n\n👑 **Winner:** **${winnerUser.username}**${rewardText}`);
     } else {
         const loser = winner.user.id === p1.user.id ? p2 : p1;
         finalEmbed = new EmbedBuilder()
@@ -540,7 +557,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
             .setDescription(
                 `> ${lastActionText}\n\n` +
                 `👑 **Winner:** **${winner.user.username}** (HP: ${winner.hp}/100)\n` +
-                `💀 **Loser:** ~~${loser.user.username}~~ (HP: 0/100)`
+                `💀 **Loser:** ~~${loser.user.username}~~ (HP: 0/100)${rewardText}`
             )
             .setThumbnail(winner.user.displayAvatarURL({ dynamic: true }));
     }

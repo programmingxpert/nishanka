@@ -177,7 +177,7 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
             `They're wagering **${wager.toLocaleString()} Baubles** on a Turn-Based Street Fight.\n` +
             `Do you accept?`
         )
-        .setFooter({ text: 'Challenge expires in 30 seconds.' })
+        .setFooter({ text: 'Challenge expires in 60 seconds.' })
         .setTimestamp();
 
     const acceptRow = new ActionRowBuilder().addComponents(
@@ -213,7 +213,7 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
         const btnInteraction = await challengeMsg.awaitMessageComponent({
             filter: i => i.user.id === opponent.id && ['battle_accept', 'battle_decline'].includes(i.customId),
             componentType: ComponentType.Button,
-            time: 30_000,
+            time: 60_000,
         });
 
         if (btnInteraction.customId === 'battle_decline') {
@@ -284,7 +284,7 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
                     inline: true,
                 }
             )
-            .setFooter({ text: 'You have 30 seconds to make a move.' })
+            .setFooter({ text: 'You have 60 seconds to make a move.' })
             .setTimestamp();
     }
 
@@ -303,7 +303,7 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
             const btnInteraction = await challengeMsg.awaitMessageComponent({
                 filter: i => i.user.id === turnPlayer.user.id && i.customId.startsWith('battle_'),
                 componentType: ComponentType.Button,
-                time: 30_000,
+                time: 60_000,
             });
 
             await btnInteraction.deferUpdate();
@@ -368,7 +368,7 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
             // Timeout
             gameEnded = true;
             forfeit = turnPlayer;
-            lastActionText = `⏰ **${turnPlayer.user.username}** took too long to move and forfeited the match!`;
+            lastActionText = `⏰ **${turnPlayer.user.username}** took too long to move and forfeited the match! (60s limit)`;
         }
     }
 
