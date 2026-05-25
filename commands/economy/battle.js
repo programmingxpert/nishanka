@@ -193,12 +193,12 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
 
     let challengeMsg;
     if (isSlash) {
-        challengeMsg = await interaction.reply({
+        await interaction.reply({
             content: `${opponent}`,
             embeds: [challengeEmbed],
             components: [acceptRow],
-            fetchReply: true,
         });
+        challengeMsg = await interaction.fetchReply();
     } else {
         challengeMsg = await message.reply({
             content: `${opponent}`,
