@@ -125,6 +125,11 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
 
             metrics = metrics.slice(0, 4);
 
+            let successScore = result.successScore !== undefined ? Number(result.successScore) : null;
+            if (successScore === null) {
+                successScore = Math.round(metrics.reduce((sum, met) => sum + met.score, 0) / metrics.length);
+            }
+
             const fields = [
                 { name: 'Your Excuse', value: `*"${excuseText}"*` }
             ];
@@ -137,13 +142,13 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
                 }
             });
 
+            fields.push({ name: 'Success Rate', value: buildProgressBar(successScore), inline: false });
             fields.push({ name: 'Verdict', value: result.verdict || 'No verdict provided.' });
 
-            // Reward some baubles even for solo excuse play! E.g. average score * 1 baubles
-            const avgScore = Math.round(metrics.reduce((sum, met) => sum + met.score, 0) / metrics.length);
-            const prize = Math.round(avgScore * 1);
+            let prize = 0;
             let prizeMsg = '';
-            if (prize > 0) {
+            if (successScore >= 50) {
+                prize = successScore;
                 try {
                     let userBaubles = await Bauble.findOne({ userId: user.id });
                     if (!userBaubles) {
@@ -155,6 +160,8 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
                 } catch (dbErr) {
                     console.error('Failed to save baubles for solo player:', dbErr);
                 }
+            } else {
+                prizeMsg = `\n\n⚖️ **Guilty!** The AI Judge rejected your excuse. No Baubles awarded.`;
             }
 
             const resultEmbed = new EmbedBuilder()
@@ -162,7 +169,7 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
                 .setTitle('⚖️ THE AI HAS SPOKEN')
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                 .addFields(fields)
-                .setDescription(prizeMsg || null)
+                .setDescription(prizeMsg)
                 .setFooter({ text: 'Excuse by AI' });
 
             await thinkingMessage.edit({ embeds: [resultEmbed] });
@@ -288,14 +295,17 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
             }
             metrics = metrics.slice(0, 4);
 
-            const avgScore = Math.round(metrics.reduce((sum, met) => sum + met.score, 0) / metrics.length);
-            scores[res.userId] = (scores[res.userId] || 0) + avgScore;
+            let successScore = res.successScore !== undefined ? Number(res.successScore) : null;
+            if (successScore === null) {
+                successScore = Math.round(metrics.reduce((sum, met) => sum + met.score, 0) / metrics.length);
+            }
+            scores[res.userId] = (scores[res.userId] || 0) + successScore;
 
             const metricsStr = metrics.map(m => `**${m.name}**: ${m.score}%`).join(' | ');
             const verdict = res.verdict || 'No verdict provided.';
 
             roundEmbed.addFields(
-                { name: `👤 ${playerObj.username} — Score: ${avgScore}/100`, value: `*"${playerObj.text}"*\n📊 ${metricsStr}\n💬 ${verdict}` }
+                { name: `👤 ${playerObj.username} — Success Rate: ${successScore}%`, value: `*"${playerObj.text}"*\n📊 ${metricsStr}\n💬 ${verdict}` }
             );
         });
 
@@ -333,20 +343,31 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
     for (let i = 0; i < sortedPlayers.length; i++) {
         const [userId, totalScore] = sortedPlayers[i];
         const isWinner = i === 0;
-        const prize = isWinner ? 500 + totalScore * 2 : totalScore * 2;
+        
+        // Calculate average success score across rounds
+        const avgSuccess = totalScore / 3;
+        
+        let prize = 0;
+        if (avgSuccess >= 50) {
+            prize = isWinner ? 500 + totalScore * 2 : totalScore * 2;
+        }
 
-        try {
-            let userBaubles = await Bauble.findOne({ userId });
-            if (!userBaubles) {
-                userBaubles = new Bauble({ userId, baubles: 0 });
+        const username = userMap.get(userId) || `<@${userId}>`;
+        
+        if (prize > 0) {
+            try {
+                let userBaubles = await Bauble.findOne({ userId });
+                if (!userBaubles) {
+                    userBaubles = new Bauble({ userId, baubles: 0 });
+                }
+                userBaubles.baubles += prize;
+                await userBaubles.save();
+            } catch (dbErr) {
+                console.error(`Failed to save baubles for user ${userId}:`, dbErr);
             }
-            userBaubles.baubles += prize;
-            await userBaubles.save();
-
-            const username = userMap.get(userId) || `<@${userId}>`;
             payoutDetails.push(`${isWinner ? '👑' : '👤'} **${username}**: +${prize} Baubles (Total Score: ${totalScore})`);
-        } catch (dbErr) {
-            console.error(`Failed to save baubles for user ${userId}:`, dbErr);
+        } else {
+            payoutDetails.push(`${isWinner ? '👑' : '👤'} **${username}**: +0 Baubles (Guilty - Total Score: ${totalScore})`);
         }
     }
 
@@ -439,6 +460,7 @@ They provided this excuse:
 
 Evaluate their excuse. You MUST return your evaluation strictly as a valid JSON object matching exactly this structure (no markdown, no backticks, no other text):
 {
+  "successScore": <integer 0-100, representing how successful their excuse was at getting them out of trouble. Give a very low score (0-20) if the excuse is garbage, off-topic, or just a few lazy words>,
   "metrics": [
     { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
     { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
@@ -501,6 +523,7 @@ Evaluate each player's excuse individually. You MUST return your evaluation stri
   "results": [
     {
       "userId": "<exact userId of the player>",
+      "successScore": <integer 0-100, representing how successful their excuse was at getting them out of trouble. Give a very low score (0-20) if the excuse is garbage, off-topic, or just a few lazy words>,
       "metrics": [
         { "name": "<A funny, custom metric relevant to their specific excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
         { "name": "<A funny, custom metric relevant to their specific excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
@@ -561,15 +584,19 @@ function getFallbackMultiplayerEvaluation(playersList) {
         "Nice try, but you're not fooling anyone today."
     ];
     return {
-        results: playersList.map(p => ({
-            userId: p.userId,
-            metrics: [
-                { name: "Believability", score: Math.floor(Math.random() * 50) + 30 },
-                { name: "Confidence", score: Math.floor(Math.random() * 50) + 40 },
-                { name: "Manipulation", score: Math.floor(Math.random() * 50) + 20 },
-                { name: "Stupidity", score: Math.floor(Math.random() * 50) + 50 }
-            ],
-            verdict: genericVerdicts[Math.floor(Math.random() * genericVerdicts.length)]
-        }))
+        results: playersList.map(p => {
+            const successScore = Math.floor(Math.random() * 60) + 15;
+            return {
+                userId: p.userId,
+                successScore,
+                metrics: [
+                    { name: "Believability", score: Math.floor(Math.random() * 50) + 30 },
+                    { name: "Confidence", score: Math.floor(Math.random() * 50) + 40 },
+                    { name: "Manipulation", score: Math.floor(Math.random() * 50) + 20 },
+                    { name: "Stupidity", score: Math.floor(Math.random() * 50) + 50 }
+                ],
+                verdict: genericVerdicts[Math.floor(Math.random() * genericVerdicts.length)]
+            };
+        })
     };
 }
