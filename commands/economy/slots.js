@@ -15,7 +15,7 @@ module.exports = {
             option.setName('bet')
                 .setDescription('The amount of Baubles to bet.')
                 .setRequired(true)
-                .setMinValue(50)),
+                .setMinValue(100)),
 
     async execute(interaction) {
         try {
@@ -43,8 +43,8 @@ module.exports = {
                 return; // Exit out of this to stop the old method
             }
 
-            if (bet < 50) {
-                return interaction.reply({ content: `❌ The minimum bet for slots is **50** Baubles.`, ephemeral: true });
+            if (bet < 100) {
+                return interaction.reply({ content: `❌ The minimum bet for slots is **100** Baubles.`, ephemeral: true });
             }
 
             if (baubleData.baubles < bet) {

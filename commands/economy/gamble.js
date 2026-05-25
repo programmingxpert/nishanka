@@ -36,7 +36,7 @@ module.exports = {
             option.setName('amount')
                 .setDescription('Amount of Baubles to gamble')
                 .setRequired(true)
-                .setMinValue(50)
+                .setMinValue(500)
         )
         .addStringOption(option =>
             option.setName('risk')
@@ -69,8 +69,8 @@ module.exports = {
         const amount = parseInt(args[0]);
         const risk = (args[1] || 'medium').toLowerCase();
 
-        if (isNaN(amount) || amount < 50) {
-            return message.reply({ content: '❌ The minimum amount to gamble is **50** Baubles.' });
+        if (isNaN(amount) || amount < 500) {
+            return message.reply({ content: '❌ The minimum amount to gamble is **500** Baubles.' });
         }
 
         await handleGamble({
@@ -88,7 +88,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
     try {
         const baubleData = await retryDatabaseOperation(() => Bauble.findOne({ userId }));
         if (!baubleData) return sendError("❌ You don't have any Baubles yet! Use `/work` to earn some.");
-        if (amount < 50) return sendError("❌ The minimum amount to gamble is **50** Baubles.");
+        if (amount < 500) return sendError("❌ The minimum amount to gamble is **500** Baubles.");
         if (baubleData.baubles < amount) return sendError(`❌ You only have ${baubleData.baubles} Baubles, can't gamble ${amount}.`);
 
         const { chance, multiplier } = getWinChance(risk);

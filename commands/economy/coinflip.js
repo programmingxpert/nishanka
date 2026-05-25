@@ -12,7 +12,7 @@ module.exports = {
             option.setName('amount')
                 .setDescription('The amount of Baubles to gamble.')
                 .setRequired(true)
-                .setMinValue(50)
+                .setMinValue(200)
         )
         .addStringOption(option =>
             option.setName('side')
@@ -65,8 +65,8 @@ module.exports = {
         }
 
         const amount = parseInt(amountArg);
-        if (isNaN(amount) || amount < 50) {
-            return message.reply('❌ The minimum amount to gamble is **50** Baubles.');
+        if (isNaN(amount) || amount < 200) {
+            return message.reply('❌ The minimum amount to gamble is **200** Baubles.');
         }
 
         let side = null;
@@ -100,8 +100,8 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
             await baubleData.save();
         }
 
-        if (amount < 50) {
-            const errorMsg = `❌ The minimum amount to gamble is **50** Baubles.`;
+        if (amount < 200) {
+            const errorMsg = `❌ The minimum amount to gamble is **200** Baubles.`;
             if (isSlash) {
                 if (interaction.deferred || interaction.replied) {
                     return interaction.followUp({ content: errorMsg, ephemeral: true });

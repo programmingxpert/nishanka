@@ -16,7 +16,7 @@ module.exports = {
             option.setName('wager')
                 .setDescription('The amount of Baubles you want to wager.')
                 .setRequired(true)
-                .setMinValue(50)),
+                .setMinValue(1000)),
 
     async execute(interaction) {
         try {
@@ -86,8 +86,8 @@ async function handleBattle(interaction) {
             return interaction.reply({ content: "You can't battle a bot!", ephemeral: true });
         }
 
-        if (wager < 50) {
-            return interaction.reply({ content: "❌ The minimum wager for a battle is **50** Baubles.", ephemeral: true });
+        if (wager < 1000) {
+            return interaction.reply({ content: "❌ The minimum wager for a battle is **1000** Baubles.", ephemeral: true });
         }
 
         // --- Database Checks ---
