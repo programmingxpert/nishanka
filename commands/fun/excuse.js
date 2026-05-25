@@ -10,29 +10,6 @@ const {
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-const FALLBACK_SCENARIOS = [
-    "Your boss caught you trying to ride the office vacuum like a stallion.",
-    "You got caught trying to feed spaghetti directly into the office printer.",
-    "Your landlord walked in on you attempting to teach your cat how to do taxes.",
-    "You got caught attempting a solo flash mob in the middle of a quiet library.",
-    "Your roommate caught you wearing a tin foil hat and whispering secrets to the microwave.",
-    "You got caught trying to smuggle a live goose under your hoodie into a movie theater.",
-    "You accidentally unmuted your mic while explaining why your teacher looks like a wet owl.",
-    "Your partner caught you practicing wedding vows in the mirror with a mop.",
-    "Your dentist walked in while you were trying to perform dental surgery on a plush bear.",
-    "You got caught trying to pay for high-end jewelry with Monopoly money.",
-    "You got caught trying to high-five a mannequin in a clothing store for 5 minutes.",
-    "Your mother-in-law caught you hiding under the kitchen table eating a whole birthday cake with your hands.",
-    "You got caught using a fake British accent to get free chicken nuggets at a drive-thru.",
-    "Your roommate caught you drinking milk directly from the carton with a crazy straw.",
-    "You accidentally texted your boss a selfie of you wearing a clown wig with the caption 'my boss'.",
-    "Your teacher caught you sleeping in class with realistic eyes drawn on your eyelids.",
-    "You told everyone you were a strict vegan, but got caught eating a raw steak in the garden.",
-    "Your doctor caught you hiding a bag of cheeseburgers inside a hollowed-out anatomy book.",
-    "Your roommate caught you trying to tape their room door shut so they couldn't go on a date.",
-    "You got caught trying to pet a wild raccoon behind the restaurant because it 'looked polite'."
-];
-
 module.exports = {
     category: 'fun',
     cooldown: 15,
@@ -90,8 +67,13 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
     try {
         scenario = await generateAIScenario(apiKey);
     } catch (err) {
-        console.error('Failed to generate scenario via AI, using fallback:', err);
-        scenario = generateFallbackScenario();
+        console.error('Failed to generate scenario via AI:', err);
+        const msg = '⚠️ The AI Judge had a brain freeze (Failed to generate scenario). Please try again later!';
+        if (isSlash) {
+            return initialData.editReply({ content: msg, embeds: [], components: [] });
+        } else {
+            return channel.send(msg);
+        }
     }
 
     const embed = new EmbedBuilder()
@@ -297,8 +279,10 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
         try {
             scenario = await generateAIScenario(apiKey);
         } catch (err) {
-            console.error('Failed to generate scenario via AI, using fallback:', err);
-            scenario = generateFallbackScenario();
+            console.error('Failed to generate scenario via AI in multiplayer round:', err);
+            await channel.send('⚠️ The AI Judge had a brain freeze. Round failed!');
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            continue;
         }
 
         const roundStartEmbed = new EmbedBuilder()
@@ -400,8 +384,12 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
             result = await evaluateMultiplayerExcuses(scenario, playersList, apiKey);
         } catch (apiError) {
             console.error('DeepSeek API Error in multiplayer:', apiError);
-            result = getFallbackMultiplayerEvaluation(playersList);
-            await channel.send('⚠️ The AI Judge had a brain freeze, so a backup judge stepped in!');
+            const errEmbed = new EmbedBuilder()
+                .setColor(0xe74c3c)
+                .setDescription('⚠️ The AI Judge had a brain freeze (API Error) and could not grade the excuses for this round.');
+            await thinkingMessage.edit({ embeds: [errEmbed] });
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            continue;
         }
 
         const roundEmbed = new EmbedBuilder()
@@ -517,9 +505,7 @@ function buildProgressBar(score) {
     return '`' + '█'.repeat(filled) + '░'.repeat(empty) + ` ${safeScore}%\``;
 }
 
-function generateFallbackScenario() {
-    return FALLBACK_SCENARIOS[Math.floor(Math.random() * FALLBACK_SCENARIOS.length)];
-}
+
 
 async function generateAIScenario(apiKey) {
     const keywords = [
@@ -705,29 +691,4 @@ Evaluate each player's excuse individually. You MUST return your evaluation stri
     return JSON.parse(content);
 }
 
-function getFallbackMultiplayerEvaluation(playersList) {
-    const genericVerdicts = [
-        "Honestly, a toddler could make up a better story.",
-        "The audacity to say this is almost respectable, but you are still guilty.",
-        "A classic excuse, but the delivery lacked conviction.",
-        "It is so stupid that it might actually work. Almost.",
-        "Nice try, but you're not fooling anyone today."
-    ];
-    return {
-        results: playersList.map(p => {
-            const successScore = Math.floor(Math.random() * 60) + 15;
-            return {
-                userId: p.userId,
-                successScore,
-                shortExcuse: p.text.slice(0, 20) + (p.text.length > 20 ? '...' : ''),
-                metrics: [
-                    { name: "Believability", score: Math.floor(Math.random() * 50) + 30 },
-                    { name: "Confidence", score: Math.floor(Math.random() * 50) + 40 },
-                    { name: "Manipulation", score: Math.floor(Math.random() * 50) + 20 },
-                    { name: "Stupidity", score: Math.floor(Math.random() * 50) + 50 }
-                ],
-                verdict: genericVerdicts[Math.floor(Math.random() * genericVerdicts.length)]
-            };
-        })
-    };
-}
+
