@@ -303,16 +303,23 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         outcome = 'tails';
     }
 
-    // Calculate win/loss
-    const didWin = (side === outcome);
+    // Refetch/reload baubleData to prevent race conditions during the setTimeout
+    baubleData = await Bauble.findOne({ userId });
+    const previousStreak = baubleData.coinflipStreak || 0;
+
+    let didWin = (side === outcome);
+    let cloverUsed = false;
+    if (!didWin && baubleData.luckExpiresAt && Date.now() < new Date(baubleData.luckExpiresAt).getTime()) {
+        if (Math.random() < 0.20) { // 20% of losses are converted to wins (boosts overall 50% win rate to 60%)
+            didWin = true;
+            cloverUsed = true;
+        }
+    }
+
     let winnings = 0;
     if (didWin) {
         winnings = amount * 2;
     }
-
-    // Refetch/reload baubleData to prevent race conditions during the setTimeout
-    baubleData = await Bauble.findOne({ userId });
-    const previousStreak = baubleData.coinflipStreak || 0;
 
     if (didWin) {
         baubleData.baubles += winnings;
@@ -333,10 +340,10 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         finalEmbed.setColor(0x2ecc71); // Aesthetic emerald green
         if (outcome === 'draw') {
             finalEmbed.setTitle('🏆  UNBELIEVABLE DRAW!')
-                .setDescription(`🪙 The coin landed perfectly **sideways/upright**!\nYou guessed the **0.1% chance** draw correctly! Absolutely insane luck! 💫`);
+                .setDescription(`🪙 The coin landed perfectly **sideways/upright**!\nYou guessed the **0.1% chance** draw correctly! Absolutely insane luck! 💫` + (cloverUsed ? `\n\n🍀 *Lucky Clover boost converted a loss into a win!*` : ''));
         } else {
             finalEmbed.setTitle('🎉  VICTORY!')
-                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟`);
+                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟` + (cloverUsed ? `\n\n🍀 *Lucky Clover boost converted a loss into a win!*` : ''));
         }
         finalEmbed.addFields(
             { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },

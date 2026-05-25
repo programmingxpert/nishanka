@@ -95,7 +95,15 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
 
         const losses = LOSS_TRACKER.get(userId) || 0;
         const isGuaranteedWin = losses >= 5;
-        const didWin = isGuaranteedWin || Math.random() < chance;
+
+        let actualChance = chance;
+        let cloverUsed = false;
+        if (baubleData.luckExpiresAt && Date.now() < new Date(baubleData.luckExpiresAt).getTime()) {
+            actualChance += 0.10;
+            cloverUsed = true;
+        }
+
+        const didWin = isGuaranteedWin || Math.random() < actualChance;
 
         if (didWin) {
             const earnings = Math.floor(amount * multiplier);
@@ -111,7 +119,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('🎉 YOU WON!')
-                .setDescription(`Risk: **${risk}**\nYou gambled **${amount}** and won **${earnings}**!`)
+                .setDescription(`Risk: **${risk}**\nYou gambled **${amount}** and won **${earnings}**!${cloverUsed ? '\n\n🍀 *Lucky Clover boost was active!*' : ''}`)
                 .addFields(
                     { name: '💰 New Balance', value: `${baubleData.baubles} Baubles`, inline: true },
                     { name: '🔥 Win Streak', value: `\`${baubleData.gambleStreak} wins\` (Best: \`${baubleData.gambleMaxStreak}\`)`, inline: true }

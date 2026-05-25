@@ -538,16 +538,41 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
     if (winnerUser) {
         const isChallenger = winnerUser.id === challenger.id;
         finalColor = 0x4ADE80;
-        finalTitle = `🏆  BAUBLE BRAWL — ${winnerUser.username.toUpperCase()} WINS!`;
-        finalDesc  = `**${winnerUser.username}** defeated **${loserUser.username}** **${isChallenger ? challengerScore : opponentScore}–${isChallenger ? opponentScore : challengerScore}** and claims the spoils!`;
+        let shieldSavedLoser = false;
 
         if (isChallenger) {
-            cData.baubles += wager;
-            oData.baubles -= wager;
+            const shieldIndex = oData.inventory ? oData.inventory.findIndex(item => item.itemId === 'shield' && item.quantity > 0) : -1;
+            if (shieldIndex !== -1) {
+                oData.inventory[shieldIndex].quantity -= 1;
+                if (oData.inventory[shieldIndex].quantity <= 0) {
+                    oData.inventory.splice(shieldIndex, 1);
+                }
+                oData.markModified('inventory');
+                shieldSavedLoser = true;
+                cData.baubles += wager;
+            } else {
+                cData.baubles += wager;
+                oData.baubles -= wager;
+            }
         } else {
-            cData.baubles -= wager;
-            oData.baubles += wager;
+            const shieldIndex = cData.inventory ? cData.inventory.findIndex(item => item.itemId === 'shield' && item.quantity > 0) : -1;
+            if (shieldIndex !== -1) {
+                cData.inventory[shieldIndex].quantity -= 1;
+                if (cData.inventory[shieldIndex].quantity <= 0) {
+                    cData.inventory.splice(shieldIndex, 1);
+                }
+                cData.markModified('inventory');
+                shieldSavedLoser = true;
+                oData.baubles += wager;
+            } else {
+                cData.baubles -= wager;
+                oData.baubles += wager;
+            }
         }
+
+        finalTitle = `🏆  BAUBLE BRAWL — ${winnerUser.username.toUpperCase()} WINS!`;
+        finalDesc  = `**${winnerUser.username}** defeated **${loserUser.username}** **${isChallenger ? challengerScore : opponentScore}–${isChallenger ? opponentScore : challengerScore}** and claims the spoils!` +
+            (shieldSavedLoser ? `\n\n🛡️ **${loserUser.username}**'s **Aegis Shield** broke, protecting them from losing any Baubles!` : '');
 
         await cData.save();
         await oData.save();

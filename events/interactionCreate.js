@@ -34,7 +34,15 @@ module.exports = {
 
         const now         = Date.now();
         const timestamps  = cooldowns.get(command.data.name);
-        const cooldownMs  = (command.cooldown ?? 3) * 1000;
+        let cooldownMs  = (command.cooldown ?? 3) * 1000;
+
+        if (command.data.name === 'work' || command.data.name === 'scavenge') {
+            const Bauble = require('../models/baubleSchema');
+            const baubleData = await Bauble.findOne({ userId: interaction.user.id }).lean();
+            if (baubleData && baubleData.coffeeExpiresAt && now < new Date(baubleData.coffeeExpiresAt).getTime()) {
+                cooldownMs /= 2;
+            }
+        }
 
         if (timestamps.has(interaction.user.id)) {
             const expiry = timestamps.get(interaction.user.id) + cooldownMs;

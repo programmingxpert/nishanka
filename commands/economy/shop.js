@@ -3,311 +3,235 @@ const {
     SlashCommandBuilder,
     EmbedBuilder,
     ActionRowBuilder,
-    StringSelectMenuBuilder
+    StringSelectMenuBuilder,
+    ComponentType
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-// Define our shop items
-const shopItems = [
-    {
-        id: 'lottery_ticket',
-        name: 'Lottery Ticket',
-        description: 'A ticket for a chance to win back double your spent Baubles. Price: **50 Baubles**. (50% chance to double your expenditure back.)',
-        price: 50,
-        async execute(userId, baubleData) {
-            // 50% chance to award 100 Baubles (i.e. double the price back)
-            const win = Math.random() < 0.5;
-            if (win) {
-                const reward = 100;
-                baubleData.baubles += reward;
-                return { result: 'win', reward };
-            }
-            return { result: 'lose' };
-        }
-    },
-    {
-        id: 'mystery_box',
-        name: 'Mystery Box',
-        description: 'Open a mystery box for a random reward between **10** to **100 Baubles**. Price: **100 Baubles**.',
-        price: 100,
-        async execute(userId, baubleData) {
-            const reward = Math.floor(Math.random() * 91) + 10; // Reward between 10 and 100
-            baubleData.baubles += reward;
-            return { result: 'reward', reward };
-        }
-    },
-    {
-        id: 'custom_badge',
-        name: 'Custom Badge',
-        description: 'Unlock a custom profile badge that shows off your status. Price: **200 Baubles**.',
-        price: 200,
-        async execute(userId, baubleData) {
-            // Add badge to user inventory if they don’t have it already.
-            if (!baubleData.inventory) baubleData.inventory = [];
-            if (!baubleData.inventory.includes('custom_badge')) {
-                baubleData.inventory.push('custom_badge');
-                return { result: 'badge' };
-            } else {
-                return { result: 'owned' };
-            }
-        }
-    },
-    {
-        id: 'earnings_booster',
-        name: 'Earnings Booster',
-        description: 'Double your bauble earnings for the next hour. Price: **150 Baubles**.',
+// Define our shop items catalog
+const ITEMS = {
+    coffee: {
+        id: 'coffee',
+        name: '☕ Energizing Coffee',
+        emoji: '☕',
+        description: 'Halves work (10s -> 5s) and scavenge (10m -> 5m) cooldowns for 30 minutes.',
         price: 150,
-        async execute(userId, baubleData) {
-            // Set a booster flag and a timestamp for expiration.
-            if (!baubleData.booster || Date.now() > baubleData.booster.expiresAt) {
-                baubleData.booster = { active: true, expiresAt: Date.now() + 3600000 }; // one hour in ms
-                return { result: 'booster' };
-            } else {
-                return { result: 'active' };
-            }
-        }
+        sellPrice: 75,
+        type: 'consumable'
+    },
+    clover: {
+        id: 'clover',
+        name: '🍀 Lucky Clover',
+        emoji: '🍀',
+        description: 'Increases Coinflip and Gamble win rates by 10% for 15 minutes.',
+        price: 300,
+        sellPrice: 150,
+        type: 'consumable'
+    },
+    shield: {
+        id: 'shield',
+        name: '🛡️ Aegis Shield',
+        emoji: '🛡️',
+        description: 'Passive. Protects you from wager loss on your next failed Brawl duel (consumed on use).',
+        price: 600,
+        sellPrice: 300,
+        type: 'collectible'
+    },
+    mystery_box: {
+        id: 'mystery_box',
+        name: '📦 Mystery Box',
+        emoji: '📦',
+        description: 'Open to win Coffee, Clovers, Aegis Shields, or up to 400 bonus Baubles.',
+        price: 200,
+        sellPrice: 100,
+        type: 'consumable'
+    },
+    nugget: {
+        id: 'nugget',
+        name: '💎 Golden Nugget',
+        emoji: '💎',
+        description: 'A premium gold chunk. High value for selling back (800 Baubles) or gifting.',
+        price: 1000,
+        sellPrice: 800,
+        type: 'collectible'
     }
-];
+};
+
+async function executePurchase(userId, itemId, quantity, baubleData) {
+    const item = ITEMS[itemId];
+    if (!item) return { error: '❌ Invalid item ID.' };
+
+    const totalPrice = item.price * quantity;
+    if (baubleData.baubles < totalPrice) {
+        return { error: `❌ You need **${totalPrice.toLocaleString()}** Baubles to buy **${quantity}x ${item.name}**, but you only have **${baubleData.baubles.toLocaleString()}**.` };
+    }
+
+    baubleData.baubles -= totalPrice;
+
+    if (!baubleData.inventory) baubleData.inventory = [];
+    const invItem = baubleData.inventory.find(i => i.itemId === itemId);
+    if (invItem) {
+        invItem.quantity += quantity;
+    } else {
+        baubleData.inventory.push({ itemId, quantity });
+    }
+
+    await baubleData.save();
+    return { success: true, totalPrice, itemName: item.name };
+}
 
 module.exports = {
     category: 'economy',
+    ITEMS,
     data: new SlashCommandBuilder()
         .setName('shop')
-        .setDescription('Browse items to spend your Glimmering Baubles.'),
+        .setDescription('Browse and purchase items using your Glimmering Baubles.')
+        .addStringOption(option =>
+            option.setName('buy')
+                .setDescription('The ID of the item you want to buy')
+                .setRequired(false))
+        .addIntegerOption(option =>
+            option.setName('quantity')
+                .setDescription('How many items you want to buy')
+                .setMinValue(1)
+                .setRequired(false)),
 
     async execute(interaction) {
         try {
             const userId = interaction.user.id;
+            const buyOption = interaction.options.getString('buy');
+            const quantityOption = interaction.options.getInteger('quantity') || 1;
 
             let baubleData = await Bauble.findOne({ userId });
             if (!baubleData) {
-                // If the user doesn't have bauble data, create it.
-                const welcomeEmbed = new EmbedBuilder()
-                    .setColor(0xFFA500)
-                    .setTitle('🎉 Welcome to the Glimmering Bauble Party!')
-                    .setDescription(
-                        `<@${userId}>, you've unlocked the Glimmering Bauble system!\n\n` +
-                        "Collect Baubles by being active and using commands."
-                    )
-                    .setFooter({ text: 'Glimmering Baubles' });
-                await interaction.reply({ embeds: [welcomeEmbed], ephemeral: true });
-
                 baubleData = new Bauble({ userId, baubles: 0 });
                 await baubleData.save();
-                return;
             }
 
-            // Build the shop embed to list out the items
+            // Direct purchase via command options
+            if (buyOption) {
+                const cleanId = buyOption.trim().toLowerCase();
+                const result = await executePurchase(userId, cleanId, quantityOption, baubleData);
+                if (result.error) {
+                    return interaction.reply({ content: result.error, ephemeral: true });
+                }
+                
+                const successEmbed = new EmbedBuilder()
+                    .setColor(0x2ECC71)
+                    .setTitle('🛍️ Purchase Successful!')
+                    .setDescription(`You successfully purchased **${quantityOption}x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!`)
+                    .addFields(
+                        { name: '💰 Remaining Balance', value: `${baubleData.baubles.toLocaleString()} Baubles`, inline: true },
+                        { name: '🎒 Action', value: 'Use `/inventory` to view your items, or `/use <item>` to activate them!', inline: true }
+                    )
+                    .setTimestamp();
+                return interaction.reply({ embeds: [successEmbed] });
+            }
+
+            // Interactive catalog menu
             const shopEmbed = new EmbedBuilder()
                 .setColor(0x00AE86)
                 .setTitle('🛍️ Glimmering Bauble Shop')
                 .setDescription(
-                    `You currently have **${baubleData.baubles}** Baubles.\n\n` +
-                    shopItems.map(item => `**${item.name}** – ${item.description}`).join('\n\n')
+                    `You currently have **${baubleData.baubles.toLocaleString()}** Baubles.\n\n` +
+                    Object.values(ITEMS).map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`).join('\n\n')
                 )
-                .setFooter({ text: 'Select an item below to purchase it.' });
+                .setFooter({ text: 'Use /shop buy:<id> to purchase items instantly.' });
 
-            // Create a select menu so user can choose an item.
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('shop_select')
-                .setPlaceholder('Select an item to purchase')
+                .setPlaceholder('Select an item to buy 1x')
                 .addOptions(
-                    shopItems.map(item => ({
-                        label: item.name,
-                        description: item.description.substring(0, 50), // limited length description
+                    Object.values(ITEMS).map(item => ({
+                        label: item.name.replace(/^[^\s]+\s+/, ''),
+                        description: `${item.price} Baubles - ${item.description.substring(0, 50)}`,
                         value: item.id
                     }))
                 );
 
             const row = new ActionRowBuilder().addComponents(selectMenu);
+            const response = await interaction.reply({ embeds: [shopEmbed], components: [row], fetchReply: true });
 
-            await interaction.reply({ content: `<@${userId}>`, embeds: [shopEmbed], components: [row], ephemeral: true });
-
-            // Create a collector to process the selection.
-            const collector = interaction.channel.createMessageComponentCollector({
+            const collector = response.createMessageComponentCollector({
+                componentType: ComponentType.StringSelect,
                 filter: i => i.user.id === userId && i.customId === 'shop_select',
-                time: 30000, // 30 seconds to choose an item
+                time: 30000,
                 max: 1
             });
 
             collector.on('collect', async i => {
-                await i.deferUpdate();
                 const selectedId = i.values[0];
-                const selectedItem = shopItems.find(item => item.id === selectedId);
-
-                // Check if user can afford the item.
-                if (baubleData.baubles < selectedItem.price) {
-                    const errorEmbed = new EmbedBuilder()
-                        .setColor(0xFF0000)
-                        .setTitle('Insufficient Baubles')
-                        .setDescription(`You need **${selectedItem.price}** Baubles to buy **${selectedItem.name}**. You only have **${baubleData.baubles}** Baubles.`)
-                        .setFooter({ text: 'Glimmering Bauble Shop' });
-                    return i.editReply({ embeds: [errorEmbed], components: [] });
-                }
-
-                // Deduct the price.
-                baubleData.baubles -= selectedItem.price;
-                // Execute the item’s effect.
-                const result = await selectedItem.execute(userId, baubleData);
-
-                // Save changes
-                await baubleData.save();
-
-                // Create a result message based on the item effect.
-                let resultMsg = '';
-                switch (result.result) {
-                    case 'win':
-                        resultMsg = `🎟️ Congratulations! You bought a **Lottery Ticket** and won **${result.reward}** Baubles back!`;
-                        break;
-                    case 'lose':
-                        resultMsg = `🎟️ You bought a **Lottery Ticket** but didn’t win anything this time.`;
-                        break;
-                    case 'reward':
-                        resultMsg = `📦 You opened a **Mystery Box** and received **${result.reward}** bonus Baubles!`;
-                        break;
-                    case 'badge':
-                        resultMsg = `🏅 You unlocked a **Custom Badge** for your profile!`;
-                        break;
-                    case 'owned':
-                        resultMsg = `🏅 You already own the Custom Badge. No additional charge. Refunding **${selectedItem.price}** Baubles.`;
-                        baubleData.baubles += selectedItem.price;
-                        await baubleData.save();
-                        break;
-                    case 'booster':
-                        resultMsg = `⚡ You activated an **Earnings Booster**! Your future earnings will be doubled for the next hour!`;
-                        break;
-                    case 'active':
-                        resultMsg = `⚡ Your **Earnings Booster** is already active! Refunding **${selectedItem.price}** Baubles.`;
-                        baubleData.baubles += selectedItem.price;
-                        await baubleData.save();
-                        break;
-                    default:
-                        resultMsg = `You purchased **${selectedItem.name}**, but nothing happened.`;
+                const freshData = await Bauble.findOne({ userId });
+                const result = await executePurchase(userId, selectedId, 1, freshData);
+                
+                if (result.error) {
+                    return i.reply({ content: result.error, ephemeral: true });
                 }
 
                 const resultEmbed = new EmbedBuilder()
-                    .setColor(0x00AE86)
-                    .setTitle('Purchase Successful!')
-                    .setDescription(`${resultMsg}\n\nYour new balance is **${baubleData.baubles}** Baubles.`)
-                    .setFooter({ text: 'Glimmering Bauble Shop' })
+                    .setColor(0x2ECC71)
+                    .setTitle('🛍️ Purchase Successful!')
+                    .setDescription(`You successfully purchased **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!\n\nYour new balance is **${freshData.baubles.toLocaleString()}** Baubles.`)
+                    .setFooter({ text: 'Use /inventory to view your items.' })
                     .setTimestamp();
 
-                i.editReply({ content: `<@${userId}>`, embeds: [resultEmbed], components: [] });
+                await i.update({ embeds: [resultEmbed], components: [] });
             });
 
-            collector.on('end', (collected, reason) => {
-                if (reason === 'time' && collected.size === 0) {
-                    // If time ran out without any selection, just disable the menu.
-                    interaction.editReply({ components: [] }).catch(console.error);
+            collector.on('end', (_, reason) => {
+                if (reason === 'time') {
+                    interaction.editReply({ components: [] }).catch(() => {});
                 }
             });
+
         } catch (error) {
             console.error('Error in shop command:', error);
             await interaction.reply({ content: '❌ An error occurred while accessing the shop.', ephemeral: true });
         }
     },
 
-    async executePrefix(message) {
+    async executePrefix(message, args) {
         try {
             const userId = message.author.id;
-
             let baubleData = await Bauble.findOne({ userId });
             if (!baubleData) {
-                const welcomeEmbed = new EmbedBuilder()
-                    .setColor(0xFFA500)
-                    .setTitle('🎉 Welcome to the Glimmering Bauble Party!')
-                    .setDescription(
-                        `<@${userId}>, you've unlocked the Glimmering Bauble system!\n\n` +
-                        "Collect Baubles by being active and using commands."
-                    )
-                    .setFooter({ text: 'Glimmering Baubles' });
-                await message.channel.send({ content: `<@${userId}>`, embeds: [welcomeEmbed] });
                 baubleData = new Bauble({ userId, baubles: 0 });
                 await baubleData.save();
-                return;
             }
 
-            // Build shop embed
+            // Support prefix syntax: -shop buy <item> [quantity]
+            if (args[0] === 'buy') {
+                const itemId = args[1]?.toLowerCase();
+                const quantity = parseInt(args[2]) || 1;
+
+                if (!itemId) return message.reply('⚠️ Please specify an item to buy. Example: `-shop buy coffee 2`');
+                if (!ITEMS[itemId]) return message.reply(`⚠️ Invalid item. Choose from: ${Object.keys(ITEMS).join(', ')}`);
+
+                const result = await executePurchase(userId, itemId, quantity, baubleData);
+                if (result.error) return message.reply(result.error);
+
+                const successEmbed = new EmbedBuilder()
+                    .setColor(0x2ECC71)
+                    .setTitle('🛍️ Purchase Successful!')
+                    .setDescription(`You successfully purchased **${quantity}x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!\n\nNew Balance: **${baubleData.baubles.toLocaleString()}** Baubles.`)
+                    .setTimestamp();
+                return message.reply({ embeds: [successEmbed] });
+            }
+
+            // Default display
             const shopEmbed = new EmbedBuilder()
                 .setColor(0x00AE86)
                 .setTitle('🛍️ Glimmering Bauble Shop')
                 .setDescription(
-                    `You currently have **${baubleData.baubles}** Baubles.\n\n` +
-                    shopItems.map(item => `**${item.name}** – ${item.description}`).join('\n\n')
+                    `You currently have **${baubleData.baubles.toLocaleString()}** Baubles.\n\n` +
+                    Object.values(ITEMS).map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`).join('\n\n')
                 )
-                .setFooter({ text: 'Type the item ID to purchase it.' });
+                .setFooter({ text: 'Type "-shop buy <id> [quantity]" to purchase items.' });
 
-            await message.channel.send({ content: `<@${userId}>`, embeds: [shopEmbed] });
-
-            const filter = m => m.author.id === userId;
-            const collector = message.channel.createMessageCollector({
-                filter,
-                time: 30000, // 30 seconds to respond
-                max: 1
-            });
-
-            collector.on('collect', async m => {
-                if (m.author.id !== userId) return;
-                const input = m.content.trim().toLowerCase();
-                const selectedItem = shopItems.find(item => item.id === input);
-                if (!selectedItem) {
-                    return message.channel.send(`<@${userId}>, invalid item. Please try again.`);
-                }
-                if (baubleData.baubles < selectedItem.price) {
-                    return message.channel.send(`<@${userId}>, you need **${selectedItem.price}** Baubles for **${selectedItem.name}**. You only have **${baubleData.baubles}**.`);
-                }
-                // Deduct price and execute item
-                baubleData.baubles -= selectedItem.price;
-                const result = await selectedItem.execute(userId, baubleData);
-                await baubleData.save();
-
-                let resultMsg = '';
-                switch (result.result) {
-                    case 'win':
-                        resultMsg = `🎟️ Congratulations! You bought a Lottery Ticket and won **${result.reward}** Baubles back!`;
-                        break;
-                    case 'lose':
-                        resultMsg = `🎟️ You bought a Lottery Ticket but didn’t win anything this time.`;
-                        break;
-                    case 'reward':
-                        resultMsg = `📦 You opened a Mystery Box and received **${result.reward}** bonus Baubles!`;
-                        break;
-                    case 'badge':
-                        resultMsg = `🏅 You unlocked a Custom Badge for your profile!`;
-                        break;
-                    case 'owned':
-                        resultMsg = `🏅 You already own the Custom Badge. Refunding **${selectedItem.price}** Baubles.`;
-                        baubleData.baubles += selectedItem.price;
-                        await baubleData.save();
-                        break;
-                    case 'booster':
-                        resultMsg = `⚡ You activated an Earnings Booster! Your future earnings will be doubled for the next hour!`;
-                        break;
-                    case 'active':
-                        resultMsg = `⚡ Your Earnings Booster is already active! Refunding **${selectedItem.price}** Baubles.`;
-                        baubleData.baubles += selectedItem.price;
-                        await baubleData.save();
-                        break;
-                    default:
-                        resultMsg = `You purchased **${selectedItem.name}**, but nothing happened.`;
-                }
-                const resultEmbed = new EmbedBuilder()
-                    .setColor(0x00AE86)
-                    .setTitle('Purchase Successful!')
-                    .setDescription(`${resultMsg}\n\nYour new balance is **${baubleData.baubles}** Baubles.`)
-                    .setFooter({ text: 'Glimmering Bauble Shop' })
-                    .setTimestamp();
-                message.channel.send({ content: `<@${userId}>`, embeds: [resultEmbed] });
-            });
-
-            collector.on('end', (collected, reason) => {
-                if (reason === 'time' && collected.size === 0) {
-                    message.channel.send(`<@${userId}>, shop timed out. Please try again later.`);
-                }
-            });
+            await message.reply({ embeds: [shopEmbed] });
         } catch (error) {
             console.error('Error in shop command:', error);
-            await message.reply({ content: '❌ An error occurred while accessing the shop.', ephemeral: true });
+            await message.reply('❌ An error occurred while accessing the shop.');
         }
-    },
+    }
 };
