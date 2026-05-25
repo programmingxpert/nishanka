@@ -102,7 +102,7 @@ module.exports = {
             option.setName('amount')
                 .setDescription('The amount of Baubles to stake.')
                 .setRequired(true)
-                .setMinValue(1)
+                .setMinValue(50)
         )
         .addIntegerOption(option =>
             option.setName('mines')
@@ -134,8 +134,8 @@ module.exports = {
         }
 
         const amount = parseInt(args[0]);
-        if (isNaN(amount) || amount <= 0) {
-            return message.reply('❌ Please provide a valid amount of Baubles to stake.');
+        if (isNaN(amount) || amount < 50) {
+            return message.reply('❌ The minimum amount to stake is **50** Baubles.');
         }
 
         let minesCount = 3;
@@ -178,6 +178,15 @@ async function runMines({ userId, amount, minesCount, interaction, message, isSl
         if (!baubleData) {
             baubleData = new Bauble({ userId, baubles: 0 });
             await baubleData.save();
+        }
+
+        if (amount < 50) {
+            const errorMsg = `❌ The minimum amount to stake is **50** Baubles.`;
+            if (isSlash) {
+                return interaction.reply({ content: errorMsg, ephemeral: true });
+            } else {
+                return message.reply(errorMsg);
+            }
         }
 
         if (baubleData.baubles < amount) {
