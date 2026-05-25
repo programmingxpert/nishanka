@@ -9,6 +9,10 @@ const baubleSchema = new Schema({
     gambleMaxStreak: { type: Number, default: 0 },
     slotsStreak: { type: Number, default: 0 },
     slotsMaxStreak: { type: Number, default: 0 },
+    dailyStreak: { type: Number, default: 0 },
+    dailyMaxStreak: { type: Number, default: 0 },
+    dailyLastClaimed: { type: Date, default: null },
+    weeklyLastClaimed: { type: Date, default: null },
 });
 
 const mongoose = require('mongoose');
