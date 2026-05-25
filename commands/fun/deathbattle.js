@@ -222,6 +222,19 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
     }
 
     function buildGameEmbed() {
+        const p1Statuses = [];
+        if (p1.defending) p1Statuses.push('🛡️ Defending');
+        if (p1.confused) p1Statuses.push('💫 Confused');
+        if (p1.soggyTurns > 0) p1Statuses.push('💧 Soggy');
+
+        const p2Statuses = [];
+        if (p2.defending) p2Statuses.push('🛡️ Defending');
+        if (p2.confused) p2Statuses.push('💫 Confused');
+        if (p2.soggyTurns > 0) p2Statuses.push('💧 Soggy');
+
+        const p1StatusText = p1Statuses.length > 0 ? `\n*(${p1Statuses.join(', ')})*` : '';
+        const p2StatusText = p2Statuses.length > 0 ? `\n*(${p2Statuses.join(', ')})*` : '';
+
         return new EmbedBuilder()
             .setColor(0xff1a1a)
             .setTitle(`⚔️ DEATH BATTLE — Turn ${turnCount}`)
@@ -229,13 +242,13 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
             .addFields(
                 {
                     name: `👤 ${p1.user.username}`,
-                    value: `**HP:** ${buildHpBar(p1.hp)}`,
+                    value: `**HP:** ${buildHpBar(p1.hp)}${p1StatusText}`,
                     inline: true
                 },
                 { name: '⚡', value: '**VS**', inline: true },
                 {
                     name: `👤 ${p2.user.username}`,
-                    value: `**HP:** ${buildHpBar(p2.hp)}`,
+                    value: `**HP:** ${buildHpBar(p2.hp)}${p2StatusText}`,
                     inline: true
                 }
             )
@@ -275,23 +288,56 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
     while (!gameEnded) {
         // If turnPlayer is confused, skip turn
         if (turnPlayer.confused) {
+            const skipActionText = `💫 **${turnPlayer.user.username}** is too confused to move and skips their turn!`;
+            
+            const p1Statuses = [];
+            if (p1.defending) p1Statuses.push('🛡️ Defending');
+            if (p1.confused) p1Statuses.push('💫 Confused');
+            if (p1.soggyTurns > 0) p1Statuses.push('💧 Soggy');
+
+            const p2Statuses = [];
+            if (p2.defending) p2Statuses.push('🛡️ Defending');
+            if (p2.confused) p2Statuses.push('💫 Confused');
+            if (p2.soggyTurns > 0) p2Statuses.push('💧 Soggy');
+
+            const p1StatusText = p1Statuses.length > 0 ? `\n*(${p1Statuses.join(', ')})*` : '';
+            const p2StatusText = p2Statuses.length > 0 ? `\n*(${p2Statuses.join(', ')})*` : '';
+
+            const skipEmbed = new EmbedBuilder()
+                .setColor(0xff1a1a)
+                .setTitle(`⚔️ DEATH BATTLE — Turn ${turnCount}`)
+                .setDescription(`> ${skipActionText}\n\nIt is **${idlePlayer.user.username}**'s turn next!`)
+                .addFields(
+                    {
+                        name: `👤 ${p1.user.username}`,
+                        value: `**HP:** ${buildHpBar(p1.hp)}${p1StatusText}`,
+                        inline: true
+                    },
+                    { name: '⚡', value: '**VS**', inline: true },
+                    {
+                        name: `👤 ${p2.user.username}`,
+                        value: `**HP:** ${buildHpBar(p2.hp)}${p2StatusText}`,
+                        inline: true
+                    }
+                )
+                .setFooter({ text: 'Skipping turn...' })
+                .setTimestamp();
+
+            // Clear confusion and swap player roles
             turnPlayer.confused = false;
-            lastActionText = `💫 **${turnPlayer.user.username}** is too confused to move and skips their turn!`;
+            lastActionText = skipActionText;
+            
             turnCount++;
             let temp = turnPlayer;
             turnPlayer = idlePlayer;
             idlePlayer = temp;
+            
             await battleMsg.edit({
-                embeds: [buildGameEmbed()],
+                embeds: [skipEmbed],
                 components: []
             });
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 2500));
             continue;
-        }
-
-        // Decrement soggy turns if any
-        if (turnPlayer.soggyTurns > 0) {
-            turnPlayer.soggyTurns--;
         }
 
         // Show game embed
@@ -442,7 +488,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
                 if (turnPlayer.soggyTurns > 0) damage = Math.floor(damage * 0.7);
                 
                 idlePlayer.hp = Math.max(0, idlePlayer.hp - damage);
-                idlePlayer.soggyTurns = 2;
+                idlePlayer.soggyTurns = 2; // sets to 2 turns of soggy reduction
                 lastActionText = `📦 **${turnPlayer.user.username}** whips **${idlePlayer.user.username}** with a cold, wet towel for **${damage} damage**. **${idlePlayer.user.username}** is now soggy, reducing their damage output by 30% for 2 turns!`;
                 if (idlePlayer.defending) lastActionText += `\n*(Defended! Half damage taken)*`;
             }
@@ -465,6 +511,11 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
             gameEnded = true;
             winner = turnPlayer;
         } else {
+            // Decrement soggy turns for the player whose turn just ended
+            if (turnPlayer.soggyTurns > 0) {
+                turnPlayer.soggyTurns--;
+            }
+
             // Swap turns
             turnCount++;
             let temp = turnPlayer;
