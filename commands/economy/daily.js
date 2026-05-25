@@ -5,30 +5,35 @@ const Bauble = require('../../models/baubleSchema');
 function getDailyRarity(amount) {
     if (amount <= 1100) {
         return {
+            tier: 'Common',
             name: 'Mildly Disappointing Pocket Lint',
             desc: 'You found some baubles stuck to a half-eaten lollipop in the bot\'s coin pouch. Still counts!',
             color: 0x8B89AC // Greyish blue
         };
     } else if (amount <= 1350) {
         return {
+            tier: 'Uncommon',
             name: 'Slightly Spicy Loose Change',
             desc: 'A respectable amount. Enough to buy a virtual coffee or bribe a small goblin.',
             color: 0x4ADE80 // Green
         };
     } else if (amount <= 1600) {
         return {
+            tier: 'Rare',
             name: 'Glow-in-the-Dark Jackpot',
             desc: 'Wow! These baubles are so shiny they might actually be radioactive. Please don\'t eat them.',
             color: 0x7C6CF0 // Purple
         };
     } else if (amount <= 1750) {
         return {
+            tier: 'Epic',
             name: 'Hypnotic Glitter Explosion',
             desc: 'The bot sneezed and accidentally dropped a handful of premium sparkling baubles. Score!',
             color: 0xF97FA8 // Pink
         };
     } else {
         return {
+            tier: 'Legendary',
             name: 'Deity-Tier Shiny Sparkler',
             desc: 'A legendary bounty! The heavens parted, a choir of digital angels sang, and this divine pile of baubles fell directly into your pockets!',
             color: 0xFBBF24 // Gold
@@ -124,7 +129,7 @@ module.exports = {
                 .setTitle('🎁 Daily Reward Claimed!')
                 .setDescription(`You successfully claimed your daily Glimmering Baubles!`)
                 .addFields(
-                    { name: '✨ Rarity Type', value: `✨ **${rarity.name}**`, inline: false },
+                    { name: '✨ Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
                     { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
                     { name: '💰 Base Reward', value: `**${baseReward}** Baubles`, inline: true }
                 );
@@ -213,7 +218,7 @@ module.exports = {
                 .setTitle('🎁 Daily Reward Claimed!')
                 .setDescription(`You successfully claimed your daily Glimmering Baubles!`)
                 .addFields(
-                    { name: '✨ Rarity Type', value: `✨ **${rarity.name}**`, inline: false },
+                    { name: '✨ Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
                     { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
                     { name: '💰 Base Reward', value: `**${baseReward}** Baubles`, inline: true }
                 );

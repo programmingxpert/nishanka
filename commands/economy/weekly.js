@@ -5,24 +5,28 @@ const Bauble = require('../../models/baubleSchema');
 function getWeeklyRarity(amount) {
     if (amount <= 7500) {
         return {
+            tier: 'Common',
             name: 'Mundane Box of Shiny Rocks',
             desc: 'A cardboard box filled with baubles. A bit dusty, but they spend just fine.',
             color: 0x8B89AC // Greyish blue
         };
     } else if (amount <= 9500) {
         return {
+            tier: 'Uncommon',
             name: 'Stolen Goblin Loot Bag',
             desc: 'You cornered a loot goblin and shook it until this massive pile of baubles fell out.',
             color: 0x4ADE80 // Green
         };
     } else if (amount <= 11500) {
         return {
+            tier: 'Rare',
             name: 'Jack’s Giant Sparkling Stash',
             desc: 'You climbed a digital beanstalk and stole a massive glittering hoard. Incredible!',
             color: 0x7C6CF0 // Purple
         };
     } else {
         return {
+            tier: 'Legendary',
             name: 'Nishanka’s Personal Vault Keys',
             desc: 'The bot left its vault door wide open. You grabbed as many glimmering baubles as your pockets could hold before the alarms went off!',
             color: 0xFBBF24 // Gold
@@ -96,7 +100,7 @@ module.exports = {
                 .setTitle('🎁 Weekly Treasure Claimed!')
                 .setDescription(`You successfully claimed your weekly Glimmering Baubles!`)
                 .addFields(
-                    { name: '✨ Treasure Tier', value: `✨ **${rarity.name}**`, inline: false },
+                    { name: '✨ Treasure Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
                     { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
                     { name: '💰 Reward Earned', value: `**${reward}** Baubles`, inline: true },
                     { name: '💼 New Balance', value: `**${baubleData.baubles}** Baubles`, inline: true }
@@ -155,7 +159,7 @@ module.exports = {
                 .setTitle('🎁 Weekly Treasure Claimed!')
                 .setDescription(`You successfully claimed your weekly Glimmering Baubles!`)
                 .addFields(
-                    { name: '✨ Treasure Tier', value: `✨ **${rarity.name}**`, inline: false },
+                    { name: '✨ Treasure Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
                     { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
                     { name: '💰 Reward Earned', value: `**${reward}** Baubles`, inline: true },
                     { name: '💼 New Balance', value: `**${baubleData.baubles}** Baubles`, inline: true }
