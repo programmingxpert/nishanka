@@ -43,6 +43,19 @@ module.exports = {
             console.log('🎵 Lavalink (riffy) initialised');
         }
 
+        // Initialize Disabled Commands cache
+        const DisabledCommand = require('../models/disabledCommandSchema');
+        client.disabledCommands = new Set();
+        try {
+            const disabled = await DisabledCommand.find().lean();
+            for (const doc of disabled) {
+                client.disabledCommands.add(doc.commandName);
+            }
+            console.log(`🚫 Loaded ${client.disabledCommands.size} disabled command(s)`);
+        } catch (err) {
+            console.error('Failed to load disabled commands:', err);
+        }
+
         // --- Reminder Checker ---
         setInterval(async () => {
             try {

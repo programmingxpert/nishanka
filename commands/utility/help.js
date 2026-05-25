@@ -22,6 +22,7 @@ module.exports = {
 		// Group commands by category
 		for (const [, cmd] of commands) {
 			if (cmd.hidden && !isOwner) continue;
+			if (context.client.disabledCommands && context.client.disabledCommands.has(cmd.data.name)) continue;
 
 			// Permission filtering: Skip if user lacks required permissions (e.g. Administrator)
 			if (cmd.data.default_member_permissions && context.member) {

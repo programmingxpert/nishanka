@@ -26,6 +26,10 @@ module.exports = {
             return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });
         }
 
+        if (client.disabledCommands && client.disabledCommands.has(command.data.name)) {
+            return interaction.reply({ content: '❌ This command is currently disabled by the developer.', ephemeral: true });
+        }
+
         // --- Cooldown logic ---
         const { cooldowns } = client;
         if (!cooldowns.has(command.data.name)) {

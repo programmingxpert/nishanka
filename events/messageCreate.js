@@ -88,9 +88,13 @@ module.exports = {
             return;
         }
 
+        const cmdName = command.data?.name || command.name;
+        if (client.disabledCommands && client.disabledCommands.has(cmdName)) {
+            return message.reply('❌ This command is currently disabled by the developer.').catch(() => {});
+        }
+
         // --- Cooldown logic ---
         const { cooldowns } = client;
-        const cmdName = command.data?.name || command.name;
         if (!cooldowns.has(cmdName)) {
             cooldowns.set(cmdName, new Collection());
         }
