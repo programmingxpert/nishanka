@@ -37,7 +37,7 @@ module.exports = {
 async function runExcuseGame(initialData, channel, user) {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
-        const msg = '⚠️ The bot owner hasn\'t configured the `DEEPSEEK_API_KEY` in the `.env` file! AI features are disabled.';
+        const msg = '⚠️ The AI features are currently unavailable. Please check back later!';
         if (initialData.reply) {
             return initialData.reply({ content: msg, ephemeral: true });
         } else {
