@@ -1,4 +1,13 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { 
+    SlashCommandBuilder, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    ModalBuilder, 
+    TextInputBuilder, 
+    TextInputStyle 
+} = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
 const FALLBACK_SCENARIOS = [
@@ -88,21 +97,71 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
     const embed = new EmbedBuilder()
         .setColor(0xe74c3c)
         .setTitle('🚨 BUSTED! EXCUSE BY AI (SOLO)')
-        .setDescription(`**SCENARIO:**\n${scenario}\n\n*You have 90 seconds to type your excuse in this channel. Make it good!*`)
+        .setDescription(`**SCENARIO:**\n${scenario}\n\n*Click the button below to write and submit your excuse within 90 seconds!*`)
         .setFooter({ text: 'The AI Judge is waiting...', iconURL: user.displayAvatarURL({ dynamic: true }) });
 
+    const btnRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('excuse_write_solo')
+            .setLabel('Write Excuse')
+            .setStyle(ButtonStyle.Primary)
+    );
+
+    let mainMessage;
     if (isSlash) {
-        await initialData.editReply({ embeds: [embed] });
+        mainMessage = await initialData.editReply({ embeds: [embed], components: [btnRow] });
     } else {
-        await channel.send({ embeds: [embed] });
+        mainMessage = await channel.send({ embeds: [embed], components: [btnRow] });
     }
 
-    const filter = m => m.author.id === user.id && !m.author.bot;
+    const buttonFilter = i => i.customId === 'excuse_write_solo' && i.user.id === user.id;
     
     try {
-        const collected = await channel.awaitMessages({ filter, max: 1, time: 90000, errors: ['time'] });
-        const excuseMsg = collected.first();
-        const excuseText = excuseMsg.content;
+        const btnInteraction = await mainMessage.awaitMessageComponent({
+            filter: buttonFilter,
+            time: 90000
+        });
+
+        const modalCustomId = `excuse_modal_solo_${user.id}_${Date.now()}`;
+        const modal = new ModalBuilder()
+            .setCustomId(modalCustomId)
+            .setTitle('Submit Your Excuse')
+            .addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('excuse_input')
+                        .setLabel('Your Excuse')
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setPlaceholder('Type your excuse here...')
+                        .setMaxLength(300)
+                        .setRequired(true)
+                )
+            );
+
+        await btnInteraction.showModal(modal);
+
+        const modalSubmit = await btnInteraction.awaitModalSubmit({
+            filter: iModal => iModal.customId === modalCustomId,
+            time: 60000
+        });
+
+        await modalSubmit.deferUpdate();
+
+        // Disable button after excuse is submitted
+        const disabledRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('excuse_write_solo')
+                .setLabel('Excuse Submitted')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(true)
+        );
+        if (isSlash) {
+            await initialData.editReply({ components: [disabledRow] }).catch(() => {});
+        } else {
+            await mainMessage.edit({ components: [disabledRow] }).catch(() => {});
+        }
+
+        const excuseText = modalSubmit.fields.getTextInputValue('excuse_input');
 
         const thinkingEmbed = new EmbedBuilder()
             .setColor(0xf1c40f)
@@ -130,8 +189,10 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
                 successScore = Math.round(metrics.reduce((sum, met) => sum + met.score, 0) / metrics.length);
             }
 
+            const shortExcuse = result.shortExcuse ? String(result.shortExcuse).trim() : excuseText.slice(0, 40) + (excuseText.length > 40 ? '...' : '');
+
             const fields = [
-                { name: 'Your Excuse', value: `*"${excuseText}"*` }
+                { name: 'Your Excuse', value: `*"${shortExcuse}"*` }
             ];
 
             metrics.forEach((m, idx) => {
@@ -183,6 +244,20 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
         }
 
     } catch (timeout) {
+        // Disable button
+        const disabledRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('excuse_write_solo')
+                .setLabel('Write Excuse')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(true)
+        );
+        if (isSlash) {
+            await initialData.editReply({ components: [disabledRow] }).catch(() => {});
+        } else {
+            await mainMessage.edit({ components: [disabledRow] }).catch(() => {});
+        }
+        
         const timeoutEmbed = new EmbedBuilder()
             .setColor(0x34495e)
             .setDescription('⏰ You stood there in silence for 90 seconds. The AI Judge finds you guilty by default.');
@@ -200,7 +275,7 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
             `**A new Multiplayer Excuse Game is starting!**\n\n` +
             `Rounds: **3**\n` +
             `Time per round: **90 seconds**\n` +
-            `How to play: Type your best excuse in the channel when a scenario is shown.\n` +
+            `How to play: Click the button when a scenario is shown, type your excuse in the modal, and submit.\n` +
             `The AI Judge will grade each excuse individually. Bauble prizes are awarded at the end!`
         )
         .setFooter({ text: 'Starting round 1 in 5 seconds...' });
@@ -228,30 +303,83 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
         const roundStartEmbed = new EmbedBuilder()
             .setColor(0xe74c3c)
             .setTitle(`🚨 ROUND ${round}/3: BUSTED!`)
-            .setDescription(`**SCENARIO:**\n${scenario}\n\n*Everyone has 90 seconds to type their excuse in this channel!*`)
-            .setFooter({ text: 'Reacting 📝 confirms your excuse.' });
+            .setDescription(`**SCENARIO:**\n${scenario}\n\n*Click the button below to write and submit your excuse within 90 seconds!*`);
 
-        await channel.send({ embeds: [roundStartEmbed] });
+        const btnRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('excuse_write_multi')
+                .setLabel('Submit Excuse')
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        const roundMessage = await channel.send({ embeds: [roundStartEmbed], components: [btnRow] });
 
         const excuses = new Map(); 
-        const filter = m => !m.author.bot;
-        const collector = channel.createMessageCollector({ filter, time: 90000 });
+        const collector = roundMessage.createMessageComponentCollector({
+            filter: i => i.customId === 'excuse_write_multi' && !i.user.bot,
+            time: 90000
+        });
 
-        collector.on('collect', m => {
-            if (excuses.has(m.author.id)) {
-                m.react('❌').catch(() => {});
-            } else {
-                excuses.set(m.author.id, {
-                    userId: m.author.id,
-                    username: m.author.username,
-                    text: m.content
+        collector.on('collect', async i => {
+            if (excuses.has(i.user.id)) {
+                await i.reply({ content: '❌ You already submitted an excuse for this round!', ephemeral: true });
+                return;
+            }
+
+            const modalCustomId = `excuse_modal_multi_${i.user.id}_${Date.now()}`;
+            const modal = new ModalBuilder()
+                .setCustomId(modalCustomId)
+                .setTitle('Submit Your Excuse')
+                .addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('excuse_input')
+                            .setLabel('Your Excuse')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Type your excuse here...')
+                            .setMaxLength(300)
+                            .setRequired(true)
+                    )
+                );
+
+            await i.showModal(modal);
+
+            try {
+                const modalSubmit = await i.awaitModalSubmit({
+                    filter: iModal => iModal.customId === modalCustomId,
+                    time: 60000
                 });
-                userMap.set(m.author.id, m.author.username);
-                m.react('📝').catch(() => {});
+
+                if (excuses.has(i.user.id)) {
+                    await modalSubmit.reply({ content: '❌ You already submitted an excuse!', ephemeral: true });
+                    return;
+                }
+
+                const excuseText = modalSubmit.fields.getTextInputValue('excuse_input');
+                excuses.set(i.user.id, {
+                    userId: i.user.id,
+                    username: i.user.username,
+                    text: excuseText
+                });
+                userMap.set(i.user.id, i.user.username);
+
+                await modalSubmit.reply({ content: '✅ Your excuse has been successfully registered!', ephemeral: true });
+            } catch (err) {
+                console.error('Modal submit error/timeout:', err);
             }
         });
 
         await new Promise(resolve => collector.on('end', resolve));
+
+        // Disable button after round ends
+        const disabledRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('excuse_write_multi')
+                .setLabel('Round Closed')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(true)
+        );
+        await roundMessage.edit({ components: [disabledRow] }).catch(() => {});
 
         if (excuses.size === 0) {
             await channel.send(`⏰ No excuses were submitted in Round ${round}. Moving to the next round...`);
@@ -301,11 +429,13 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
             }
             scores[res.userId] = (scores[res.userId] || 0) + successScore;
 
+            const shortExcuse = res.shortExcuse ? String(res.shortExcuse).trim() : playerObj.text.slice(0, 40) + (playerObj.text.length > 40 ? '...' : '');
+
             const metricsStr = metrics.map(m => `**${m.name}**: ${m.score}%`).join(' | ');
             const verdict = res.verdict || 'No verdict provided.';
 
             roundEmbed.addFields(
-                { name: `👤 ${playerObj.username} — Success Rate: ${successScore}%`, value: `*"${playerObj.text}"*\n📊 ${metricsStr}\n💬 ${verdict}` }
+                { name: `👤 ${playerObj.username} — Success Rate: ${successScore}%`, value: `*"${shortExcuse}"*\n📊 ${metricsStr}\n💬 ${verdict}` }
             );
         });
 
@@ -461,6 +591,7 @@ They provided this excuse:
 Evaluate their excuse. You MUST return your evaluation strictly as a valid JSON object matching exactly this structure (no markdown, no backticks, no other text):
 {
   "successScore": <integer 0-100, representing how successful their excuse was at getting them out of trouble. Give a very low score (0-20) if the excuse is garbage, off-topic, or just a few lazy words>,
+  "shortExcuse": "<A highly shortened, summarized version of the user's excuse, maximum 6 words>",
   "metrics": [
     { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
     { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
@@ -524,6 +655,7 @@ Evaluate each player's excuse individually. You MUST return your evaluation stri
     {
       "userId": "<exact userId of the player>",
       "successScore": <integer 0-100, representing how successful their excuse was at getting them out of trouble. Give a very low score (0-20) if the excuse is garbage, off-topic, or just a few lazy words>,
+      "shortExcuse": "<A highly shortened, summarized version of this player's excuse, maximum 6 words>",
       "metrics": [
         { "name": "<A funny, custom metric relevant to their specific excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
         { "name": "<A funny, custom metric relevant to their specific excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
@@ -589,6 +721,7 @@ function getFallbackMultiplayerEvaluation(playersList) {
             return {
                 userId: p.userId,
                 successScore,
+                shortExcuse: p.text.slice(0, 20) + (p.text.length > 20 ? '...' : ''),
                 metrics: [
                     { name: "Believability", score: Math.floor(Math.random() * 50) + 30 },
                     { name: "Confidence", score: Math.floor(Math.random() * 50) + 40 },
