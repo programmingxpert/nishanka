@@ -2,56 +2,56 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
 const FLAGS = {
-    '🇺🇸': ['united states', 'us', 'usa', 'america', 'united states of america'],
-    '🇬🇧': ['united kingdom', 'uk', 'britain', 'great britain', 'england'],
-    '🇨🇦': ['canada'],
-    '🇦🇺': ['australia'],
-    '🇮🇳': ['india'],
-    '🇩🇪': ['germany'],
-    '🇫🇷': ['france'],
-    '🇯🇵': ['japan'],
-    '🇮🇹': ['italy'],
-    '🇪🇸': ['spain'],
-    '🇧🇷': ['brazil'],
-    '🇲🇽': ['mexico'],
-    '🇷🇺': ['russia'],
-    '🇨🇳': ['china'],
-    '🇰🇷': ['south korea', 'korea'],
-    '🇿🇦': ['south africa'],
-    '🇦🇷': ['argentina'],
-    '🇪🇬': ['egypt'],
-    '🇳🇬': ['nigeria'],
-    '🇳🇿': ['new zealand'],
-    '🇸🇪': ['sweden'],
-    '🇳🇴': ['norway'],
-    '🇩🇰': ['denmark'],
-    '🇫🇮': ['finland'],
-    '🇳🇱': ['netherlands', 'holland'],
-    '🇨🇭': ['switzerland'],
-    '🇵🇱': ['poland'],
-    '🇹🇷': ['turkey', 'turkiye'],
-    '🇬🇷': ['greece'],
-    '🇹🇭': ['thailand'],
-    '🇻🇳': ['vietnam'],
-    '🇮🇩': ['indonesia'],
-    '🇲🇾': ['malaysia'],
-    '🇸🇬': ['singapore'],
-    '🇵🇭': ['philippines'],
-    '🇵🇰': ['pakistan'],
-    '🇧🇩': ['bangladesh'],
-    '🇮🇷': ['iran'],
-    '🇮🇶': ['iraq'],
-    '🇸🇦': ['saudi arabia'],
-    '🇦🇪': ['uae', 'united arab emirates'],
-    '🇮🇱': ['israel'],
-    '🇨🇱': ['chile'],
-    '🇨🇴': ['colombia'],
-    '🇵🇪': ['peru'],
-    '🇻🇪': ['venezuela'],
-    '🇨🇺': ['cuba'],
-    '🇯🇲': ['jamaica'],
-    '🇲🇦': ['morocco'],
-    '🇰🇪': ['kenya']
+    'us': ['united states', 'us', 'usa', 'america', 'united states of america'],
+    'gb': ['united kingdom', 'uk', 'britain', 'great britain', 'england'],
+    'ca': ['canada'],
+    'au': ['australia'],
+    'in': ['india'],
+    'de': ['germany'],
+    'fr': ['france'],
+    'jp': ['japan'],
+    'it': ['italy'],
+    'es': ['spain'],
+    'br': ['brazil'],
+    'mx': ['mexico'],
+    'ru': ['russia'],
+    'cn': ['china'],
+    'kr': ['south korea', 'korea'],
+    'za': ['south africa'],
+    'ar': ['argentina'],
+    'eg': ['egypt'],
+    'ng': ['nigeria'],
+    'nz': ['new zealand'],
+    'se': ['sweden'],
+    'no': ['norway'],
+    'dk': ['denmark'],
+    'fi': ['finland'],
+    'nl': ['netherlands', 'holland'],
+    'ch': ['switzerland'],
+    'pl': ['poland'],
+    'tr': ['turkey', 'turkiye'],
+    'gr': ['greece'],
+    'th': ['thailand'],
+    'vn': ['vietnam'],
+    'id': ['indonesia'],
+    'my': ['malaysia'],
+    'sg': ['singapore'],
+    'ph': ['philippines'],
+    'pk': ['pakistan'],
+    'bd': ['bangladesh'],
+    'ir': ['iran'],
+    'iq': ['iraq'],
+    'sa': ['saudi arabia'],
+    'ae': ['uae', 'united arab emirates'],
+    'il': ['israel'],
+    'cl': ['chile'],
+    'co': ['colombia'],
+    'pe': ['peru'],
+    've': ['venezuela'],
+    'cu': ['cuba'],
+    'jm': ['jamaica'],
+    'ma': ['morocco'],
+    'ke': ['kenya']
 };
 
 const activeGames = new Set();
@@ -80,13 +80,16 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
         if (availableFlags.length === 0) availableFlags = [...flagEntries];
         
         const randomIndex = Math.floor(Math.random() * availableFlags.length);
-        const [flagEmoji, validAnswers] = availableFlags[randomIndex];
+        const [countryCode, validAnswers] = availableFlags[randomIndex];
         availableFlags.splice(randomIndex, 1); // remove so it doesn't repeat
+        
+        const flagUrl = `https://flagcdn.com/w320/${countryCode}.png`;
         
         const roundEmbed = new EmbedBuilder()
             .setColor(0x3498db)
             .setTitle(`🔄 Round ${round}/${totalRounds}`)
-            .setDescription(`Which country does this flag belong to?\n\n# **${flagEmoji}**\n\n*First to type the country name correctly wins the round! (30 seconds)*`);
+            .setDescription(`Which country does this flag belong to?\n\n*First to type the country name correctly wins the round! (30 seconds)*`)
+            .setImage(flagUrl);
             
         await channel.send({ embeds: [roundEmbed] });
         
@@ -111,14 +114,16 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
             
             const winEmbed = new EmbedBuilder()
                 .setColor(0x2ecc71)
-                .setDescription(`🎉 **${winner.author.username}** correctly guessed **${primaryName}** ${flagEmoji} first! (+1 point)`);
+                .setDescription(`🎉 **${winner.author.username}** correctly guessed **${primaryName}** first! (+1 point)`)
+                .setThumbnail(flagUrl);
             await channel.send({ embeds: [winEmbed] });
             
         } catch (err) {
             const primaryName = validAnswers[0].replace(/\b\w/g, l => l.toUpperCase());
             const timeoutEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
-                .setDescription(`⏰ Time's up! The country was **${primaryName}** ${flagEmoji}.`);
+                .setDescription(`⏰ Time's up! The country was **${primaryName}**.`)
+                .setThumbnail(flagUrl);
             await channel.send({ embeds: [timeoutEmbed] });
         }
         
