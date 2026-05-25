@@ -1,58 +1,99 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-const WORDS = [
-    'javascript', 'moderation', 'giveaway', 'economy', 'discord', 
-    'developer', 'community', 'antigravity', 'adventure', 'championship', 
-    'programming', 'database', 'keyboard', 'beautiful', 'universe',
-    'algorithm', 'technology', 'network', 'cybersecurity', 'blockchain',
-    'encryption', 'processor', 'server', 'application', 'hardware',
-    'software', 'compiler', 'variable', 'function', 'coefficient',
-    'dashboard', 'automation', 'astronomy', 'chocolate',
-    'dinosaur', 'matrix', 'sanctuary', 'glimmering', 'baubles'
-];
+const FLAGS = {
+    '🇺🇸': ['united states', 'us', 'usa', 'america', 'united states of america'],
+    '🇬🇧': ['united kingdom', 'uk', 'britain', 'great britain', 'england'],
+    '🇨🇦': ['canada'],
+    '🇦🇺': ['australia'],
+    '🇮🇳': ['india'],
+    '🇩🇪': ['germany'],
+    '🇫🇷': ['france'],
+    '🇯🇵': ['japan'],
+    '🇮🇹': ['italy'],
+    '🇪🇸': ['spain'],
+    '🇧🇷': ['brazil'],
+    '🇲🇽': ['mexico'],
+    '🇷🇺': ['russia'],
+    '🇨🇳': ['china'],
+    '🇰🇷': ['south korea', 'korea'],
+    '🇿🇦': ['south africa'],
+    '🇦🇷': ['argentina'],
+    '🇪🇬': ['egypt'],
+    '🇳🇬': ['nigeria'],
+    '🇳🇿': ['new zealand'],
+    '🇸🇪': ['sweden'],
+    '🇳🇴': ['norway'],
+    '🇩🇰': ['denmark'],
+    '🇫🇮': ['finland'],
+    '🇳🇱': ['netherlands', 'holland'],
+    '🇨🇭': ['switzerland'],
+    '🇵🇱': ['poland'],
+    '🇹🇷': ['turkey', 'turkiye'],
+    '🇬🇷': ['greece'],
+    '🇹🇭': ['thailand'],
+    '🇻🇳': ['vietnam'],
+    '🇮🇩': ['indonesia'],
+    '🇲🇾': ['malaysia'],
+    '🇸🇬': ['singapore'],
+    '🇵🇭': ['philippines'],
+    '🇵🇰': ['pakistan'],
+    '🇧🇩': ['bangladesh'],
+    '🇮🇷': ['iran'],
+    '🇮🇶': ['iraq'],
+    '🇸🇦': ['saudi arabia'],
+    '🇦🇪': ['uae', 'united arab emirates'],
+    '🇮🇱': ['israel'],
+    '🇨🇱': ['chile'],
+    '🇨🇴': ['colombia'],
+    '🇵🇪': ['peru'],
+    '🇻🇪': ['venezuela'],
+    '🇨🇺': ['cuba'],
+    '🇯🇲': ['jamaica'],
+    '🇲🇦': ['morocco'],
+    '🇰🇪': ['kenya']
+};
 
 const activeGames = new Set();
-
-function scrambleWord(word) {
-    let scrambled = word;
-    while (scrambled === word) {
-        scrambled = word.split('').sort(() => Math.random() - 0.5).join('');
-    }
-    return scrambled;
-}
-
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-async function runScrambleGame(initialMessageOrInteraction, channel) {
+async function runFlagGame(initialMessageOrInteraction, channel) {
     const totalRounds = 5;
     const scores = new Map(); // userId -> { name: string, points: number }
+    const flagEntries = Object.entries(FLAGS);
     
     const startEmbed = new EmbedBuilder()
         .setColor(0x7c6cf0)
-        .setTitle('🏁 SCRAMBLED WORD RACE: STARTED!')
-        .setDescription(`Get ready! There will be **${totalRounds}** rounds.\nUnscramble the words faster than your opponents to earn points!\n\nThe first round starts in 5 seconds...`);
+        .setTitle('🌍 GUESS THE FLAG: STARTED!')
+        .setDescription(`Get ready! There will be **${totalRounds}** rounds.\nName the country that belongs to the flag faster than your opponents to earn points!\n\nThe first round starts in 5 seconds...`);
         
     if (initialMessageOrInteraction.reply) {
         await initialMessageOrInteraction.reply({ embeds: [startEmbed] });
     }
 
+    // copy to avoid duplicate flags in same game
+    let availableFlags = [...flagEntries];
+
     for (let round = 1; round <= totalRounds; round++) {
         await delay(5000);
         
-        const word = WORDS[Math.floor(Math.random() * WORDS.length)];
-        const scrambled = scrambleWord(word);
+        if (availableFlags.length === 0) availableFlags = [...flagEntries];
+        
+        const randomIndex = Math.floor(Math.random() * availableFlags.length);
+        const [flagEmoji, validAnswers] = availableFlags[randomIndex];
+        availableFlags.splice(randomIndex, 1); // remove so it doesn't repeat
         
         const roundEmbed = new EmbedBuilder()
             .setColor(0x3498db)
             .setTitle(`🔄 Round ${round}/${totalRounds}`)
-            .setDescription(`Unscramble this word:\n\n# **\`${scrambled.toUpperCase()}\`**\n\n*First to type it correctly wins the round! (30 seconds)*`);
+            .setDescription(`Which country does this flag belong to?\n\n# **${flagEmoji}**\n\n*First to type the country name correctly wins the round! (30 seconds)*`);
             
         await channel.send({ embeds: [roundEmbed] });
         
         const filter = m => {
             if (m.author.bot) return false;
-            return m.content.trim().toLowerCase() === word.toLowerCase();
+            const content = m.content.trim().toLowerCase();
+            return validAnswers.includes(content);
         };
 
         try {
@@ -65,15 +106,19 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
             }
             scores.get(uId).points += 1;
             
+            // Format the primary country name (capitalize first letter of words)
+            const primaryName = validAnswers[0].replace(/\b\w/g, l => l.toUpperCase());
+            
             const winEmbed = new EmbedBuilder()
                 .setColor(0x2ecc71)
-                .setDescription(`🎉 **${winner.author.username}** unscrambled the word **\`${word.toUpperCase()}\`** first! (+1 point)`);
+                .setDescription(`🎉 **${winner.author.username}** correctly guessed **${primaryName}** ${flagEmoji} first! (+1 point)`);
             await channel.send({ embeds: [winEmbed] });
             
         } catch (err) {
+            const primaryName = validAnswers[0].replace(/\b\w/g, l => l.toUpperCase());
             const timeoutEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
-                .setDescription(`⏰ Time's up! The word was **\`${word.toUpperCase()}\`**.`);
+                .setDescription(`⏰ Time's up! The country was **${primaryName}** ${flagEmoji}.`);
             await channel.send({ embeds: [timeoutEmbed] });
         }
         
@@ -116,13 +161,13 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
             baubleData.baubles += reward;
             await baubleData.save();
         } catch(e) {
-            console.error('Error saving baubles for scramble winner:', e);
+            console.error('Error saving baubles for flag winner:', e);
         }
     }
     
     const finalEmbed = new EmbedBuilder()
         .setColor(0x9b59b6)
-        .setTitle('🏆 SCRAMBLED WORD RACE: FINAL RESULTS')
+        .setTitle('🏆 GUESS THE FLAG: FINAL RESULTS')
         .setDescription(finalText);
     await channel.send({ embeds: [finalEmbed] });
 }
@@ -131,17 +176,17 @@ module.exports = {
     category: 'fun',
     cooldown: 10,
     data: new SlashCommandBuilder()
-        .setName('scramble')
-        .setDescription('Play a 5-round Scrambled Word Race and win Baubles!'),
+        .setName('guesstheflag')
+        .setDescription('Play a 5-round Guess the Flag race and win Baubles!'),
 
     async execute(interaction) {
         const channelId = interaction.channelId;
         if (activeGames.has(channelId)) {
-            return interaction.reply({ content: '⚠️ A Scrambled Word Race is already running in this channel!', ephemeral: true });
+            return interaction.reply({ content: '⚠️ A Guess the Flag race is already running in this channel!', ephemeral: true });
         }
 
         activeGames.add(channelId);
-        runScrambleGame(interaction, interaction.channel).catch(err => {
+        runFlagGame(interaction, interaction.channel).catch(err => {
             console.error(err);
             activeGames.delete(channelId);
         });
@@ -150,11 +195,11 @@ module.exports = {
     async executePrefix(message, args) {
         const channelId = message.channel.id;
         if (activeGames.has(channelId)) {
-            return message.reply('⚠️ A Scrambled Word Race is already running in this channel!');
+            return message.reply('⚠️ A Guess the Flag race is already running in this channel!');
         }
 
         activeGames.add(channelId);
-        runScrambleGame(message, message.channel).catch(err => {
+        runFlagGame(message, message.channel).catch(err => {
             console.error(err);
             activeGames.delete(channelId);
         });
