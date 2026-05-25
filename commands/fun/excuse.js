@@ -591,7 +591,7 @@ They provided this excuse:
 Evaluate their excuse. You MUST return your evaluation strictly as a valid JSON object matching exactly this structure (no markdown, no backticks, no other text):
 {
   "successScore": <integer 0-100, representing how successful their excuse was at getting them out of trouble. Give a very low score (0-20) if the excuse is garbage, off-topic, or just a few lazy words>,
-  "shortExcuse": "<A highly shortened, summarized version of the user's excuse, maximum 6 words>",
+  "shortExcuse": "<A highly shortened, summarized version of the user's excuse, maximum 12 words>",
   "metrics": [
     { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
     { "name": "<A funny, relevant metric to judge this excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
@@ -655,7 +655,7 @@ Evaluate each player's excuse individually. You MUST return your evaluation stri
     {
       "userId": "<exact userId of the player>",
       "successScore": <integer 0-100, representing how successful their excuse was at getting them out of trouble. Give a very low score (0-20) if the excuse is garbage, off-topic, or just a few lazy words>,
-      "shortExcuse": "<A highly shortened, summarized version of this player's excuse, maximum 6 words>",
+      "shortExcuse": "<A highly shortened, summarized version of this player's excuse, maximum 12 words>",
       "metrics": [
         { "name": "<A funny, custom metric relevant to their specific excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
         { "name": "<A funny, custom metric relevant to their specific excuse/scenario, 1-3 words max>", "score": <integer 0-100> },
