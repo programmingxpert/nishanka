@@ -14,6 +14,79 @@ const WORDS = [
 
 const activeGames = new Set();
 
+async function generateAIScrambleWords(apiKey, totalRounds) {
+    const prompt = `Generate a list of ${totalRounds} unique, interesting, and single-word English nouns, verbs, or adjectives (no spaces, no punctuation, no special characters, between 5 and 12 characters long) suitable for a word scramble game. The words should be recognizable but fun to solve. Return the result strictly as a valid JSON array of strings, e.g.:
+["dinosaur", "keyboard", "glimmering", "universe", "technology"]
+Do not wrap the JSON in markdown code blocks or any other formatting, and do not provide any extra text.`;
+
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.9,
+            max_tokens: 150
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    let content = data.choices[0].message.content.trim();
+
+    // Strip markdown if present
+    if (content.startsWith('```json')) {
+        content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    } else if (content.startsWith('```')) {
+        content = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+
+    const firstBracket = content.indexOf('[');
+    const lastBracket = content.lastIndexOf(']');
+    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+        content = content.slice(firstBracket, lastBracket + 1);
+    }
+
+    const parsed = JSON.parse(content);
+    if (!Array.isArray(parsed)) {
+        throw new Error('Response is not a JSON array');
+    }
+    // Clean and validate words
+    const cleanWords = parsed.map(w => w.trim().toLowerCase()).filter(w => /^[a-z]{5,12}$/.test(w));
+    if (cleanWords.length < totalRounds) {
+        throw new Error('Not enough valid words returned by AI');
+    }
+    return cleanWords;
+}
+
+async function getScrambleWords(totalRounds) {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (apiKey && apiKey !== 'your_deepseek_api_key_here') {
+        try {
+            const aiWords = await generateAIScrambleWords(apiKey, totalRounds);
+            if (aiWords && aiWords.length >= totalRounds) {
+                console.log(`Generated ${aiWords.length} scramble words using DeepSeek API:`, aiWords);
+                return aiWords.slice(0, totalRounds);
+            }
+        } catch (err) {
+            console.error('Failed to generate scramble words via DeepSeek API, falling back to hardcoded words:', err);
+        }
+    }
+    
+    // Fallback: choose random unique words from WORDS
+    const fallbackWords = [...WORDS];
+    fallbackWords.sort(() => Math.random() - 0.5);
+    return fallbackWords.slice(0, totalRounds);
+}
+
 function scrambleWord(word) {
     let scrambled = word;
     while (scrambled === word) {
@@ -37,10 +110,21 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
         await initialMessageOrInteraction.reply({ embeds: [startEmbed] });
     }
 
+    const gameWordsPromise = getScrambleWords(totalRounds);
+
     for (let round = 1; round <= totalRounds; round++) {
-        await delay(5000);
+        if (round === 1) {
+            const startTime = Date.now();
+            const gameWords = await gameWordsPromise;
+            const elapsed = Date.now() - startTime;
+            const remainingDelay = Math.max(0, 5000 - elapsed);
+            await delay(remainingDelay);
+        } else {
+            await delay(5000);
+        }
         
-        const word = WORDS[Math.floor(Math.random() * WORDS.length)];
+        const gameWords = await gameWordsPromise;
+        const word = gameWords[round - 1];
         const scrambled = scrambleWord(word);
         
         const roundEmbed = new EmbedBuilder()

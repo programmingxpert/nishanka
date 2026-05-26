@@ -27,6 +27,65 @@ const QUESTIONS = [
 
 const activeGames = new Set();
 
+async function generateAIEmojiQuestion(apiKey) {
+    const prompt = `Generate a single emoji decode trivia question. The user will be shown a set of emojis and must guess the title or name of the thing represented.
+Return the result strictly as a valid JSON object matching exactly this structure (no markdown, no backticks, no other text):
+{
+  "emojis": "<a string of 1-5 emojis representing a famous movie, video game, book, pop culture franchise, song, or concept>",
+  "answers": [
+    "<the primary correct answer in lowercase, e.g., 'the lion king'>",
+    "<alternative acceptable answers/spellings in lowercase, e.g., 'lion king' (optional)>"
+  ],
+  "category": "<the category, e.g., Movie, Video Game, Song, Book, Pop Culture, etc.>"
+}
+Ensure the question is fun, guessable, and uses common emojis. Ensure all entries in the "answers" array are in lowercase.`;
+
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.9,
+            max_tokens: 200
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    let content = data.choices[0].message.content.trim();
+
+    // Strip markdown if present
+    if (content.startsWith('```json')) {
+        content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    } else if (content.startsWith('```')) {
+        content = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+
+    const firstBrace = content.indexOf('{');
+    const lastBrace = content.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        content = content.slice(firstBrace, lastBrace + 1);
+    }
+
+    const parsed = JSON.parse(content);
+    if (!parsed.emojis || !Array.isArray(parsed.answers) || parsed.answers.length === 0 || !parsed.category) {
+        throw new Error('Invalid JSON structure returned by DeepSeek');
+    }
+    
+    // Clean data
+    parsed.answers = parsed.answers.map(a => a.trim().toLowerCase());
+    return parsed;
+}
+
 module.exports = {
     category: 'fun',
     cooldown: 10,
@@ -40,8 +99,24 @@ module.exports = {
             return interaction.reply({ content: '⚠️ An Emoji Decode game is already running in this channel!', ephemeral: true });
         }
 
+        await interaction.deferReply();
         activeGames.add(channelId);
-        const question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+
+        let question;
+        const apiKey = process.env.DEEPSEEK_API_KEY;
+        if (apiKey && apiKey !== 'your_deepseek_api_key_here') {
+            try {
+                question = await generateAIEmojiQuestion(apiKey);
+                console.log('Generated emoji question using DeepSeek API:', question);
+            } catch (err) {
+                console.error('Failed to generate emoji question via DeepSeek API, falling back to hardcoded question:', err);
+            }
+        }
+
+        if (!question) {
+            question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+        }
+
         const reward = Math.floor(Math.random() * 1001) + 500; // 500-1500 Baubles
 
         const gameEmbed = new EmbedBuilder()
@@ -51,7 +126,7 @@ module.exports = {
             .setFooter({ text: 'First correct guess wins!' })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [gameEmbed] });
+        await interaction.editReply({ embeds: [gameEmbed] });
 
         const filter = m => {
             if (m.author.bot) return false;
@@ -109,7 +184,23 @@ module.exports = {
         }
 
         activeGames.add(channelId);
-        const question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+        message.channel.sendTyping().catch(() => {});
+
+        let question;
+        const apiKey = process.env.DEEPSEEK_API_KEY;
+        if (apiKey && apiKey !== 'your_deepseek_api_key_here') {
+            try {
+                question = await generateAIEmojiQuestion(apiKey);
+                console.log('Generated emoji question using DeepSeek API:', question);
+            } catch (err) {
+                console.error('Failed to generate emoji question via DeepSeek API, falling back to hardcoded question:', err);
+            }
+        }
+
+        if (!question) {
+            question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+        }
+
         const reward = Math.floor(Math.random() * 1001) + 500; // 500-1500 Baubles
 
         const gameEmbed = new EmbedBuilder()
