@@ -8,39 +8,119 @@ const Bauble = require('../../models/baubleSchema'); // Assumes your bauble sche
 
 function drawCrown(ctx, x, y, width, height) {
     ctx.save();
-    ctx.fillStyle = '#FFD700'; // Gold
-    ctx.strokeStyle = '#DAA520'; // Dark Gold
-    ctx.lineWidth = 3;
     
+    // Create gold gradient for the main body
+    const goldGrad = ctx.createLinearGradient(x, y, x + width, y + height);
+    goldGrad.addColorStop(0, '#FFE875');  // Light gold
+    goldGrad.addColorStop(0.25, '#F7C621'); // Mid gold
+    goldGrad.addColorStop(0.5, '#B38F00');  // Dark gold
+    goldGrad.addColorStop(0.75, '#F7C621'); // Mid gold
+    goldGrad.addColorStop(1, '#FFE875');   // Light gold
+
+    // Create shadow/border color
+    ctx.strokeStyle = '#6E5500';
+    ctx.lineWidth = 1.5;
+    
+    // Draw the main crown body
+    ctx.fillStyle = goldGrad;
     ctx.beginPath();
-    ctx.moveTo(x, y + height);
-    ctx.lineTo(x + width, y + height);
-    ctx.lineTo(x + width, y);
-    ctx.lineTo(x + width * 0.75, y + height * 0.4);
-    ctx.lineTo(x + width * 0.5, y + height * 0.1);
-    ctx.lineTo(x + width * 0.25, y + height * 0.4);
-    ctx.lineTo(x, y);
-    ctx.closePath();
     
+    // Start at bottom-left of the crown peaks
+    ctx.moveTo(x + width * 0.05, y + height * 0.85);
+    
+    // Curve up to left peak
+    ctx.quadraticCurveTo(x + width * 0.05, y + height * 0.5, x + width * 0.15, y + height * 0.25);
+    
+    // Left valley
+    ctx.quadraticCurveTo(x + width * 0.3, y + height * 0.55, x + width * 0.35, y + height * 0.55);
+    
+    // Center peak (tallest)
+    ctx.quadraticCurveTo(x + width * 0.45, y + height * 0.25, x + width * 0.5, y + height * 0.05);
+    
+    // Center-to-right valley
+    ctx.quadraticCurveTo(x + width * 0.55, y + height * 0.25, x + width * 0.65, y + height * 0.55);
+    
+    // Right peak
+    ctx.quadraticCurveTo(x + width * 0.7, y + height * 0.55, x + width * 0.85, y + height * 0.25);
+    
+    // Curve down to bottom-right of the crown peaks
+    ctx.quadraticCurveTo(x + width * 0.95, y + height * 0.5, x + width * 0.95, y + height * 0.85);
+    
+    // Bottom curved edge of the body (following the curve of the band)
+    ctx.quadraticCurveTo(x + width * 0.5, y + height * 0.95, x + width * 0.05, y + height * 0.85);
+    
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Gems
-    ctx.fillStyle = '#FF0000'; // Red gem
-    ctx.beginPath();
-    ctx.arc(x + width * 0.5, y + height * 0.1, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#0000FF'; // Blue gem
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#00FF00'; // Green gem
-    ctx.beginPath();
-    ctx.arc(x + width, y, 3, 0, Math.PI * 2);
-    ctx.fill();
+    // Now draw the bottom band (brim)
+    const bandGrad = ctx.createLinearGradient(x, y, x + width, y + height);
+    bandGrad.addColorStop(0, '#B38F00');
+    bandGrad.addColorStop(0.3, '#FFE875');
+    bandGrad.addColorStop(0.5, '#947200');
+    bandGrad.addColorStop(0.7, '#FFE875');
+    bandGrad.addColorStop(1, '#B38F00');
     
+    ctx.fillStyle = bandGrad;
+    ctx.beginPath();
+    ctx.moveTo(x + width * 0.05, y + height * 0.85);
+    ctx.quadraticCurveTo(x + width * 0.5, y + height * 0.95, x + width * 0.95, y + height * 0.85);
+    ctx.lineTo(x + width * 0.95, y + height * 0.98);
+    ctx.quadraticCurveTo(x + width * 0.5, y + height * 1.08, x + width * 0.05, y + height * 0.98);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Draw band gems/pearls (little circles on the bottom band)
+    const numBandGems = 5;
+    ctx.fillStyle = '#FFFFFF'; // Pearls
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < numBandGems; i++) {
+        const t = 0.15 + 0.7 * (i / (numBandGems - 1)); // spacing factor
+        const gemX = x + width * t;
+        const gemY = y + height * 0.89 + (height * 0.05) * Math.sin(t * Math.PI);
+        ctx.beginPath();
+        ctx.arc(gemX, gemY, width * 0.03, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    // Helper to draw a shiny 3D gem
+    function drawShinyGem(gemX, gemY, radius, baseColor, highlightColor) {
+        ctx.save();
+        const gemGrad = ctx.createRadialGradient(
+            gemX - radius * 0.3, gemY - radius * 0.3, radius * 0.1,
+            gemX, gemY, radius
+        );
+        gemGrad.addColorStop(0, highlightColor);
+        gemGrad.addColorStop(1, baseColor);
+        
+        ctx.fillStyle = gemGrad;
+        ctx.beginPath();
+        ctx.arc(gemX, gemY, radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Sparkle outline
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Gem radius relative to crown size
+    const peakGemRadius = width * 0.07;
+
+    // Draw gems on the 3 peaks
+    // Left peak gem: Ruby Red
+    drawShinyGem(x + width * 0.15, y + height * 0.25, peakGemRadius, '#800000', '#FF4D4D');
+    
+    // Center peak gem: Sapphire Blue
+    drawShinyGem(x + width * 0.5, y + height * 0.05, peakGemRadius + 1, '#000080', '#4D4DFF');
+    
+    // Right peak gem: Emerald Green
+    drawShinyGem(x + width * 0.85, y + height * 0.25, peakGemRadius, '#006400', '#4DFF4D');
+
     ctx.restore();
 }
 
