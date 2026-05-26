@@ -109,5 +109,45 @@ module.exports = {
                 console.error('Error checking for reminders:', error);
             }
         }, 30 * 1000); // Check every 30 seconds
+
+        // --- Temporary Role Checker ---
+        setInterval(async () => {
+            try {
+                const now = new Date();
+                const TempRole = require('../models/tempRoleSchema');
+                const expiredRoles = await TempRole.find({ expiresAt: { $lte: now } });
+
+                if (expiredRoles.length > 0) {
+                    for (const record of expiredRoles) {
+                        try {
+                            const guild = client.guilds.cache.get(record.guildId);
+                            if (!guild) {
+                                await TempRole.findByIdAndDelete(record._id);
+                                continue;
+                            }
+
+                            const member = await guild.members.fetch(record.userId).catch(() => null);
+                            const role = guild.roles.cache.get(record.roleId);
+
+                            if (member && role) {
+                                if (member.roles.cache.has(role.id)) {
+                                    try {
+                                        await member.roles.remove(role, 'Temporary role expired.');
+                                    } catch (removeErr) {
+                                        console.error(`Failed to remove temporary role ${role.name} from ${member.user.tag}:`, removeErr);
+                                    }
+                                }
+                            }
+
+                            await TempRole.findByIdAndDelete(record._id);
+                        } catch (err) {
+                            console.error(`Failed to process expired temp role entry ${record._id}:`, err);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking for expired temp roles:', error);
+            }
+        }, 30 * 1000); // Check every 30 seconds
     },
 };
