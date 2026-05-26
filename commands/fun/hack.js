@@ -1,5 +1,6 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const Bauble = require('../../models/baubleSchema');
 
 const secretFiles = [
     "1.2TB of raw anime feet pics",
@@ -23,17 +24,6 @@ const passwords = [
     "skibidi_sigma_1",
     "minecraft_steve_gf",
     "dwaynetherockjohnson"
-];
-
-const profits = [
-    "-$14.50 (We accidentally paid their overdue gas bill)",
-    "$0.02 (Memes are cheap)",
-    "3.5 Dogecoins",
-    "A single sticky lint roller",
-    "$4.20 (Sold their smart toothbrush data)",
-    "A half-eaten subway coupon",
-    "1x Shiny nugget (worthless)",
-    "$0.00 (They are completely broke)"
 ];
 
 const securityRatings = [
@@ -108,7 +98,7 @@ function renderTerminal(targetName, vectorName, pct, text, status = "ACTIVE") {
            "```";
 }
 
-async function runHackAnimation(editTarget, targetUser, vectorId, isSlash = true) {
+async function runHackAnimation(editTarget, targetUser, authorUser, vectorId, isSlash = true) {
     const vector = vectors[vectorId];
     
     // Remove components and draw initial frame
@@ -137,21 +127,82 @@ async function runHackAnimation(editTarget, targetUser, vectorId, isSlash = true
         }
     }
 
+    // Database updates for Baubles
+    let baubleMessage = "";
+    let profitFieldVal = "";
+    
+    if (authorUser.id === targetUser.id) {
+        profitFieldVal = "`0 Baubles` (Self-hack)";
+        baubleMessage = "⚠️ Self-hacking detected. System diagnostics run. No baubles transferred.";
+    } else {
+        try {
+            let hackerData = await Bauble.findOne({ userId: authorUser.id });
+            if (!hackerData) {
+                hackerData = new Bauble({ userId: authorUser.id, baubles: 0, inventory: [] });
+            }
+
+            let targetData = await Bauble.findOne({ userId: targetUser.id });
+            if (!targetData) {
+                targetData = new Bauble({ userId: targetUser.id, baubles: 0, inventory: [] });
+            }
+
+            if (targetData.baubles < 10) {
+                profitFieldVal = "`0 Baubles` (Target is poor)";
+                baubleMessage = `⚠️ **${targetUser.username}** has less than 10 Baubles. No currency was stolen.`;
+            } else {
+                const isSuccess = Math.random() < 0.65; // 65% success rate
+                if (isSuccess) {
+                    const stealAmt = Math.floor(Math.random() * 5) + 1; // 1 to 5 baubles
+                    const actualSteal = Math.min(stealAmt, targetData.baubles);
+                    
+                    targetData.baubles -= actualSteal;
+                    hackerData.baubles += actualSteal;
+                    
+                    await targetData.save();
+                    await hackerData.save();
+                    
+                    profitFieldVal = `\`+${actualSteal} Baubles\``;
+                    baubleMessage = `💸 Stole **${actualSteal} Baubles** from **${targetUser.username}**'s account!`;
+                } else {
+                    const lostAmt = Math.floor(Math.random() * 3) + 1; // 1 to 3 baubles
+                    const actualLoss = Math.min(lostAmt, hackerData.baubles);
+                    
+                    if (actualLoss > 0) {
+                        hackerData.baubles -= actualLoss;
+                        targetData.baubles += actualLoss;
+                        
+                        await targetData.save();
+                        await hackerData.save();
+                        
+                        profitFieldVal = `\`-${actualLoss} Baubles\``;
+                        baubleMessage = `🚨 Hack failed! You were caught and paid **${actualLoss} Baubles** to **${targetUser.username}** in reparations.`;
+                    } else {
+                        profitFieldVal = "`0 Baubles` (Hack failed)";
+                        baubleMessage = `🚨 Hack failed! You were caught, but you have 0 Baubles, so no reparation was paid.`;
+                    }
+                }
+            }
+        } catch (dbErr) {
+            console.error("Error updating baubles in hack command:", dbErr);
+            profitFieldVal = "`0 Baubles` (DB Error)";
+            baubleMessage = "❌ Failed to complete currency transfer due to database error.";
+        }
+    }
+
     // Generate random hacker report
     const randomFile = secretFiles[Math.floor(Math.random() * secretFiles.length)];
     const randomPwd = passwords[Math.floor(Math.random() * passwords.length)].replace("[crush]", targetUser.username);
-    const randomProfit = profits[Math.floor(Math.random() * profits.length)];
     const randomRating = securityRatings[Math.floor(Math.random() * securityRatings.length)];
 
     const embed = new EmbedBuilder()
         .setTitle('🟢 HACK SYSTEM OVERVIEW: COMPROMISED')
         .setColor(0x00FF00)
         .setThumbnail(targetUser.displayAvatarURL({ size: 128 }))
-        .setDescription(`**${targetUser.username}** has been successfully compromised via **${vector.name}**!`)
+        .setDescription(`**${targetUser.username}** has been successfully compromised via **${vector.name}**!\n\n${baubleMessage}`)
         .addFields(
             { name: '📁 Compromised Files', value: `\`${randomFile}\`` },
             { name: '🔑 Leaked Password', value: `\`${randomPwd}\``, inline: true },
-            { name: '💰 Profit / Loss', value: `\`${randomProfit}\``, inline: true },
+            { name: '💰 Profit / Loss', value: profitFieldVal, inline: true },
             { name: '🛡️ Security Rating', value: `\`${randomRating}\``, inline: true }
         )
         .setFooter({ text: 'Nishanka Cybersec ©️' })
@@ -200,12 +251,12 @@ module.exports = {
             const confirmation = await response.awaitMessageComponent({ filter, time: 15000 });
             const vectorId = confirmation.customId;
             await confirmation.deferUpdate();
-            await runHackAnimation(interaction, targetUser, vectorId, true);
+            await runHackAnimation(interaction, targetUser, interaction.user, vectorId, true);
         } catch (e) {
             // Timeout: choose a random vector
             const keys = Object.keys(vectors);
             const randomVector = keys[Math.floor(Math.random() * keys.length)];
-            await runHackAnimation(interaction, targetUser, randomVector, true);
+            await runHackAnimation(interaction, targetUser, interaction.user, randomVector, true);
         }
     },
 
@@ -233,11 +284,11 @@ module.exports = {
             const confirmation = await response.awaitMessageComponent({ filter, time: 15000 });
             const vectorId = confirmation.customId;
             await confirmation.deferUpdate();
-            await runHackAnimation(response, targetUser, vectorId, false);
+            await runHackAnimation(response, targetUser, message.author, vectorId, false);
         } catch (e) {
             const keys = Object.keys(vectors);
             const randomVector = keys[Math.floor(Math.random() * keys.length)];
-            await runHackAnimation(response, targetUser, randomVector, false);
+            await runHackAnimation(response, targetUser, message.author, randomVector, false);
         }
     }
 };
