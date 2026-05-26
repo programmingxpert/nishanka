@@ -232,13 +232,15 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
     const gameState = shuffledPlayers.map(p => ({
         user: p,
         lives: 3,
-        eliminated: false
+        eliminated: false,
+        successfulGuesses: 0
     }));
 
     let usedWords = new Set();
     let currentTurnIdx = 0;
     let roundCount = 1;
     let baseTimeLimit = 15000;
+    let turnsSinceLastLifeLoss = 0;
 
     const runEmbed = new EmbedBuilder()
         .setColor(0xe74c3c)
@@ -266,21 +268,26 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
         const activePlayer = gameState[currentTurnIdx];
 
         const totalTurnsPlayed = roundCount - 1;
-        const currentLimit = Math.max(8000, baseTimeLimit - Math.floor(totalTurnsPlayed / 5) * 500);
+        const isDeathBattleMode = turnsSinceLastLifeLoss >= 8;
+        const currentLimit = isDeathBattleMode ? 10000 : Math.max(8000, baseTimeLimit - Math.floor(totalTurnsPlayed / 5) * 500);
         const promptLength = totalTurnsPlayed >= 12 ? 3 : 2;
 
         const prompt = getPromptFromPool(wordsPool, promptLength);
         const livesVisual = '💣'.repeat(activePlayer.lives);
 
+        let turnDescription = `Type a word containing:\n\n# **\`${prompt}\`**\n\n` +
+            `⏳ Time Limit: **${(currentLimit / 1000).toFixed(1)} seconds**\n` +
+            `❤️ Lives: ${livesVisual}\n\n` +
+            `*Type your word in this channel!*`;
+
+        if (isDeathBattleMode) {
+            turnDescription = `🔥 **DEATH BATTLE ACTIVE!** 🔥\n*No one has lost a life in 8 turns! The bomb timer is locked at 10 seconds until someone explodes!*\n\n` + turnDescription;
+        }
+
         const turnEmbed = new EmbedBuilder()
-            .setColor(0xe67e22)
+            .setColor(isDeathBattleMode ? 0xff1a1a : 0xe67e22)
             .setTitle(`🔄 Round ${roundCount} — ${activePlayer.user.username}'s Turn!`)
-            .setDescription(
-                `Type a word containing:\n\n# **\`${prompt}\`**\n\n` +
-                `⏳ Time Limit: **${(currentLimit / 1000).toFixed(1)} seconds**\n` +
-                `❤️ Lives: ${livesVisual}\n\n` +
-                `*Type your word in this channel!*`
-            )
+            .setDescription(turnDescription)
             .setTimestamp();
 
         const turnMsg = await channel.send({ content: `${activePlayer.user}`, embeds: [turnEmbed] });
@@ -295,6 +302,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
             const timeLeft = currentLimit - elapsed;
             if (timeLeft <= 0) {
                 activePlayer.lives--;
+                turnsSinceLastLifeLoss = 0; // Reset on life loss
                 turnActive = false;
 
                 const failEmbed = new EmbedBuilder()
@@ -349,6 +357,8 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
                 }
 
                 usedWords.add(word);
+                activePlayer.successfulGuesses++;
+                turnsSinceLastLifeLoss++; // Survived another turn
                 turnActive = false;
 
                 if (errorMsg) {
@@ -364,6 +374,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
 
             } catch (err) {
                 activePlayer.lives--;
+                turnsSinceLastLifeLoss = 0; // Reset on life loss
                 turnActive = false;
 
                 if (errorMsg) {
@@ -391,36 +402,44 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
     }
 
     const winnerData = gameState.find(p => p.lives > 0);
-    if (!winnerData) {
-        await channel.send('🎮 **Game Over!** Nobody won. Everyone has been eliminated!');
-        activeGames.delete(channel.id);
-        return;
-    }
+    const winner = winnerData ? winnerData.user : null;
 
-    const winner = winnerData.user;
-    const reward = 1000;
-
-    try {
-        let baubleData = await Bauble.findOne({ userId: winner.id });
-        if (!baubleData) {
-            baubleData = new Bauble({ userId: winner.id, baubles: 0 });
+    const payoutDetails = [];
+    for (const playerState of gameState) {
+        let prize = playerState.successfulGuesses * 150;
+        const isWinner = winner && playerState.user.id === winner.id;
+        if (isWinner) {
+            prize += 2000;
         }
-        baubleData.baubles += reward;
-        await baubleData.save();
-    } catch (e) {
-        console.error('Error awarding wordbomb baubles:', e);
+
+        if (prize > 0) {
+            try {
+                let baubleData = await Bauble.findOne({ userId: playerState.user.id });
+                if (!baubleData) {
+                    baubleData = new Bauble({ userId: playerState.user.id, baubles: 0 });
+                }
+                baubleData.baubles += prize;
+                await baubleData.save();
+            } catch (dbErr) {
+                console.error(`Failed to save baubles for ${playerState.user.username}:`, dbErr);
+            }
+            payoutDetails.push(`${isWinner ? '👑' : '👤'} **${playerState.user.username}**: +**${prize.toLocaleString()}** Baubles (${playerState.successfulGuesses} correct guesses)`);
+        } else {
+            payoutDetails.push(`👤 **${playerState.user.username}**: +0 Baubles (0 correct guesses)`);
+        }
     }
 
     const victoryEmbed = new EmbedBuilder()
         .setColor(0x2ecc71)
-        .setTitle('🏆 WORD BOMB: VICTORY!')
+        .setTitle('🏆 WORD BOMB: GAME OVER!')
         .setDescription(
-            `🎉 **Congratulations to ${winner} for winning the game!**\n\n` +
-            `👑 **Winner:** **${winner.username}**\n` +
-            `🪙 **Prize:** **${reward.toLocaleString()} Baubles** has been credited to your account!`
+            `Here are the final standings and Bauble rewards:\n\n${payoutDetails.join('\n')}`
         )
-        .setThumbnail(winner.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
+
+    if (winner) {
+        victoryEmbed.setThumbnail(winner.displayAvatarURL({ dynamic: true }));
+    }
 
     await channel.send({ embeds: [victoryEmbed] });
 

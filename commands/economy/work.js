@@ -43,9 +43,9 @@ async function runWorkGame(initialData, channel, user) {
                 .setFooter({ text: 'Baubleverse HR Dept.' });
 
             if (isSlash) {
-                await initialData.reply({ embeds: [welcomeEmbed] });
+                await initialData.reply({ content: `<@${userId}>`, embeds: [welcomeEmbed] });
             } else {
-                await channel.send({ embeds: [welcomeEmbed] });
+                await channel.send({ content: `<@${userId}>`, embeds: [welcomeEmbed] });
             }
 
             baubleData = new Bauble({
@@ -139,12 +139,14 @@ async function runMiningGame(initialData, channel, user, baubleData) {
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
             mainMessage = await initialData.followUp({
+                content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
                 fetchReply: true
             });
         } else {
             mainMessage = await initialData.reply({
+                content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
                 fetchReply: true
@@ -152,6 +154,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
         }
     } else {
         mainMessage = await channel.send({
+            content: `<@${userId}>`,
             embeds: [embed],
             components: [btnRow]
         });
@@ -311,12 +314,14 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
             mainMessage = await initialData.followUp({
+                content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
                 fetchReply: true
             });
         } else {
             mainMessage = await initialData.reply({
+                content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
                 fetchReply: true
@@ -324,6 +329,7 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
         }
     } else {
         mainMessage = await channel.send({
+            content: `<@${userId}>`,
             embeds: [embed],
             components: [btnRow]
         });
@@ -540,12 +546,14 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
             mainMessage = await initialData.followUp({
+                content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
                 fetchReply: true
             });
         } else {
             mainMessage = await initialData.reply({
+                content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
                 fetchReply: true
@@ -553,6 +561,7 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
         }
     } else {
         mainMessage = await channel.send({
+            content: `<@${userId}>`,
             embeds: [embed],
             components: [btnRow]
         });
@@ -723,12 +732,12 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
     let mainMessage;
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], fetchReply: true });
         } else {
-            mainMessage = await initialData.reply({ embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], fetchReply: true });
         }
     } else {
-        mainMessage = await channel.send({ embeds: [embed], components: [btnRow] });
+        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [btnRow] });
     }
 
     const selectedIngredients = [];
