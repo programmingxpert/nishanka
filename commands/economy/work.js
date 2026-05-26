@@ -1,10 +1,18 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const {
+    SlashCommandBuilder,
+    EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
+} = require('discord.js');
+
 const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
     category: 'economy',
     cooldown: 10,
+
     data: new SlashCommandBuilder()
         .setName('work')
         .setDescription('Work a random interactive job to earn Glimmering Baubles!'),
@@ -29,7 +37,9 @@ async function runWorkGame(initialData, channel, user) {
             const welcomeEmbed = new EmbedBuilder()
                 .setColor(0xFFC0CB)
                 .setTitle('🎀 Welcome to the Glimmering Workforce!')
-                .setDescription(`<@${userId}> you're now part of the Bauble grind 💼✨\nUse \`/bauble\` or \`-bauble\` to check your balance.\nLet’s get working!`)
+                .setDescription(
+                    `<@${userId}> you're now part of the Bauble grind 💼✨\nUse \`/bauble\` or \`-bauble\` to check your balance.\nLet’s get working!`
+                )
                 .setFooter({ text: 'Baubleverse HR Dept.' });
 
             if (isSlash) {
@@ -38,14 +48,20 @@ async function runWorkGame(initialData, channel, user) {
                 await channel.send({ embeds: [welcomeEmbed] });
             }
 
-            baubleData = new Bauble({ userId, baubles: 0 });
+            baubleData = new Bauble({
+                userId,
+                baubles: 0
+            });
+
             await baubleData.save();
+
             await new Promise(resolve => setTimeout(resolve, 3000));
         }
 
-        // Randomly select one of the 4 mini-games
         const games = ['mining', 'security', 'electrician', 'barista'];
-        const selectedGame = games[Math.floor(Math.random() * games.length)];
+
+        const selectedGame =
+            games[Math.floor(Math.random() * games.length)];
 
         if (selectedGame === 'mining') {
             await runMiningGame(initialData, channel, user, baubleData);
@@ -59,12 +75,25 @@ async function runWorkGame(initialData, channel, user) {
 
     } catch (error) {
         console.error('Error in work command:', error);
-        const errMsg = '❌ Something went wrong while working.';
+
+        const errMsg =
+            '❌ Something went wrong while working.';
+
         if (isSlash) {
             if (initialData.replied || initialData.deferred) {
-                await initialData.followUp({ content: errMsg, ephemeral: true }).catch(() => {});
+                await initialData
+                    .followUp({
+                        content: errMsg,
+                        ephemeral: true
+                    })
+                    .catch(() => {});
             } else {
-                await initialData.reply({ content: errMsg, ephemeral: true }).catch(() => {});
+                await initialData
+                    .reply({
+                        content: errMsg,
+                        ephemeral: true
+                    })
+                    .catch(() => {});
             }
         } else {
             await channel.send(errMsg).catch(() => {});
@@ -72,18 +101,29 @@ async function runWorkGame(initialData, channel, user) {
     }
 }
 
+/* =========================
+   MINING GAME
+========================= */
+
 async function runMiningGame(initialData, channel, user, baubleData) {
     const isSlash = !!initialData.deferReply;
     const userId = user.id;
 
     const progress = 100;
-    const bar = '`' + '█'.repeat(10) + ` ${progress}%\``;
+
+    const bar =
+        '`' + '█'.repeat(10) + ` ${progress}%\``;
 
     const embed = new EmbedBuilder()
         .setColor(0x9b59b6)
         .setTitle('⛏️ Deep Rock Mining')
-        .setDescription(`Mash the **MINE** button as fast as you can to shatter the crystal! You have **6 seconds**!`)
-        .setFields({ name: '💎 Crystal Integrity', value: bar })
+        .setDescription(
+            `Mash the **MINE** button as fast as you can to shatter the crystal! You have **6 seconds**!`
+        )
+        .setFields({
+            name: '💎 Crystal Integrity',
+            value: bar
+        })
         .setFooter({ text: 'Swing fast!' });
 
     const btnRow = new ActionRowBuilder().addComponents(
@@ -95,40 +135,79 @@ async function runMiningGame(initialData, channel, user, baubleData) {
     );
 
     let mainMessage;
+
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.followUp({
+                embeds: [embed],
+                components: [btnRow],
+                fetchReply: true
+            });
         } else {
-            mainMessage = await initialData.reply({ embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.reply({
+                embeds: [embed],
+                components: [btnRow],
+                fetchReply: true
+            });
         }
     } else {
-        mainMessage = await channel.send({ embeds: [embed], components: [btnRow] });
+        mainMessage = await channel.send({
+            embeds: [embed],
+            components: [btnRow]
+        });
     }
 
     let clicks = 0;
     const maxClicks = 20;
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId === 'work_mine',
-        time: 6000
-    });
+
+    const collector =
+        mainMessage.createMessageComponentCollector({
+            filter:
+                i =>
+                    i.user.id === userId &&
+                    i.customId === 'work_mine',
+            time: 6000
+        });
 
     collector.on('collect', async i => {
         try {
             await i.deferUpdate();
         } catch (_) {}
-        
+
         clicks++;
+
         if (clicks % 3 === 0 || clicks === maxClicks) {
-            const currentProgress = Math.max(0, 100 - Math.round((clicks / maxClicks) * 100));
-            const filled = Math.round(currentProgress / 10);
+            const currentProgress = Math.max(
+                0,
+                100 -
+                    Math.round((clicks / maxClicks) * 100)
+            );
+
+            const filled =
+                Math.round(currentProgress / 10);
+
             const empty = 10 - filled;
-            const updatedBar = '`' + '█'.repeat(filled) + '░'.repeat(empty) + ` ${currentProgress}%\``;
-            
-            const updatedEmbed = EmbedBuilder.from(mainMessage.embeds[0])
-                .setDescription(`Mash the **MINE** button as fast as you can to shatter the crystal! Clicks: **${clicks}**`)
-                .setFields({ name: '💎 Crystal Integrity', value: updatedBar });
-            
-            await mainMessage.edit({ embeds: [updatedEmbed] }).catch(() => {});
+
+            const updatedBar =
+                '`' +
+                '█'.repeat(filled) +
+                '░'.repeat(empty) +
+                ` ${currentProgress}%\``;
+
+            const updatedEmbed = EmbedBuilder.from(
+                mainMessage.embeds[0]
+            )
+                .setDescription(
+                    `Mash the **MINE** button as fast as you can to shatter the crystal! Clicks: **${clicks}**`
+                )
+                .setFields({
+                    name: '💎 Crystal Integrity',
+                    value: updatedBar
+                });
+
+            await mainMessage
+                .edit({ embeds: [updatedEmbed] })
+                .catch(() => {});
         }
 
         if (clicks >= maxClicks) {
@@ -136,40 +215,70 @@ async function runMiningGame(initialData, channel, user, baubleData) {
         }
     });
 
-    collector.on('end', async (collected, reason) => {
+    collector.on('end', async () => {
         const earnings = Math.min(80, clicks * 4);
-        
+
         try {
-            const currentProfile = await Bauble.findOne({ userId });
+            const currentProfile =
+                await Bauble.findOne({ userId });
+
             if (currentProfile) {
                 currentProfile.baubles += earnings;
+
                 await currentProfile.save();
-                baubleData.baubles = currentProfile.baubles;
+
+                baubleData.baubles =
+                    currentProfile.baubles;
             }
         } catch (dbErr) {
-            console.error('Error saving mining earnings:', dbErr);
+            console.error(
+                'Error saving mining earnings:',
+                dbErr
+            );
         }
 
         const successEmbed = new EmbedBuilder()
             .setColor(0x2ecc71)
-            .setTitle(clicks >= maxClicks ? '💎 Crystal Shattered!' : '💎 Mining Complete!')
-            .setDescription(`You swung your pickaxe **${clicks}** times and extracted **${earnings}** Glimmering Baubles!`)
-            .addFields({ name: '💰 New Balance', value: `${baubleData.baubles} Baubles`, inline: true })
+            .setTitle(
+                clicks >= maxClicks
+                    ? '💎 Crystal Shattered!'
+                    : '💎 Mining Complete!'
+            )
+            .setDescription(
+                `You swung your pickaxe **${clicks}** times and extracted **${earnings}** Glimmering Baubles!`
+            )
+            .addFields({
+                name: '💰 New Balance',
+                value: `${baubleData.baubles} Baubles`,
+                inline: true
+            })
             .setTimestamp()
-            .setFooter({ text: 'Hard work pays off 💼' });
+            .setFooter({
+                text: 'Hard work pays off 💼'
+            });
 
-        const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('work_mine')
-                .setLabel('Mining Complete')
-                .setStyle(ButtonStyle.Primary)
-                .setDisabled(true)
-                .setEmoji('💎')
-        );
+        const disabledRow =
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('work_mine')
+                    .setLabel('Mining Complete')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(true)
+                    .setEmoji('💎')
+            );
 
-        await mainMessage.edit({ embeds: [successEmbed], components: [disabledRow] }).catch(() => {});
+        await mainMessage
+            .edit({
+                embeds: [successEmbed],
+                components: [disabledRow]
+            })
+            .catch(() => {});
     });
 }
+
+/* =========================
+   SECURITY GAME
+========================= */
 
 async function runSecurityGame(initialData, channel, user, baubleData) {
     const isSlash = !!initialData.deferReply;
@@ -178,9 +287,16 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
     const embed = new EmbedBuilder()
         .setColor(0x3498db)
         .setTitle('🚨 Bank Security Patrol')
-        .setDescription(`Watch the security cameras closely... Click the button the moment you see the green light \`🟢\`!\n\n**DO NOT CLICK EARLY!**`)
-        .setFields({ name: '🎥 Camera Feed', value: '🔴 **STANDBY**' })
-        .setFooter({ text: 'Keep your eyes on the feed...' });
+        .setDescription(
+            `Watch the security cameras closely... Click the button the moment you see the green light \`🟢\`!\n\n**DO NOT CLICK EARLY!**`
+        )
+        .setFields({
+            name: '🎥 Camera Feed',
+            value: '🔴 **STANDBY**'
+        })
+        .setFooter({
+            text: 'Keep your eyes on the feed...'
+        });
 
     const btnRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -191,44 +307,74 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
     );
 
     let mainMessage;
+
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.followUp({
+                embeds: [embed],
+                components: [btnRow],
+                fetchReply: true
+            });
         } else {
-            mainMessage = await initialData.reply({ embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.reply({
+                embeds: [embed],
+                components: [btnRow],
+                fetchReply: true
+            });
         }
     } else {
-        mainMessage = await channel.send({ embeds: [embed], components: [btnRow] });
+        mainMessage = await channel.send({
+            embeds: [embed],
+            components: [btnRow]
+        });
     }
 
-    let clickedEarly = false;
     let alertTriggered = false;
     let startTime = 0;
 
-    const alertDelay = Math.random() * 2000 + 1500; // 1.5 to 3.5 seconds
+    const alertDelay =
+        Math.random() * 2000 + 1500;
 
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId === 'work_security',
-        time: alertDelay + 2500 // Alert delay + 2.5 seconds response time
-    });
+    const collector =
+        mainMessage.createMessageComponentCollector({
+            filter:
+                i =>
+                    i.user.id === userId &&
+                    i.customId === 'work_security',
+            time: alertDelay + 2500
+        });
 
     const alertTimeout = setTimeout(async () => {
         alertTriggered = true;
         startTime = Date.now();
+
         const alertEmbed = new EmbedBuilder()
             .setColor(0xe74c3c)
             .setTitle('🚨 Bank Security Patrol')
-            .setDescription(`🚨 **INTRUDER SPOTTED! CLICK NOW!**`)
-            .setFields({ name: '🎥 Camera Feed', value: '🟢 **ACTIVE ALERT! INTRUDER DETECTED!**' });
-        
-        const activeRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('work_security')
-                .setLabel('CATCH INTRUDER!')
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji('🚨')
-        );
-        await mainMessage.edit({ embeds: [alertEmbed], components: [activeRow] }).catch(() => {});
+            .setDescription(
+                `🚨 **INTRUDER SPOTTED! CLICK NOW!**`
+            )
+            .setFields({
+                name: '🎥 Camera Feed',
+                value:
+                    '🟢 **ACTIVE ALERT! INTRUDER DETECTED!**'
+            });
+
+        const activeRow =
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('work_security')
+                    .setLabel('CATCH INTRUDER!')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🚨')
+            );
+
+        await mainMessage
+            .edit({
+                embeds: [alertEmbed],
+                components: [activeRow]
+            })
+            .catch(() => {});
     }, alertDelay);
 
     collector.on('collect', async i => {
@@ -237,7 +383,6 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
         } catch (_) {}
 
         if (!alertTriggered) {
-            clickedEarly = true;
             clearTimeout(alertTimeout);
             collector.stop('early');
         } else {
@@ -245,71 +390,98 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
         }
     });
 
-    collector.on('end', async (collected, reason) => {
+    collector.on('end', async (_, reason) => {
         clearTimeout(alertTimeout);
 
         let earnings = 0;
-        let resultEmbed = new EmbedBuilder();
-        const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('work_security')
-                .setLabel('Incident Concluded')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(true)
-                .setEmoji('📹')
-        );
+
+        const resultEmbed = new EmbedBuilder();
+
+        const disabledRow =
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('work_security')
+                    .setLabel('Incident Concluded')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(true)
+                    .setEmoji('📹')
+            );
 
         if (reason === 'early') {
             resultEmbed
                 .setColor(0xe74c3c)
                 .setTitle('❌ False Alarm!')
-                .setDescription(`You got scared by a shadow, tripped over a trash can, and let the real thief slip away!\n\nEarned **0** Glimmering Baubles.`)
-                .setTimestamp();
+                .setDescription(
+                    `You got scared by a shadow and embarrassed yourself.\n\nEarned **0** Glimmering Baubles.`
+                );
         } else if (reason === 'caught') {
+
             const ms = Date.now() - startTime;
+
             if (ms <= 250) {
                 earnings = 90;
-                resultEmbed.setDescription(`⚡ **GODLIKE REFLEXES!** You caught the thief in a record **${ms}ms**!\n\nEarned **${earnings}** Glimmering Baubles.`);
             } else if (ms <= 500) {
                 earnings = 70;
-                resultEmbed.setDescription(`⚡ **FAST CATCH!** You apprehended the suspect in **${ms}ms**!\n\nEarned **${earnings}** Glimmering Baubles.`);
             } else if (ms <= 1000) {
                 earnings = 50;
-                resultEmbed.setDescription(`👮 **SUSPECT CAUGHT!** You intercepted the intruder in **${ms}ms**.\n\nEarned **${earnings}** Glimmering Baubles.`);
             } else {
                 earnings = 25;
-                resultEmbed.setDescription(`👮 **Suspect Apprehended.** You cornered them in **${ms}ms**.\n\nEarned **${earnings}** Glimmering Baubles.`);
             }
 
             resultEmbed
                 .setColor(0x2ecc71)
                 .setTitle('👮 Security Job Complete!')
-                .setTimestamp();
+                .setDescription(
+                    `You caught the intruder in **${ms}ms**!\n\nEarned **${earnings}** Glimmering Baubles.`
+                );
 
             try {
-                const currentProfile = await Bauble.findOne({ userId });
+                const currentProfile =
+                    await Bauble.findOne({ userId });
+
                 if (currentProfile) {
                     currentProfile.baubles += earnings;
+
                     await currentProfile.save();
-                    baubleData.baubles = currentProfile.baubles;
+
+                    baubleData.baubles =
+                        currentProfile.baubles;
                 }
             } catch (dbErr) {
-                console.error('Error saving security earnings:', dbErr);
+                console.error(
+                    'Error saving security earnings:',
+                    dbErr
+                );
             }
 
-            resultEmbed.addFields({ name: '💰 New Balance', value: `${baubleData.baubles} Baubles`, inline: true });
+            resultEmbed.addFields({
+                name: '💰 New Balance',
+                value: `${baubleData.baubles} Baubles`,
+                inline: true
+            });
+
         } else {
-            // Timeout
+
             resultEmbed
                 .setColor(0x7f8c8d)
                 .setTitle('❌ Thief Escaped!')
-                .setDescription(`You fell asleep on patrol! The thief cleaned out the vault while you snoozed.\n\nEarned **0** Glimmering Baubles.`)
-                .setTimestamp();
+                .setDescription(
+                    `You missed the intruder completely.\n\nEarned **0** Glimmering Baubles.`
+                );
         }
 
-        await mainMessage.edit({ embeds: [resultEmbed], components: [disabledRow] }).catch(() => {});
+        await mainMessage
+            .edit({
+                embeds: [resultEmbed],
+                components: [disabledRow]
+            })
+            .catch(() => {});
     });
 }
+
+/* =========================
+   FIXED ELECTRICIAN GAME
+========================= */
 
 async function runElectricianGame(initialData, channel, user, baubleData) {
     const isSlash = !!initialData.deferReply;
@@ -325,105 +497,200 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
         { clue: "Cut the primary color that starts with B!", answer: "blue" },
         { clue: "Cut the primary color that starts with R!", answer: "red" }
     ];
-    const selectedClue = wireClues[Math.floor(Math.random() * wireClues.length)];
+
+    const selectedClue =
+        wireClues[Math.floor(Math.random() * wireClues.length)];
 
     const embed = new EmbedBuilder()
         .setColor(0xf1c40f)
         .setTitle('🔌 Emergency Electrician')
-        .setDescription(`A power generator is overloading! Cut the correct wire within **10 seconds** to stabilize it!\n\n💡 **Code Hint:** *${selectedClue.clue}*`)
+        .setDescription(
+            `A power generator is overloading! Cut the correct wire within **10 seconds** to stabilize it!\n\n💡 **Code Hint:** *${selectedClue.clue}*`
+        )
         .setFooter({ text: 'Focus!' });
 
     const btnRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('wire_red').setLabel('Red').setStyle(ButtonStyle.Danger).setEmoji('🔴'),
-        new ButtonBuilder().setCustomId('wire_blue').setLabel('Blue').setStyle(ButtonStyle.Primary).setEmoji('🔵'),
-        new ButtonBuilder().setCustomId('wire_green').setLabel('Green').setStyle(ButtonStyle.Success).setEmoji('🟢'),
-        new ButtonBuilder().setCustomId('wire_yellow').setLabel('Yellow').setStyle(ButtonStyle.Secondary).setEmoji('🟡')
+        new ButtonBuilder()
+            .setCustomId('wire_red')
+            .setLabel('Red')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔴'),
+
+        new ButtonBuilder()
+            .setCustomId('wire_blue')
+            .setLabel('Blue')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('🔵'),
+
+        new ButtonBuilder()
+            .setCustomId('wire_green')
+            .setLabel('Green')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('🟢'),
+
+        new ButtonBuilder()
+            .setCustomId('wire_yellow')
+            .setLabel('Yellow')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('🟡')
     );
 
     let mainMessage;
+
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.followUp({
+                embeds: [embed],
+                components: [btnRow],
+                fetchReply: true
+            });
         } else {
-            mainMessage = await initialData.reply({ embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.reply({
+                embeds: [embed],
+                components: [btnRow],
+                fetchReply: true
+            });
         }
     } else {
-        mainMessage = await channel.send({ embeds: [embed], components: [btnRow] });
+        mainMessage = await channel.send({
+            embeds: [embed],
+            components: [btnRow]
+        });
     }
 
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('wire_'),
-        time: 10000,
-        max: 1
-    });
+    let gameResult = null;
+    let clickedColor = null;
+
+    const collector =
+        mainMessage.createMessageComponentCollector({
+            filter:
+                i =>
+                    i.user.id === userId &&
+                    i.customId.startsWith('wire_'),
+            time: 10000
+        });
 
     collector.on('collect', async i => {
         try {
             await i.deferUpdate();
         } catch (_) {}
-        
-        const clickedColor = i.customId.replace('wire_', '');
-        
+
+        clickedColor =
+            i.customId.replace('wire_', '');
+
         if (clickedColor === selectedClue.answer) {
-            collector.stop('success');
+            gameResult = 'success';
         } else {
-            collector.stop('wrong');
+            gameResult = 'wrong';
         }
+
+        collector.stop();
     });
 
-    collector.on('end', async (collected, reason) => {
+    collector.on('end', async () => {
+
         let earnings = 0;
-        let resultEmbed = new EmbedBuilder();
-        
-        const selected = collected.first();
-        const clickedColor = selected ? selected.customId.replace('wire_', '') : null;
 
-        // Recreate row and disable all
-        const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('wire_red').setLabel('Red').setStyle(ButtonStyle.Danger).setEmoji('🔴').setDisabled(true),
-            new ButtonBuilder().setCustomId('wire_blue').setLabel('Blue').setStyle(ButtonStyle.Primary).setEmoji('🔵').setDisabled(true),
-            new ButtonBuilder().setCustomId('wire_green').setLabel('Green').setStyle(ButtonStyle.Success).setEmoji('🟢').setDisabled(true),
-            new ButtonBuilder().setCustomId('wire_yellow').setLabel('Yellow').setStyle(ButtonStyle.Secondary).setEmoji('🟡').setDisabled(true)
-        );
+        const resultEmbed = new EmbedBuilder();
 
-        if (reason === 'success') {
+        const disabledRow =
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('wire_red')
+                    .setLabel('Red')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🔴')
+                    .setDisabled(true),
+
+                new ButtonBuilder()
+                    .setCustomId('wire_blue')
+                    .setLabel('Blue')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('🔵')
+                    .setDisabled(true),
+
+                new ButtonBuilder()
+                    .setCustomId('wire_green')
+                    .setLabel('Green')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('🟢')
+                    .setDisabled(true),
+
+                new ButtonBuilder()
+                    .setCustomId('wire_yellow')
+                    .setLabel('Yellow')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('🟡')
+                    .setDisabled(true)
+            );
+
+        if (gameResult === 'success') {
+
             earnings = 65;
+
             resultEmbed
                 .setColor(0x2ecc71)
                 .setTitle('✅ Generator Stabilized!')
-                .setDescription(`Excellent work! You cut the **${clickedColor.toUpperCase()}** wire. The generator is humming along nicely.\n\nEarned **${earnings}** Glimmering Baubles.`)
-                .setTimestamp();
+                .setDescription(
+                    `Excellent work! You cut the **${clickedColor.toUpperCase()}** wire.\n\nEarned **${earnings}** Glimmering Baubles.`
+                );
 
             try {
-                const currentProfile = await Bauble.findOne({ userId });
+                const currentProfile =
+                    await Bauble.findOne({ userId });
+
                 if (currentProfile) {
                     currentProfile.baubles += earnings;
+
                     await currentProfile.save();
-                    baubleData.baubles = currentProfile.baubles;
+
+                    baubleData.baubles =
+                        currentProfile.baubles;
                 }
             } catch (dbErr) {
-                console.error('Error saving electrician earnings:', dbErr);
+                console.error(
+                    'Error saving electrician earnings:',
+                    dbErr
+                );
             }
 
-            resultEmbed.addFields({ name: '💰 New Balance', value: `${baubleData.baubles} Baubles`, inline: true });
-        } else if (reason === 'wrong') {
+            resultEmbed.addFields({
+                name: '💰 New Balance',
+                value: `${baubleData.baubles} Baubles`,
+                inline: true
+            });
+
+        } else if (gameResult === 'wrong') {
+
             resultEmbed
                 .setColor(0xe74c3c)
                 .setTitle('💥 Short Circuit!')
-                .setDescription(`ZAP! You cut the **${clickedColor.toUpperCase()}** wire instead of the **${selectedClue.answer.toUpperCase()}** wire! You caused a massive explosion and got shocked!\n\nEarned **0** Glimmering Baubles.`)
-                .setTimestamp();
+                .setDescription(
+                    `ZAP! You cut the **${clickedColor.toUpperCase()}** wire instead of the **${selectedClue.answer.toUpperCase()}** wire!\n\nEarned **0** Glimmering Baubles.`
+                );
+
         } else {
-            // Timeout
+
             resultEmbed
                 .setColor(0xe67e22)
                 .setTitle('💥 Generator Overloaded!')
-                .setDescription(`BOOM! You couldn't decide which wire to cut in time, and the generator exploded!\n\nEarned **0** Glimmering Baubles.`)
-                .setTimestamp();
+                .setDescription(
+                    `You didn't cut a wire in time and the generator exploded!\n\nEarned **0** Glimmering Baubles.`
+                );
         }
 
-        await mainMessage.edit({ embeds: [resultEmbed], components: [disabledRow] }).catch(() => {});
+        await mainMessage
+            .edit({
+                embeds: [resultEmbed],
+                components: [disabledRow]
+            })
+            .catch(() => {});
     });
 }
+
+/* =========================
+   BARISTA GAME
+========================= */
 
 async function runBaristaGame(initialData, channel, user, baubleData) {
     const isSlash = !!initialData.deferReply;
