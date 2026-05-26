@@ -6,6 +6,44 @@ const Canvas = require('@napi-rs/canvas');
 const Profile = require('../../models/profileSchema');
 const Bauble = require('../../models/baubleSchema'); // Assumes your bauble schema stores "baubles" for each user
 
+function drawCrown(ctx, x, y, width, height) {
+    ctx.save();
+    ctx.fillStyle = '#FFD700'; // Gold
+    ctx.strokeStyle = '#DAA520'; // Dark Gold
+    ctx.lineWidth = 3;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y + height);
+    ctx.lineTo(x + width, y + height);
+    ctx.lineTo(x + width, y);
+    ctx.lineTo(x + width * 0.75, y + height * 0.4);
+    ctx.lineTo(x + width * 0.5, y + height * 0.1);
+    ctx.lineTo(x + width * 0.25, y + height * 0.4);
+    ctx.lineTo(x, y);
+    ctx.closePath();
+    
+    ctx.fill();
+    ctx.stroke();
+
+    // Gems
+    ctx.fillStyle = '#FF0000'; // Red gem
+    ctx.beginPath();
+    ctx.arc(x + width * 0.5, y + height * 0.1, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#0000FF'; // Blue gem
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#00FF00'; // Green gem
+    ctx.beginPath();
+    ctx.arc(x + width, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
 module.exports = {
     category: 'profile',
     data: new SlashCommandBuilder()
@@ -45,6 +83,7 @@ module.exports = {
             if (baubleData && typeof baubleData.baubles === 'number') {
                 baubleBalance = baubleData.baubles;
             }
+            const hasCrown = baubleData && baubleData.inventory && baubleData.inventory.some(item => item.itemId === 'crown' && item.quantity > 0);
 
             // If the profile is private and the requester isn’t the owner, refuse to show.
             if (profileData.private && interaction.user.id !== targetUser.id) {
@@ -91,6 +130,10 @@ module.exports = {
             ctx.drawImage(avatar, 16, 261, avatarSize, avatarSize);
             ctx.restore();
 
+            if (hasCrown) {
+                drawCrown(ctx, 55, 229, 50, 35);
+            }
+
             // Determine display name: custom if set, else username.
             const displayName = profileData.customDisplayName || targetUser.username;
 
@@ -98,6 +141,12 @@ module.exports = {
             ctx.font = '32px sans-serif';
             ctx.fillStyle = '#ffffff';
             ctx.fillText(displayName, 160, 300);
+
+            if (hasCrown) {
+                const nameWidth = ctx.measureText(displayName).width;
+                drawCrown(ctx, 160 + nameWidth + 12, 300 - 24, 28, 20);
+            }
+
             ctx.font = '24px sans-serif';
             ctx.fillStyle = '#cccccc';
             ctx.fillText(targetUser.tag, 160, 335);
@@ -185,6 +234,7 @@ module.exports = {
             if (baubleData && typeof baubleData.baubles === 'number') {
                 baubleBalance = baubleData.baubles;
             }
+            const hasCrown = baubleData && baubleData.inventory && baubleData.inventory.some(item => item.itemId === 'crown' && item.quantity > 0);
 
             // Canvas dimensions updated.
             const canvasWidth = 800, canvasHeight = 450;
@@ -231,10 +281,20 @@ module.exports = {
             ctx.drawImage(avatar, 16, 261, avatarSize, avatarSize);
             ctx.restore();
 
+            if (hasCrown) {
+                drawCrown(ctx, 55, 229, 50, 35);
+            }
+
             const displayName = profileData.customDisplayName || targetUser.username;
             ctx.font = '32px sans-serif';
             ctx.fillStyle = '#ffffff';
             ctx.fillText(displayName, 160, 300);
+
+            if (hasCrown) {
+                const nameWidth = ctx.measureText(displayName).width;
+                drawCrown(ctx, 160 + nameWidth + 12, 300 - 24, 28, 20);
+            }
+
             ctx.font = '24px sans-serif';
             ctx.fillStyle = '#cccccc';
             ctx.fillText(targetUser.tag, 160, 335);

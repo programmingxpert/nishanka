@@ -6,17 +6,30 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('add')
-        .setDescription('[ADMIN ONLY] Add Glimmering Baubles to a user.')
+        .setDescription('[ADMIN ONLY] Add Glimmering Baubles or shop items to a user.')
         .addUserOption(option =>
             option.setName('user')
-                .setDescription('The user to add Baubles to.')
+                .setDescription('The user to add to.')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('The amount of Baubles to add.')
-                .setRequired(true)),
+                .setDescription('The amount of Baubles or quantity of items to add.')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('item')
+                .setDescription('The shop item to add (leave blank for Baubles).')
+                .setRequired(false)
+                .addChoices(
+                    { name: '☕ Energizing Coffee', value: 'coffee' },
+                    { name: '🍀 Lucky Clover', value: 'clover' },
+                    { name: '🛡️ Aegis Shield', value: 'shield' },
+                    { name: '📦 Mystery Box', value: 'mystery_box' },
+                    { name: '🏷️ Custom Tag', value: 'tag' },
+                    { name: '🎨 Profile Paintbrush', value: 'paintbrush' },
+                    { name: '💎 Golden Nugget', value: 'nugget' },
+                    { name: '👑 Crown of Royalty', value: 'crown' }
+                )),
     async execute(interaction) {
-        // Replace 'YOUR_DISCORD_ID' with your actual Discord ID
         const adminId = "805007574193405952";
 
         if (interaction.user.id !== adminId) {
@@ -25,26 +38,54 @@ module.exports = {
 
         const user = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
+        const itemId = interaction.options.getString('item');
+
+        if (amount <= 0) {
+            return interaction.reply({ content: '❌ Amount must be greater than 0.', ephemeral: true });
+        }
 
         try {
             let baubleData = await Bauble.findOne({ userId: user.id });
 
             if (!baubleData) {
-                baubleData = new Bauble({ userId: user.id, baubles: 0 });
+                baubleData = new Bauble({ userId: user.id, baubles: 0, inventory: [] });
             }
 
-            baubleData.baubles += amount;
-            await baubleData.save();
+            if (itemId) {
+                if (!baubleData.inventory) baubleData.inventory = [];
+                const invItem = baubleData.inventory.find(i => i.itemId === itemId);
+                if (invItem) {
+                    invItem.quantity += amount;
+                } else {
+                    baubleData.inventory.push({ itemId, quantity: amount });
+                }
+                await baubleData.save();
 
-            await interaction.reply({ content: `✅ Successfully added ${amount} Baubles to ${user.tag}. New balance: ${baubleData.baubles}`, ephemeral: true });
+                const itemNames = {
+                    coffee: '☕ Energizing Coffee',
+                    clover: '🍀 Lucky Clover',
+                    shield: '🛡️ Aegis Shield',
+                    mystery_box: '📦 Mystery Box',
+                    tag: '🏷️ Custom Tag',
+                    paintbrush: '🎨 Profile Paintbrush',
+                    nugget: '💎 Golden Nugget',
+                    crown: '👑 Crown of Royalty'
+                };
+                const itemName = itemNames[itemId] || itemId;
+                await interaction.reply({ content: `✅ Successfully added **${amount}x ${itemName}** to ${user.tag}'s inventory.`, ephemeral: true });
+            } else {
+                baubleData.baubles += amount;
+                await baubleData.save();
+
+                await interaction.reply({ content: `✅ Successfully added **${amount}** Baubles to ${user.tag}. New balance: **${baubleData.baubles.toLocaleString()}**`, ephemeral: true });
+            }
 
         } catch (error) {
             console.error('Error in add command:', error);
-            await interaction.reply({ content: '❌ An error occurred while adding Baubles.', ephemeral: true });
+            await interaction.reply({ content: '❌ An error occurred while adding.', ephemeral: true });
         }
     },
     async executePrefix(message, args) {
-        // Replace 'YOUR_DISCORD_ID' with your actual Discord ID
         const adminId = "805007574193405952";
 
         if (message.author.id !== adminId) {
@@ -52,31 +93,89 @@ module.exports = {
         }
 
         const user = message.mentions.users.first();
-        const amount = parseInt(args[1]);
-
         if (!user) {
-            return message.reply('⚠️ Please mention a user to add Baubles to.');
+            return message.reply('⚠️ Please mention a user to add to. Usage: `-add <@user> <amount|item_id> [item_id|amount]`');
         }
 
-        if (isNaN(amount)) {
-            return message.reply('⚠️ Please specify a valid amount to add.');
+        const itemIds = ["coffee", "clover", "shield", "mystery_box", "tag", "paintbrush", "nugget", "crown"];
+        let itemId = null;
+        let amount = 1;
+        let isItem = false;
+
+        const arg1 = args[1];
+        const arg2 = args[2];
+
+        if (!arg1) {
+            return message.reply('⚠️ Usage:\n- To add Baubles: `-add @user <amount>`\n- To add items: `-add @user <item_id> [quantity]` or `-add @user <quantity> <item_id>`');
+        }
+
+        if (itemIds.includes(arg1.toLowerCase())) {
+            itemId = arg1.toLowerCase();
+            isItem = true;
+            if (arg2) {
+                const parsedQty = parseInt(arg2);
+                if (!isNaN(parsedQty) && parsedQty > 0) {
+                    amount = parsedQty;
+                }
+            }
+        } else {
+            const parsedNum = parseInt(arg1);
+            if (!isNaN(parsedNum)) {
+                if (arg2 && itemIds.includes(arg2.toLowerCase())) {
+                    itemId = arg2.toLowerCase();
+                    isItem = true;
+                    amount = parsedNum;
+                } else {
+                    amount = parsedNum;
+                }
+            } else {
+                return message.reply(`⚠️ Invalid argument. Choose from items: ${itemIds.join(', ')} or specify a number.`);
+            }
+        }
+
+        if (amount <= 0) {
+            return message.reply('❌ Amount must be greater than 0.');
         }
 
         try {
             let baubleData = await Bauble.findOne({ userId: user.id });
 
             if (!baubleData) {
-                baubleData = new Bauble({ userId: user.id, baubles: 0 });
+                baubleData = new Bauble({ userId: user.id, baubles: 0, inventory: [] });
             }
 
-            baubleData.baubles += amount;
-            await baubleData.save();
+            if (isItem) {
+                if (!baubleData.inventory) baubleData.inventory = [];
+                const invItem = baubleData.inventory.find(i => i.itemId === itemId);
+                if (invItem) {
+                    invItem.quantity += amount;
+                } else {
+                    baubleData.inventory.push({ itemId, quantity: amount });
+                }
+                await baubleData.save();
 
-            await message.reply(`✅ Successfully added ${amount} Baubles to ${user.tag}. New balance: ${baubleData.baubles}`);
+                const itemNames = {
+                    coffee: '☕ Energizing Coffee',
+                    clover: '🍀 Lucky Clover',
+                    shield: '🛡️ Aegis Shield',
+                    mystery_box: '📦 Mystery Box',
+                    tag: '🏷️ Custom Tag',
+                    paintbrush: '🎨 Profile Paintbrush',
+                    nugget: '💎 Golden Nugget',
+                    crown: '👑 Crown of Royalty'
+                };
+                const itemName = itemNames[itemId] || itemId;
+                await message.reply(`✅ Successfully added **${amount}x ${itemName}** to ${user.tag}'s inventory.`);
+            } else {
+                baubleData.baubles += amount;
+                await baubleData.save();
+
+                await message.reply(`✅ Successfully added **${amount}** Baubles to ${user.tag}. New balance: **${baubleData.baubles.toLocaleString()}**`);
+            }
 
         } catch (error) {
             console.error('Error in add command (prefix):', error);
-            await message.reply('❌ An error occurred while adding Baubles.');
+            await message.reply('❌ An error occurred while adding.');
         }
     },
 };
