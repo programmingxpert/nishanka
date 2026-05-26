@@ -18,6 +18,16 @@ const guildSettingsSchema = new mongoose.Schema({
         nickname: { type: String, default: '' },
         deleteInvoke: { type: Boolean, default: false },
         unknownCommandMsg: { type: Boolean, default: false }
+    },
+    dashboardPermissions: {
+        bot: { type: [String], default: [] },
+        giveaways: { type: [String], default: [] },
+        embed: { type: [String], default: [] },
+        triggers: { type: [String], default: [] },
+        mediaonly: { type: [String], default: [] },
+        automod: { type: [String], default: [] },
+        censor: { type: [String], default: [] },
+        music: { type: [String], default: [] }
     }
 });
 

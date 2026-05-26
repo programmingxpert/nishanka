@@ -250,12 +250,18 @@ app.get("/api/health", (req, res) => {
   const hours = Math.floor(uptimeSeconds / 3600);
   const minutes = Math.floor((uptimeSeconds % 3600) / 60);
   
+  const musicServers = client.riffy ? client.riffy.nodes.map((n, idx) => ({
+    name: `Music Server ${idx + 1}`,
+    connected: n.connected
+  })) : [];
+
   res.json({
     status: 'online',
     discord_ready: client.isReady(),
     uptime: `${hours}h ${minutes}m`,
     guilds: client.guilds.cache.size,
-    commands: client.commands.size
+    commands: client.commands.size,
+    musicServers
   });
 });
 
@@ -434,6 +440,35 @@ const checkGuildAccess = async (req, guildId) => {
   }
 };
 
+const checkPermission = async (req, guildId, tab) => {
+  if (!req.session.user) return false;
+  
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return false;
+
+  const isOwner = guild.ownerId === req.session.user.id;
+  if (isOwner) return true;
+
+  let isAdmin = false;
+  let userRoles = [];
+  try {
+    const member = await guild.members.fetch(req.session.user.id);
+    isAdmin = member.permissions.has('Administrator');
+    userRoles = member.roles.cache.map(r => r.id);
+  } catch (err) {
+    console.error(`[Dashboard] Failed to fetch member permissions for ${req.session.user.id} in ${guildId}:`, err.message);
+    return false;
+  }
+
+  if (isAdmin) return true;
+
+  const config = await GuildSettings.findOne({ guildId }).lean();
+  const dbPerms = config?.dashboardPermissions || {};
+  const allowedRoles = dbPerms[tab] || [];
+  if (allowedRoles.length === 0) return true; // Default fallback
+  return allowedRoles.some(r => userRoles.includes(r));
+};
+
 app.get('/api/guilds/:guildId/discord-data', async (req, res) => {
   const { guildId } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);
@@ -470,12 +505,65 @@ app.get('/api/guilds/:guildId', async (req, res) => {
       GuildSettings.findOne({ guildId }).lean()
     ]);
 
+    const guild = client.guilds.cache.get(guildId);
+    let isOwner = false;
+    let isAdmin = false;
+    let userRoles = [];
+
+    if (guild) {
+      isOwner = guild.ownerId === req.session.user.id;
+      try {
+        const member = await guild.members.fetch(req.session.user.id);
+        isAdmin = member.permissions.has('Administrator') || isOwner;
+        userRoles = member.roles.cache.map(r => r.id);
+      } catch (err) {
+        console.error(`[Dashboard] Failed to fetch member info for ${req.session.user.id}:`, err.message);
+      }
+    }
+
+    const dbPerms = guildConfig?.dashboardPermissions || {};
+    const canEdit = (tab) => {
+      if (isOwner || isAdmin) return true;
+      const allowedRoles = dbPerms[tab] || [];
+      if (allowedRoles.length === 0) return true; // Default fallback
+      return allowedRoles.some(r => userRoles.includes(r));
+    };
+
+    const userPermissions = {
+      isOwner,
+      isAdmin,
+      roles: userRoles,
+      canEdit: {
+        bot: canEdit('bot'),
+        giveaways: canEdit('giveaways'),
+        embed: canEdit('embed'),
+        triggers: canEdit('triggers'),
+        mediaonly: canEdit('mediaonly'),
+        automod: canEdit('automod'),
+        censor: canEdit('censor'),
+        music: canEdit('music'),
+        permissions: isOwner || isAdmin
+      },
+      dashboardPermissions: {
+        bot: dbPerms.bot || [],
+        giveaways: dbPerms.giveaways || [],
+        embed: dbPerms.embed || [],
+        triggers: dbPerms.triggers || [],
+        mediaonly: dbPerms.mediaonly || [],
+        automod: dbPerms.automod || [],
+        censor: dbPerms.censor || [],
+        music: dbPerms.music || []
+      }
+    };
+
     res.json({
       autoMod: autoMod || {},
       censor: censor || {},
       economy: guildConfig?.economy || {},
       music: guildConfig?.music || {},
-      bot: guildConfig?.bot || {}
+      bot: guildConfig?.bot || {},
+      dashboardPermissions: dbPerms,
+      userPermissions
     });
   } catch (err) {
     console.error('Fetch settings error:', err);
@@ -488,13 +576,41 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
-  const { autoMod, censor, economy, music, bot } = req.body;
+  const { autoMod, censor, economy, music, bot, dashboardPermissions } = req.body;
 
   try {
-    // Check nickname update
-    if (bot && bot.nickname !== undefined) {
-      const guild = client.guilds.cache.get(guildId);
-      if (guild) {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
+
+    const isOwner = guild.ownerId === req.session.user.id;
+    let isAdmin = false;
+    let userRoles = [];
+    try {
+      const member = await guild.members.fetch(req.session.user.id);
+      isAdmin = member.permissions.has('Administrator') || isOwner;
+      userRoles = member.roles.cache.map(r => r.id);
+    } catch (err) {}
+
+    const currentConfig = await GuildSettings.findOne({ guildId }).lean();
+    const dbPerms = currentConfig?.dashboardPermissions || {};
+
+    const canEdit = (tab) => {
+      if (isOwner || isAdmin) return true;
+      const allowedRoles = dbPerms[tab] || [];
+      if (allowedRoles.length === 0) return true; // Default fallback
+      return allowedRoles.some(r => userRoles.includes(r));
+    };
+
+    const settingsUpdates = {};
+
+    if (bot) {
+      if (!canEdit('bot')) {
+        return res.status(403).json({ error: 'You do not have permission to modify Bot Identity settings.' });
+      }
+      settingsUpdates.bot = bot;
+
+      // Check nickname update
+      if (bot.nickname !== undefined) {
         try {
           const currentNickname = guild.members.me.nickname || '';
           if (bot.nickname !== currentNickname) {
@@ -506,15 +622,46 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
       }
     }
 
-    await Promise.all([
-      AutoMod.findOneAndUpdate({ guildId }, { ...autoMod }, { upsert: true, new: true }),
-      Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true }),
-      GuildSettings.findOneAndUpdate({ guildId }, { economy: economy || {}, music: music || {}, bot: bot || {} }, { upsert: true, new: true })
-    ]);
+    if (music) {
+      if (!canEdit('music')) {
+        return res.status(403).json({ error: 'You do not have permission to modify Music settings.' });
+      }
+      settingsUpdates.music = music;
+    }
 
-    // Force bot to reload these from DB next time they're needed
-    if (client.censorCache) client.censorCache.delete(guildId);
-    if (client.autoModSettings) client.autoModSettings.delete(guildId);
+    if (economy) {
+      settingsUpdates.economy = economy;
+    }
+
+    if (dashboardPermissions) {
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ error: 'Only server Owners or Administrators can modify Dashboard Permissions.' });
+      }
+      settingsUpdates.dashboardPermissions = dashboardPermissions;
+    }
+
+    // Save GuildSettings
+    if (Object.keys(settingsUpdates).length > 0) {
+      await GuildSettings.findOneAndUpdate({ guildId }, { $set: settingsUpdates }, { upsert: true, new: true });
+    }
+
+    // Save AutoMod
+    if (autoMod) {
+      if (!canEdit('automod')) {
+        return res.status(403).json({ error: 'You do not have permission to modify AutoMod settings.' });
+      }
+      await AutoMod.findOneAndUpdate({ guildId }, { ...autoMod }, { upsert: true, new: true });
+      if (client.autoModSettings) client.autoModSettings.delete(guildId);
+    }
+
+    // Save Censor
+    if (censor) {
+      if (!canEdit('censor')) {
+        return res.status(403).json({ error: 'You do not have permission to modify Censor settings.' });
+      }
+      await Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true });
+      if (client.censorCache) client.censorCache.delete(guildId);
+    }
 
     res.json({ ok: true });
   } catch (err) {
@@ -641,6 +788,9 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
+  const canEdit = await checkPermission(req, guildId, 'giveaways');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Giveaways.' });
+
   const { channelId, prize, duration, winners, reqMessages, reqInvites, reqRole } = req.body;
   const ms = require('ms');
   const msValue = ms(duration);
@@ -712,6 +862,9 @@ app.put('/api/guilds/:guildId/giveaways/:messageId', express.json(), async (req,
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
+  const canEdit = await checkPermission(req, guildId, 'giveaways');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Giveaways.' });
+
   const { prize, winners, reqMessages, reqInvites, reqRole } = req.body;
 
   try {
@@ -770,6 +923,9 @@ app.post('/api/guilds/:guildId/embed', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
+  const canEdit = await checkPermission(req, guildId, 'embed');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to create embeds.' });
+
   const { channelId, title, description, color, author, footer, textPing } = req.body;
 
   try {
@@ -823,6 +979,9 @@ app.post('/api/guilds/:guildId/triggers', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
+  const canEdit = await checkPermission(req, guildId, 'triggers');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Triggers.' });
+
   try {
     const { triggerWord, matchType, response } = req.body;
     if (!triggerWord) return res.status(400).json({ error: 'triggerWord required' });
@@ -846,6 +1005,9 @@ app.put('/api/guilds/:guildId/triggers/:id', express.json(), async (req, res) =>
   const { guildId, id } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const canEdit = await checkPermission(req, guildId, 'triggers');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Triggers.' });
 
   try {
     const { triggerWord, matchType, response } = req.body;
@@ -872,6 +1034,9 @@ app.delete('/api/guilds/:guildId/triggers/:id', async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
+  const canEdit = await checkPermission(req, guildId, 'triggers');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Triggers.' });
+
   try {
     const Trigger = require('./models/triggerSchema');
     await Trigger.findByIdAndDelete(id);
@@ -886,6 +1051,9 @@ app.delete('/api/guilds/:guildId/giveaways/:messageId', async (req, res) => {
   const { guildId, messageId } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const canEdit = await checkPermission(req, guildId, 'giveaways');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Giveaways.' });
 
   try {
     const Giveaway = require('./models/Giveaway');
@@ -910,6 +1078,9 @@ app.post('/api/guilds/:guildId/giveaways/:messageId/end', async (req, res) => {
   const { guildId, messageId } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const canEdit = await checkPermission(req, guildId, 'giveaways');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Giveaways.' });
 
   try {
     const Giveaway = require('./models/Giveaway');
@@ -947,6 +1118,9 @@ app.post('/api/guilds/:guildId/media-only-channels', express.json(), async (req,
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
+  const canEdit = await checkPermission(req, guildId, 'mediaonly');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Media Only channels.' });
+
   try {
     const { channelId, enabled, customWarning, createThread, applyToEveryone } = req.body;
     if (!channelId) return res.status(400).json({ error: 'channelId required' });
@@ -975,6 +1149,9 @@ app.delete('/api/guilds/:guildId/media-only-channels/:channelId', async (req, re
   const { guildId, channelId } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const canEdit = await checkPermission(req, guildId, 'mediaonly');
+  if (!canEdit) return res.status(403).json({ error: 'You do not have permission to modify Media Only channels.' });
 
   try {
     const MediaOnly = require('./models/mediaOnlySchema');
