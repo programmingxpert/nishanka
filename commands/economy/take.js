@@ -5,19 +5,19 @@ const Bauble = require('../../models/baubleSchema');
 module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
-        .setName('remove')
-        .setDescription('[ADMIN ONLY] Remove Glimmering Baubles or shop items from a user.')
+        .setName('take')
+        .setDescription('[ADMIN ONLY] Take Glimmering Baubles or shop items from a user.')
         .addUserOption(option =>
             option.setName('user')
-                .setDescription('The user to remove from.')
+                .setDescription('The user to take from.')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('The amount of Baubles or quantity of items to remove.')
+                .setDescription('The amount of Baubles or quantity of items to take.')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('item')
-                .setDescription('The shop item to remove (leave blank for Baubles).')
+                .setDescription('The shop item to take (leave blank for Baubles).')
                 .setRequired(false)
                 .addChoices(
                     { name: '☕ Energizing Coffee', value: 'coffee' },
@@ -70,7 +70,6 @@ module.exports = {
                     baubleData.inventory = baubleData.inventory.filter(i => i.itemId !== itemId);
                 }
                 
-                // Mark modified since we are updating elements within the subdocument array
                 baubleData.markModified('inventory');
                 await baubleData.save();
 
@@ -85,7 +84,7 @@ module.exports = {
                     crown: '👑 Crown of Royalty'
                 };
                 const itemName = itemNames[itemId] || itemId;
-                await interaction.reply({ content: `✅ Successfully removed **${amount}x ${itemName}** from ${user.tag}'s inventory.`, ephemeral: true });
+                await interaction.reply({ content: `✅ Successfully took **${amount}x ${itemName}** from ${user.tag}'s inventory.`, ephemeral: true });
             } else {
                 if (baubleData.baubles < amount) {
                     return interaction.reply({ content: `❌ ${user.tag} only has **${baubleData.baubles}** Baubles.`, ephemeral: true });
@@ -94,12 +93,12 @@ module.exports = {
                 baubleData.baubles -= amount;
                 await baubleData.save();
 
-                await interaction.reply({ content: `✅ Successfully removed **${amount}** Baubles from ${user.tag}. New balance: **${baubleData.baubles.toLocaleString()}**`, ephemeral: true });
+                await interaction.reply({ content: `✅ Successfully took **${amount}** Baubles from ${user.tag}. New balance: **${baubleData.baubles.toLocaleString()}**`, ephemeral: true });
             }
 
         } catch (error) {
-            console.error('Error in remove command:', error);
-            await interaction.reply({ content: '❌ An error occurred while removing.', ephemeral: true });
+            console.error('Error in take command:', error);
+            await interaction.reply({ content: '❌ An error occurred while taking items.', ephemeral: true });
         }
     },
     async executePrefix(message, args) {
@@ -111,7 +110,7 @@ module.exports = {
 
         const user = message.mentions.users.first();
         if (!user) {
-            return message.reply('⚠️ Please mention a user to remove from. Usage: `-remove <@user> <amount|item_id> [item_id|amount]`');
+            return message.reply('⚠️ Please mention a user to take from. Usage: `-take <@user> <amount|item_id> [item_id|amount]`');
         }
 
         const itemIds = ["coffee", "clover", "shield", "mystery_box", "tag", "paintbrush", "nugget", "crown"];
@@ -123,7 +122,7 @@ module.exports = {
         const arg2 = args[2];
 
         if (!arg1) {
-            return message.reply('⚠️ Usage:\n- To remove Baubles: `-remove @user <amount>`\n- To remove items: `-remove @user <item_id> [quantity]` or `-remove @user <quantity> <item_id>`');
+            return message.reply('⚠️ Usage:\n- To take Baubles: `-take @user <amount>`\n- To take items: `-take @user <item_id> [quantity]` or `-take @user <quantity> <item_id>`');
         }
 
         if (itemIds.includes(arg1.toLowerCase())) {
@@ -194,7 +193,7 @@ module.exports = {
                     crown: '👑 Crown of Royalty'
                 };
                 const itemName = itemNames[itemId] || itemId;
-                await message.reply(`✅ Successfully removed **${amount}x ${itemName}** from ${user.tag}'s inventory.`);
+                await message.reply(`✅ Successfully took **${amount}x ${itemName}** from ${user.tag}'s inventory.`);
             } else {
                 if (baubleData.baubles < amount) {
                     return message.reply(`❌ ${user.tag} only has **${baubleData.baubles}** Baubles.`);
@@ -203,12 +202,12 @@ module.exports = {
                 baubleData.baubles -= amount;
                 await baubleData.save();
 
-                await message.reply(`✅ Successfully removed **${amount}** Baubles from ${user.tag}. New balance: **${baubleData.baubles.toLocaleString()}**`);
+                await message.reply(`✅ Successfully took **${amount}** Baubles from ${user.tag}. New balance: **${baubleData.baubles.toLocaleString()}**`);
             }
 
         } catch (error) {
-            console.error('Error in remove command (prefix):', error);
-            await message.reply('❌ An error occurred while removing.');
+            console.error('Error in take command (prefix):', error);
+            await message.reply('❌ An error occurred while taking items.');
         }
     },
 };
