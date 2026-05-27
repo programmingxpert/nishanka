@@ -45,6 +45,7 @@ client.afk           = new Map(); // userId → { reason, time, displayName }
 client.spamTracker   = new Collection(); // userId-guildId → timestamps[]
 client.spamViolations = new Collection(); // userId-guildId → count
 client.autoModSettings = new Collection(); // guildId → settings
+client.antispamSettings = new Collection(); // guildId → settings
 client.repetitionTracker = new Collection(); // userId-guildId → { content, count, lastTimestamp }
 client.censorCache = new Collection(); // guildId → settings
 
@@ -259,9 +260,9 @@ app.get("/api/health", (req, res) => {
   const hours = Math.floor(uptimeSeconds / 3600);
   const minutes = Math.floor((uptimeSeconds % 3600) / 60);
   
-  const musicServers = client.riffy ? client.riffy.nodes.map((n, idx) => ({
-    name: `Music Server ${idx + 1}`,
-    connected: n.connected
+  const musicServers = client.riffy ? Array.from(client.riffy.nodeMap.values()).map((n, idx) => ({
+    name: n.name || `Music Server ${idx + 1}`,
+    connected: !!n.connected
   })) : [];
 
   res.json({
