@@ -2,21 +2,10 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-function getScaleRate(minesCount) {
-    if (minesCount === 1) return 0.01;
-    if (minesCount === 2) return 0.03;
-    if (minesCount === 3) return 0.05;
-    return 0.06;
-}
-
 function getMultiplier(totalTiles, minesCount, revealedCount) {
     if (revealedCount === 0) return 1.0;
     
-    // Calculate base house edge
-    const baseEdge = 0.05 + 0.05 * (minesCount - 1);
-    
-    // Scale house edge with the number of revealed tiles
-    const houseEdge = Math.min(0.85, baseEdge + getScaleRate(minesCount) * (revealedCount - 1));
+    const houseEdge = 0.04; // 4% constant house edge
     
     let waysTotal = 1;
     let waysWinning = 1;
