@@ -1163,6 +1163,346 @@ app.delete('/api/guilds/:guildId/media-only-channels/:channelId', async (req, re
   }
 });
 
+// ─── User Profile & Personal Economy Dashboard API ──────────────────────────────
+
+function webIsToday(date) {
+    if (!date) return false;
+    const now = new Date();
+    return date.getFullYear() === now.getFullYear() &&
+           date.getMonth() === now.getMonth() &&
+           date.getDate() === now.getDate();
+}
+
+function webFormatTimeRemaining(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    const parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    parts.push(`${seconds}s`);
+    return parts.join(' ');
+}
+
+function getWebDailyRarity(amount) {
+    if (amount <= 1100) return { tier: 'Common', name: 'Mildly Disappointing Pocket Lint' };
+    if (amount <= 1350) return { tier: 'Uncommon', name: 'Slightly Spicy Loose Change' };
+    if (amount <= 1600) return { tier: 'Rare', name: 'Glow-in-the-Dark Jackpot' };
+    if (amount <= 1750) return { tier: 'Epic', name: 'Hypnotic Glitter Explosion' };
+    return { tier: 'Legendary', name: 'Deity-Tier Shiny Sparkler' };
+}
+
+app.get('/api/user/profile', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = req.session.user.id;
+
+  try {
+    const Profile = require('./models/profileSchema');
+    const Bauble = require('./models/baubleSchema');
+
+    let profile = await Profile.findOne({ userId }).lean();
+    if (!profile) {
+      profile = {
+        userId,
+        bio: 'This is my bio!',
+        bannerColor: '#7289DA',
+        customDisplayName: '',
+        pfpUrl: '',
+        bannerUrl: '',
+        private: false,
+        showBaubles: true
+      };
+    }
+
+    let baublesData = await Bauble.findOne({ userId }).lean();
+    if (!baublesData) {
+      baublesData = {
+        userId,
+        baubles: 0,
+        inventory: [],
+        dailyStreak: 0,
+        dailyMaxStreak: 0,
+        dailyLastClaimed: null,
+        weeklyLastClaimed: null,
+        coffeeExpiresAt: null,
+        luckExpiresAt: null,
+        passiveMode: false,
+        dailyWorkLastCompleted: null,
+        dailyGameLastCompleted: null,
+        dailyGambleLastCompleted: null,
+        dailyTasksClaimedAt: null
+      };
+    }
+
+    const hasPaintbrush = baublesData.inventory ? baublesData.inventory.some(item => item.itemId === 'paintbrush' && item.quantity > 0) : false;
+
+    // Calculate tasks checklist details
+    const checklistStatus = {
+      daily: webIsToday(baublesData.dailyLastClaimed),
+      work: webIsToday(baublesData.dailyWorkLastCompleted),
+      game: webIsToday(baublesData.dailyGameLastCompleted),
+      gamble: webIsToday(baublesData.dailyGambleLastCompleted),
+      claimed: webIsToday(baublesData.dailyTasksClaimedAt),
+    };
+    let completedCount = 0;
+    if (checklistStatus.daily) completedCount++;
+    if (checklistStatus.work) completedCount++;
+    if (checklistStatus.game) completedCount++;
+    if (checklistStatus.gamble) completedCount++;
+    checklistStatus.completedCount = completedCount;
+    checklistStatus.allCompleted = completedCount === 4;
+
+    res.json({
+      profile,
+      baubles: baublesData,
+      hasPaintbrush,
+      checklist: checklistStatus,
+      user: req.session.user
+    });
+  } catch (err) {
+    console.error('Failed to fetch user profile via web:', err);
+    res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
+app.post('/api/user/profile', express.json(), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = req.session.user.id;
+  const { bio, bannerColor, customDisplayName, bannerUrl, private: isPrivate, showBaubles } = req.body;
+
+  try {
+    const Profile = require('./models/profileSchema');
+    const Bauble = require('./models/baubleSchema');
+
+    // Check Paintbrush requirement if bannerColor or bannerUrl is changing
+    let currentProfile = await Profile.findOne({ userId }).lean();
+    const isBannerColorChanging = bannerColor && (!currentProfile || currentProfile.bannerColor !== bannerColor);
+    const isBannerUrlChanging = bannerUrl !== undefined && (!currentProfile || currentProfile.bannerUrl !== bannerUrl);
+
+    if (isBannerColorChanging || isBannerUrlChanging) {
+      const baublesData = await Bauble.findOne({ userId }).lean();
+      const hasPaintbrush = baublesData?.inventory ? baublesData.inventory.some(item => item.itemId === 'paintbrush' && item.quantity > 0) : false;
+      if (!hasPaintbrush) {
+        return res.status(403).json({ error: 'You need a Profile Paintbrush in your inventory to customize your profile banner!' });
+      }
+    }
+
+    const updateData = {};
+    if (bio !== undefined) updateData.bio = bio;
+    if (bannerColor !== undefined) updateData.bannerColor = bannerColor;
+    if (customDisplayName !== undefined) updateData.customDisplayName = customDisplayName;
+    if (bannerUrl !== undefined) updateData.bannerUrl = bannerUrl;
+    if (isPrivate !== undefined) updateData.private = isPrivate;
+    if (showBaubles !== undefined) updateData.showBaubles = showBaubles;
+
+    const profile = await Profile.findOneAndUpdate(
+      { userId },
+      { $set: updateData },
+      { upsert: true, new: true }
+    );
+
+    res.json({
+      success: true,
+      profile
+    });
+  } catch (err) {
+    console.error('Failed to save user profile via web:', err);
+    res.status(500).json({ error: 'Failed to save user profile' });
+  }
+});
+
+app.post('/api/user/daily', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = req.session.user.id;
+
+  try {
+    const Bauble = require('./models/baubleSchema');
+    let baubleData = await Bauble.findOne({ userId });
+    if (!baubleData) {
+      baubleData = new Bauble({ userId, baubles: 0 });
+      await baubleData.save();
+    }
+
+    const now = new Date();
+    const lastClaimed = baubleData.dailyLastClaimed;
+    const cooldownMs = 24 * 60 * 60 * 1000;
+    const breakWindowMs = 48 * 60 * 60 * 1000;
+
+    if (lastClaimed) {
+      const diff = now.getTime() - lastClaimed.getTime();
+      if (diff < cooldownMs) {
+        const timeLeft = cooldownMs - diff;
+        return res.status(400).json({ error: `Too early! Cooldown active for another ${webFormatTimeRemaining(timeLeft)}.` });
+      }
+
+      if (diff >= breakWindowMs) {
+        baubleData.dailyStreak = 0;
+      }
+    }
+
+    baubleData.dailyStreak = (baubleData.dailyStreak || 0) + 1;
+    if (baubleData.dailyStreak > (baubleData.dailyMaxStreak || 0)) {
+      baubleData.dailyMaxStreak = baubleData.dailyStreak;
+    }
+
+    const baseReward = Math.floor(Math.random() * 901) + 900;
+    const streakBonus = Math.min((baubleData.dailyStreak - 1) * 20, 500);
+    const totalReward = baseReward + streakBonus;
+
+    baubleData.baubles = (baubleData.baubles || 0) + totalReward;
+    baubleData.dailyLastClaimed = now;
+    await baubleData.save();
+
+    const rarity = getWebDailyRarity(baseReward);
+
+    res.json({
+      success: true,
+      totalReward,
+      baseReward,
+      streakBonus,
+      newBalance: baubleData.baubles,
+      dailyStreak: baubleData.dailyStreak,
+      rarity: `[${rarity.tier}] ${rarity.name}`
+    });
+  } catch (err) {
+    console.error('Failed to claim daily via web:', err);
+    res.status(500).json({ error: 'Failed to claim daily reward' });
+  }
+});
+
+app.post('/api/user/checklist/claim', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = req.session.user.id;
+
+  try {
+    const Bauble = require('./models/baubleSchema');
+    let baubleData = await Bauble.findOne({ userId });
+    if (!baubleData) {
+      baubleData = new Bauble({ userId, baubles: 0 });
+      await baubleData.save();
+    }
+
+    const daily = webIsToday(baubleData.dailyLastClaimed);
+    const work = webIsToday(baubleData.dailyWorkLastCompleted);
+    const game = webIsToday(baubleData.dailyGameLastCompleted);
+    const gamble = webIsToday(baubleData.dailyGambleLastCompleted);
+    const claimed = webIsToday(baubleData.dailyTasksClaimedAt);
+
+    let completedCount = 0;
+    if (daily) completedCount++;
+    if (work) completedCount++;
+    if (game) completedCount++;
+    if (gamble) completedCount++;
+
+    if (claimed) {
+      return res.status(400).json({ error: 'Checklist reward already claimed today!' });
+    }
+    if (completedCount < 4) {
+      return res.status(400).json({ error: `Checklist incomplete! (${completedCount}/4 completed)` });
+    }
+
+    baubleData.baubles = (baubleData.baubles || 0) + 2000;
+    if (!baubleData.inventory) baubleData.inventory = [];
+    const mysteryBox = baubleData.inventory.find(item => item.itemId === 'mystery_box');
+    if (mysteryBox) {
+        mysteryBox.quantity += 1;
+    } else {
+        baubleData.inventory.push({ itemId: 'mystery_box', quantity: 1 });
+    }
+    baubleData.dailyTasksClaimedAt = new Date();
+    await baubleData.save();
+
+    res.json({
+      success: true,
+      newBalance: baubleData.baubles
+    });
+  } catch (err) {
+    console.error('Failed to claim checklist via web:', err);
+    res.status(500).json({ error: 'Failed to claim checklist' });
+  }
+});
+
+app.post('/api/user/use-item', express.json(), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = req.session.user.id;
+  const { itemId } = req.body;
+
+  if (!['coffee', 'clover', 'mystery_box'].includes(itemId)) {
+    return res.status(400).json({ error: 'Item cannot be used via web or invalid item ID.' });
+  }
+
+  try {
+    const Bauble = require('./models/baubleSchema');
+    let baubleData = await Bauble.findOne({ userId });
+    if (!baubleData) {
+      return res.status(400).json({ error: 'Profile not found.' });
+    }
+
+    const hasItem = baubleData.inventory && baubleData.inventory.some(i => i.itemId === itemId && i.quantity > 0);
+    if (!hasItem) {
+      return res.status(400).json({ error: 'You do not own this item.' });
+    }
+
+    const addInvItem = (data, id, qty = 1) => {
+      if (!data.inventory) data.inventory = [];
+      const existing = data.inventory.find(i => i.itemId === id);
+      if (existing) existing.quantity += qty;
+      else data.inventory.push({ itemId: id, quantity: qty });
+    };
+
+    const removeInvItem = (data, id, qty = 1) => {
+      if (!data.inventory) return false;
+      const idx = data.inventory.findIndex(i => i.itemId === id);
+      if (idx === -1) return false;
+      if (data.inventory[idx].quantity < qty) return false;
+      data.inventory[idx].quantity -= qty;
+      if (data.inventory[idx].quantity <= 0) data.inventory.splice(idx, 1);
+      return true;
+    };
+
+    let useMsg = '';
+    if (itemId === 'coffee') {
+      removeInvItem(baubleData, 'coffee', 1);
+      baubleData.coffeeExpiresAt = new Date(Date.now() + 1800000);
+      useMsg = '☕ You drank the Energizing Coffee! Work and scavenge cooldowns reduced by 50% for 30 minutes.';
+    } else if (itemId === 'clover') {
+      removeInvItem(baubleData, 'clover', 1);
+      baubleData.luckExpiresAt = new Date(Date.now() + 900000);
+      useMsg = '🍀 You rubbed the Lucky Clover! Win rates boosted by +10% for 15 minutes.';
+    } else if (itemId === 'mystery_box') {
+      removeInvItem(baubleData, 'mystery_box', 1);
+      const rng = Math.random();
+      if (rng < 0.4) {
+          const bonus = Math.floor(Math.random() * 301) + 100;
+          baubleData.baubles += bonus;
+          useMsg = `📦 You opened the Mystery Box and found 💰 ${bonus} Glimmering Baubles!`;
+      } else if (rng < 0.6) {
+          addInvItem(baubleData, 'coffee', 1);
+          useMsg = '📦 You opened the Mystery Box and found ☕ Energizing Coffee!';
+      } else if (rng < 0.8) {
+          addInvItem(baubleData, 'clover', 1);
+          useMsg = '📦 You opened the Mystery Box and found 🍀 Lucky Clover!';
+      } else {
+          addInvItem(baubleData, 'shield', 1);
+          useMsg = '📦 You opened the Mystery Box and found 🛡️ Aegis Shield!';
+      }
+    }
+
+    await baubleData.save();
+    res.json({
+      success: true,
+      message: useMsg,
+      newBalance: baubleData.baubles,
+      inventory: baubleData.inventory
+    });
+  } catch (err) {
+    console.error('Failed to use item via web:', err);
+    res.status(500).json({ error: 'Failed to use item' });
+  }
+});
+
 const PORT = process.env.BOT_PORT || 4000;
 
 app.listen(PORT, () => {
