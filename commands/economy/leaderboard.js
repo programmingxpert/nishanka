@@ -28,7 +28,11 @@ module.exports = {
 
             // Create leaderboard string
             const leaderboardString = leaderboardData.map((entry, index) => {
-                return `${index + 1}. <@${entry.userId}>: **${entry.baubles}** Baubles`;
+                const member = membersMap.get(entry.userId);
+                const nameStr = member 
+                    ? `**${member.user.username}** (${member.displayName})` 
+                    : `**Unknown User** (${entry.userId})`;
+                return `${index + 1}. ${nameStr}: **${entry.baubles.toLocaleString()}** Baubles`;
             }).join('\n');
 
             const embed = new EmbedBuilder()
@@ -69,7 +73,11 @@ module.exports = {
 
             // Create leaderboard string
             const leaderboardString = leaderboardData.map((entry, index) => {
-                return `${index + 1}. <@${entry.userId}>: **${entry.baubles}** Baubles`;
+                const member = membersMap.get(entry.userId);
+                const nameStr = member 
+                    ? `**${member.user.username}** (${member.displayName})` 
+                    : `**Unknown User** (${entry.userId})`;
+                return `${index + 1}. ${nameStr}: **${entry.baubles.toLocaleString()}** Baubles`;
             }).join('\n');
 
             const embed = new EmbedBuilder()

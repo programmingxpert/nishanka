@@ -23,9 +23,20 @@ module.exports = {
                     .limit(pageSize)
                     .exec();
 
-                const leaderboardString = leaderboardData.map((entry, index) => {
-                    return `${page * pageSize + index + 1}. <@${entry.userId}>: **${entry.baubles}** Baubles`;
-                }).join('\n');
+                const client = interaction.client;
+                const rows = await Promise.all(leaderboardData.map(async (entry, index) => {
+                    let nameStr = `**Unknown User** (${entry.userId})`;
+                    try {
+                        const user = await client.users.fetch(entry.userId);
+                        const displayName = user.displayName || user.globalName || user.username;
+                        nameStr = `**${user.username}** (${displayName})`;
+                    } catch (e) {
+                        // ignore
+                    }
+                    return `${page * pageSize + index + 1}. ${nameStr}: **${entry.baubles.toLocaleString()}** Baubles`;
+                }));
+
+                const leaderboardString = rows.join('\n');
 
                 return new EmbedBuilder()
                     .setColor(0x00FFFF)
@@ -94,9 +105,20 @@ module.exports = {
                     .limit(pageSize)
                     .exec();
 
-                const leaderboardString = leaderboardData.map((entry, index) => {
-                    return `${page * pageSize + index + 1}. <@${entry.userId}>: **${entry.baubles}** Baubles`;
-                }).join('\n');
+                const client = message.client;
+                const rows = await Promise.all(leaderboardData.map(async (entry, index) => {
+                    let nameStr = `**Unknown User** (${entry.userId})`;
+                    try {
+                        const user = await client.users.fetch(entry.userId);
+                        const displayName = user.displayName || user.globalName || user.username;
+                        nameStr = `**${user.username}** (${displayName})`;
+                    } catch (e) {
+                        // ignore
+                    }
+                    return `${page * pageSize + index + 1}. ${nameStr}: **${entry.baubles.toLocaleString()}** Baubles`;
+                }));
+
+                const leaderboardString = rows.join('\n');
 
                 return new EmbedBuilder()
                     .setColor(0x00FFFF)

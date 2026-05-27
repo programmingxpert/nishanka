@@ -2,6 +2,20 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
+function getTargetMaxMultiplier(minesCount) {
+    if (minesCount <= 8) return null;
+    const targets = {
+        9: 15000,
+        10: 20000,
+        11: 25000,
+        12: 30000,
+        13: 40000,
+        14: 50000,
+        15: 75000
+    };
+    return targets[minesCount];
+}
+
 function getMultiplier(totalTiles, minesCount, revealedCount) {
     if (revealedCount === 0) return 1.0;
     
@@ -13,8 +27,28 @@ function getMultiplier(totalTiles, minesCount, revealedCount) {
         waysTotal *= (totalTiles - i);
         waysWinning *= (totalTiles - minesCount - i);
     }
-    const mult = (1 - houseEdge) * (waysTotal / waysWinning);
-    return Math.round(mult * 100) / 100;
+    const standardMult = (1 - houseEdge) * (waysTotal / waysWinning);
+    
+    if (minesCount > 8) {
+        const targetMax = getTargetMaxMultiplier(minesCount);
+        const maxClicks = 16 - minesCount;
+        
+        // Calculate standard max for this mine count
+        let standardMaxTotal = 1;
+        let standardMaxWinning = 1;
+        for (let i = 0; i < maxClicks; i++) {
+            standardMaxTotal *= (totalTiles - i);
+            standardMaxWinning *= (totalTiles - minesCount - i);
+        }
+        const standardMax = (1 - houseEdge) * (standardMaxTotal / standardMaxWinning);
+        
+        const ratio = targetMax / standardMax;
+        const scale = Math.pow(ratio, revealedCount / maxClicks);
+        const mult = standardMult * scale;
+        return Math.round(mult * 100) / 100;
+    }
+    
+    return Math.round(standardMult * 100) / 100;
 }
 
 function formatMinesTimeRemaining(ms) {
@@ -191,6 +225,16 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
             await baubleData.save();
         }
 
+        if (minesCount > 8 && amount > 500) {
+            client.activeMinesGames.delete(userId);
+            const errorMsg = `⚠️ High-stakes Mines (9+ mines) have a maximum bet limit of **500** Baubles. Please bet exactly 500 Baubles to play.`;
+            if (isSlash) {
+                return interaction.reply({ content: errorMsg, ephemeral: true });
+            } else {
+                return message.reply(errorMsg);
+            }
+        }
+
         if (amount < 500) {
             client.activeMinesGames.delete(userId);
             const errorMsg = `❌ The minimum amount to stake is **500** Baubles.`;
@@ -218,6 +262,25 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
             if (!baubleData || baubleData.baubles < amount) {
                 client.activeMinesGames.delete(userId);
                 const errorMsg = '❌ You no longer have enough Baubles to complete this bet!';
+                if (setupMsg) {
+                    const failEmbed = new EmbedBuilder()
+                        .setColor(0xff7171)
+                        .setTitle('❌  MINES CANCELLED')
+                        .setDescription(errorMsg);
+                    await setupMsg.edit({ embeds: [failEmbed], components: [] });
+                } else {
+                    if (isSlash) {
+                        await interaction.reply({ content: errorMsg, ephemeral: true });
+                    } else {
+                        await message.reply(errorMsg);
+                    }
+                }
+                return;
+            }
+
+            if (finalMinesCount > 8 && amount > 500) {
+                client.activeMinesGames.delete(userId);
+                const errorMsg = `⚠️ High-stakes Mines (9+ mines) are capped at a maximum bet of **500** Baubles. Your bet was **${amount}**. Please start a new game with a **500** Baubles bet to play with 9+ mines.`;
                 if (setupMsg) {
                     const failEmbed = new EmbedBuilder()
                         .setColor(0xff7171)
@@ -351,7 +414,12 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             collector.stop('perfect');
 
                             const winMult = getMultiplier(16, finalMinesCount, revealedCount);
-                            const winnings = Math.floor(winMult * amount);
+                            let winnings = Math.floor(winMult * amount);
+                            let isCapped = false;
+                            if (finalMinesCount > 8 && winnings > 100000) {
+                                winnings = 100000;
+                                isCapped = true;
+                            }
 
                             baubleData = await Bauble.findOne({ userId });
                             baubleData.baubles += winnings;
@@ -360,12 +428,12 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             const perfectEmbed = new EmbedBuilder()
                                 .setColor(0x4ADE80)
                                 .setTitle('🏆  PERFECT GAME!')
-                                .setDescription(`Unbelievable! You cleared the entire grid without hitting a single mine!\n\nYou won **${winnings}** Glimmering Baubles!`)
+                                .setDescription(`Unbelievable! You cleared the entire grid without hitting a single mine!\n\nYou won **${winnings.toLocaleString()}** Glimmering Baubles!${isCapped ? ' *(Capped to 100K)*' : ''}`)
                                 .addFields(
                                     { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                                     { name: '📈 Final Multiplier', value: `\`${winMult.toFixed(2)}x\``, inline: true },
-                                    { name: '💵 Winnings Earned', value: `\`${winnings} Baubles\``, inline: true },
-                                    { name: '👛 New Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true }
+                                    { name: '💵 Winnings Earned', value: `\`${winnings.toLocaleString()} Baubles\`${isCapped ? ' (Capped)' : ''}`, inline: true },
+                                    { name: '👛 New Balance', value: `\`${baubleData.baubles.toLocaleString()} Baubles\``, inline: true }
                                 )
                                 .setTimestamp()
                                 .setFooter({ text: 'Minesweeper Deity status achieved 👑' });
@@ -375,7 +443,12 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         } else {
                             const nextMult = getMultiplier(16, finalMinesCount, revealedCount + 1);
                             const currentMult = getMultiplier(16, finalMinesCount, revealedCount);
-                            const currentWinnings = Math.floor(currentMult * amount);
+                            let currentWinnings = Math.floor(currentMult * amount);
+                            let isCapped = false;
+                            if (finalMinesCount > 8 && currentWinnings > 100000) {
+                                currentWinnings = 100000;
+                                isCapped = true;
+                            }
 
                             const updateEmbed = new EmbedBuilder()
                                 .setColor(0x7c6cf0)
@@ -384,7 +457,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                                 .addFields(
                                     { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                                     { name: '📈 Multiplier', value: `\`${currentMult.toFixed(2)}x\` (Next: \`${nextMult.toFixed(2)}x\`)`, inline: true },
-                                    { name: '💵 Winnings', value: `\`${currentWinnings} Baubles\``, inline: true },
+                                    { name: '💵 Winnings', value: `\`${currentWinnings.toLocaleString()} Baubles\`${isCapped ? ' (Capped)' : ''}`, inline: true },
                                     { name: '💎 Diamonds Found', value: `\`${revealedCount} / ${totalSafe}\``, inline: true }
                                 )
                                 .setTimestamp()
@@ -402,7 +475,12 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                     collector.stop('cashout');
 
                     const winMult = getMultiplier(16, finalMinesCount, revealedCount);
-                    const winnings = Math.floor(winMult * amount);
+                    let winnings = Math.floor(winMult * amount);
+                    let isCapped = false;
+                    if (finalMinesCount > 8 && winnings > 100000) {
+                        winnings = 100000;
+                        isCapped = true;
+                    }
 
                     baubleData = await Bauble.findOne({ userId });
                     baubleData.baubles += winnings;
@@ -415,8 +493,8 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         .addFields(
                             { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                             { name: '📈 Cashout Multiplier', value: `\`${winMult.toFixed(2)}x\``, inline: true },
-                            { name: '💵 Winnings Claimed', value: `**${winnings}** Baubles`, inline: true },
-                            { name: '👛 New Balance', value: `**${baubleData.baubles}** Baubles`, inline: true }
+                            { name: '💵 Winnings Claimed', value: `**${winnings.toLocaleString()}** Baubles${isCapped ? ' (Capped)' : ''}`, inline: true },
+                            { name: '👛 New Balance', value: `**${baubleData.baubles.toLocaleString()}** Baubles`, inline: true }
                         )
                         .setTimestamp()
                         .setFooter({ text: 'Smart plays pay off 🧠' });
@@ -448,7 +526,12 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         await initialMsg.edit({ embeds: [refundEmbed], components: finalRows }).catch(() => {});
                     } else {
                         const winMult = getMultiplier(16, finalMinesCount, revealedCount);
-                        const winnings = Math.floor(winMult * amount);
+                        let winnings = Math.floor(winMult * amount);
+                        let isCapped = false;
+                        if (finalMinesCount > 8 && winnings > 100000) {
+                            winnings = 100000;
+                            isCapped = true;
+                        }
                         
                         baubleData.baubles += winnings;
                         await baubleData.save();
@@ -460,8 +543,8 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             .addFields(
                                 { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                                 { name: '📈 Multiplier', value: `\`${winMult.toFixed(2)}x\``, inline: true },
-                                { name: '💵 Auto Payout', value: `**${winnings}** Baubles`, inline: true },
-                                { name: '👛 New Balance', value: `**${baubleData.baubles}** Baubles`, inline: true }
+                                { name: '💵 Auto Payout', value: `**${winnings.toLocaleString()}** Baubles${isCapped ? ' (Capped)' : ''}`, inline: true },
+                                { name: '👛 New Balance', value: `**${baubleData.baubles.toLocaleString()}** Baubles`, inline: true }
                             )
                             .setTimestamp()
                             .setFooter({ text: 'Winnings saved.' });

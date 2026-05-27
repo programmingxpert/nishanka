@@ -1513,6 +1513,44 @@ app.post('/api/user/use-item', express.json(), async (req, res) => {
   }
 });
 
+// --- Global Leaderboard API ---
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const Bauble = require('./models/baubleSchema');
+    const leaderboardData = await Bauble.find()
+      .sort({ baubles: -1 })
+      .limit(10)
+      .exec();
+
+    const result = await Promise.all(leaderboardData.map(async (entry, index) => {
+      let username = 'Unknown User';
+      let displayName = entry.userId;
+      let avatarUrl = '';
+      try {
+        const user = await client.users.fetch(entry.userId);
+        username = user.username;
+        displayName = user.displayName || user.globalName || user.username;
+        avatarUrl = user.displayAvatarURL({ dynamic: true, size: 128 });
+      } catch (e) {
+        // ignore and use fallback
+      }
+      return {
+        rank: index + 1,
+        userId: entry.userId,
+        username,
+        displayName,
+        avatarUrl,
+        baubles: entry.baubles
+      };
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error('Failed to fetch web global leaderboard:', err);
+    res.status(500).json({ error: 'Failed to fetch global leaderboard' });
+  }
+});
+
 const PORT = process.env.BOT_PORT || 4000;
 
 app.listen(PORT, () => {
