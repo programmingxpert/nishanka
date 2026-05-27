@@ -1551,6 +1551,250 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
+// --- Global Family API ---
+app.get('/api/family', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = req.session.user.id;
+
+  try {
+    const Family = require('./models/familySchema');
+    let familyData = await Family.findOne({ userId });
+    if (!familyData) {
+      familyData = new Family({ userId });
+      await familyData.save();
+    }
+
+    const resolveUser = async (id) => {
+      if (!id) return null;
+      try {
+        const u = await client.users.fetch(id);
+        return {
+          userId: u.id,
+          username: u.username,
+          displayName: u.displayName || u.globalName || u.username,
+          avatarUrl: u.displayAvatarURL({ dynamic: true, size: 128 })
+        };
+      } catch (e) {
+        return {
+          userId: id,
+          username: `user_${id}`,
+          displayName: `Unknown User (${id})`,
+          avatarUrl: null
+        };
+      }
+    };
+
+    // Find siblings (sharing at least one parent, excluding self)
+    let siblingIds = [];
+    if (familyData.parents && familyData.parents.length > 0) {
+      const siblingDocs = await Family.find({
+        userId: { $ne: userId },
+        parents: { $in: familyData.parents }
+      }).lean();
+      siblingIds = siblingDocs.map(d => d.userId);
+    }
+
+    const [
+      spouse,
+      parents,
+      children,
+      siblings,
+      pendingSpouseProposal,
+      pendingAdoptionProposals
+    ] = await Promise.all([
+      resolveUser(familyData.spouseId),
+      Promise.all((familyData.parents || []).map(id => resolveUser(id))),
+      Promise.all((familyData.children || []).map(id => resolveUser(id))),
+      Promise.all(siblingIds.map(id => resolveUser(id))),
+      resolveUser(familyData.pendingSpouseProposal),
+      Promise.all((familyData.pendingAdoptionProposals || []).map(id => resolveUser(id)))
+    ]);
+
+    res.json({
+      success: true,
+      spouse,
+      parents: parents.filter(Boolean),
+      children: children.filter(Boolean),
+      siblings: siblings.filter(Boolean),
+      pendingSpouseProposal,
+      pendingAdoptionProposals: pendingAdoptionProposals.filter(Boolean)
+    });
+  } catch (err) {
+    console.error('Failed to fetch global family data:', err);
+    res.status(500).json({ error: 'Failed to fetch family data' });
+  }
+});
+
+app.post('/api/family/action', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = req.session.user.id;
+  const { action, targetId } = req.body;
+
+  try {
+    const Family = require('./models/familySchema');
+    
+    // Helper to get or create family
+    const getFamily = async (id) => {
+      let f = await Family.findOne({ userId: id });
+      if (!f) {
+        f = new Family({ userId: id });
+        await f.save();
+      }
+      return f;
+    };
+
+    const selfFamily = await getFamily(userId);
+
+    if (action === 'propose') {
+      if (!targetId) return res.status(400).json({ error: 'Target ID required' });
+      if (targetId === userId) return res.status(400).json({ error: 'You cannot marry yourself!' });
+      
+      const targetFamily = await getFamily(targetId);
+
+      if (selfFamily.spouseId) return res.status(400).json({ error: 'You are already married! Divorce your current spouse first.' });
+      if (targetFamily.spouseId) return res.status(400).json({ error: 'This person is already married! Don’t try to break their family.' });
+
+      // Check if target has already proposed to sender - auto accept!
+      if (selfFamily.pendingSpouseProposal === targetId) {
+        selfFamily.spouseId = targetId;
+        targetFamily.spouseId = userId;
+        selfFamily.pendingSpouseProposal = null;
+        targetFamily.pendingSpouseProposal = null;
+        await selfFamily.save();
+        await targetFamily.save();
+        return res.json({ success: true, message: '🎉 Proposal accepted! You are now married.' });
+      }
+
+      targetFamily.pendingSpouseProposal = userId;
+      await targetFamily.save();
+      return res.json({ success: true, message: '💖 Marriage proposal sent successfully!' });
+    }
+
+    if (action === 'accept-marriage') {
+      if (!targetId) return res.status(400).json({ error: 'Target ID required' });
+      if (selfFamily.pendingSpouseProposal !== targetId) return res.status(400).json({ error: 'No active proposal from this user.' });
+
+      const targetFamily = await getFamily(targetId);
+      if (selfFamily.spouseId || targetFamily.spouseId) {
+        selfFamily.pendingSpouseProposal = null;
+        await selfFamily.save();
+        return res.status(400).json({ error: 'One of you has already married someone else!' });
+      }
+
+      selfFamily.spouseId = targetId;
+      targetFamily.spouseId = userId;
+      selfFamily.pendingSpouseProposal = null;
+      targetFamily.pendingSpouseProposal = null;
+      await selfFamily.save();
+      await targetFamily.save();
+      return res.json({ success: true, message: '🎉 Congratulations! You are now married.' });
+    }
+
+    if (action === 'decline-marriage') {
+      if (!targetId) return res.status(400).json({ error: 'Target ID required' });
+      if (selfFamily.pendingSpouseProposal === targetId) {
+        selfFamily.pendingSpouseProposal = null;
+        await selfFamily.save();
+      }
+      return res.json({ success: true, message: 'Declined marriage proposal.' });
+    }
+
+    if (action === 'divorce') {
+      if (!selfFamily.spouseId) return res.status(400).json({ error: 'You are not married!' });
+      
+      const exSpouseId = selfFamily.spouseId;
+      const exFamily = await getFamily(exSpouseId);
+
+      selfFamily.spouseId = null;
+      exFamily.spouseId = null;
+      await selfFamily.save();
+      await exFamily.save();
+
+      return res.json({ success: true, message: '💔 You are now divorced.' });
+    }
+
+    if (action === 'adopt') {
+      if (!targetId) return res.status(400).json({ error: 'Target ID required' });
+      if (targetId === userId) return res.status(400).json({ error: 'You cannot adopt yourself!' });
+
+      const childFamily = await getFamily(targetId);
+
+      if (selfFamily.parents.includes(targetId)) return res.status(400).json({ error: 'You cannot adopt your parent!' });
+      if (selfFamily.spouseId === targetId) return res.status(400).json({ error: 'You cannot adopt your spouse!' });
+      if (childFamily.parents.length >= 2) return res.status(400).json({ error: 'This user already has the maximum of 2 parents!' });
+      if (childFamily.pendingAdoptionProposals.includes(userId)) return res.status(400).json({ error: 'Adoption proposal is already pending.' });
+
+      childFamily.pendingAdoptionProposals.push(userId);
+      await childFamily.save();
+      return res.json({ success: true, message: '👶 Adoption proposal sent successfully!' });
+    }
+
+    if (action === 'accept-adoption') {
+      if (!targetId) return res.status(400).json({ error: 'Target ID required' });
+      if (!selfFamily.pendingAdoptionProposals.includes(targetId)) return res.status(400).json({ error: 'No active adoption proposal from this user.' });
+
+      if (selfFamily.parents.length >= 2) {
+        selfFamily.pendingAdoptionProposals = selfFamily.pendingAdoptionProposals.filter(id => id !== targetId);
+        await selfFamily.save();
+        return res.status(400).json({ error: 'You already have 2 parents!' });
+      }
+
+      const parentFamily = await getFamily(targetId);
+
+      selfFamily.parents.push(targetId);
+      if (!parentFamily.children.includes(userId)) {
+        parentFamily.children.push(userId);
+      }
+
+      selfFamily.pendingAdoptionProposals = selfFamily.pendingAdoptionProposals.filter(id => id !== targetId);
+
+      await selfFamily.save();
+      await parentFamily.save();
+      return res.json({ success: true, message: '🎉 You have been adopted!' });
+    }
+
+    if (action === 'decline-adoption') {
+      if (!targetId) return res.status(400).json({ error: 'Target ID required' });
+      selfFamily.pendingAdoptionProposals = selfFamily.pendingAdoptionProposals.filter(id => id !== targetId);
+      await selfFamily.save();
+      return res.json({ success: true, message: 'Declined adoption proposal.' });
+    }
+
+    if (action === 'disown') {
+      if (!targetId) return res.status(400).json({ error: 'Target ID required' });
+      if (!selfFamily.children.includes(targetId)) return res.status(400).json({ error: 'This user is not your child!' });
+
+      const childFamily = await getFamily(targetId);
+
+      selfFamily.children = selfFamily.children.filter(id => id !== targetId);
+      childFamily.parents = childFamily.parents.filter(id => id !== userId);
+
+      await selfFamily.save();
+      await childFamily.save();
+      return res.json({ success: true, message: '💔 You have disowned your child.' });
+    }
+
+    if (action === 'leave-family') {
+      if (!targetId) return res.status(400).json({ error: 'Target ID required' });
+      if (!selfFamily.parents.includes(targetId)) return res.status(400).json({ error: 'This user is not your parent!' });
+
+      const parentFamily = await getFamily(targetId);
+
+      selfFamily.parents = selfFamily.parents.filter(id => id !== targetId);
+      parentFamily.children = parentFamily.children.filter(id => id !== userId);
+
+      await selfFamily.save();
+      await parentFamily.save();
+      return res.json({ success: true, message: '🕊️ You have run away from your parent.' });
+    }
+
+    return res.status(400).json({ error: 'Invalid action' });
+  } catch (err) {
+    console.error('Failed to perform family action:', err);
+    res.status(500).json({ error: 'Failed to perform action' });
+  }
+});
+
 const PORT = process.env.BOT_PORT || 4000;
 
 app.listen(PORT, () => {
