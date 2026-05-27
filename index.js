@@ -1,5 +1,14 @@
 /* eslint-disable */
 require('dotenv').config();
+
+// Global process error handlers to prevent unhandled rejection/exception crashes
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('💥 Uncaught Exception thrown:', err);
+});
+
 const { Client, GatewayIntentBits, Partials, Collection, AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const { Riffy } = require('riffy');
 const { Bloom, initializeFonts } = require('musicard');
