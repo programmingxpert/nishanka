@@ -241,6 +241,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
     let roundCount = 1;
     let baseTimeLimit = 15000;
     let turnsSinceLastLifeLoss = 0;
+    let currentPrompt = null;
 
     const runEmbed = new EmbedBuilder()
         .setColor(0xe74c3c)
@@ -272,7 +273,10 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
         const currentLimit = isDeathBattleMode ? 10000 : Math.max(8000, baseTimeLimit - Math.floor(totalTurnsPlayed / 5) * 500);
         const promptLength = totalTurnsPlayed >= 12 ? 3 : 2;
 
-        const prompt = getPromptFromPool(wordsPool, promptLength);
+        if (!currentPrompt) {
+            currentPrompt = getPromptFromPool(wordsPool, promptLength);
+        }
+        const prompt = currentPrompt;
         const livesVisual = '💣'.repeat(activePlayer.lives);
 
         let turnDescription = `Type a word containing:\n\n# **\`${prompt}\`**\n\n` +
@@ -360,6 +364,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
                 activePlayer.successfulGuesses++;
                 turnsSinceLastLifeLoss++; // Survived another turn
                 turnActive = false;
+                currentPrompt = null; // Clear so next turn gets a new prompt
 
                 if (errorMsg) {
                     await errorMsg.delete().catch(() => {});

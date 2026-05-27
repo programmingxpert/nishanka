@@ -496,7 +496,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
         const setupEmbed = new EmbedBuilder()
             .setColor(0x7c6cf0)
             .setTitle('💣  MINES SETUP')
-            .setDescription(`Configure your Mines game below. A higher number of mines increases the multiplier risk and reward!`)
+            .setDescription(`Configure your Mines game below. A higher number of mines increases the multiplier risk and reward!\n*(Note: More mines mean fewer safe clicks, so the max multiplier peaks at 8 mines and decreases thereafter).*`)
             .addFields(
                 { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                 { name: '💣 Mines Count', value: `\`${minesCount}\``, inline: true },
@@ -510,12 +510,15 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
             .setCustomId('mines_setup_count')
             .setPlaceholder('Change number of mines...')
             .addOptions(
-                Array.from({ length: 15 }, (_, i) => ({
-                    label: `${i + 1} Mine${i === 0 ? '' : 's'}`,
-                    description: `Max Multiplier: ${getMultiplier(16, i + 1, 16 - (i + 1)).toFixed(2)}x`,
-                    value: `${i + 1}`,
-                    default: (i + 1) === minesCount
-                }))
+                Array.from({ length: 15 }, (_, i) => {
+                    const clicks = 16 - (i + 1);
+                    return {
+                        label: `${i + 1} Mine${i === 0 ? '' : 's'}`,
+                        description: `Max: ${getMultiplier(16, i + 1, clicks).toFixed(2)}x (${clicks} click${clicks === 1 ? '' : 's'} max)`,
+                        value: `${i + 1}`,
+                        default: (i + 1) === minesCount
+                    };
+                })
             );
         const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
@@ -562,18 +565,21 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                     .setCustomId('mines_setup_count')
                     .setPlaceholder('Change number of mines...')
                     .addOptions(
-                        Array.from({ length: 15 }, (_, idx) => ({
-                            label: `${idx + 1} Mine${idx === 0 ? '' : 's'}`,
-                            description: `Max Multiplier: ${getMultiplier(16, idx + 1, 16 - (idx + 1)).toFixed(2)}x`,
-                            value: `${idx + 1}`,
-                            default: (idx + 1) === minesCount
-                        }))
+                        Array.from({ length: 15 }, (_, idx) => {
+                            const clicks = 16 - (idx + 1);
+                            return {
+                                label: `${idx + 1} Mine${idx === 0 ? '' : 's'}`,
+                                description: `Max: ${getMultiplier(16, idx + 1, clicks).toFixed(2)}x (${clicks} click${clicks === 1 ? '' : 's'} max)`,
+                                value: `${idx + 1}`,
+                                default: (idx + 1) === minesCount
+                            };
+                        })
                     );
 
                 const updatedEmbed = new EmbedBuilder()
                     .setColor(0x7c6cf0)
                     .setTitle('💣  MINES SETUP')
-                    .setDescription(`Configure your Mines game below. A higher number of mines increases the multiplier risk and reward!`)
+                    .setDescription(`Configure your Mines game below. A higher number of mines increases the multiplier risk and reward!\n*(Note: More mines mean fewer safe clicks, so the max multiplier peaks at 8 mines and decreases thereafter).*`)
                     .addFields(
                         { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                         { name: '💣 Mines Count', value: `\`${minesCount}\``, inline: true },
