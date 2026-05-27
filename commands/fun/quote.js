@@ -172,10 +172,27 @@ async function generateQuoteCard(user, displayName, quoteText, channelName) {
     });
 
     // 7. Footer / Attribution
+    const FUNNY_ATTRIBUTIONS = [
+        "Proof of server brainrot",
+        "Captured in 4K",
+        "Quote of the Century",
+        "This will be used against you in court",
+        "Out of context masterpiece",
+        "Circa 2026, colorized",
+        "Words of absolute wisdom",
+        "Truly one of the quotes of all time",
+        "A direct threat to humanity",
+        "Live, laugh, trash talk",
+        "Before the ban hammer struck",
+        "Legendary moment in history",
+        "Evidence for the HR department"
+    ];
+    const funnyTag = FUNNY_ATTRIBUTIONS[Math.floor(Math.random() * FUNNY_ATTRIBUTIONS.length)];
+
     ctx.fillStyle = '#5a5878';
     ctx.font = 'italic 13px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(`— Quoted from #${channelName}`, 840, 270);
+    ctx.fillText(`— ${funnyTag} in #${channelName}`, 840, 270);
 
     const buffer = await canvas.encode('png');
     return new AttachmentBuilder(buffer, { name: 'quote.png' });
@@ -239,6 +256,21 @@ module.exports = {
 
         try {
             const attachment = await generateQuoteCard(targetUser, displayName, quoteText, interaction.channel.name);
+            
+            const GuildSettings = require('../../models/guildSettingsSchema');
+            const settings = await GuildSettings.findOne({ guildId: interaction.guild.id }).lean();
+            const quotesChannelId = settings?.bot?.quotesChannelId;
+
+            if (quotesChannelId) {
+                const quotesChannel = interaction.guild.channels.cache.get(quotesChannelId);
+                if (quotesChannel) {
+                    const sent = await quotesChannel.send({ files: [attachment] }).catch(() => null);
+                    if (sent) {
+                        return interaction.editReply(`✅ Quote card generated and sent to ${quotesChannel}!`);
+                    }
+                }
+            }
+
             await interaction.editReply({ files: [attachment] });
         } catch (err) {
             console.error('Quote command error:', err);
@@ -292,6 +324,21 @@ module.exports = {
         try {
             const attachment = await generateQuoteCard(targetUser, displayName, quoteText, message.channel.name);
             await msg.delete().catch(() => {});
+
+            const GuildSettings = require('../../models/guildSettingsSchema');
+            const settings = await GuildSettings.findOne({ guildId: message.guild.id }).lean();
+            const quotesChannelId = settings?.bot?.quotesChannelId;
+
+            if (quotesChannelId) {
+                const quotesChannel = message.guild.channels.cache.get(quotesChannelId);
+                if (quotesChannel) {
+                    const sent = await quotesChannel.send({ files: [attachment] }).catch(() => null);
+                    if (sent) {
+                        return message.reply(`✅ Quote card generated and sent to ${quotesChannel}!`).catch(() => {});
+                    }
+                }
+            }
+
             await message.reply({ files: [attachment] });
         } catch (err) {
             console.error('Quote command error:', err);

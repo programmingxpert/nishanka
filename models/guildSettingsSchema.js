@@ -17,7 +17,8 @@ const guildSettingsSchema = new mongoose.Schema({
         prefix: { type: String, default: '' }, // empty string means it will fallback to process.env.PREFIX
         nickname: { type: String, default: '' },
         deleteInvoke: { type: Boolean, default: false },
-        unknownCommandMsg: { type: Boolean, default: false }
+        unknownCommandMsg: { type: Boolean, default: false },
+        quotesChannelId: { type: String, default: null }
     },
     dashboardPermissions: {
         bot: { type: [String], default: [] },
