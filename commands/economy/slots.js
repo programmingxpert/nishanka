@@ -123,6 +123,7 @@ module.exports = {
             }
 
             baubleData.baubles += winnings;
+            baubleData.dailyGambleLastCompleted = new Date();
             await baubleData.save();
 
             let streakLossDesc = '';

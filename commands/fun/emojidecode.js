@@ -148,6 +148,7 @@ module.exports = {
                     baubleData = new Bauble({ userId: m.author.id, baubles: 0 });
                 }
                 baubleData.baubles += reward;
+                baubleData.dailyGameLastCompleted = new Date();
                 await baubleData.save();
 
                 const winEmbed = new EmbedBuilder()
@@ -232,6 +233,7 @@ module.exports = {
                     baubleData = new Bauble({ userId: m.author.id, baubles: 0 });
                 }
                 baubleData.baubles += reward;
+                baubleData.dailyGameLastCompleted = new Date();
                 await baubleData.save();
 
                 const winEmbed = new EmbedBuilder()

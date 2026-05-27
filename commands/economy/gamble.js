@@ -112,6 +112,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             if (baubleData.gambleStreak > (baubleData.gambleMaxStreak || 0)) {
                 baubleData.gambleMaxStreak = baubleData.gambleStreak;
             }
+            baubleData.dailyGambleLastCompleted = new Date();
             await retryDatabaseOperation(() => baubleData.save());
 
             LOSS_TRACKER.set(userId, 0); // reset loss streak
@@ -133,6 +134,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             baubleData.baubles = baubleData.baubles - amount + pity;
             const previousStreak = baubleData.gambleStreak || 0;
             baubleData.gambleStreak = 0;
+            baubleData.dailyGambleLastCompleted = new Date();
             await retryDatabaseOperation(() => baubleData.save());
 
             const newStreak = losses + 1;

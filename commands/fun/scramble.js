@@ -198,6 +198,7 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
                 baubleData = new Bauble({ userId: uId, baubles: 0 });
             }
             baubleData.baubles += reward;
+            baubleData.dailyGameLastCompleted = new Date();
             await baubleData.save();
         } catch(e) {
             console.error('Error saving baubles for scramble winner:', e);

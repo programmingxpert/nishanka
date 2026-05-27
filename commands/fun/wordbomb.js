@@ -419,6 +419,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
                     baubleData = new Bauble({ userId: playerState.user.id, baubles: 0 });
                 }
                 baubleData.baubles += prize;
+                baubleData.dailyGameLastCompleted = new Date();
                 await baubleData.save();
             } catch (dbErr) {
                 console.error(`Failed to save baubles for ${playerState.user.username}:`, dbErr);

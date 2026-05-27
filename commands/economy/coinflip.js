@@ -330,6 +330,7 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
     } else {
         baubleData.coinflipStreak = 0;
     }
+    baubleData.dailyGambleLastCompleted = new Date();
     await baubleData.save();
 
     // Create the final embed

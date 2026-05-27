@@ -22,6 +22,10 @@ const baubleSchema = new Schema({
     },
     coffeeExpiresAt: { type: Date, default: null },
     luckExpiresAt: { type: Date, default: null },
+    dailyWorkLastCompleted: { type: Date, default: null },
+    dailyGameLastCompleted: { type: Date, default: null },
+    dailyGambleLastCompleted: { type: Date, default: null },
+    dailyTasksClaimedAt: { type: Date, default: null },
 });
 
 const mongoose = require('mongoose');

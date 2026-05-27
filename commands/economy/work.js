@@ -227,6 +227,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
 
             if (currentProfile) {
                 currentProfile.baubles += earnings;
+                currentProfile.dailyWorkLastCompleted = new Date();
 
                 await currentProfile.save();
 
@@ -447,6 +448,7 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
 
                 if (currentProfile) {
                     currentProfile.baubles += earnings;
+                    currentProfile.dailyWorkLastCompleted = new Date();
 
                     await currentProfile.save();
 
@@ -650,6 +652,7 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
 
                 if (currentProfile) {
                     currentProfile.baubles += earnings;
+                    currentProfile.dailyWorkLastCompleted = new Date();
 
                     await currentProfile.save();
 
@@ -799,6 +802,7 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
                     const currentProfile = await Bauble.findOne({ userId });
                     if (currentProfile) {
                         currentProfile.baubles += earnings;
+                        currentProfile.dailyWorkLastCompleted = new Date();
                         await currentProfile.save();
                         baubleData.baubles = currentProfile.baubles;
                     }

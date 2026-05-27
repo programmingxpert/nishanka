@@ -247,6 +247,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
 
             // Deduct stake now
             baubleData.baubles -= amount;
+            baubleData.dailyGambleLastCompleted = new Date();
             await baubleData.save();
 
             // Create grid
