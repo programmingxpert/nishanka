@@ -24,6 +24,7 @@ module.exports = {
                     { name: '🍀 Lucky Clover', value: 'clover' },
                     { name: '🛡️ Aegis Shield', value: 'shield' },
                     { name: '📦 Mystery Box', value: 'mystery_box' },
+                    { name: '🔒 Safe Padlock', value: 'padlock' },
                     { name: '🏷️ Custom Tag', value: 'tag' },
                     { name: '🎨 Profile Paintbrush', value: 'paintbrush' },
                     { name: '💎 Golden Nugget', value: 'nugget' },
@@ -66,6 +67,7 @@ module.exports = {
                     clover: '🍀 Lucky Clover',
                     shield: '🛡️ Aegis Shield',
                     mystery_box: '📦 Mystery Box',
+                    padlock: '🔒 Safe Padlock',
                     tag: '🏷️ Custom Tag',
                     paintbrush: '🎨 Profile Paintbrush',
                     nugget: '💎 Golden Nugget',
@@ -97,7 +99,7 @@ module.exports = {
             return message.reply('⚠️ Please mention a user to add to. Usage: `-add <@user> <amount|item_id> [item_id|amount]`');
         }
 
-        const itemIds = ["coffee", "clover", "shield", "mystery_box", "tag", "paintbrush", "nugget", "crown"];
+        const itemIds = ["coffee", "clover", "shield", "mystery_box", "padlock", "tag", "paintbrush", "nugget", "crown"];
         let itemId = null;
         let amount = 1;
         let isItem = false;
@@ -159,6 +161,7 @@ module.exports = {
                     clover: '🍀 Lucky Clover',
                     shield: '🛡️ Aegis Shield',
                     mystery_box: '📦 Mystery Box',
+                    padlock: '🔒 Safe Padlock',
                     tag: '🏷️ Custom Tag',
                     paintbrush: '🎨 Profile Paintbrush',
                     nugget: '💎 Golden Nugget',

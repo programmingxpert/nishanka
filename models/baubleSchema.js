@@ -26,6 +26,9 @@ const baubleSchema = new Schema({
     dailyGameLastCompleted: { type: Date, default: null },
     dailyGambleLastCompleted: { type: Date, default: null },
     dailyTasksClaimedAt: { type: Date, default: null },
+    passiveMode: { type: Boolean, default: false },
+    passiveModeToggledAt: { type: Date, default: null },
+    robLastAttemptedAt: { type: Date, default: null },
 });
 
 const mongoose = require('mongoose');

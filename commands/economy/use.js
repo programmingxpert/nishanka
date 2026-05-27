@@ -91,6 +91,8 @@ module.exports = {
                 color = 0x9B59B6;
             } else if (itemId === 'shield') {
                 return interaction.reply({ content: '🛡️ The **Aegis Shield** is a passive item. As long as it sits in your inventory, it will automatically consume itself to prevent wager loss in your next failed `/battle` duel!', ephemeral: true });
+            } else if (itemId === 'padlock') {
+                return interaction.reply({ content: '🔒 The **Safe Padlock** is a passive defense item. Keep it in your inventory to automatically protect you from being robbed once (consumed on successful defense)!', ephemeral: true });
             } else if (itemId === 'nugget') {
                 return interaction.reply({ content: '💎 The **Golden Nugget** is a collectible item. You cannot consume it, but you can sell it using `/sell item:nugget` or gift it using `/gift`!', ephemeral: true });
             } else if (itemId === 'tag') {
@@ -174,6 +176,8 @@ module.exports = {
                 color = 0x9B59B6;
             } else if (itemId === 'shield') {
                 return message.reply('🛡️ The **Aegis Shield** is a passive item. As long as it sits in your inventory, it will automatically consume itself to prevent wager loss in your next failed Brawl duel!');
+            } else if (itemId === 'padlock') {
+                return message.reply('🔒 The **Safe Padlock** is a passive defense item. Keep it in your inventory to automatically protect you from being robbed once (consumed on successful defense)!');
             } else if (itemId === 'nugget') {
                 return message.reply('💎 The **Golden Nugget** is a collectible item. You cannot consume it, but you can sell it using `-sell nugget` or gift it using `-gift <user> nugget`!');
             } else if (itemId === 'tag') {

@@ -53,6 +53,16 @@ const ITEMS = {
         type: 'consumable',
         category: 'boosters'
     },
+    padlock: {
+        id: 'padlock',
+        name: '🔒 Safe Padlock',
+        emoji: '🔒',
+        description: 'Passive. Protects your wallet from being robbed once. Consumed on successful defense.',
+        price: 25000,
+        sellPrice: null,
+        type: 'collectible',
+        category: 'boosters'
+    },
 
     // --- Cosmetics & Premium Collectibles ---
     tag: {

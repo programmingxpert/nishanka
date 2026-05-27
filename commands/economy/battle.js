@@ -158,6 +158,15 @@ async function runBattle({ isSlash, interaction, message, challenger, opponent, 
     let cData = await Bauble.findOne({ userId: challenger.id });
     let oData = await Bauble.findOne({ userId: opponent.id });
 
+    if (cData && cData.passiveMode) {
+        const err = '❌ You cannot battle while you are in Passive Mode! Use `/passive` to toggle it off.';
+        return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
+    }
+    if (oData && oData.passiveMode) {
+        const err = `❌ **${opponent.username}** is in Passive Mode and cannot be challenged to battles!`;
+        return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
+    }
+
     if (!cData || cData.baubles < wager) {
         const err = `❌ ${cData ? 'You don\'t have enough Baubles for this wager.' : 'You have no Baubles at all!'}`;
         return isSlash ? interaction.reply({ content: err, ephemeral: true }) : message.reply(err);
