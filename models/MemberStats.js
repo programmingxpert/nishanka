@@ -5,6 +5,8 @@ const memberStatsSchema = new Schema({
     userId: { type: String, required: true },
     messagesCount: { type: Number, default: 0 },
     invitesCount: { type: Number, default: 0 },
+    reputation: { type: Number, default: 0 },
+    lastRepGivenAt: { type: Date, default: null },
 });
 
 // Composite index for fast lookups by guild and user

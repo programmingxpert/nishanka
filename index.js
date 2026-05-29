@@ -93,6 +93,7 @@ const commandsPath = path.join(__dirname, 'commands');
                         guesstheflag: ['gtf', 'flag'],
                         deathbattle: ['db'],
                         meme: ['memes'],
+                        rep: ['reputation', 'reps'],
                         excuse: ['excuses'],
                         ban: ['b'],
                         unban: ['ub'],
@@ -1226,6 +1227,119 @@ app.delete('/api/guilds/:guildId/media-only-channels/:channelId', async (req, re
   } catch (err) {
     console.error('Failed to delete media-only channel:', err);
     res.status(500).json({ error: 'Failed to delete media-only channel' });
+  }
+});
+
+// --- Reputation System Dashboard API ---
+app.get('/api/guilds/:guildId/reputation', async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const MemberStats = require('./models/MemberStats');
+    const guild = client.guilds.cache.get(guildId);
+    const stats = await MemberStats.find({ guildId }).sort({ reputation: -1 }).lean();
+
+    const leaderboard = [];
+    for (const entry of stats) {
+      if (!entry.reputation) continue; // skip zero rep members
+      let username = entry.userId;
+      let displayName = '';
+      let avatarUrl = '';
+      if (guild) {
+        try {
+          const member = await guild.members.fetch(entry.userId).catch(() => null);
+          if (member) {
+            username = member.user.username;
+            displayName = member.displayName;
+            avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 64 }) || '';
+          } else {
+            const user = await client.users.fetch(entry.userId).catch(() => null);
+            if (user) {
+              username = user.username;
+              avatarUrl = user.displayAvatarURL({ extension: 'png', size: 64 }) || '';
+            }
+          }
+        } catch (err) {}
+      }
+      leaderboard.push({
+        userId: entry.userId,
+        reputation: entry.reputation,
+        lastRepGivenAt: entry.lastRepGivenAt,
+        username,
+        displayName,
+        avatarUrl
+      });
+    }
+    res.json(leaderboard);
+  } catch (err) {
+    console.error('Failed to fetch reputation leaderboard:', err);
+    res.status(500).json({ error: 'Failed to fetch reputation leaderboard' });
+  }
+});
+
+app.post('/api/guilds/:guildId/reputation/reset', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
+  
+  let isOwner = guild.ownerId === req.session.user.id;
+  let isAdmin = false;
+  try {
+    const member = await guild.members.fetch(req.session.user.id);
+    isAdmin = member.permissions.has('Administrator') || isOwner;
+  } catch (err) {}
+
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Only server administrators can reset reputation.' });
+  }
+
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+
+    const MemberStats = require('./models/MemberStats');
+    await MemberStats.findOneAndUpdate(
+      { guildId, userId },
+      { $set: { reputation: 0 } }
+    );
+    res.json({ ok: true, userId });
+  } catch (err) {
+    console.error('Failed to reset user reputation:', err);
+    res.status(500).json({ error: 'Failed to reset user reputation' });
+  }
+});
+
+app.post('/api/guilds/:guildId/reputation/reset-all', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
+  
+  let isOwner = guild.ownerId === req.session.user.id;
+  let isAdmin = false;
+  try {
+    const member = await guild.members.fetch(req.session.user.id);
+    isAdmin = member.permissions.has('Administrator') || isOwner;
+  } catch (err) {}
+
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Only server administrators can reset reputation.' });
+  }
+
+  try {
+    const MemberStats = require('./models/MemberStats');
+    await MemberStats.updateMany({ guildId }, { $set: { reputation: 0 } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to reset all reputation:', err);
+    res.status(500).json({ error: 'Failed to reset all reputation' });
   }
 });
 

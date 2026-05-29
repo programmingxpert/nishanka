@@ -146,7 +146,7 @@ const commandGroups = {
 		},
 		{
 			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship']
+			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'rep']
 		},
 		{
 			title: '💬 Attributions',
