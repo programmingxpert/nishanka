@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { checkAndAwardAchievement } = require('../../utils/achievements');
 
 function getTargetMaxMultiplier(minesCount) {
     if (minesCount <= 8) return null;
@@ -425,6 +426,10 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             baubleData.baubles += winnings;
                             await baubleData.save();
 
+                            if (finalMinesCount >= 9) {
+                                await checkAndAwardAchievement(client, userId, `mines_${finalMinesCount}`, initialMsg);
+                            }
+
                             const perfectEmbed = new EmbedBuilder()
                                 .setColor(0x4ADE80)
                                 .setTitle('🏆  PERFECT GAME!')
@@ -486,6 +491,10 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                     baubleData.baubles += winnings;
                     await baubleData.save();
 
+                    if (finalMinesCount >= 9) {
+                        await checkAndAwardAchievement(client, userId, `mines_${finalMinesCount}`, initialMsg);
+                    }
+
                     const cashoutEmbed = new EmbedBuilder()
                         .setColor(0x4ADE80)
                         .setTitle('💰  CASH OUT SUCCESSFUL')
@@ -535,6 +544,10 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         
                         baubleData.baubles += winnings;
                         await baubleData.save();
+
+                        if (finalMinesCount >= 9) {
+                            await checkAndAwardAchievement(client, userId, `mines_${finalMinesCount}`, initialMsg);
+                        }
 
                         const autoCashoutEmbed = new EmbedBuilder()
                             .setColor(0x4ADE80)

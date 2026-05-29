@@ -1458,12 +1458,17 @@ app.get('/api/user/profile', async (req, res) => {
     checklistStatus.completedCount = completedCount;
     checklistStatus.allCompleted = completedCount === 4;
 
+    const { getUserAchievements, ACHIEVEMENTS } = require('./utils/achievements');
+    const userAchievements = await getUserAchievements(userId);
+
     res.json({
       profile,
       baubles: baublesData,
       hasPaintbrush,
       checklist: checklistStatus,
-      user: req.session.user
+      user: req.session.user,
+      achievements: userAchievements,
+      allAchievements: ACHIEVEMENTS
     });
   } catch (err) {
     console.error('Failed to fetch user profile via web:', err);

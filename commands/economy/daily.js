@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { checkAndAwardAchievement } = require('../../utils/achievements');
 
 function getDailyRarity(amount) {
     if (amount <= 1100) {
@@ -122,6 +123,11 @@ module.exports = {
             baubleData.dailyLastClaimed = now;
             await baubleData.save();
 
+            // Check Streak Achievements
+            if (baubleData.dailyStreak >= 7) await checkAndAwardAchievement(interaction.client, userId, 'streak_7', interaction);
+            if (baubleData.dailyStreak >= 30) await checkAndAwardAchievement(interaction.client, userId, 'streak_30', interaction);
+            if (baubleData.dailyStreak >= 100) await checkAndAwardAchievement(interaction.client, userId, 'streak_100', interaction);
+
             const rarity = getDailyRarity(baseReward);
 
             const embed = new EmbedBuilder()
@@ -210,6 +216,11 @@ module.exports = {
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
             baubleData.dailyLastClaimed = now;
             await baubleData.save();
+
+            // Check Streak Achievements
+            if (baubleData.dailyStreak >= 7) await checkAndAwardAchievement(message.client, userId, 'streak_7', message);
+            if (baubleData.dailyStreak >= 30) await checkAndAwardAchievement(message.client, userId, 'streak_30', message);
+            if (baubleData.dailyStreak >= 100) await checkAndAwardAchievement(message.client, userId, 'streak_100', message);
 
             const rarity = getDailyRarity(baseReward);
 
