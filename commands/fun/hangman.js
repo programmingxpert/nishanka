@@ -5,7 +5,23 @@ const WORDS = [
     'javascript', 'moderation', 'giveaway', 'economy', 'discord', 
     'developer', 'community', 'antigravity', 'adventure', 'championship', 
     'programming', 'database', 'keyboard', 'beautiful', 'universe',
-    'algorithm', 'technology', 'network', 'cybersecurity', 'blockchain'
+    'algorithm', 'technology', 'network', 'cybersecurity', 'blockchain',
+    'encryption', 'processor', 'server', 'application', 'hardware',
+    'software', 'compiler', 'variable', 'function', 'coefficient',
+    'dashboard', 'automation', 'astronomy', 'chocolate', 'dinosaur',
+    'matrix', 'sanctuary', 'glimmering', 'baubles', 'spacetime',
+    'galaxy', 'telescope', 'constellation', 'astronaut', 'nebula',
+    'supernova', 'meteorite', 'eclipse', 'gravity', 'satellite',
+    'volcano', 'avalanche', 'hurricane', 'earthquake', 'tsunami',
+    'lightning', 'thunderstorm', 'monsoon', 'blizzard', 'tornado',
+    'wilderness', 'rainforest', 'waterfall', 'canyon', 'mountain',
+    'glacier', 'archipelago', 'peninsula', 'oasis', 'savannah',
+    'adventure', 'expedition', 'odyssey', 'journey', 'voyage',
+    'quest', 'safari', 'pilgrimage', 'excursion', 'crusade',
+    'symphony', 'orchestra', 'melody', 'harmony', 'rhythm',
+    'serenade', 'crescendo', 'concert', 'festival', 'carnival',
+    'labyrinth', 'mystery', 'enigma', 'puzzle', 'riddle',
+    'paradox', 'conundrum', 'illusion', 'mirage', 'phantom'
 ];
 
 const activeGames = new Set();
@@ -62,9 +78,15 @@ const HANGMAN_STAGES = [
 =========`
 ];
 
+const recentWords = [];
+
 async function generateAIHangmanWords(apiKey, totalRounds) {
-    const prompt = `Generate a list of ${totalRounds} unique, interesting, and single-word English nouns, verbs, or adjectives (no spaces, no punctuation, no special characters, between 5 and 10 characters long) suitable for a Hangman game. Return the result strictly as a valid JSON array of strings, e.g.:
-["dinosaur", "keyboard", "universe", "chocolate", "technology"]
+    const avoidList = recentWords.length > 0 ? recentWords.join(', ') : 'none';
+    const prompt = `Generate a list of ${totalRounds} unique, interesting, and single-word English nouns, verbs, or adjectives (no spaces, no punctuation, no special characters, between 5 and 10 characters long) suitable for a Hangman game.
+CRITICAL: Do NOT generate any of the following recently used words: [${avoidList}].
+Avoid cliché words like 'dinosaur', 'keyboard', 'universe', 'technology', 'chocolate', 'computer', 'science'. Focus on variety and interesting, recognizable vocabulary.
+Return the result strictly as a valid JSON array of strings, e.g.:
+["backpack", "wilderness", "microscope", "symphony", "explorer"]
 Do not wrap the JSON in markdown code blocks or any other formatting, and do not provide any extra text.`;
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -78,7 +100,7 @@ Do not wrap the JSON in markdown code blocks or any other formatting, and do not
             messages: [
                 { role: 'user', content: prompt }
             ],
-            temperature: 0.9,
+            temperature: 1.0,
             max_tokens: 150
         })
     });
@@ -111,6 +133,17 @@ Do not wrap the JSON in markdown code blocks or any other formatting, and do not
     if (cleanWords.length < totalRounds) {
         throw new Error('Not enough valid words returned by AI');
     }
+
+    // Add to recent words to prevent repetition
+    cleanWords.forEach(w => {
+        if (!recentWords.includes(w)) {
+            recentWords.push(w);
+        }
+    });
+    if (recentWords.length > 150) {
+        recentWords.splice(0, recentWords.length - 150);
+    }
+
     return cleanWords;
 }
 
@@ -129,9 +162,22 @@ async function getHangmanWords(totalRounds) {
     }
     
     // Fallback: choose random unique words from WORDS
-    const fallbackWords = [...WORDS];
-    fallbackWords.sort(() => Math.random() - 0.5);
-    return fallbackWords.slice(0, totalRounds);
+    const availableFallback = WORDS.filter(w => !recentWords.includes(w));
+    const pool = availableFallback.length >= totalRounds ? availableFallback : WORDS;
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, totalRounds);
+
+    // Track fallback words as recently used too
+    selected.forEach(w => {
+        if (!recentWords.includes(w)) {
+            recentWords.push(w);
+        }
+    });
+    if (recentWords.length > 150) {
+        recentWords.splice(0, recentWords.length - 150);
+    }
+    
+    return selected;
 }
 
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
@@ -189,7 +235,8 @@ async function runHangmanGame(initialContext, channel, hostId, joinedPlayers) {
         const filter = m => {
             if (m.author.bot) return false;
             if (joinedPlayers.size > 0 && !joinedPlayers.has(m.author.id)) return false; // Only joined players can play if it's a closed lobby
-            return /^[a-z]+$/i.test(m.content.trim());
+            const content = m.content.trim().toLowerCase();
+            return /^[a-z]$/i.test(content) || content === word;
         };
 
         const collector = channel.createMessageCollector({ filter, time: 90000 });
@@ -238,38 +285,18 @@ async function runHangmanGame(initialContext, channel, hostId, joinedPlayers) {
                         }
                     }
                 } else {
-                    // Word guess
-                    if (guessedWords.has(guess)) {
-                        m.react('❌').catch(() => {});
-                        return;
-                    }
-                    guessedWords.add(guess);
+                    // Correct word guess (filter only matches single-letters or exact word)
+                    roundOver = true;
+                    collector.stop('won');
+                    const uId = m.author.id;
+                    if (!scores.has(uId)) scores.set(uId, { name: m.author.username, points: 0 });
+                    scores.get(uId).points += 1;
                     
-                    if (guess === word) {
-                        roundOver = true;
-                        collector.stop('won');
-                        const uId = m.author.id;
-                        if (!scores.has(uId)) scores.set(uId, { name: m.author.username, points: 0 });
-                        scores.get(uId).points += 1;
-                        
-                        const winEmbed = new EmbedBuilder()
-                            .setColor(0x2ecc71)
-                            .setDescription(`🎉 **${m.author.username}** correctly guessed the word **\`${word.toUpperCase()}\`**! (+1 point)`);
-                        await channel.send({ embeds: [winEmbed] });
-                        return;
-                    } else {
-                        m.react('❌').catch(() => {});
-                        mistakes += 1;
-                        if (mistakes >= 6) {
-                            roundOver = true;
-                            collector.stop('lost');
-                            const lossEmbed = new EmbedBuilder()
-                                .setColor(0xe74c3c)
-                                .setDescription(`💀 Too many wrong guesses! The word was **\`${word.toUpperCase()}\`**.`);
-                            await channel.send({ embeds: [lossEmbed] });
-                            return;
-                        }
-                    }
+                    const winEmbed = new EmbedBuilder()
+                        .setColor(0x2ecc71)
+                        .setDescription(`🎉 **${m.author.username}** correctly guessed the word **\`${word.toUpperCase()}\`**! (+1 point)`);
+                    await channel.send({ embeds: [winEmbed] });
+                    return;
                 }
                 
                 // Update the embed if the game continues

@@ -26,8 +26,10 @@ const QUESTIONS = [
 ];
 
 const activeGames = new Set();
+const recentAIQuestions = [];
 
 async function generateAIEmojiQuestion(apiKey) {
+    const avoidList = recentAIQuestions.length > 0 ? recentAIQuestions.join(', ') : 'none';
     const prompt = `Generate a single emoji decode trivia question. The user will be shown a set of emojis and must guess the title or name of the thing represented.
 Return the result strictly as a valid JSON object matching exactly this structure (no markdown, no backticks, no other text):
 {
@@ -38,7 +40,9 @@ Return the result strictly as a valid JSON object matching exactly this structur
   ],
   "category": "<the category, e.g., Movie, Video Game, Song, Book, Pop Culture, etc.>"
 }
-Ensure the question is fun, guessable, and uses common emojis. Ensure all entries in the "answers" array are in lowercase.`;
+Ensure the question is fun, guessable, and uses common emojis. Ensure all entries in the "answers" array are in lowercase.
+CRITICAL: Do NOT generate a question for any of the following recently used topics/answers: [${avoidList}].
+Choose a completely different, interesting, and recognizable title or concept. Be creative! Avoid cliché trivia answers (like harry potter, titanic, star wars, frozen, spiderman, minecraft) unless they are not recently used.`;
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
@@ -51,7 +55,7 @@ Ensure the question is fun, guessable, and uses common emojis. Ensure all entrie
             messages: [
                 { role: 'user', content: prompt }
             ],
-            temperature: 0.9,
+            temperature: 1.0,
             max_tokens: 200
         })
     });
@@ -83,6 +87,16 @@ Ensure the question is fun, guessable, and uses common emojis. Ensure all entrie
     
     // Clean data
     parsed.answers = parsed.answers.map(a => a.trim().toLowerCase());
+
+    // Track recently used answers to prevent repetition
+    const primaryAnswer = parsed.answers[0];
+    if (!recentAIQuestions.includes(primaryAnswer)) {
+        recentAIQuestions.push(primaryAnswer);
+        if (recentAIQuestions.length > 50) {
+            recentAIQuestions.shift();
+        }
+    }
+
     return parsed;
 }
 
