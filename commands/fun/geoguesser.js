@@ -10,10 +10,15 @@ async function fetchRandomLocation() {
         const res = await fetch('https://restcountries.com/v3.1/all');
         const countries = await res.json();
 
+        if (!Array.isArray(countries)) {
+            console.error('[GeoGuesser] Unexpected response from restcountries:', countries);
+            return null;
+        }
+
         // Loop until we find a country with a capital and an image on Wikipedia
         for (let i = 0; i < 10; i++) {
             const country = countries[Math.floor(Math.random() * countries.length)];
-            if (!country.capital || !country.capital[0]) continue;
+            if (!country || !country.capital || !country.capital[0]) continue;
             
             const capital = country.capital[0];
             const countryName = country.name.common;
