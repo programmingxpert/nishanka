@@ -7,8 +7,8 @@ const recentLocations = []; // Track recent locations to prevent repeats
 
 async function fetchRandomLocation() {
     try {
-        // Fetch all countries
-        const res = await fetch('https://restcountries.com/v3.1/all');
+        // Fetch all countries with specific fields to avoid 400 error
+        const res = await fetch('https://restcountries.com/v3.1/all?fields=name,capital,region,subregion');
         const countries = await res.json();
 
         if (!Array.isArray(countries)) {
@@ -80,8 +80,14 @@ module.exports = {
 
         let loc = await fetchRandomLocation();
         if (!loc) {
-            // Fallback
-            loc = fallbackLocations[Math.floor(Math.random() * fallbackLocations.length)];
+            // Fallback logic
+            let validFallbacks = fallbackLocations.filter(f => !recentLocations.includes(f.capital));
+            if (validFallbacks.length === 0) validFallbacks = fallbackLocations; // reset if all used
+            
+            loc = validFallbacks[Math.floor(Math.random() * validFallbacks.length)];
+            
+            recentLocations.push(loc.capital);
+            if (recentLocations.length > 150) recentLocations.shift();
         }
 
 		const reward = Math.floor(Math.random() * 50) + 50; // Win 50-100 baubles
