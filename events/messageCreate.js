@@ -14,15 +14,88 @@ module.exports = {
         try {
             settings = await GuildSettings.findOne({ guildId: message.guild.id });
             
-            // Increment message count in background
             const MemberStats = require('../models/MemberStats');
-            MemberStats.findOneAndUpdate(
-                { guildId: message.guild.id, userId: message.author.id },
-                { $inc: { messagesCount: 1 } },
-                { upsert: true }
-            ).catch(err => console.error('Error updating MemberStats messageCount:', err));
+            let stats = await MemberStats.findOne({ guildId: message.guild.id, userId: message.author.id });
+            if (!stats) {
+                stats = new MemberStats({ guildId: message.guild.id, userId: message.author.id });
+            }
+            
+            stats.messagesCount += 1;
+
+            // Check if leveling is enabled
+            const isLevelingEnabled = settings?.leveling?.enabled ?? true;
+            if (isLevelingEnabled) {
+                const now = Date.now();
+                const xpCooldown = 60000; // 1 minute
+                const lastXpTime = stats.lastXpEarnedAt ? new Date(stats.lastXpEarnedAt).getTime() : 0;
+                
+                if (now - lastXpTime >= xpCooldown) {
+                    const xpGained = Math.floor(Math.random() * 11) + 15; // 15 to 25 XP
+                    const oldXp = stats.xp || 0;
+                    const newXp = oldXp + xpGained;
+                    
+                    stats.xp = newXp;
+                    stats.lastXpEarnedAt = new Date();
+                    
+                    const oldLevel = stats.level || 0;
+                    const newLevel = Math.floor(Math.sqrt(newXp / 100));
+                    
+                    if (newLevel > oldLevel) {
+                        stats.level = newLevel;
+                        
+                        // Level up! Grant rewards and announce
+                        const Bauble = require('../models/baubleSchema');
+                        const multiplier = settings?.leveling?.baublesMultiplier ?? 100;
+                        const reward = newLevel * multiplier;
+                        
+                        await Bauble.findOneAndUpdate(
+                            { userId: message.author.id },
+                            { $inc: { baubles: reward } },
+                            { upsert: true }
+                        );
+                        
+                        // Role Rewards
+                        const roleRewards = settings?.leveling?.roleRewards || [];
+                        const roleReward = roleRewards.find(r => r.level === newLevel);
+                        let roleGranted = null;
+                        if (roleReward) {
+                            try {
+                                const member = await message.guild.members.fetch(message.author.id);
+                                if (member) {
+                                    await member.roles.add(roleReward.roleId);
+                                    roleGranted = roleReward.roleId;
+                                }
+                            } catch (e) {
+                                console.error('Failed to grant role reward upon level up:', e.message);
+                            }
+                        }
+                        
+                        // Announcement
+                        const announce = settings?.leveling?.announceLevelUps ?? true;
+                        if (announce) {
+                            const { EmbedBuilder } = require('discord.js');
+                            const embed = new EmbedBuilder()
+                                .setColor(0x7c6cf0)
+                                .setTitle('🆙 LEVEL UP!')
+                                .setDescription(`🎉 **${message.author.username}** has reached **Level ${newLevel}**!\n🎁 Reward: **${reward}** Glimmering Baubles! 🪙` + (roleGranted ? `\n🛡️ Role Unlocked: <@&${roleGranted}>` : ''))
+                                .setTimestamp()
+                                .setFooter({ text: 'Keep chatting to earn more XP! ✨' });
+                            
+                            const announceChannelId = settings?.leveling?.levelUpChannelId;
+                            let channel = message.channel;
+                            if (announceChannelId) {
+                                const targetChan = message.guild.channels.cache.get(announceChannelId);
+                                if (targetChan) channel = targetChan;
+                            }
+                            channel.send({ content: `<@${message.author.id}>`, embeds: [embed] }).catch(() => {});
+                        }
+                    }
+                }
+            }
+
+            await stats.save();
         } catch (e) {
-            console.error('Failed to fetch guild settings in messageCreate:', e);
+            console.error('Failed to process messageCreate stats/leveling:', e);
         }
 
         // --- Triggers Logic ---

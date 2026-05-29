@@ -21,6 +21,19 @@ const guildSettingsSchema = new mongoose.Schema({
         quotesChannelId: { type: String, default: null },
         defaultPurgeAmount: { type: Number, default: 10 }
     },
+    leveling: {
+        enabled: { type: Boolean, default: true },
+        levelUpChannelId: { type: String, default: null },
+        announceLevelUps: { type: Boolean, default: true },
+        roleRewards: {
+            type: [{
+                level: { type: Number, required: true },
+                roleId: { type: String, required: true }
+            }],
+            default: []
+        },
+        baublesMultiplier: { type: Number, default: 100 }
+    },
     dashboardPermissions: {
         bot: { type: [String], default: [] },
         giveaways: { type: [String], default: [] },

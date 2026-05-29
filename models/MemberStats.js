@@ -7,6 +7,9 @@ const memberStatsSchema = new Schema({
     invitesCount: { type: Number, default: 0 },
     reputation: { type: Number, default: 0 },
     lastRepGivenAt: { type: Date, default: null },
+    xp: { type: Number, default: 0 },
+    level: { type: Number, default: 0 },
+    lastXpEarnedAt: { type: Date, default: null },
 });
 
 // Composite index for fast lookups by guild and user

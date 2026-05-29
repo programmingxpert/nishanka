@@ -94,6 +94,7 @@ const commandsPath = path.join(__dirname, 'commands');
                         deathbattle: ['db'],
                         meme: ['memes'],
                         rep: ['reputation', 'reps'],
+                        rank: ['level', 'lvl'],
                         excuse: ['excuses'],
                         ban: ['b'],
                         unban: ['ub'],
@@ -630,6 +631,13 @@ app.get('/api/guilds/:guildId', async (req, res) => {
       economy: guildConfig?.economy || {},
       music: guildConfig?.music || {},
       bot: guildConfig?.bot || {},
+      leveling: guildConfig?.leveling || {
+        enabled: true,
+        levelUpChannelId: null,
+        announceLevelUps: true,
+        roleRewards: [],
+        baublesMultiplier: 100
+      },
       dashboardPermissions: dbPerms,
       userPermissions
     });
@@ -644,7 +652,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
-  const { autoMod, censor, economy, music, bot, dashboardPermissions } = req.body;
+  const { autoMod, censor, economy, music, bot, leveling, dashboardPermissions } = req.body;
 
   try {
     const guild = client.guilds.cache.get(guildId);
@@ -688,6 +696,21 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
           console.error(`Failed to update nickname in guild ${guildId}:`, e);
         }
       }
+    }
+
+    if (leveling) {
+      if (!canEdit('bot')) {
+        return res.status(403).json({ error: 'You do not have permission to modify Leveling settings.' });
+      }
+      settingsUpdates.leveling = {
+        enabled: leveling.enabled !== false,
+        announceLevelUps: leveling.announceLevelUps !== false,
+        levelUpChannelId: leveling.levelUpChannelId || null,
+        baublesMultiplier: typeof leveling.baublesMultiplier === 'number' ? leveling.baublesMultiplier : 100,
+        roleRewards: Array.isArray(leveling.roleRewards)
+          ? leveling.roleRewards.map(r => ({ level: Number(r.level), roleId: String(r.roleId) }))
+          : []
+      };
     }
 
     if (music) {

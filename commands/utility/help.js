@@ -174,7 +174,7 @@ const commandGroups = {
 		},
 		{
 			title: 'ℹ️ Information Lookup',
-			commands: ['server', 'servericon', 'user', 'avatar', 'rep']
+			commands: ['server', 'servericon', 'user', 'avatar', 'rep', 'rank']
 		}
 	]
 };
