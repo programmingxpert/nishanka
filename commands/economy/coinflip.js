@@ -72,8 +72,8 @@ module.exports = {
         let side = null;
         if (sideArg) {
             let tempSide = sideArg.toLowerCase();
-            if (tempSide === 'h' || tempSide === 'head') side = 'heads';
-            else if (tempSide === 't' || tempSide === 'tail') side = 'tails';
+            if (tempSide === 'h' || tempSide === 'head' || tempSide === 'heads') side = 'heads';
+            else if (tempSide === 't' || tempSide === 'tail' || tempSide === 'tails') side = 'tails';
             else if (tempSide === 'd' || tempSide === 'draw' || tempSide === 'side' || tempSide === 'sideways' || tempSide === 'upright') side = 'draw';
             
             if (side !== 'heads' && side !== 'tails' && side !== 'draw') {
@@ -344,7 +344,9 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
                 .setDescription(`🪙 The coin landed perfectly **sideways/upright**!\nYou guessed the **0.1% chance** draw correctly! Absolutely insane luck! 💫` + (cloverUsed ? `\n\n🍀 *Lucky Clover boost converted a loss into a win!*` : ''));
         } else {
             finalEmbed.setTitle('🎉  VICTORY!')
-                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟` + (cloverUsed ? `\n\n🍀 *Lucky Clover boost converted a loss into a win!*` : ''));
+                .setDescription(cloverUsed 
+                    ? `🪙 The coin landed on **${outcome.toUpperCase()}**.\nYour guess was **${side.toUpperCase()}**, but your 🍀 **Lucky Clover** saved you and converted the loss into a win! 🌟`
+                    : `🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟`);
         }
         finalEmbed.addFields(
             { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },
