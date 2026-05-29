@@ -26,20 +26,50 @@ async function fetchRandomLocation() {
             const countryName = country.name.common;
             const region = country.subregion || country.region;
             
-            const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(capital)}`);
-            if (!wikiRes.ok) continue;
+            let imgUrl = null;
             
-            const wikiData = await wikiRes.json();
-            if (!wikiData.originalimage || !wikiData.originalimage.source) continue;
-
-            const imgUrl = wikiData.originalimage.source;
-            const lowerUrl = imgUrl.toLowerCase();
-            
-            if (lowerUrl.includes('flag') || lowerUrl.includes('map') || 
-                lowerUrl.includes('coat_of_arms') || lowerUrl.includes('logo') || 
-                lowerUrl.includes('locator')) {
-                continue;
+            // Try to fetch from LoremFlickr for street-level / landmark photos
+            try {
+                const lock = Math.floor(Math.random() * 10000);
+                const lfRes = await fetch(`https://loremflickr.com/json/800/600/${encodeURIComponent(capital)},city/all?lock=${lock}`);
+                if (lfRes.ok) {
+                    const lfData = await lfRes.json();
+                    if (lfData.file && !lfData.file.includes('defaultImage')) {
+                        imgUrl = lfData.file;
+                    }
+                }
+                
+                // Fallback to just capital name if city tag failed
+                if (!imgUrl) {
+                    const lfRes2 = await fetch(`https://loremflickr.com/json/800/600/${encodeURIComponent(capital)}/all?lock=${lock}`);
+                    if (lfRes2.ok) {
+                        const lfData2 = await lfRes2.json();
+                        if (lfData2.file && !lfData2.file.includes('defaultImage')) {
+                            imgUrl = lfData2.file;
+                        }
+                    }
+                }
+            } catch (err) {
+                // Ignore and fallback to wikipedia
             }
+
+            // Fallback to Wikipedia if LoremFlickr completely fails
+            if (!imgUrl) {
+                const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(capital)}`);
+                if (wikiRes.ok) {
+                    const wikiData = await wikiRes.json();
+                    if (wikiData.originalimage && wikiData.originalimage.source) {
+                        const lowerUrl = wikiData.originalimage.source.toLowerCase();
+                        if (!lowerUrl.includes('flag') && !lowerUrl.includes('map') && 
+                            !lowerUrl.includes('coat_of_arms') && !lowerUrl.includes('logo') && 
+                            !lowerUrl.includes('locator')) {
+                            imgUrl = wikiData.originalimage.source;
+                        }
+                    }
+                }
+            }
+
+            if (!imgUrl) continue;
 
             recentLocations.push(capital);
             if (recentLocations.length > 150) recentLocations.shift();
