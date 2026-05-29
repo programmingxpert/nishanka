@@ -2,6 +2,7 @@ const { EmbedBuilder, PermissionsBitField } = require('discord.js');
 const Trigger = require('../../models/triggerSchema');
 
 module.exports = {
+    category: 'admin',
     data: {
         name: 'trigger',
         description: 'Manage simple text triggers for the server.',
