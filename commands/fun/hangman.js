@@ -422,31 +422,14 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                         await gameMsg.edit({ embeds: [buildEmbed('won')] }).catch(() => {});
                         await channel.send({ embeds: [winEmbed] });
                     } else {
-                        // Wrong word attempt — penalise as a mistake
-                        mistakes++;
-                        if (mistakes >= 6) {
-                            roundOver = true;
-                            collector.stop('lost');
-                            const lossEmbed = new EmbedBuilder()
-                                .setColor(0xe74c3c)
-                                .setTitle('💀 Hanged!')
-                                .setDescription(
-                                    `**${m.author.username}** guessed the wrong word!\n` +
-                                    `The word was: **\`${word.toUpperCase()}\`** 😬`
-                                );
-                            await gameMsg.edit({ embeds: [buildEmbed('lost')] }).catch(() => {});
-                            await channel.send({ embeds: [lossEmbed] });
-                            return;
-                        }
-                        // Show a subtle wrong-word indicator
+                        // Wrong word attempt — NO penalty, word guesses are free attempts
                         await channel.send({
                             embeds: [
                                 new EmbedBuilder()
-                                    .setColor(0xe74c3c)
-                                    .setDescription(`❌ **${m.author.username}** — \`${guess}\` is wrong! (-1 life)`)
+                                    .setColor(0x95a5a6)
+                                    .setDescription(`❌ **${m.author.username}** — \`${guess}\` is wrong, but no lives lost!`)
                             ]
                         }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 4000));
-                        await gameMsg.edit({ embeds: [buildEmbed()] }).catch(() => {});
                     }
                 }
             });
