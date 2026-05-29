@@ -155,7 +155,7 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
     let finalText = '';
     
     for (const [idx, [uId, data]] of sortedScores.entries()) {
-        const reward = data.points * 500;
+        const reward = data.points * 25;
         finalText += `**${idx + 1}.** ${data.name} — ${data.points} pts (+**${reward.toLocaleString()}** Baubles)\n`;
         
         try {

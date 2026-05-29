@@ -529,7 +529,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
     const winnerUser = forfeit ? (forfeit.user.id === p1.user.id ? p2.user : p1.user) : winner.user;
     let rewardText = '';
     if (!winnerUser.bot) {
-        const reward = Math.floor(Math.random() * 401) + 200; // 200-600 Baubles
+        const reward = Math.floor(Math.random() * 101) + 50; // 50-150 Baubles
         try {
             let baubleData = await Bauble.findOne({ userId: winnerUser.id });
             if (!baubleData) {

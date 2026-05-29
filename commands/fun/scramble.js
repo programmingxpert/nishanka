@@ -233,7 +233,7 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
     const globalMultiplier = await getGlobalMultiplier();
 
     for (const [idx, [uId, data]] of sortedScores.entries()) {
-        const reward = Math.floor(data.points * 500 * globalMultiplier);
+        const reward = Math.floor(data.points * 25 * globalMultiplier);
         finalText += `**${idx + 1}.** ${data.name} — ${data.points} pts (+**${reward.toLocaleString()}** Baubles) *(Economy Multiplier: ${globalMultiplier}x)*\n`;
         
         try {

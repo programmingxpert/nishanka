@@ -565,10 +565,10 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
 
     const payoutDetails = [];
     for (const playerState of gameState) {
-        let prize = playerState.successfulGuesses * 150;
+        let prize = playerState.successfulGuesses * 10;
         const isWinner = winner && playerState.user.id === winner.id;
         if (isWinner) {
-            prize += 2000;
+            prize += 100;
         }
 
         if (prize > 0) {

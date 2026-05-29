@@ -131,7 +131,7 @@ module.exports = {
             question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
         }
 
-        const reward = Math.floor(Math.random() * 1001) + 500; // 500-1500 Baubles
+        const reward = Math.floor(Math.random() * 76) + 25; // 25-100 Baubles
 
         const gameEmbed = new EmbedBuilder()
             .setColor(0x7c6cf0)
@@ -216,7 +216,7 @@ module.exports = {
             question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
         }
 
-        const reward = Math.floor(Math.random() * 1001) + 500; // 500-1500 Baubles
+        const reward = Math.floor(Math.random() * 76) + 25; // 25-100 Baubles
 
         const gameEmbed = new EmbedBuilder()
             .setColor(0x7c6cf0)
