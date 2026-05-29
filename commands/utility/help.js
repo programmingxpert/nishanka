@@ -142,11 +142,11 @@ const commandGroups = {
 		},
 		{
 			title: '⚔️ Games & Challenges',
-			commands: ['wordbomb', 'scramble', 'emojidecode', 'guesstheflag', 'deathbattle']
+			commands: ['wordbomb', 'scramble', 'emojidecode', 'guesstheflag', 'deathbattle', 'geoguesser']
 		},
 		{
 			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball']
+			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry']
 		},
 		{
 			title: '💬 Attributions',
