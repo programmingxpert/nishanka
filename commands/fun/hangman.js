@@ -507,7 +507,6 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                 .setColor(0x9b59b6)
                 .setTitle('🏆 Hangman — Final Results')
                 .setDescription(finalText)
-                .setFooter({ text: `Words powered by ${wordSource === 'deepseek' ? 'DeepSeek AI ✨' : 'Backup Word List'}` })
         ]
     });
 }
