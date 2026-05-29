@@ -358,13 +358,13 @@ module.exports = {
             function getPageData(page, baubles, globalMultiplier) {
                 switch (page) {
                     case 'home':
-                        return { embeds: [getHomePageEmbed(baubles)], components: getHomePageComponents() };
+                        return { embeds: [getHomePageEmbed(baubles, globalMultiplier)], components: getHomePageComponents() };
                     case 'boosters':
-                        return { embeds: [getBoostersPageEmbed(baubles)], components: getBoostersComponents() };
+                        return { embeds: [getBoostersPageEmbed(baubles, globalMultiplier)], components: getBoostersComponents(globalMultiplier) };
                     case 'cosmetics':
-                        return { embeds: [getCosmeticsPageEmbed(baubles)], components: getCosmeticsComponents() };
+                        return { embeds: [getCosmeticsPageEmbed(baubles, globalMultiplier)], components: getCosmeticsComponents(globalMultiplier) };
                     case 'help':
-                        return { embeds: [getHelpPageEmbed(baubles)], components: getHelpComponents() };
+                        return { embeds: [getHelpPageEmbed(baubles, globalMultiplier)], components: getHelpComponents() };
                 }
             }
 
@@ -467,13 +467,13 @@ module.exports = {
             function getPageData(page, baubles, globalMultiplier) {
                 switch (page) {
                     case 'home':
-                        return { embeds: [getHomePageEmbed(baubles)], components: getHomePageComponents() };
+                        return { embeds: [getHomePageEmbed(baubles, globalMultiplier)], components: getHomePageComponents() };
                     case 'boosters':
-                        return { embeds: [getBoostersPageEmbed(baubles)], components: getBoostersComponents() };
+                        return { embeds: [getBoostersPageEmbed(baubles, globalMultiplier)], components: getBoostersComponents(globalMultiplier) };
                     case 'cosmetics':
-                        return { embeds: [getCosmeticsPageEmbed(baubles)], components: getCosmeticsComponents() };
+                        return { embeds: [getCosmeticsPageEmbed(baubles, globalMultiplier)], components: getCosmeticsComponents(globalMultiplier) };
                     case 'help':
-                        return { embeds: [getHelpPageEmbed(baubles)], components: getHelpComponents() };
+                        return { embeds: [getHelpPageEmbed(baubles, globalMultiplier)], components: getHelpComponents() };
                 }
             }
 
