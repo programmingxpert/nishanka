@@ -308,11 +308,6 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                         inline: false
                     },
                     {
-                        name: '💡 Free letter',
-                        value: `\`${freebie.toUpperCase()}\` was revealed at the start`,
-                        inline: true
-                    },
-                    {
                         name: '❤️ Lives',
                         value: `${livesBar} (${6 - mistakes}/6)`,
                         inline: true
@@ -351,11 +346,6 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
             collector.on('collect', async m => {
                 const guess = m.content.trim().toLowerCase();
 
-                // Delete the player's message (keep chat clean)
-                if (canDelete) {
-                    m.delete().catch(() => {});
-                }
-
                 if (guess.length === 1) {
                     // ── Single letter guess ────────────────────────────────
                     if (guessedLetters.has(guess)) {
@@ -365,6 +355,11 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                     }
 
                     guessedLetters.add(guess);
+                    
+                    // Delete single letter guess
+                    if (canDelete) {
+                        m.delete().catch(() => {});
+                    }
 
                     if (word.includes(guess)) {
                         // Correct letter
@@ -411,6 +406,12 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                         roundOver = true;
                         collector.stop('won');
                         _awardPoint(scores, m.author.id, m.author.username);
+                        
+                        // Delete correct word guess
+                        if (canDelete) {
+                            m.delete().catch(() => {});
+                        }
+                        
                         const winEmbed = new EmbedBuilder()
                             .setColor(0x2ecc71)
                             .setTitle('🎉 Word Solved!')
@@ -422,14 +423,7 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                         await gameMsg.edit({ embeds: [buildEmbed('won')] }).catch(() => {});
                         await channel.send({ embeds: [winEmbed] });
                     } else {
-                        // Wrong word attempt — NO penalty, word guesses are free attempts
-                        await channel.send({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor(0x95a5a6)
-                                    .setDescription(`❌ **${m.author.username}** — \`${guess}\` is wrong, but no lives lost!`)
-                            ]
-                        }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 4000));
+                        // Wrong word attempt — NO penalty, no deletion, just left alone
                     }
                 }
             });
