@@ -61,7 +61,63 @@ const commandsPath = path.join(__dirname, 'commands');
             try {
                 const command = require(fullPath);
                 if (command?.data?.name) {
-                    client.commands.set(command.data.name, command);
+                    const defaultAliasesMap = {
+                        bauble: ['bal', 'balance', 'money', 'cash', 'coins'],
+                        inventory: ['inv', 'bag', 'items'],
+                        leaderboard: ['lb', 'top'],
+                        globalleaderboard: ['glb', 'gtop'],
+                        daily: ['d'],
+                        weekly: ['week'],
+                        coinflip: ['cf', 'flip'],
+                        slots: ['slot'],
+                        gamble: ['g', 'bet'],
+                        mines: ['mine', 'm'],
+                        buckshot: ['bs', 'shotgun'],
+                        scavenge: ['scav', 'sc'],
+                        work: ['job'],
+                        rob: ['steal', 'mug'],
+                        use: ['consume'],
+                        profile: ['p', 'prof'],
+                        'profile-edit': ['pedit', 'pe'],
+                        'profile-reset': ['preset'],
+                        family: ['fam'],
+                        familytree: ['tree', 'ft'],
+                        marry: ['proposal', 'propose'],
+                        divorce: ['breakup'],
+                        help: ['h', 'cmds', 'commands'],
+                        ping: ['latency'],
+                        setquoteschannel: ['sqc', 'quoteschannel'],
+                        wordbomb: ['wb'],
+                        scramble: ['scram'],
+                        emojidecode: ['ed', 'emoji'],
+                        guesstheflag: ['gtf', 'flag'],
+                        deathbattle: ['db'],
+                        meme: ['memes'],
+                        excuse: ['excuses'],
+                        ban: ['b'],
+                        unban: ['ub'],
+                        timeout: ['mute', 'to'],
+                        removetimeout: ['unmute', 'unto'],
+                        purge: ['clear', 'clean'],
+                        warn: ['wn'],
+                        warnings: ['warns'],
+                        clearwarnings: ['clearwarns', 'cw'],
+                        temprole: ['tr'],
+                        play: ['pl'],
+                        stop: ['leave', 'dc'],
+                        pause: ['pausemusic'],
+                        resume: ['resumemusic'],
+                        queue: ['q'],
+                        skip: ['next'],
+                        remove: ['rm'],
+                        clearmusic: ['clearq', 'cq']
+                    };
+                    const name = command.data.name;
+                    if (defaultAliasesMap[name]) {
+                        const existing = command.aliases || [];
+                        command.aliases = [...new Set([...existing, ...defaultAliasesMap[name]])];
+                    }
+                    client.commands.set(name, command);
                 } else {
                     console.warn(`[Commands] Skipping ${entry.name}: missing data.name`);
                 }

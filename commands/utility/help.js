@@ -226,6 +226,8 @@ module.exports = {
 			}
 
 			const category = cmd.category || 'Uncategorized';
+			if (category === 'admin' && !isOwner) continue;
+
 			if (!grouped[category]) grouped[category] = {};
 			grouped[category][cmd.data.name] = cmd.data.description || 'No description provided.';
 		}
@@ -241,6 +243,18 @@ module.exports = {
 			return idxA - idxB;
 		});
 
+		const fields = [];
+		if (isOwner) {
+			fields.push({ name: '⚙️ Admin', value: 'Server configs & triggers', inline: true });
+		}
+		fields.push(
+			{ name: '🛡️ Moderation', value: 'Auto-mod & mutes/bans', inline: true },
+			{ name: '💵 Economy', value: 'Wealth & casino games', inline: true },
+			{ name: '🎭 Fun & Games', value: 'Family system & minigames', inline: true },
+			{ name: '🎵 Music Player', value: 'Stream audio in VC', inline: true },
+			{ name: '👤 Profiles', value: 'Customize profile cards', inline: true }
+		);
+
 		const embed = new EmbedBuilder()
 			.setTitle('📘 Help Menu')
 			.setDescription(
@@ -248,14 +262,7 @@ module.exports = {
 				'Please select a category from the dropdown menu below to view its available commands.'
 			)
 			.setColor(0x7c6cf0)
-			.addFields(
-				{ name: '⚙️ Admin', value: 'Server configs & triggers', inline: true },
-				{ name: '🛡️ Moderation', value: 'Auto-mod & mutes/bans', inline: true },
-				{ name: '💵 Economy', value: 'Wealth & casino games', inline: true },
-				{ name: '🎭 Fun & Games', value: 'Family system & minigames', inline: true },
-				{ name: '🎵 Music Player', value: 'Stream audio in VC', inline: true },
-				{ name: '👤 Profiles', value: 'Customize profile cards', inline: true }
-			)
+			.addFields(fields)
 			.setFooter({ text: 'Use /help or -help | Nishanka ©️' });
 
 		const selectMenu = new StringSelectMenuBuilder()

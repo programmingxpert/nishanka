@@ -1,5 +1,6 @@
 const { EmbedBuilder, PermissionsBitField } = require('discord.js');
 const Trigger = require('../../models/triggerSchema');
+const config = require('../../config.json');
 
 module.exports = {
     category: 'admin',
@@ -11,8 +12,8 @@ module.exports = {
     aliases: ['triggers'],
     
     async executePrefix(message, args, client) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-            return message.reply('You need `Manage Server` permissions to use this command!');
+        if (message.author.id !== config.devId) {
+            return message.reply('❌ This command is restricted to the bot developer only.');
         }
 
         const subCommand = args[0]?.toLowerCase();

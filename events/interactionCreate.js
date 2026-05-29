@@ -1,5 +1,6 @@
 /* eslint-disable */
 const { Collection, MessageFlags } = require('discord.js');
+const config = require('../config.json');
 
 module.exports = {
     name: 'interactionCreate',
@@ -24,6 +25,10 @@ module.exports = {
         const command = client.commands.get(interaction.commandName);
         if (!command) {
             return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });
+        }
+
+        if (command.category === 'admin' && interaction.user.id !== config.devId) {
+            return interaction.reply({ content: '❌ This command is restricted to the bot developer only.', ephemeral: true });
         }
 
         if (client.disabledCommands && client.disabledCommands.has(command.data.name)) {

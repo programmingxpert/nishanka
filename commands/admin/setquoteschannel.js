@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, PermissionsBitField, ChannelType } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
+const config = require('../../config.json');
 
 module.exports = {
     category: 'admin',
@@ -15,8 +16,8 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction) {
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-            return interaction.reply({ content: '❌ You need `Manage Server` permissions to use this command!', ephemeral: true });
+        if (interaction.user.id !== config.devId) {
+            return interaction.reply({ content: '❌ This command is restricted to the bot developer only.', ephemeral: true });
         }
 
         const channel = interaction.options.getChannel('channel');
@@ -48,8 +49,8 @@ module.exports = {
     },
 
     async executePrefix(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-            return message.reply('❌ You need `Manage Server` permissions to use this command!').catch(() => {});
+        if (message.author.id !== config.devId) {
+            return message.reply('❌ This command is restricted to the bot developer only.').catch(() => {});
         }
 
         const guildId = message.guild.id;

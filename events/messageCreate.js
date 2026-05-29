@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { Collection } = require('discord.js');
 const GuildSettings = require('../models/guildSettingsSchema');
+const config = require('../config.json');
 
 module.exports = {
     name: 'messageCreate',
@@ -79,6 +80,10 @@ module.exports = {
             ?? client.commands.find(cmd => cmd.aliases?.includes(commandName));
 
         if (!command) return;
+
+        if (command.category === 'admin' && message.author.id !== config.devId) {
+            return message.reply('❌ This command is restricted to the bot developer only.').catch(() => {});
+        }
 
         if (command.slashOnly) {
             return message.reply(`❌ The \`${commandName}\` command is only available as a slash command (use \`/${command.data?.name || commandName}\`).`).catch(() => {});
