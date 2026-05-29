@@ -150,17 +150,17 @@ for (const file of eventFiles) {
 const lavalinkNodes = [
     {
         name:     'node-1',
-        host:     process.env.LAVALINK_HOST     ?? 'lavalink.lexnet.cc',
+        host:     process.env.LAVALINK_HOST     ?? 'lavalink.jirayu.net',
         port:     Number(process.env.LAVALINK_PORT ?? 443),
-        password: process.env.LAVALINK_PASSWORD  ?? 'lexnethosting',
-        secure:   process.env.LAVALINK_SECURE === 'true',
+        password: process.env.LAVALINK_PASSWORD  ?? 'youshallnotpass',
+        secure:   process.env.LAVALINK_SECURE !== 'false',
     },
     {
         name:     'node-2',
-        host:     process.env.LAVALINK_HOST_2   ?? 'lava-v4.millohost.my.id',
+        host:     process.env.LAVALINK_HOST_2   ?? 'lavalink.jirayu.net',
         port:     Number(process.env.LAVALINK_PORT_2 ?? 443),
-        password: process.env.LAVALINK_PASSWORD_2 ?? 'https://discord.gg/mjS5J2K3ep',
-        secure:   process.env.LAVALINK_SECURE_2 === 'true',
+        password: process.env.LAVALINK_PASSWORD_2 ?? 'youshallnotpass',
+        secure:   process.env.LAVALINK_SECURE_2 !== 'false',
     },
     {
         name:     'node-3',
