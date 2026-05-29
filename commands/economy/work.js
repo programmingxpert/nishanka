@@ -219,7 +219,10 @@ async function runMiningGame(initialData, channel, user, baubleData) {
     });
 
     collector.on('end', async () => {
-        const earnings = Math.min(80, clicks * 4);
+        const { getGlobalMultiplier } = require('../../utils/economyEngine');
+        const globalMultiplier = await getGlobalMultiplier();
+        const baseEarnings = Math.min(80, clicks * 4);
+        const earnings = Math.floor(baseEarnings * globalMultiplier);
 
         try {
             const currentProfile =
@@ -249,7 +252,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
                     : '💎 Mining Complete!'
             )
             .setDescription(
-                `You swung your pickaxe **${clicks}** times and extracted **${earnings}** Glimmering Baubles!`
+                `You swung your pickaxe **${clicks}** times and extracted **${earnings}** Glimmering Baubles! *(Economy Multiplier: ${globalMultiplier}x)*`
             )
             .addFields({
                 name: '💰 New Balance',
@@ -425,21 +428,27 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
 
             const ms = Date.now() - startTime;
 
+            const { getGlobalMultiplier } = require('../../utils/economyEngine');
+            const globalMultiplier = await getGlobalMultiplier();
+            let baseEarnings = 0;
+
             if (ms <= 250) {
-                earnings = 90;
+                baseEarnings = 90;
             } else if (ms <= 500) {
-                earnings = 70;
+                baseEarnings = 70;
             } else if (ms <= 1000) {
-                earnings = 50;
+                baseEarnings = 50;
             } else {
-                earnings = 25;
+                baseEarnings = 25;
             }
+            
+            earnings = Math.floor(baseEarnings * globalMultiplier);
 
             resultEmbed
                 .setColor(0x2ecc71)
                 .setTitle('👮 Security Job Complete!')
                 .setDescription(
-                    `You caught the intruder in **${ms}ms**!\n\nEarned **${earnings}** Glimmering Baubles.`
+                    `You caught the intruder in **${ms}ms**!\n\nEarned **${earnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*`
                 );
 
             try {
@@ -637,13 +646,15 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
 
         if (gameResult === 'success') {
 
-            earnings = 65;
+            const { getGlobalMultiplier } = require('../../utils/economyEngine');
+            const globalMultiplier = await getGlobalMultiplier();
+            earnings = Math.floor(65 * globalMultiplier);
 
             resultEmbed
                 .setColor(0x2ecc71)
                 .setTitle('✅ Generator Stabilized!')
                 .setDescription(
-                    `Excellent work! You cut the **${clickedColor.toUpperCase()}** wire.\n\nEarned **${earnings}** Glimmering Baubles.`
+                    `Excellent work! You cut the **${clickedColor.toUpperCase()}** wire.\n\nEarned **${earnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*`
                 );
 
             try {
@@ -791,11 +802,14 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
             const isMatch = sortedSelected.length === sortedRecipe.length && sortedSelected.every((val, index) => val === sortedRecipe[index]);
 
             if (isMatch) {
-                earnings = 70;
+                const { getGlobalMultiplier } = require('../../utils/economyEngine');
+                const globalMultiplier = await getGlobalMultiplier();
+                earnings = Math.floor(70 * globalMultiplier);
+                
                 resultEmbed
                     .setColor(0x2ecc71)
                     .setTitle('☕ Order Served!')
-                    .setDescription(`Perfect! You brewed a fresh **${recipe.name}**! The customer tipped you generously.\n\nEarned **${earnings}** Glimmering Baubles.`)
+                    .setDescription(`Perfect! You brewed a fresh **${recipe.name}**! The customer tipped you generously.\n\nEarned **${earnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*`)
                     .setTimestamp();
 
                 try {

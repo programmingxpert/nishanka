@@ -229,9 +229,12 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
     const sortedScores = Array.from(scores.entries()).sort((a, b) => b[1].points - a[1].points);
     let finalText = '';
     
+    const { getGlobalMultiplier } = require('../../utils/economyEngine');
+    const globalMultiplier = await getGlobalMultiplier();
+
     for (const [idx, [uId, data]] of sortedScores.entries()) {
-        const reward = data.points * 500;
-        finalText += `**${idx + 1}.** ${data.name} — ${data.points} pts (+**${reward.toLocaleString()}** Baubles)\n`;
+        const reward = Math.floor(data.points * 500 * globalMultiplier);
+        finalText += `**${idx + 1}.** ${data.name} — ${data.points} pts (+**${reward.toLocaleString()}** Baubles) *(Economy Multiplier: ${globalMultiplier}x)*\n`;
         
         try {
             let baubleData = await Bauble.findOne({ userId: uId });

@@ -116,7 +116,10 @@ module.exports = {
             const baseReward = Math.floor(Math.random() * 901) + 900;
             // Add a funny streak bonus: +20 baubles per streak day, capped at 500 bonus baubles
             const streakBonus = Math.min((baubleData.dailyStreak - 1) * 20, 500);
-            const totalReward = baseReward + streakBonus;
+            
+            const { getGlobalMultiplier } = require('../../utils/economyEngine');
+            const globalMultiplier = await getGlobalMultiplier();
+            const totalReward = Math.floor((baseReward + streakBonus) * globalMultiplier);
 
             // Save to database
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
@@ -133,7 +136,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(rarity.color)
                 .setTitle('🎁 Daily Reward Claimed!')
-                .setDescription(`You successfully claimed your daily Glimmering Baubles!`)
+                .setDescription(`You successfully claimed your daily Glimmering Baubles!\n*(Economy Multiplier: ${globalMultiplier}x)*`)
                 .addFields(
                     { name: '✨ Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
                     { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
@@ -211,7 +214,10 @@ module.exports = {
 
             const baseReward = Math.floor(Math.random() * 901) + 900;
             const streakBonus = Math.min((baubleData.dailyStreak - 1) * 20, 500);
-            const totalReward = baseReward + streakBonus;
+            
+            const { getGlobalMultiplier } = require('../../utils/economyEngine');
+            const globalMultiplier = await getGlobalMultiplier();
+            const totalReward = Math.floor((baseReward + streakBonus) * globalMultiplier);
 
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
             baubleData.dailyLastClaimed = now;
@@ -227,7 +233,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(rarity.color)
                 .setTitle('🎁 Daily Reward Claimed!')
-                .setDescription(`You successfully claimed your daily Glimmering Baubles!`)
+                .setDescription(`You successfully claimed your daily Glimmering Baubles!\n*(Economy Multiplier: ${globalMultiplier}x)*`)
                 .addFields(
                     { name: '✨ Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
                     { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },

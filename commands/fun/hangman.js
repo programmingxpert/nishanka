@@ -478,11 +478,14 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
         });
     }
 
+    const { getGlobalMultiplier } = require('../../utils/economyEngine');
+    const globalMultiplier = await getGlobalMultiplier();
+
     let finalText = '';
     for (const [idx, { id: uId, name, points }] of finalScores.entries()) {
-        const reward = points * POINTS_PER_ROUND;
+        const reward = Math.floor(points * POINTS_PER_ROUND * globalMultiplier);
         const medal = ['🥇', '🥈', '🥉'][idx] ?? `**${idx + 1}.**`;
-        finalText += `${medal} **${name}** — ${points} pt${points !== 1 ? 's' : ''} → +**${reward.toLocaleString()}** Baubles\n`;
+        finalText += `${medal} **${name}** — ${points} pt${points !== 1 ? 's' : ''} → +**${reward.toLocaleString()}** Baubles *(Economy Multiplier: ${globalMultiplier}x)*\n`;
 
         try {
             let baubleData = await Bauble.findOne({ userId: uId });

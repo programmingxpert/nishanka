@@ -255,7 +255,14 @@ client.riffy.on('queueEnd',       async (player)        => {
 // ─── MongoDB ──────────────────────────────────────────────────────────────────
 mongoose
     .connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ Connected to MongoDB'))
+    .then(() => {
+        console.log('✅ Connected to MongoDB');
+        const { calculateEconomy } = require('./utils/economyEngine');
+        // Initial run 10 seconds after boot
+        setTimeout(() => calculateEconomy(), 10000);
+        // Run every 24 hours
+        setInterval(() => calculateEconomy(), 86400000);
+    })
     .catch(err => {
         console.error('❌ MongoDB connection failed:', err.message);
         process.exit(1);
@@ -1992,6 +1999,23 @@ app.post('/api/family/action', async (req, res) => {
     console.error('Failed to perform family action:', err);
     res.status(500).json({ error: 'Failed to perform action' });
   }
+});
+
+// --- Economy API ---
+app.get('/api/economy-stats', async (req, res) => {
+    try {
+        const GlobalEconomy = require('./models/GlobalEconomy');
+        const EconomyMetrics = require('./models/EconomyMetrics');
+        const currentEco = await GlobalEconomy.findOne();
+        const history = await EconomyMetrics.find().sort({ timestamp: -1 }).limit(30);
+        res.json({
+            current: currentEco || { currentMultiplier: 1.0, marketStatus: "⚖️ Stable Market", totalBaublesInCirculation: 0, activeUsersCount: 0 },
+            history: history.reverse()
+        });
+    } catch (err) {
+        console.error('Failed to fetch economy stats:', err);
+        res.status(500).json({ error: 'Failed to fetch economy stats' });
+    }
 });
 
 const PORT = process.env.BOT_PORT || 4000;
