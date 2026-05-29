@@ -18,7 +18,8 @@ const guildSettingsSchema = new mongoose.Schema({
         nickname: { type: String, default: '' },
         deleteInvoke: { type: Boolean, default: false },
         unknownCommandMsg: { type: Boolean, default: false },
-        quotesChannelId: { type: String, default: null }
+        quotesChannelId: { type: String, default: null },
+        defaultPurgeAmount: { type: Number, default: 10 }
     },
     dashboardPermissions: {
         bot: { type: [String], default: [] },

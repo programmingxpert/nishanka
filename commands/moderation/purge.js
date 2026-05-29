@@ -1,5 +1,6 @@
 /* eslint-disable */
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const GuildSettings = require('../../models/guildSettingsSchema');
 
 module.exports = {
     category: 'moderation',
@@ -9,8 +10,8 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('Amount of messages to purge (1-100)')
-                .setRequired(true)
+                .setDescription('Amount of messages to purge (1-100) (default configured amount)')
+                .setRequired(false)
                 .setMinValue(1)
                 .setMaxValue(100))
         .addUserOption(option =>
@@ -19,7 +20,7 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction) {
-        const amount = interaction.options.getInteger('amount');
+        let amount = interaction.options.getInteger('amount');
         const targetUser = interaction.options.getUser('user');
 
         if (!interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
@@ -29,6 +30,11 @@ module.exports = {
         await interaction.deferReply({ ephemeral: true });
 
         try {
+            if (!amount) {
+                const settings = await GuildSettings.findOne({ guildId: interaction.guild.id });
+                amount = settings?.bot?.defaultPurgeAmount ?? 10;
+            }
+
             let messages;
             if (targetUser) {
                 const allMessages = await interaction.channel.messages.fetch({ limit: 100 });
@@ -61,14 +67,26 @@ module.exports = {
             return message.reply('❌ I do not have permission to manage messages.');
         }
 
-        const amount = parseInt(args[0]);
-        if (isNaN(amount) || amount < 1 || amount > 100) {
-            return message.reply('⚠️ Please provide a valid amount between 1 and 100. Usage: `-purge <amount> [@user]`');
-        }
-
-        const targetUser = message.mentions.users.first() || (args[1] ? await message.client.users.fetch(args[1]).catch(() => null) : null);
+        let amount = parseInt(args[0]);
+        let targetUser = null;
 
         try {
+            if (isNaN(amount) || amount < 1 || amount > 100) {
+                // If amount is not specified or invalid, fetch default configured amount
+                const settings = await GuildSettings.findOne({ guildId: message.guild.id });
+                amount = settings?.bot?.defaultPurgeAmount ?? 10;
+
+                if (args[0]) {
+                    targetUser = message.mentions.users.first() 
+                        || (args[0] ? await message.client.users.fetch(args[0].replace(/[<@!>]/g, '')).catch(() => null) : null);
+                }
+            } else {
+                if (args[1]) {
+                    targetUser = message.mentions.users.first() 
+                        || (args[1] ? await message.client.users.fetch(args[1].replace(/[<@!>]/g, '')).catch(() => null) : null);
+                }
+            }
+
             // Delete the command message first
             await message.delete().catch(() => {});
 

@@ -94,7 +94,7 @@ const commandGroups = {
 		},
 		{
 			title: '🛠️ Staff Tools',
-			commands: ['purge', 'lock', 'unlock', 'temprole']
+			commands: ['purge', 'defaultpurge', 'lock', 'unlock', 'temprole']
 		}
 	],
 	giveaway: [
@@ -146,7 +146,7 @@ const commandGroups = {
 		},
 		{
 			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'rep']
+			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship']
 		},
 		{
 			title: '💬 Attributions',
@@ -174,7 +174,7 @@ const commandGroups = {
 		},
 		{
 			title: 'ℹ️ Information Lookup',
-			commands: ['server', 'servericon', 'user', 'avatar']
+			commands: ['server', 'servericon', 'user', 'avatar', 'rep']
 		}
 	]
 };

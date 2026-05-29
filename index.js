@@ -100,6 +100,7 @@ const commandsPath = path.join(__dirname, 'commands');
                         timeout: ['mute', 'to'],
                         removetimeout: ['unmute', 'unto'],
                         purge: ['clear', 'clean'],
+                        defaultpurge: ['setpurge', 'purgeconfig'],
                         warn: ['wn'],
                         warnings: ['warns'],
                         clearwarnings: ['clearwarns', 'cw'],
