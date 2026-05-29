@@ -65,6 +65,7 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
         wave:       { alone: 'waves', targeted: 'waves at {target}' },
         wink:       { alone: 'winks', targeted: 'winks at {target}' },
         yawn:       { alone: 'yawns', targeted: 'yawns at {target}' },
+        yay:        { alone: 'cheers! Yay!', targeted: 'cheers with {target}! Yay!' },
         yeet:       { alone: 'yeets something', targeted: 'yeets {target}' },
     };
 

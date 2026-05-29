@@ -146,7 +146,7 @@ const commandGroups = {
 		},
 		{
 			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship']
+			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball']
 		},
 		{
 			title: '💬 Attributions',
@@ -186,7 +186,7 @@ const actionGroups = [
 	},
 	{
 		title: '😄 Friendly & Social',
-		commands: ['happy', 'laugh', 'wave', 'wink', 'thumbsup', 'highfive', 'dance', 'handshake']
+		commands: ['happy', 'yay', 'laugh', 'wave', 'wink', 'thumbsup', 'highfive', 'dance', 'handshake']
 	},
 	{
 		title: '😢 Sad & Tired',
@@ -348,14 +348,42 @@ module.exports = {
 				const details = categoryDetails[selected] || { label: selected.toUpperCase() };
 				const embedColor = categoryColors[selected] || 0x3498db;
 
-				const selectedEmbed = new EmbedBuilder()
-					.setTitle(`${details.emoji || '📂'} ${details.label} Commands`)
-					.setDescription(formattedSections.join('\n\n') || 'No commands found.')
-					.setColor(embedColor)
-					.setFooter({ text: 'Use /help or -help | Nishanka ©️' });
+				const embeds = [];
+				let currentDescription = '';
+				
+				for (const section of formattedSections) {
+					// Maximum length for a description chunk is ~2000 characters to keep it visually short
+					if (currentDescription.length + section.length > 1800) {
+						embeds.push(
+							new EmbedBuilder()
+								.setTitle(`${details.emoji || '📂'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
+								.setDescription(currentDescription)
+								.setColor(embedColor)
+						);
+						currentDescription = section;
+					} else {
+						if (currentDescription.length > 0) currentDescription += '\n\n';
+						currentDescription += section;
+					}
+				}
+				
+				if (currentDescription.length > 0 || embeds.length === 0) {
+					embeds.push(
+						new EmbedBuilder()
+							.setTitle(`${details.emoji || '📂'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
+							.setDescription(currentDescription || 'No commands found.')
+							.setColor(embedColor)
+					);
+				}
+				
+				// Set footer on the last embed
+				embeds[embeds.length - 1].setFooter({ text: 'Use /help or -help | Nishanka ©️' });
+				
+				// Truncate to maximum 10 embeds just in case (Discord API limit)
+				const finalEmbeds = embeds.slice(0, 10);
 
 				await interaction.editReply({
-					embeds: [selectedEmbed],
+					embeds: finalEmbeds,
 					components: [row],
 				});
 
