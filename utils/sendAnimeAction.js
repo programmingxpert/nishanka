@@ -12,8 +12,9 @@ const { EmbedBuilder } = require('discord.js');
  * @param {string}                                                opts.emoji       - Emoji to prefix the embed title
  * @param {number}                                                opts.color       - Embed hex color
  * @param {string}                                               [opts.customMsg]  - Optional custom message to append
+ * @param {string[]}                                             [opts.hardcodedGifs] - Optional array of GIF URLs to use instead of the API
  */
-async function sendAnimeAction({ interaction, message, targetUser, actionType, emoji, color, customMsg }) {
+async function sendAnimeAction({ interaction, message, targetUser, actionType, emoji, color, customMsg, hardcodedGifs }) {
     const isSlash = !!interaction;
     const author  = isSlash ? interaction.user : message.author;
 
@@ -64,6 +65,7 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
         waifu:      { alone: 'claims a waifu', targeted: 'claims {target} as their waifu!' },
         wave:       { alone: 'waves', targeted: 'waves at {target}' },
         wink:       { alone: 'winks', targeted: 'winks at {target}' },
+        whoop:      { alone: 'cracks a whip!', targeted: 'whoops {target}!' },
         yawn:       { alone: 'yawns', targeted: 'yawns at {target}' },
         yay:        { alone: 'cheers! Yay!', targeted: 'cheers with {target}! Yay!' },
         yeet:       { alone: 'yeets something', targeted: 'yeets {target}' },
@@ -72,14 +74,22 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
     const phrases = actionPhrases[actionType] || { alone: actionType, targeted: `${actionType}s at {target}` };
 
     let gifUrl = null;
-    try {
-        const response = await fetch(`https://nekos.best/api/v2/${actionType}`);
-        if (response.ok) {
-            const data = await response.json();
-            gifUrl = data?.results?.[0]?.url ?? null;
+    if (hardcodedGifs && hardcodedGifs.length > 0) {
+        gifUrl = hardcodedGifs[Math.floor(Math.random() * hardcodedGifs.length)];
+    } else {
+        // Map some actions to valid Nekos.best endpoints if they differ
+        const endpointMap = { yay: 'happy' };
+        const endpoint = endpointMap[actionType] || actionType;
+        
+        try {
+            const response = await fetch(`https://nekos.best/api/v2/${endpoint}`);
+            if (response.ok) {
+                const data = await response.json();
+                gifUrl = data?.results?.[0]?.url ?? null;
+            }
+        } catch (err) {
+            console.warn(`[sendAnimeAction] Failed to fetch GIF for "${actionType}":`, err.message);
         }
-    } catch (err) {
-        console.warn(`[sendAnimeAction] Failed to fetch GIF for "${actionType}":`, err.message);
     }
 
     const isAlone = !targetUser || targetUser.id === author.id;
@@ -109,7 +119,7 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
         .setColor(color ?? 0x7289DA)
         .setTitle(`${emoji} ${actionType.charAt(0).toUpperCase() + actionType.slice(1)}!`)
         .setDescription(description)
-        .setFooter({ text: `Powered by Nekos.best`, iconURL: authorMember?.displayAvatarURL({ dynamic: true }) || author.displayAvatarURL({ dynamic: true }) })
+        .setFooter({ text: hardcodedGifs ? `Action!` : `Powered by Nekos.best`, iconURL: authorMember?.displayAvatarURL({ dynamic: true }) || author.displayAvatarURL({ dynamic: true }) })
         .setTimestamp();
 
     if (gifUrl) embed.setImage(gifUrl);
