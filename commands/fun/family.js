@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Family = require('../../models/familySchema');
+const { syncFamily } = require('../../utils/familySync');
 
 module.exports = {
     category: 'fun',
@@ -44,11 +45,9 @@ module.exports = {
 };
 
 async function getFamilyEmbed(user) {
+    // Sync family data retroactively before building the embed
+    await syncFamily(user.id);
     let familyData = await Family.findOne({ userId: user.id });
-    if (!familyData) {
-        familyData = new Family({ userId: user.id });
-        await familyData.save();
-    }
 
     // Find siblings
     let siblingIds = [];

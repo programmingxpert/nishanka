@@ -2,6 +2,7 @@
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const Family = require('../../models/familySchema');
+const { syncFamily } = require('../../utils/familySync');
 
 async function resolveUser(client, id) {
     if (!id) return null;
@@ -46,12 +47,9 @@ async function generateTreeImage(client, subjectUser) {
     ctx.textBaseline = 'top';
     ctx.fillText(`FAMILY TREE: ${subjectUser.username.toUpperCase()}`, 500, 30);
 
-    // Fetch family data
+    // Fetch family data and auto-sync retroactively
+    await syncFamily(subjectUser.id);
     let familyData = await Family.findOne({ userId: subjectUser.id });
-    if (!familyData) {
-        familyData = new Family({ userId: subjectUser.id });
-        await familyData.save();
-    }
 
     // Resolve Siblings
     let siblingIds = [];
