@@ -7,7 +7,7 @@ const recentLocations = []; // Track recent locations to prevent repeats
 
 async function fetchRandomLocation() {
     try {
-        const res = await fetch('https://restcountries.com/v3.1/all?fields=name,capital,region,subregion');
+        const res = await fetch('https://restcountries.com/v3.1/all?fields=name,capital,region,subregion,capitalInfo');
         const countries = await res.json();
 
         if (!Array.isArray(countries)) {
@@ -28,39 +28,31 @@ async function fetchRandomLocation() {
             
             let imgUrl = null;
             
-            // Try Wikimedia Commons search for cityscape/landmark
-            try {
-                const searchQueries = [`${encodeURIComponent(capital)}+cityscape`, `${encodeURIComponent(capital)}+skyline`, `${encodeURIComponent(capital)}+landmark`];
-                
-                for (const query of searchQueries) {
-                    const wcUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${query}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&format=json`;
-                    const wcRes = await fetch(wcUrl);
-                    if (wcRes.ok) {
-                        const wcData = await wcRes.json();
-                        if (wcData.query && wcData.query.pages) {
-                            const pages = Object.values(wcData.query.pages);
-                            
-                            // Filter out files that are clearly maps, logos, flags, or non-photos (svg, pdf, webm)
-                            const validPages = pages.filter(p => {
-                                const title = p.title.toLowerCase();
-                                if (title.includes('map') || title.includes('flag') || title.includes('logo') || title.includes('coat of arms')) return false;
-                                if (title.endsWith('.svg') || title.endsWith('.pdf') || title.endsWith('.webm')) return false;
-                                return p.imageinfo && p.imageinfo[0] && p.imageinfo[0].url;
-                            });
-
-                            if (validPages.length > 0) {
-                                const randomPage = validPages[Math.floor(Math.random() * validPages.length)];
-                                imgUrl = randomPage.imageinfo[0].url;
-                                break;
+            // Try Mapillary for street-level imagery if token is provided
+            if (process.env.MAPILLARY_TOKEN && country.capitalInfo && country.capitalInfo.latlng) {
+                try {
+                    const [lat, lng] = country.capitalInfo.latlng;
+                    const delta = 0.05; // Approx 5km radius bounding box
+                    const bbox = `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
+                    
+                    const mapillaryUrl = `https://graph.mapillary.com/images?access_token=${process.env.MAPILLARY_TOKEN}&bbox=${bbox}&limit=50&fields=thumb_1024_url`;
+                    const mRes = await fetch(mapillaryUrl);
+                    
+                    if (mRes.ok) {
+                        const mData = await mRes.json();
+                        if (mData.data && mData.data.length > 0) {
+                            const randomImg = mData.data[Math.floor(Math.random() * mData.data.length)];
+                            if (randomImg && randomImg.thumb_1024_url) {
+                                imgUrl = randomImg.thumb_1024_url;
                             }
                         }
                     }
+                } catch (err) {
+                    console.error('[GeoGuesser] Mapillary Error:', err);
                 }
-            } catch (err) {
-                // Ignore and fallback to wikipedia summary
             }
 
-            // Fallback to Wikipedia Summary if Wikimedia Commons fails completely
+            // Fallback to Wikipedia Summary if Mapillary fails or is unconfigured
             if (!imgUrl) {
                 const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(capital)}`);
                 if (wikiRes.ok) {
