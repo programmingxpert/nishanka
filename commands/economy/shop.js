@@ -12,6 +12,8 @@ const Bauble = require('../../models/baubleSchema');
 const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 // Define our shop items catalog with categories and premium pricing
+
+// Define our shop items catalog with categories and premium pricing
 const ITEMS = {
     // --- Economy & Utility Boosters ---
     coffee: {
@@ -19,7 +21,7 @@ const ITEMS = {
         name: '☕ Energizing Coffee',
         emoji: '☕',
         description: 'Halves work (10s -> 5s) and scavenge (10m -> 5m) cooldowns for 30 minutes.',
-        price: 15000,
+        basePrice: 1500,
         sellPrice: null,
         type: 'consumable',
         category: 'boosters'
@@ -29,7 +31,7 @@ const ITEMS = {
         name: '🍀 Lucky Clover',
         emoji: '🍀',
         description: 'Increases Coinflip and Gamble win rates by 10% for 15 minutes.',
-        price: 30000,
+        basePrice: 3000,
         sellPrice: null,
         type: 'consumable',
         category: 'boosters'
@@ -39,7 +41,7 @@ const ITEMS = {
         name: '🛡️ Aegis Shield',
         emoji: '🛡️',
         description: 'Passive. Protects you from wager loss on your next failed Brawl duel (consumed on use).',
-        price: 100000,
+        basePrice: 10000,
         sellPrice: null,
         type: 'collectible',
         category: 'boosters'
@@ -49,7 +51,7 @@ const ITEMS = {
         name: '📦 Mystery Box',
         emoji: '📦',
         description: 'Open to win Coffee, Clovers, Aegis Shields, or bonus Baubles.',
-        price: 25000,
+        basePrice: 2500,
         sellPrice: null,
         type: 'consumable',
         category: 'boosters'
@@ -59,7 +61,7 @@ const ITEMS = {
         name: '🔒 Safe Padlock',
         emoji: '🔒',
         description: 'Passive. Protects your wallet from being robbed once. Consumed on successful defense.',
-        price: 25000,
+        basePrice: 2500,
         sellPrice: null,
         type: 'collectible',
         category: 'boosters'
@@ -71,7 +73,7 @@ const ITEMS = {
         name: '🏷️ Custom Tag',
         emoji: '🏷️',
         description: 'Cosmetic. Gives you a custom tag role in the server (ask an admin to apply!).',
-        price: 50000,
+        basePrice: 5000,
         sellPrice: null,
         type: 'collectible',
         category: 'cosmetics',
@@ -82,7 +84,7 @@ const ITEMS = {
         name: '🎨 Profile Paintbrush',
         emoji: '🎨',
         description: 'Cosmetic tool. Required to customize profile banners (color and URL) using /profile-edit.',
-        price: 120000,
+        basePrice: 12000,
         sellPrice: null,
         type: 'collectible',
         category: 'cosmetics'
@@ -91,9 +93,9 @@ const ITEMS = {
         id: 'nugget',
         name: '💎 Golden Nugget',
         emoji: '💎',
-        description: 'A premium gold chunk. High value for selling back (150,000 Baubles) or gifting.',
-        price: 250000,
-        sellPrice: 150000,
+        description: 'A premium gold chunk. High value for selling back (15,000 Baubles) or gifting.',
+        basePrice: 25000,
+        sellPrice: 15000,
         type: 'collectible',
         category: 'cosmetics'
     },
@@ -102,7 +104,7 @@ const ITEMS = {
         name: '👑 Crown of Royalty',
         emoji: '👑',
         description: 'The ultimate status symbol of absolute wealth. Displays proudly in your inventory.',
-        price: 2500000,
+        basePrice: 250000,
         sellPrice: null,
         type: 'collectible',
         category: 'cosmetics',
