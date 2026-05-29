@@ -1,9 +1,18 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const {
+    SlashCommandBuilder,
+    EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ComponentType,
+    PermissionsBitField
+} = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-const WORDS = [
-    'javascript', 'moderation', 'giveaway', 'economy', 'discord', 
-    'developer', 'community', 'antigravity', 'adventure', 'championship', 
+// ─── Fallback word pool (ONLY used if DeepSeek fails entirely) ───────────────
+const FALLBACK_WORDS = [
+    'javascript', 'moderation', 'giveaway', 'economy', 'discord',
+    'developer', 'community', 'antigravity', 'adventure', 'championship',
     'programming', 'database', 'keyboard', 'beautiful', 'universe',
     'algorithm', 'technology', 'network', 'cybersecurity', 'blockchain',
     'encryption', 'processor', 'server', 'application', 'hardware',
@@ -16,78 +25,103 @@ const WORDS = [
     'lightning', 'thunderstorm', 'monsoon', 'blizzard', 'tornado',
     'wilderness', 'rainforest', 'waterfall', 'canyon', 'mountain',
     'glacier', 'archipelago', 'peninsula', 'oasis', 'savannah',
-    'adventure', 'expedition', 'odyssey', 'journey', 'voyage',
-    'quest', 'safari', 'pilgrimage', 'excursion', 'crusade',
-    'symphony', 'orchestra', 'melody', 'harmony', 'rhythm',
-    'serenade', 'crescendo', 'concert', 'festival', 'carnival',
+    'expedition', 'odyssey', 'journey', 'voyage', 'quest',
+    'safari', 'pilgrimage', 'excursion', 'symphony', 'orchestra',
+    'melody', 'harmony', 'rhythm', 'serenade', 'crescendo',
     'labyrinth', 'mystery', 'enigma', 'puzzle', 'riddle',
     'paradox', 'conundrum', 'illusion', 'mirage', 'phantom'
 ];
 
+// ─── Persistent used-words tracking (survives across games in the same process) ─
+const usedWordsGlobal = new Set();
+
+// ─── Active game tracking ─────────────────────────────────────────────────────
 const activeGames = new Set();
 
+// ─── Hangman ASCII art stages ─────────────────────────────────────────────────
 const HANGMAN_STAGES = [
-`  +---+
+`\`\`\`
+  +---+
   |   |
       |
       |
       |
       |
-=========`,
-`  +---+
-  |   |
-  O   |
-      |
-      |
-      |
-=========`,
-`  +---+
+=========\`\`\``,
+`\`\`\`
+  +---+
   |   |
   O   |
+      |
+      |
+      |
+=========\`\`\``,
+`\`\`\`
+  +---+
+  |   |
+  O   |
   |   |
       |
       |
-=========`,
-`  +---+
+=========\`\`\``,
+`\`\`\`
+  +---+
   |   |
   O   |
  /|   |
       |
       |
-=========`,
-`  +---+
+=========\`\`\``,
+`\`\`\`
+  +---+
   |   |
   O   |
  /|\\  |
       |
       |
-=========`,
-`  +---+
+=========\`\`\``,
+`\`\`\`
+  +---+
   |   |
   O   |
  /|\\  |
  /    |
       |
-=========`,
-`  +---+
+=========\`\`\``,
+`\`\`\`
+  +---+
   |   |
   O   |
  /|\\  |
  / \\  |
       |
-=========`
+=========\`\`\``
 ];
 
-const recentWords = [];
+const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-async function generateAIHangmanWords(apiKey, totalRounds) {
-    const avoidList = recentWords.length > 0 ? recentWords.join(', ') : 'none';
-    const prompt = `Generate a list of ${totalRounds} unique, interesting, and single-word English nouns, verbs, or adjectives (no spaces, no punctuation, no special characters, between 5 and 10 characters long) suitable for a Hangman game.
-CRITICAL: Do NOT generate any of the following recently used words: [${avoidList}].
-Avoid cliché words like 'dinosaur', 'keyboard', 'universe', 'technology', 'chocolate', 'computer', 'science'. Focus on variety and interesting, recognizable vocabulary.
-Return the result strictly as a valid JSON array of strings, e.g.:
-["backpack", "wilderness", "microscope", "symphony", "explorer"]
-Do not wrap the JSON in markdown code blocks or any other formatting, and do not provide any extra text.`;
+// ─── DeepSeek word generation ─────────────────────────────────────────────────
+async function generateWordsViaDeepSeek(count, avoidList) {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
+        throw new Error('No DeepSeek API key configured.');
+    }
+
+    // Ask for extra words in case some fail validation or duplicate
+    const requestCount = count + 10;
+    const avoidStr = avoidList.length > 0 ? avoidList.join(', ') : 'none';
+
+    const prompt = `Generate ${requestCount} unique single English words for a Hangman game.
+
+STRICT RULES:
+1. Each word must be 5–10 lowercase letters, only a-z, no spaces or punctuation.
+2. Words must be common, recognizable nouns, verbs, or adjectives.
+3. DO NOT use any of these already-used words: [${avoidStr}]
+4. Avoid overly cliché words like: computer, science, keyboard, dinosaur, chocolate, universe, technology.
+5. No proper nouns, brand names, or abbreviations.
+
+Return ONLY a raw JSON array of strings. No markdown, no code fences, no extra text.
+Example format: ["backpack","cascade","festival","eclipse","mirage"]`;
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
@@ -97,368 +131,510 @@ Do not wrap the JSON in markdown code blocks or any other formatting, and do not
         },
         body: JSON.stringify({
             model: 'deepseek-chat',
-            messages: [
-                { role: 'user', content: prompt }
-            ],
-            temperature: 1.0,
-            max_tokens: 150
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 1.2,
+            max_tokens: 300
         })
     });
 
     if (!response.ok) {
-        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+        const errText = await response.text().catch(() => response.statusText);
+        throw new Error(`DeepSeek API error ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
-    let content = data.choices[0].message.content.trim();
+    let raw = data?.choices?.[0]?.message?.content?.trim() ?? '';
 
-    // Strip markdown if present
-    if (content.startsWith('```json')) {
-        content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-    } else if (content.startsWith('```')) {
-        content = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    // Strip any accidental markdown fences
+    raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+
+    // Extract the JSON array even if there's stray text
+    const start = raw.indexOf('[');
+    const end = raw.lastIndexOf(']');
+    if (start === -1 || end === -1 || end <= start) {
+        throw new Error('DeepSeek response did not contain a JSON array.');
+    }
+    raw = raw.slice(start, end + 1);
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error('Parsed response is not an array.');
+
+    // Validate, lowercase, deduplicate against usedWordsGlobal
+    const valid = parsed
+        .map(w => String(w).trim().toLowerCase())
+        .filter(w => /^[a-z]{5,10}$/.test(w) && !usedWordsGlobal.has(w));
+
+    // Remove duplicates within this batch
+    const unique = [...new Set(valid)];
+
+    if (unique.length < count) {
+        throw new Error(`DeepSeek only returned ${unique.length} usable words, needed ${count}.`);
     }
 
-    const firstBracket = content.indexOf('[');
-    const lastBracket = content.lastIndexOf(']');
-    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-        content = content.slice(firstBracket, lastBracket + 1);
-    }
-
-    const parsed = JSON.parse(content);
-    if (!Array.isArray(parsed)) {
-        throw new Error('Response is not a JSON array');
-    }
-    const cleanWords = parsed.map(w => w.trim().toLowerCase()).filter(w => /^[a-z]{5,10}$/.test(w));
-    if (cleanWords.length < totalRounds) {
-        throw new Error('Not enough valid words returned by AI');
-    }
-
-    // Add to recent words to prevent repetition
-    cleanWords.forEach(w => {
-        if (!recentWords.includes(w)) {
-            recentWords.push(w);
-        }
-    });
-    if (recentWords.length > 150) {
-        recentWords.splice(0, recentWords.length - 150);
-    }
-
-    return cleanWords;
+    return unique.slice(0, count);
 }
 
-async function getHangmanWords(totalRounds) {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (apiKey && apiKey !== 'your_deepseek_api_key_here') {
+// ─── Word fetcher with retry + fallback ──────────────────────────────────────
+async function getWordsForGame(count) {
+    // Try DeepSeek up to 2 times
+    for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-            const aiWords = await generateAIHangmanWords(apiKey, totalRounds);
-            if (aiWords && aiWords.length >= totalRounds) {
-                console.log(`Generated ${aiWords.length} hangman words using DeepSeek API:`, aiWords);
-                return aiWords.slice(0, totalRounds);
+            const words = await generateWordsViaDeepSeek(count, [...usedWordsGlobal]);
+            // Register in global used set
+            for (const w of words) usedWordsGlobal.add(w);
+            // Cap the set size so it doesn't grow forever
+            if (usedWordsGlobal.size > 500) {
+                const oldest = [...usedWordsGlobal].slice(0, usedWordsGlobal.size - 500);
+                oldest.forEach(w => usedWordsGlobal.delete(w));
             }
+            console.log(`[Hangman] DeepSeek words (attempt ${attempt}):`, words);
+            return { words, source: 'deepseek' };
         } catch (err) {
-            console.error('Failed to generate hangman words via DeepSeek API, falling back to hardcoded words:', err);
+            console.error(`[Hangman] DeepSeek attempt ${attempt} failed:`, err.message);
+            if (attempt < 2) await delay(1500); // small pause before retry
         }
     }
-    
-    // Fallback: choose random unique words from WORDS
-    const availableFallback = WORDS.filter(w => !recentWords.includes(w));
-    const pool = availableFallback.length >= totalRounds ? availableFallback : WORDS;
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, totalRounds);
 
-    // Track fallback words as recently used too
-    selected.forEach(w => {
-        if (!recentWords.includes(w)) {
-            recentWords.push(w);
-        }
-    });
-    if (recentWords.length > 150) {
-        recentWords.splice(0, recentWords.length - 150);
-    }
-    
-    return selected;
+    // ── Fallback to hardcoded words ──────────────────────────────────────────
+    console.warn('[Hangman] Falling back to hardcoded word list.');
+    const available = FALLBACK_WORDS.filter(w => !usedWordsGlobal.has(w));
+    const pool = available.length >= count ? available : FALLBACK_WORDS;
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, count);
+    for (const w of selected) usedWordsGlobal.add(w);
+    return { words: selected, source: 'fallback' };
 }
 
-const delay = (ms) => new Promise(res => setTimeout(res, ms));
+// ─── Pick a random letter to reveal at round start ───────────────────────────
+function pickRevealedLetter(word) {
+    // Pick a random letter that's not the first/last to keep it interesting
+    const indices = [...word].map((_, i) => i);
+    // Shuffle and pick one that isn't the very first or last character if possible
+    const inner = indices.filter(i => i > 0 && i < word.length - 1);
+    const pool = inner.length > 0 ? inner : indices;
+    return word[pool[Math.floor(Math.random() * pool.length)]];
+}
 
-async function runHangmanGame(initialContext, channel, hostId, joinedPlayers) {
-    const totalRounds = 5;
-    const scores = new Map(); // userId -> { name: string, points: number }
-    
-    joinedPlayers.forEach(p => {
-        scores.set(p.id, { name: p.username, points: 0 });
-    });
+// ─── Render word display ──────────────────────────────────────────────────────
+function renderWordDisplay(word, guessedLetters) {
+    return word.split('').map(char => (guessedLetters.has(char) ? `**${char.toUpperCase()}**` : `\\_`)).join(' ');
+}
+
+// ─── Check if bot has manage messages permission ─────────────────────────────
+function canDeleteMessages(channel) {
+    const perms = channel.permissionsFor(channel.guild.members.me);
+    return perms && perms.has(PermissionsBitField.Flags.ManageMessages);
+}
+
+// ─── Main game runner ─────────────────────────────────────────────────────────
+async function runHangmanGame(channel, hostId, joinedPlayers) {
+    const TOTAL_ROUNDS = 5;
+    const POINTS_PER_ROUND = 500;
+
+    // ── Scores map: userId → { name, points } ──────────────────────────────
+    const scores = new Map();
+    joinedPlayers.forEach(p => scores.set(p.id, { name: p.username, points: 0 }));
+
+    // ── Fetch words before the game even starts (with timing) ──────────────
+    const wordFetchPromise = getWordsForGame(TOTAL_ROUNDS);
+
+    const canDelete = canDeleteMessages(channel);
 
     const startEmbed = new EmbedBuilder()
         .setColor(0xe67e22)
-        .setTitle('🏁 HANGMAN GAME: STARTED!')
-        .setDescription(`There will be **${totalRounds}** rounds.\nGuess individual letters or guess the whole word to win the round.\nThe first round starts in 5 seconds...`);
-        
+        .setTitle('🎮 Hangman — Game Starting!')
+        .setDescription(
+            `**${TOTAL_ROUNDS} rounds** of Hangman await!\n\n` +
+            `• Type a **single letter** to guess it\n` +
+            `• Type the **full word** to solve the round instantly\n` +
+            `• Each round, **1 letter is revealed** for free\n` +
+            `• 6 wrong guesses = 💀\n\n` +
+            `*First round begins in 5 seconds...*`
+        )
+        .setFooter({ text: canDelete ? '✅ Message cleanup enabled' : '⚠️ Missing Manage Messages — guesses won\'t be deleted' });
+
     await channel.send({ embeds: [startEmbed] });
 
-    const gameWordsPromise = getHangmanWords(totalRounds);
+    // ── Resolve words (wait for fetch to finish, then wait remainder of 5s) ─
+    const fetchStart = Date.now();
+    const { words: gameWords, source: wordSource } = await wordFetchPromise;
+    const fetchElapsed = Date.now() - fetchStart;
+    await delay(Math.max(0, 5000 - fetchElapsed));
 
-    for (let round = 1; round <= totalRounds; round++) {
-        if (round === 1) {
-            const startTime = Date.now();
-            const gameWords = await gameWordsPromise;
-            const elapsed = Date.now() - startTime;
-            const remainingDelay = Math.max(0, 5000 - elapsed);
-            await delay(remainingDelay);
-        } else {
-            await delay(5000);
-        }
-        
-        const gameWords = await gameWordsPromise;
+    if (wordSource === 'fallback') {
+        await channel.send({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor(0xf39c12)
+                    .setDescription('⚠️ Could not reach DeepSeek API. Using backup word list for this game.')
+            ]
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    for (let round = 1; round <= TOTAL_ROUNDS; round++) {
+        if (round > 1) await delay(5000);
+
         const word = gameWords[round - 1];
-        
         let mistakes = 0;
-        let guessedLetters = new Set();
-        let guessedWords = new Set();
+        const guessedLetters = new Set();
         let roundOver = false;
-        
-        const renderWord = () => {
-            return word.split('').map(char => guessedLetters.has(char) ? char : '_').join(' ');
+
+        // Reveal one random letter for free
+        const freebie = pickRevealedLetter(word);
+        guessedLetters.add(freebie);
+
+        // ── Embed builder ──────────────────────────────────────────────────
+        const buildEmbed = (status = null) => {
+            const display = renderWordDisplay(word, guessedLetters);
+            const stage = HANGMAN_STAGES[mistakes];
+            const guessedStr = [...guessedLetters].sort().join(' ') || '—';
+            const wrongLetters = [...guessedLetters].filter(l => !word.includes(l)).sort().join(' ') || '—';
+            const livesBar = '🟥'.repeat(mistakes) + '🟩'.repeat(6 - mistakes);
+
+            let color = 0x3498db;
+            if (status === 'won') color = 0x2ecc71;
+            else if (status === 'lost') color = 0xe74c3c;
+            else if (status === 'timeout') color = 0xe74c3c;
+            else if (mistakes >= 4) color = 0xe67e22;
+
+            const embed = new EmbedBuilder()
+                .setColor(color)
+                .setTitle(`Round ${round} / ${TOTAL_ROUNDS}`)
+                .addFields(
+                    {
+                        name: '🔤 Word',
+                        value: display,
+                        inline: false
+                    },
+                    {
+                        name: '💡 Free letter',
+                        value: `\`${freebie.toUpperCase()}\` was revealed at the start`,
+                        inline: true
+                    },
+                    {
+                        name: '❤️ Lives',
+                        value: `${livesBar} (${6 - mistakes}/6)`,
+                        inline: true
+                    },
+                    {
+                        name: '✅ Guessed',
+                        value: `\`${[...guessedLetters].filter(l => word.includes(l)).sort().join('  ') || '—'}\``,
+                        inline: true
+                    },
+                    {
+                        name: '❌ Wrong',
+                        value: `\`${wrongLetters}\``,
+                        inline: true
+                    }
+                )
+                .setDescription(stage)
+                .setFooter({ text: 'Type a letter to guess • Type the full word to solve' });
+
+            return embed;
         };
 
-        const renderEmbed = () => {
-            return new EmbedBuilder()
-                .setColor(0x3498db)
-                .setTitle(`🔄 Round ${round}/${totalRounds}`)
-                .setDescription(`\`\`\`\n${HANGMAN_STAGES[mistakes]}\n\`\`\`\n**Word:** \`${renderWord().toUpperCase()}\`\n\n**Mistakes:** ${mistakes}/6\n**Guessed Letters:** ${Array.from(guessedLetters).sort().join(', ') || 'None'}`)
-                .setFooter({ text: 'Type a letter to guess it, or type the whole word to solve!' });
-        };
+        const gameMsg = await channel.send({ embeds: [buildEmbed()] });
 
-        const msg = await channel.send({ embeds: [renderEmbed()] });
-        
+        // ── Message collector ──────────────────────────────────────────────
+        const playerIds = new Set(joinedPlayers.keys());
         const filter = m => {
             if (m.author.bot) return false;
-            if (joinedPlayers.size > 0 && !joinedPlayers.has(m.author.id)) return false; // Only joined players can play if it's a closed lobby
-            const content = m.content.trim().toLowerCase();
-            return /^[a-z]$/i.test(content) || content === word;
+            if (playerIds.size > 0 && !playerIds.has(m.author.id)) return false;
+            const c = m.content.trim().toLowerCase();
+            return /^[a-z]$/.test(c) || /^[a-z]{2,}$/.test(c);
         };
 
-        const collector = channel.createMessageCollector({ filter, time: 90000 });
+        const collector = channel.createMessageCollector({ filter, time: 90_000 });
 
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
             collector.on('collect', async m => {
                 const guess = m.content.trim().toLowerCase();
-                
+
+                // Delete the player's message (keep chat clean)
+                if (canDelete) {
+                    m.delete().catch(() => {});
+                }
+
                 if (guess.length === 1) {
-                    // Letter guess
+                    // ── Single letter guess ────────────────────────────────
                     if (guessedLetters.has(guess)) {
-                        m.react('❌').catch(() => {});
+                        // Already guessed — react and ignore
+                        m.react('🔁').catch(() => {});
                         return;
                     }
-                    
+
                     guessedLetters.add(guess);
-                    
+
                     if (word.includes(guess)) {
-                        m.react('✅').catch(() => {});
-                        // Check if all letters are revealed
-                        const allRevealed = word.split('').every(char => guessedLetters.has(char));
+                        // Correct letter
+                        const allRevealed = word.split('').every(c => guessedLetters.has(c));
                         if (allRevealed) {
                             roundOver = true;
                             collector.stop('won');
-                            const uId = m.author.id;
-                            if (!scores.has(uId)) scores.set(uId, { name: m.author.username, points: 0 });
-                            scores.get(uId).points += 1;
-                            
+                            _awardPoint(scores, m.author.id, m.author.username);
                             const winEmbed = new EmbedBuilder()
                                 .setColor(0x2ecc71)
-                                .setDescription(`🎉 **${m.author.username}** guessed the final letter! The word was **\`${word.toUpperCase()}\`**! (+1 point)`);
+                                .setTitle('🎉 Round Won!')
+                                .setDescription(
+                                    `**${m.author.username}** revealed the last letter!\n` +
+                                    `The word was: **\`${word.toUpperCase()}\`** ✅\n` +
+                                    `*+1 point awarded!*`
+                                );
                             await channel.send({ embeds: [winEmbed] });
                             return;
                         }
+                        // Update embed with correct guess
+                        await gameMsg.edit({ embeds: [buildEmbed()] }).catch(() => {});
                     } else {
-                        m.react('❌').catch(() => {});
-                        mistakes += 1;
+                        // Wrong letter
+                        mistakes++;
                         if (mistakes >= 6) {
                             roundOver = true;
                             collector.stop('lost');
                             const lossEmbed = new EmbedBuilder()
                                 .setColor(0xe74c3c)
-                                .setDescription(`💀 You've been HANGED! The word was **\`${word.toUpperCase()}\`**.`);
+                                .setTitle('💀 Hanged!')
+                                .setDescription(
+                                    `**${m.author.username}** made the final wrong guess.\n` +
+                                    `The word was: **\`${word.toUpperCase()}\`** 😬`
+                                );
+                            await gameMsg.edit({ embeds: [buildEmbed('lost')] }).catch(() => {});
                             await channel.send({ embeds: [lossEmbed] });
                             return;
                         }
+                        await gameMsg.edit({ embeds: [buildEmbed()] }).catch(() => {});
                     }
                 } else {
-                    // Correct word guess (filter only matches single-letters or exact word)
-                    roundOver = true;
-                    collector.stop('won');
-                    const uId = m.author.id;
-                    if (!scores.has(uId)) scores.set(uId, { name: m.author.username, points: 0 });
-                    scores.get(uId).points += 1;
-                    
-                    const winEmbed = new EmbedBuilder()
-                        .setColor(0x2ecc71)
-                        .setDescription(`🎉 **${m.author.username}** correctly guessed the word **\`${word.toUpperCase()}\`**! (+1 point)`);
-                    await channel.send({ embeds: [winEmbed] });
-                    return;
+                    // ── Full word guess ────────────────────────────────────
+                    if (guess === word) {
+                        roundOver = true;
+                        collector.stop('won');
+                        _awardPoint(scores, m.author.id, m.author.username);
+                        const winEmbed = new EmbedBuilder()
+                            .setColor(0x2ecc71)
+                            .setTitle('🎉 Word Solved!')
+                            .setDescription(
+                                `**${m.author.username}** guessed the whole word!\n` +
+                                `The word was: **\`${word.toUpperCase()}\`** ✅\n` +
+                                `*+1 point awarded!*`
+                            );
+                        await gameMsg.edit({ embeds: [buildEmbed('won')] }).catch(() => {});
+                        await channel.send({ embeds: [winEmbed] });
+                    } else {
+                        // Wrong word attempt — penalise as a mistake
+                        mistakes++;
+                        if (mistakes >= 6) {
+                            roundOver = true;
+                            collector.stop('lost');
+                            const lossEmbed = new EmbedBuilder()
+                                .setColor(0xe74c3c)
+                                .setTitle('💀 Hanged!')
+                                .setDescription(
+                                    `**${m.author.username}** guessed the wrong word!\n` +
+                                    `The word was: **\`${word.toUpperCase()}\`** 😬`
+                                );
+                            await gameMsg.edit({ embeds: [buildEmbed('lost')] }).catch(() => {});
+                            await channel.send({ embeds: [lossEmbed] });
+                            return;
+                        }
+                        // Show a subtle wrong-word indicator
+                        await channel.send({
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setColor(0xe74c3c)
+                                    .setDescription(`❌ **${m.author.username}** — \`${guess}\` is wrong! (-1 life)`)
+                            ]
+                        }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 4000));
+                        await gameMsg.edit({ embeds: [buildEmbed()] }).catch(() => {});
+                    }
                 }
-                
-                // Update the embed if the game continues
-                try {
-                    await msg.edit({ embeds: [renderEmbed()] });
-                } catch(e) {}
             });
 
-            collector.on('end', async (collected, reason) => {
+            collector.on('end', async (_, reason) => {
                 if (reason === 'time' && !roundOver) {
                     const timeoutEmbed = new EmbedBuilder()
-                        .setColor(0xe74c3c)
-                        .setDescription(`⏰ Time's up! Nobody guessed the word. It was **\`${word.toUpperCase()}\`**.`);
+                        .setColor(0x95a5a6)
+                        .setTitle('⏰ Time\'s Up!')
+                        .setDescription(`Nobody guessed the word in time.\nIt was: **\`${word.toUpperCase()}\`**`);
+                    await gameMsg.edit({ embeds: [buildEmbed('timeout')] }).catch(() => {});
                     await channel.send({ embeds: [timeoutEmbed] });
                 }
                 resolve();
             });
         });
-        
-        // Between rounds scoreboard
-        if (round < totalRounds) {
-            if (scores.size > 0) {
-                const sortedScores = Array.from(scores.entries()).sort((a, b) => b[1].points - a[1].points);
-                let boardText = sortedScores.map((s, idx) => `**${idx + 1}.** ${s[1].name} — ${s[1].points} pts`).join('\n');
-                
-                const boardEmbed = new EmbedBuilder()
-                    .setColor(0xf1c40f)
-                    .setTitle('📊 Current Standings')
-                    .setDescription(boardText)
-                    .setFooter({ text: 'Next round starting soon...' });
-                await channel.send({ embeds: [boardEmbed] });
+
+        // ── Between-round scoreboard ───────────────────────────────────────
+        if (round < TOTAL_ROUNDS) {
+            const sorted = _getSortedScores(scores);
+            if (sorted.length > 0) {
+                const boardText = sorted
+                    .map((s, i) => `${['🥇','🥈','🥉'][i] ?? `**${i+1}.**`} ${s.name} — **${s.points}** pt${s.points !== 1 ? 's' : ''}`)
+                    .join('\n');
+                await channel.send({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor(0xf1c40f)
+                            .setTitle('📊 Standings After Round ' + round)
+                            .setDescription(boardText)
+                            .setFooter({ text: 'Next round in 5 seconds...' })
+                    ]
+                });
             } else {
-                await channel.send({ content: '*Next round starting in 5 seconds...*' });
+                await channel.send({ content: '*No scores yet. Next round in 5 seconds...*' });
             }
         }
     }
-    
+
+    // ── Game over ──────────────────────────────────────────────────────────
     activeGames.delete(channel.id);
-    
-    // Check if anyone scored
-    const validScores = Array.from(scores.entries()).filter(s => s[1].points > 0);
-    if (validScores.length === 0) {
-        return channel.send({ content: '🏁 The game has ended! Nobody scored any points.' });
+
+    const finalScores = _getSortedScores(scores);
+    if (finalScores.length === 0) {
+        return channel.send({
+            embeds: [
+                new EmbedBuilder()
+                    .setColor(0x95a5a6)
+                    .setTitle('🏁 Game Over')
+                    .setDescription('Nobody scored any points this game. Better luck next time!')
+            ]
+        });
     }
-    
-    const sortedScores = validScores.sort((a, b) => b[1].points - a[1].points);
+
     let finalText = '';
-    
-    for (const [idx, [uId, data]] of sortedScores.entries()) {
-        const reward = data.points * 500;
-        finalText += `**${idx + 1}.** ${data.name} — ${data.points} pts (+**${reward.toLocaleString()}** Baubles)\n`;
-        
+    for (const [idx, { id: uId, name, points }] of finalScores.entries()) {
+        const reward = points * POINTS_PER_ROUND;
+        const medal = ['🥇', '🥈', '🥉'][idx] ?? `**${idx + 1}.**`;
+        finalText += `${medal} **${name}** — ${points} pt${points !== 1 ? 's' : ''} → +**${reward.toLocaleString()}** Baubles\n`;
+
         try {
             let baubleData = await Bauble.findOne({ userId: uId });
-            if (!baubleData) {
-                baubleData = new Bauble({ userId: uId, baubles: 0 });
-            }
+            if (!baubleData) baubleData = new Bauble({ userId: uId, baubles: 0 });
             baubleData.baubles += reward;
             baubleData.dailyGameLastCompleted = new Date();
             await baubleData.save();
-        } catch(e) {
-            console.error('Error saving baubles for hangman winner:', e);
+        } catch (e) {
+            console.error('[Hangman] Error saving baubles:', e);
         }
     }
-    
-    const finalEmbed = new EmbedBuilder()
-        .setColor(0x9b59b6)
-        .setTitle('🏆 HANGMAN GAME: FINAL RESULTS')
-        .setDescription(finalText);
-    await channel.send({ embeds: [finalEmbed] });
+
+    await channel.send({
+        embeds: [
+            new EmbedBuilder()
+                .setColor(0x9b59b6)
+                .setTitle('🏆 Hangman — Final Results')
+                .setDescription(finalText)
+                .setFooter({ text: `Words powered by ${wordSource === 'deepseek' ? 'DeepSeek AI ✨' : 'Backup Word List'}` })
+        ]
+    });
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function _awardPoint(scores, userId, username) {
+    if (!scores.has(userId)) scores.set(userId, { name: username, points: 0 });
+    scores.get(userId).points += 1;
+}
+
+function _getSortedScores(scores) {
+    return Array.from(scores.entries())
+        .filter(([, d]) => d.points > 0)
+        .sort((a, b) => b[1].points - a[1].points)
+        .map(([id, d]) => ({ id, name: d.name, points: d.points }));
+}
+
+// ─── Lobby ────────────────────────────────────────────────────────────────────
 async function createLobby(interactionOrMessage, channel) {
-    const hostId = interactionOrMessage.user ? interactionOrMessage.user.id : interactionOrMessage.author.id;
-    const hostName = interactionOrMessage.user ? interactionOrMessage.user.username : interactionOrMessage.author.username;
-    
+    const isSlash = !!interactionOrMessage.user;
+    const hostId = isSlash ? interactionOrMessage.user.id : interactionOrMessage.author.id;
+    const hostName = isSlash ? interactionOrMessage.user.username : interactionOrMessage.author.username;
+
     const joinedPlayers = new Map();
     joinedPlayers.set(hostId, { id: hostId, username: hostName });
 
-    const renderLobby = () => {
-        const playerList = Array.from(joinedPlayers.values()).map(p => `• ${p.username}`).join('\n');
+    const buildLobbyEmbed = () => {
+        const list = Array.from(joinedPlayers.values()).map(p => `> ${p.username}`).join('\n');
         return new EmbedBuilder()
-            .setColor(0x3498db)
-            .setTitle('🎮 Multiplayer Hangman Lobby')
-            .setDescription(`**Host:** ${hostName}\n\n**Players Joined (${joinedPlayers.size}):**\n${playerList}\n\nClick **Join** to play! The host can click **Start** when everyone is ready.`);
+            .setColor(0x5865f2)
+            .setTitle('🎮 Multiplayer Hangman — Lobby')
+            .setDescription(
+                `**Host:** ${hostName}\n\n` +
+                `**Players (${joinedPlayers.size}):**\n${list}\n\n` +
+                `Click **Join** to enter the game.\nThe host clicks **Start** when everyone's ready.\n\n` +
+                `*Lobby closes in 2 minutes.*`
+            );
     };
 
-    const joinBtn = new ButtonBuilder()
-        .setCustomId('hangman_join')
-        .setLabel('Join')
-        .setStyle(ButtonStyle.Success);
-
-    const leaveBtn = new ButtonBuilder()
-        .setCustomId('hangman_leave')
-        .setLabel('Leave')
-        .setStyle(ButtonStyle.Danger);
-
-    const startBtn = new ButtonBuilder()
-        .setCustomId('hangman_start')
-        .setLabel('Start Game')
-        .setStyle(ButtonStyle.Primary);
-
-    const actionRow = new ActionRowBuilder().addComponents(joinBtn, leaveBtn, startBtn);
+    const joinBtn  = new ButtonBuilder().setCustomId('hm_join').setLabel('Join').setStyle(ButtonStyle.Success).setEmoji('✋');
+    const leaveBtn = new ButtonBuilder().setCustomId('hm_leave').setLabel('Leave').setStyle(ButtonStyle.Danger).setEmoji('🚪');
+    const startBtn = new ButtonBuilder().setCustomId('hm_start').setLabel('Start Game').setStyle(ButtonStyle.Primary).setEmoji('▶️');
+    const row = new ActionRowBuilder().addComponents(joinBtn, leaveBtn, startBtn);
 
     let lobbyMsg;
-    if (interactionOrMessage.reply) {
-        lobbyMsg = await interactionOrMessage.reply({ embeds: [renderLobby()], components: [actionRow], fetchReply: true });
+    if (isSlash) {
+        lobbyMsg = await interactionOrMessage.reply({ embeds: [buildLobbyEmbed()], components: [row], fetchReply: true });
     } else {
-        lobbyMsg = await channel.send({ embeds: [renderLobby()], components: [actionRow] });
+        lobbyMsg = await channel.send({ embeds: [buildLobbyEmbed()], components: [row] });
     }
 
-    const collector = lobbyMsg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 120000 });
+    const collector = lobbyMsg.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 120_000
+    });
 
     collector.on('collect', async i => {
-        if (i.customId === 'hangman_join') {
-            if (!joinedPlayers.has(i.user.id)) {
-                joinedPlayers.set(i.user.id, { id: i.user.id, username: i.user.username });
-                await i.update({ embeds: [renderLobby()] });
-            } else {
-                await i.reply({ content: 'You are already in the lobby.', ephemeral: true });
+        if (i.customId === 'hm_join') {
+            if (joinedPlayers.has(i.user.id)) {
+                return i.reply({ content: 'You\'re already in the lobby!', ephemeral: true });
             }
-        } else if (i.customId === 'hangman_leave') {
+            joinedPlayers.set(i.user.id, { id: i.user.id, username: i.user.username });
+            await i.update({ embeds: [buildLobbyEmbed()] });
+
+        } else if (i.customId === 'hm_leave') {
             if (i.user.id === hostId) {
-                await i.reply({ content: 'The host cannot leave the lobby. If you want to cancel, just wait for it to timeout.', ephemeral: true });
-            } else if (joinedPlayers.has(i.user.id)) {
-                joinedPlayers.delete(i.user.id);
-                await i.update({ embeds: [renderLobby()] });
-            } else {
-                await i.reply({ content: 'You are not in the lobby.', ephemeral: true });
+                return i.reply({ content: 'The host can\'t leave. Wait for timeout or start the game!', ephemeral: true });
             }
-        } else if (i.customId === 'hangman_start') {
+            if (!joinedPlayers.has(i.user.id)) {
+                return i.reply({ content: 'You\'re not in the lobby.', ephemeral: true });
+            }
+            joinedPlayers.delete(i.user.id);
+            await i.update({ embeds: [buildLobbyEmbed()] });
+
+        } else if (i.customId === 'hm_start') {
             if (i.user.id !== hostId) {
-                await i.reply({ content: 'Only the host can start the game!', ephemeral: true });
-                return;
+                return i.reply({ content: 'Only the host can start the game!', ephemeral: true });
             }
-            
             collector.stop('started');
         }
     });
 
-    collector.on('end', async (collected, reason) => {
-        // Disable buttons
+    collector.on('end', async (_, reason) => {
         const disabledRow = new ActionRowBuilder().addComponents(
             ButtonBuilder.from(joinBtn).setDisabled(true),
             ButtonBuilder.from(leaveBtn).setDisabled(true),
             ButtonBuilder.from(startBtn).setDisabled(true)
         );
-        
         await lobbyMsg.edit({ components: [disabledRow] }).catch(() => {});
 
         if (reason === 'started') {
-            runHangmanGame(interactionOrMessage, channel, hostId, joinedPlayers).catch(err => {
-                console.error(err);
+            runHangmanGame(channel, hostId, joinedPlayers).catch(err => {
+                console.error('[Hangman] Game error:', err);
                 activeGames.delete(channel.id);
+                channel.send({ content: '⚠️ An unexpected error ended the game early. Sorry!' });
             });
         } else {
             activeGames.delete(channel.id);
-            channel.send('⏱️ Hangman lobby timed out. Not enough players or host didn\'t start.');
+            await channel.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor(0x95a5a6)
+                        .setDescription('⏱️ Hangman lobby timed out. Game cancelled.')
+                ]
+            });
         }
     });
 }
 
+// ─── Module export ────────────────────────────────────────────────────────────
 module.exports = {
     category: 'fun',
     cooldown: 15,
@@ -467,28 +643,24 @@ module.exports = {
         .setDescription('Start a multiplayer Hangman game!'),
 
     async execute(interaction) {
-        const channelId = interaction.channelId;
-        if (activeGames.has(channelId)) {
-            return interaction.reply({ content: '⚠️ A game is already running in this channel!', ephemeral: true });
+        if (activeGames.has(interaction.channelId)) {
+            return interaction.reply({ content: '⚠️ A Hangman game is already running in this channel!', ephemeral: true });
         }
-
-        activeGames.add(channelId);
+        activeGames.add(interaction.channelId);
         createLobby(interaction, interaction.channel).catch(err => {
-            console.error(err);
-            activeGames.delete(channelId);
+            console.error('[Hangman] Lobby error:', err);
+            activeGames.delete(interaction.channelId);
         });
     },
 
-    async executePrefix(message, args) {
-        const channelId = message.channel.id;
-        if (activeGames.has(channelId)) {
-            return message.reply('⚠️ A game is already running in this channel!');
+    async executePrefix(message) {
+        if (activeGames.has(message.channel.id)) {
+            return message.reply('⚠️ A Hangman game is already running in this channel!');
         }
-
-        activeGames.add(channelId);
+        activeGames.add(message.channel.id);
         createLobby(message, message.channel).catch(err => {
-            console.error(err);
-            activeGames.delete(channelId);
+            console.error('[Hangman] Lobby error:', err);
+            activeGames.delete(message.channel.id);
         });
     }
 };
