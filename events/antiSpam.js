@@ -40,12 +40,13 @@ module.exports = {
         const trackerKey = `${userId}-${guildId}`;
 
         // --- Repetition Detection ---
-        if (settings.repetitionEnabled) {
+        const isRepEnabled = settings.repetitionEnabled !== false;
+        if (isRepEnabled) {
             const content = message.content.trim().toLowerCase();
             if (content.length > 0) {
                 const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, lastTimestamp: 0 };
                 
-                if (repData.content === content && (Date.now() - repData.lastTimestamp) < 30000) {
+                if (repData.content === content && (Date.now() - repData.lastTimestamp) < 15000) {
                     repData.count++;
                 } else {
                     repData.content = content;
@@ -54,7 +55,8 @@ module.exports = {
                 repData.lastTimestamp = Date.now();
                 client.repetitionTracker.set(trackerKey, repData);
 
-                if (repData.count >= settings.repetitionThreshold) {
+                const repThreshold = settings.repetitionThreshold || 4;
+                if (repData.count >= repThreshold) {
                     await handleSpam(message, client, trackerKey, 'Repetitive Spam', settings);
                     return;
                 }
@@ -62,31 +64,39 @@ module.exports = {
         }
 
         // --- Fast Spam Tracking ---
-        if (settings.fastSpam.enabled) {
+        const isFastEnabled = settings.fastSpam?.enabled !== false;
+        if (isFastEnabled) {
+            const fastThreshold = settings.fastSpam?.threshold || 5;
+            const fastWindow = settings.fastSpam?.window || 3000;
+            
             if (!client.spamTracker.has(trackerKey)) {
                 client.spamTracker.set(trackerKey, []);
             }
             const fastTimestamps = client.spamTracker.get(trackerKey);
             fastTimestamps.push(Date.now());
-            if (fastTimestamps.length > settings.fastSpam.threshold) fastTimestamps.shift();
+            if (fastTimestamps.length > fastThreshold) fastTimestamps.shift();
 
-            if (fastTimestamps.length === settings.fastSpam.threshold && (Date.now() - fastTimestamps[0]) < settings.fastSpam.window) {
+            if (fastTimestamps.length === fastThreshold && (Date.now() - fastTimestamps[0]) < fastWindow) {
                 await handleSpam(message, client, trackerKey, 'Fast Spam', settings);
                 return; // Stop processing further for this message if caught
             }
         }
 
         // --- Slow Spam Tracking ---
-        if (settings.slowSpam.enabled) {
+        const isSlowEnabled = settings.slowSpam?.enabled !== false;
+        if (isSlowEnabled) {
+            const slowThreshold = settings.slowSpam?.threshold || 10;
+            const slowWindow = settings.slowSpam?.window || 12000;
+            
             const slowTrackerKey = `slow-${trackerKey}`;
             if (!client.spamTracker.has(slowTrackerKey)) {
                 client.spamTracker.set(slowTrackerKey, []);
             }
             const slowTimestamps = client.spamTracker.get(slowTrackerKey);
             slowTimestamps.push(Date.now());
-            if (slowTimestamps.length > settings.slowSpam.threshold) slowTimestamps.shift();
+            if (slowTimestamps.length > slowThreshold) slowTimestamps.shift();
 
-            if (slowTimestamps.length === settings.slowSpam.threshold && (Date.now() - slowTimestamps[0]) < settings.slowSpam.window) {
+            if (slowTimestamps.length === slowThreshold && (Date.now() - slowTimestamps[0]) < slowWindow) {
                 await handleSpam(message, client, trackerKey, 'Slow Spam', settings);
             }
         }
