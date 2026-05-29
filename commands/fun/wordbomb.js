@@ -14,84 +14,173 @@ const activeGames = new Set();
 async function fetchRandomWords() {
     const allWords = [];
 
-    // Try random-word-api (general English words)
-    try {
-        const res = await fetch('https://random-word-api.herokuapp.com/word?number=100');
-        if (res.ok) {
-            const words = await res.json();
-            if (Array.isArray(words) && words.length > 0) {
-                allWords.push(...words.map(w => w.trim().toLowerCase()).filter(w => /^[a-z]+$/.test(w)));
+    // Fetch all APIs in parallel (much faster than sequential)
+    const results = await Promise.allSettled([
+        // Random Word API
+        (async () => {
+            const res = await fetch('https://random-word-api.herokuapp.com/word?number=100');
+            if (res.ok) {
+                const words = await res.json();
+                if (Array.isArray(words) && words.length > 0) {
+                    return words.map(w => w.trim().toLowerCase()).filter(w => /^[a-z]+$/.test(w));
+                }
             }
-        }
-    } catch (err) {
-        console.error('Failed to fetch from random-word-api:', err);
-    }
+            return [];
+        })(),
 
-    // Try datamuse (diverse vocabulary)
-    try {
-        const letters = 'abcdefghijklmnopqrstuvwxyz';
-        const randChar = letters[Math.floor(Math.random() * letters.length)];
-        const res = await fetch(`https://api.datamuse.com/words?sp=${randChar}*&max=100`);
-        if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-                allWords.push(...data.map(item => item.word.trim().toLowerCase()).filter(w => /^[a-z]+$/.test(w)));
+        // Datamuse API
+        (async () => {
+            const letters = 'abcdefghijklmnopqrstuvwxyz';
+            const randChar = letters[Math.floor(Math.random() * letters.length)];
+            const res = await fetch(`https://api.datamuse.com/words?sp=${randChar}*&max=100`);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    return data.map(item => item.word.trim().toLowerCase()).filter(w => /^[a-z]+$/.test(w));
+                }
             }
-        }
-    } catch (err) {
-        console.error('Failed to fetch from datamuse:', err);
-    }
+            return [];
+        })(),
 
-    // Try Wikipedia random articles (includes locations, cultural references, etc)
-    try {
-        const res = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=50&format=json&origin=*');
-        if (res.ok) {
-            const data = await res.json();
-            if (data.query && data.query.random && Array.isArray(data.query.random)) {
-                for (const item of data.query.random) {
-                    const title = item.title.trim().toLowerCase().replace(/\s+/g, '');
-                    if (/^[a-z]{3,}$/.test(title)) {
-                        allWords.push(title);
+        // Wikipedia API
+        (async () => {
+            const res = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=50&format=json&origin=*');
+            if (res.ok) {
+                const data = await res.json();
+                const words = [];
+                if (data.query && data.query.random && Array.isArray(data.query.random)) {
+                    for (const item of data.query.random) {
+                        const title = item.title.trim().toLowerCase().replace(/\s+/g, '');
+                        if (/^[a-z]{3,}$/.test(title)) words.push(title);
                     }
                 }
+                return words;
             }
-        }
-    } catch (err) {
-        console.error('Failed to fetch from Wikipedia:', err);
-    }
+            return [];
+        })(),
 
-    // Try Jikan API for anime names (anime/meme culture)
-    try {
-        const res = await fetch('https://api.jikan.moe/v4/random/anime?query=title');
-        if (res.ok) {
-            const data = await res.json();
-            if (data.data && data.data.title) {
-                const title = data.data.title.trim().toLowerCase().replace(/\s+/g, '');
-                if (/^[a-z]{3,}$/.test(title)) {
-                    allWords.push(title);
+        // Jikan API (Anime)
+        (async () => {
+            const res = await fetch('https://api.jikan.moe/v4/random/anime');
+            if (res.ok) {
+                const data = await res.json();
+                const words = [];
+                if (data.data && data.data.title) {
+                    const title = data.data.title.trim().toLowerCase().replace(/\s+/g, '');
+                    if (/^[a-z]{3,}$/.test(title)) words.push(title);
                 }
+                return words;
             }
-        }
-    } catch (err) {
-        console.error('Failed to fetch from Jikan API:', err);
-    }
+            return [];
+        })(),
 
-    // Try REST Countries API for location names
-    try {
-        const res = await fetch('https://restcountries.com/v3.1/all');
-        if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data)) {
-                for (const country of data.slice(0, 50)) {
-                    const name = country.name?.common?.trim().toLowerCase().replace(/\s+/g, '');
-                    if (name && /^[a-z]{3,}$/.test(name)) {
-                        allWords.push(name);
+        // REST Countries API
+        (async () => {
+            const res = await fetch('https://restcountries.com/v3.1/all');
+            if (res.ok) {
+                const data = await res.json();
+                const words = [];
+                if (Array.isArray(data)) {
+                    for (const country of data.slice(0, 50)) {
+                        const name = country.name?.common?.trim().toLowerCase().replace(/\s+/g, '');
+                        if (name && /^[a-z]{3,}$/.test(name)) words.push(name);
                     }
                 }
+                return words;
             }
+            return [];
+        })(),
+
+        // RAWG Video Games API
+        (async () => {
+            const res = await fetch('https://api.rawg.io/api/games?page_size=50&ordering=-rating');
+            if (res.ok) {
+                const data = await res.json();
+                const words = [];
+                if (data.results && Array.isArray(data.results)) {
+                    for (const game of data.results) {
+                        const name = game.name?.trim().toLowerCase().replace(/\s+/g, '');
+                        if (name && /^[a-z]{3,}$/.test(name)) words.push(name);
+                    }
+                }
+                return words;
+            }
+            return [];
+        })(),
+
+        // PokéAPI
+        (async () => {
+            const res = await fetch('https://pokeapi.co/api/v2/pokemon?limit=100');
+            if (res.ok) {
+                const data = await res.json();
+                const words = [];
+                if (data.results && Array.isArray(data.results)) {
+                    for (const pokemon of data.results) {
+                        const name = pokemon.name?.trim().toLowerCase().replace(/\s+/g, '');
+                        if (name && /^[a-z]{3,}$/.test(name)) words.push(name);
+                    }
+                }
+                return words;
+            }
+            return [];
+        })(),
+
+        // Star Wars API
+        (async () => {
+            const randomId = Math.floor(Math.random() * 82) + 1;
+            const res = await fetch(`https://swapi.dev/api/people/${randomId}/`);
+            if (res.ok) {
+                const data = await res.json();
+                const words = [];
+                if (data.name) {
+                    const name = data.name.trim().toLowerCase().replace(/\s+/g, '');
+                    if (/^[a-z]{3,}$/.test(name)) words.push(name);
+                }
+                return words;
+            }
+            return [];
+        })(),
+
+        // Rick and Morty API
+        (async () => {
+            const res = await fetch('https://rickandmortyapi.com/api/character?page=1');
+            if (res.ok) {
+                const data = await res.json();
+                const words = [];
+                if (data.results && Array.isArray(data.results)) {
+                    for (const character of data.results.slice(0, 30)) {
+                        const name = character.name?.trim().toLowerCase().replace(/\s+/g, '');
+                        if (name && /^[a-z]{3,}$/.test(name)) words.push(name);
+                    }
+                }
+                return words;
+            }
+            return [];
+        })(),
+
+        // Trivia API
+        (async () => {
+            const res = await fetch('https://opentdb.com/api.php?amount=20&type=multiple');
+            if (res.ok) {
+                const data = await res.json();
+                const words = [];
+                if (data.results && Array.isArray(data.results)) {
+                    for (const question of data.results) {
+                        const category = question.category?.trim().toLowerCase().replace(/\s+/g, '');
+                        if (category && /^[a-z]{3,}$/.test(category)) words.push(category);
+                    }
+                }
+                return words;
+            }
+            return [];
+        })()
+    ]);
+
+    // Collect all successful results
+    for (const result of results) {
+        if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+            allWords.push(...result.value);
         }
-    } catch (err) {
-        console.error('Failed to fetch from REST Countries API:', err);
     }
 
     // Deduplicate and filter
