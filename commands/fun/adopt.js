@@ -142,9 +142,20 @@ function handleAdoptionCollector(message, proposer, target) {
                 return message.edit({ embeds: [embed], components: [] });
             }
 
-            targetFamily.parents.push(proposer.id);
-            if (!proposerFamily.children.includes(target.id)) {
-                proposerFamily.children.push(target.id);
+            if (!targetFamily.parents.includes(proposer.id)) targetFamily.parents.push(proposer.id);
+            if (!proposerFamily.children.includes(target.id)) proposerFamily.children.push(target.id);
+
+            if (proposerFamily.spouseId) {
+                const spouseFamily = await Family.findOne({ userId: proposerFamily.spouseId });
+                if (spouseFamily) {
+                    if (!targetFamily.parents.includes(proposerFamily.spouseId)) {
+                        targetFamily.parents.push(proposerFamily.spouseId);
+                    }
+                    if (!spouseFamily.children.includes(target.id)) {
+                        spouseFamily.children.push(target.id);
+                    }
+                    await spouseFamily.save();
+                }
             }
 
             await targetFamily.save();

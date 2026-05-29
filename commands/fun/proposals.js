@@ -142,6 +142,22 @@ function handleProposalsCollector(message, user) {
             proposerFamily.spouseId = user.id;
             familyData.pendingSpouseProposal = null;
             proposerFamily.pendingSpouseProposal = null;
+            
+            const allChildren = new Set([...familyData.children, ...proposerFamily.children]);
+            const sharedChildren = Array.from(allChildren);
+            
+            familyData.children = sharedChildren;
+            proposerFamily.children = sharedChildren;
+            
+            for (const childId of sharedChildren) {
+                const childFamily = await Family.findOne({ userId: childId });
+                if (childFamily) {
+                    if (!childFamily.parents.includes(user.id)) childFamily.parents.push(user.id);
+                    if (!childFamily.parents.includes(proposerId)) childFamily.parents.push(proposerId);
+                    await childFamily.save();
+                }
+            }
+
             await familyData.save();
             await proposerFamily.save();
 
@@ -176,9 +192,20 @@ function handleProposalsCollector(message, user) {
 
             const parentFamily = await Family.findOne({ userId: parentId });
             if (parentFamily) {
-                familyData.parents.push(parentId);
-                if (!parentFamily.children.includes(user.id)) {
-                    parentFamily.children.push(user.id);
+                if (!familyData.parents.includes(parentId)) familyData.parents.push(parentId);
+                if (!parentFamily.children.includes(user.id)) parentFamily.children.push(user.id);
+                
+                if (parentFamily.spouseId) {
+                    const spouseFamily = await Family.findOne({ userId: parentFamily.spouseId });
+                    if (spouseFamily) {
+                        if (!familyData.parents.includes(parentFamily.spouseId)) {
+                            familyData.parents.push(parentFamily.spouseId);
+                        }
+                        if (!spouseFamily.children.includes(user.id)) {
+                            spouseFamily.children.push(user.id);
+                        }
+                        await spouseFamily.save();
+                    }
                 }
                 familyData.pendingAdoptionProposals = familyData.pendingAdoptionProposals.filter(id => id !== parentId);
                 await familyData.save();
