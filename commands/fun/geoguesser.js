@@ -3,6 +3,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
 const activeGames = new Set();
+const recentLocations = []; // Track recent locations to prevent repeats
 
 async function fetchRandomLocation() {
     try {
@@ -21,6 +22,10 @@ async function fetchRandomLocation() {
             if (!country || !country.capital || !country.capital[0]) continue;
             
             const capital = country.capital[0];
+            
+            // Skip if recently used
+            if (recentLocations.includes(capital)) continue;
+
             const countryName = country.name.common;
             const region = country.subregion || country.region;
             
@@ -30,6 +35,10 @@ async function fetchRandomLocation() {
             
             const wikiData = await wikiRes.json();
             if (!wikiData.originalimage || !wikiData.originalimage.source) continue;
+
+            // Add to history and keep max 150 items to prevent repetition
+            recentLocations.push(capital);
+            if (recentLocations.length > 150) recentLocations.shift();
 
             return {
                 capital: capital.toLowerCase(),
