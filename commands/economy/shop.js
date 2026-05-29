@@ -9,6 +9,7 @@ const {
     ComponentType
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 // Define our shop items catalog with categories and premium pricing
 const ITEMS = {
@@ -109,11 +110,12 @@ const ITEMS = {
     }
 };
 
-async function executePurchase(userId, itemId, quantity, baubleData) {
+async function executePurchase(userId, itemId, quantity, baubleData, globalMultiplier) {
     const item = ITEMS[itemId];
     if (!item) return { error: '❌ Invalid item ID.' };
 
-    const totalPrice = item.price * quantity;
+    const dynamicPrice = Math.floor(item.basePrice / globalMultiplier);
+    const totalPrice = dynamicPrice * quantity;
     if (baubleData.baubles < totalPrice) {
         return { error: `❌ You need **${totalPrice.toLocaleString()}** Baubles to buy **${quantity}x ${item.name}**, but you only have **${baubleData.baubles.toLocaleString()}**.` };
     }
@@ -133,13 +135,14 @@ async function executePurchase(userId, itemId, quantity, baubleData) {
 }
 
 // Embed and component helper functions for pagination
-function getHomePageEmbed(baubles) {
+function getHomePageEmbed(baubles, globalMultiplier) {
     return new EmbedBuilder()
         .setColor(0x00AE86)
         .setTitle('🛍️ Glimmering Bauble Shop')
         .setDescription(
             `Spend your hard-earned **Glimmering Baubles** here!\n\n` +
-            `💰 **Your Balance:** **${baubles.toLocaleString()}** Baubles\n\n` +
+            `💰 **Your Balance:** **${baubles.toLocaleString()}** Baubles\n` +
+            `📈 **Economy Multiplier:** **${globalMultiplier.toFixed(2)}x** (Prices scale inversely with the multiplier)\n\n` +
             `Please select a category button below to browse items:\n` +
             `⚡ **Economy & Utility Boosters:** Lower cooldowns, boost gamble win rates, and protect wagers.\n` +
             `🎨 **Cosmetics & Collectibles:** Flaunt your status, customize profile banners, and stand out.`
@@ -171,10 +174,10 @@ function getHomePageComponents() {
     return [row];
 }
 
-function getBoostersPageEmbed(baubles) {
+function getBoostersPageEmbed(baubles, globalMultiplier) {
     const list = Object.values(ITEMS)
         .filter(item => item.category === 'boosters')
-        .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_`)
+        .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${Math.floor(item.basePrice / globalMultiplier).toLocaleString()}** Baubles\n_${item.description}_`)
         .join('\n\n');
 
     return new EmbedBuilder()
@@ -184,7 +187,7 @@ function getBoostersPageEmbed(baubles) {
         .setFooter({ text: 'Select a booster from the dropdown below to buy 1x.' });
 }
 
-function getBoostersComponents() {
+function getBoostersComponents(globalMultiplier) {
     const items = Object.values(ITEMS).filter(item => item.category === 'boosters');
     
     const selectMenu = new StringSelectMenuBuilder()
@@ -193,7 +196,7 @@ function getBoostersComponents() {
         .addOptions(
             items.map(item => ({
                 label: item.name.replace(/^[^\s]+\s+/, ''),
-                description: `${item.price.toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
+                description: `${Math.floor(item.basePrice / globalMultiplier).toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
                 value: item.id
             }))
         );
@@ -214,12 +217,12 @@ function getBoostersComponents() {
     return [row1, row2];
 }
 
-function getCosmeticsPageEmbed(baubles) {
+function getCosmeticsPageEmbed(baubles, globalMultiplier) {
     const list = Object.values(ITEMS)
         .filter(item => item.category === 'cosmetics')
         .map(item => {
             const giftableSuffix = item.giftable === false ? ' 🔒 *Non-giftable*' : '';
-            return `**${item.name}** (\`${item.id}\`)\nPrice: **${item.price.toLocaleString()}** Baubles\n_${item.description}_${giftableSuffix}`;
+            return `**${item.name}** (\`${item.id}\`)\nPrice: **${Math.floor(item.basePrice / globalMultiplier).toLocaleString()}** Baubles\n_${item.description}_${giftableSuffix}`;
         })
         .join('\n\n');
 
@@ -230,7 +233,7 @@ function getCosmeticsPageEmbed(baubles) {
         .setFooter({ text: 'Select an item from the dropdown below to buy 1x.' });
 }
 
-function getCosmeticsComponents() {
+function getCosmeticsComponents(globalMultiplier) {
     const items = Object.values(ITEMS).filter(item => item.category === 'cosmetics');
 
     const selectMenu = new StringSelectMenuBuilder()
@@ -239,7 +242,7 @@ function getCosmeticsComponents() {
         .addOptions(
             items.map(item => ({
                 label: item.name.replace(/^[^\s]+\s+/, ''),
-                description: `${item.price.toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
+                description: `${Math.floor(item.basePrice / globalMultiplier).toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
                 value: item.id
             }))
         );
@@ -260,7 +263,7 @@ function getCosmeticsComponents() {
     return [row1, row2];
 }
 
-function getHelpPageEmbed(baubles) {
+function getHelpPageEmbed(baubles, globalMultiplier) {
     return new EmbedBuilder()
         .setColor(0x00AE86)
         .setTitle('🛍️ Shop: Help & FAQ')
@@ -322,6 +325,7 @@ module.exports = {
             const buyOption = interaction.options.getString('buy');
             const quantityOption = interaction.options.getInteger('quantity') || 1;
 
+            const globalMultiplier = await getGlobalMultiplier();
             let baubleData = await Bauble.findOne({ userId });
             if (!baubleData) {
                 baubleData = new Bauble({ userId, baubles: 0 });
@@ -331,7 +335,7 @@ module.exports = {
             // Direct purchase via command options
             if (buyOption) {
                 const cleanId = buyOption.trim().toLowerCase();
-                const result = await executePurchase(userId, cleanId, quantityOption, baubleData);
+                const result = await executePurchase(userId, cleanId, quantityOption, baubleData, globalMultiplier);
                 if (result.error) {
                     return interaction.reply({ content: result.error, ephemeral: true });
                 }
@@ -351,7 +355,7 @@ module.exports = {
             // Interactive catalog menu starting at 'home'
             let currentPage = 'home';
 
-            function getPageData(page, baubles) {
+            function getPageData(page, baubles, globalMultiplier) {
                 switch (page) {
                     case 'home':
                         return { embeds: [getHomePageEmbed(baubles)], components: getHomePageComponents() };
@@ -364,7 +368,7 @@ module.exports = {
                 }
             }
 
-            const initialData = getPageData(currentPage, baubleData.baubles);
+            const initialData = getPageData(currentPage, baubleData.baubles, globalMultiplier);
             const response = await interaction.reply({
                 embeds: initialData.embeds,
                 components: initialData.components,
@@ -386,16 +390,18 @@ module.exports = {
                     else if (btnId === 'shop_btn_cosmetics') currentPage = 'cosmetics';
                     else if (btnId === 'shop_btn_help') currentPage = 'help';
 
+                    const freshMultiplier = await getGlobalMultiplier();
                     const freshData = await Bauble.findOne({ userId }) || { baubles: 0 };
-                    const pageData = getPageData(currentPage, freshData.baubles);
+                    const pageData = getPageData(currentPage, freshData.baubles, freshMultiplier);
                     await i.update({
                         embeds: pageData.embeds,
                         components: pageData.components
                     });
                 } else if (i.isStringSelectMenu() && i.customId === 'shop_select_buy') {
                     const selectedId = i.values[0];
+                    const freshMultiplier = await getGlobalMultiplier();
                     const freshData = await Bauble.findOne({ userId });
-                    const result = await executePurchase(userId, selectedId, 1, freshData);
+                    const result = await executePurchase(userId, selectedId, 1, freshData, freshMultiplier);
                     
                     if (result.error) {
                         return i.reply({ content: result.error, ephemeral: true });
@@ -408,7 +414,7 @@ module.exports = {
                     });
 
                     // Update main shop embed with new balance
-                    const pageData = getPageData(currentPage, freshData.baubles);
+                    const pageData = getPageData(currentPage, freshData.baubles, freshMultiplier);
                     await interaction.editReply({
                         embeds: pageData.embeds,
                         components: pageData.components
@@ -429,6 +435,7 @@ module.exports = {
     async executePrefix(message, args) {
         try {
             const userId = message.author.id;
+            const globalMultiplier = await getGlobalMultiplier();
             let baubleData = await Bauble.findOne({ userId });
             if (!baubleData) {
                 baubleData = new Bauble({ userId, baubles: 0 });
@@ -443,7 +450,7 @@ module.exports = {
                 if (!itemId) return message.reply('⚠️ Please specify an item to buy. Example: `-shop buy coffee 2`');
                 if (!ITEMS[itemId]) return message.reply(`⚠️ Invalid item. Choose from: ${Object.keys(ITEMS).join(', ')}`);
 
-                const result = await executePurchase(userId, itemId, quantity, baubleData);
+                const result = await executePurchase(userId, itemId, quantity, baubleData, globalMultiplier);
                 if (result.error) return message.reply(result.error);
 
                 const successEmbed = new EmbedBuilder()
@@ -457,7 +464,7 @@ module.exports = {
             // Interactive catalog menu starting at 'home'
             let currentPage = 'home';
 
-            function getPageData(page, baubles) {
+            function getPageData(page, baubles, globalMultiplier) {
                 switch (page) {
                     case 'home':
                         return { embeds: [getHomePageEmbed(baubles)], components: getHomePageComponents() };
@@ -470,7 +477,7 @@ module.exports = {
                 }
             }
 
-            const initialData = getPageData(currentPage, baubleData.baubles);
+            const initialData = getPageData(currentPage, baubleData.baubles, globalMultiplier);
             const response = await message.reply({
                 embeds: initialData.embeds,
                 components: initialData.components
@@ -491,16 +498,18 @@ module.exports = {
                     else if (btnId === 'shop_btn_cosmetics') currentPage = 'cosmetics';
                     else if (btnId === 'shop_btn_help') currentPage = 'help';
 
+                    const freshMultiplier = await getGlobalMultiplier();
                     const freshData = await Bauble.findOne({ userId }) || { baubles: 0 };
-                    const pageData = getPageData(currentPage, freshData.baubles);
+                    const pageData = getPageData(currentPage, freshData.baubles, freshMultiplier);
                     await i.update({
                         embeds: pageData.embeds,
                         components: pageData.components
                     });
                 } else if (i.isStringSelectMenu() && i.customId === 'shop_select_buy') {
                     const selectedId = i.values[0];
+                    const freshMultiplier = await getGlobalMultiplier();
                     const freshData = await Bauble.findOne({ userId });
-                    const result = await executePurchase(userId, selectedId, 1, freshData);
+                    const result = await executePurchase(userId, selectedId, 1, freshData, freshMultiplier);
                     
                     if (result.error) {
                         return i.reply({ content: result.error, ephemeral: true });
@@ -513,7 +522,7 @@ module.exports = {
                     });
 
                     // Update main shop embed with new balance
-                    const pageData = getPageData(currentPage, freshData.baubles);
+                    const pageData = getPageData(currentPage, freshData.baubles, freshMultiplier);
                     await response.edit({
                         embeds: pageData.embeds,
                         components: pageData.components
