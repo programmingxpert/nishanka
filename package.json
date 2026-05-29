@@ -21,6 +21,7 @@
     "mongoose": "^8.9.5",
     "ms": "^2.1.3",
     "musicard": "^3.0.1",
+    "node-cron": "^4.2.1",
     "riffy": "^1.0.12"
   },
   "engines": {

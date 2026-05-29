@@ -257,11 +257,17 @@ mongoose
     .connect(process.env.MONGO_URI)
     .then(() => {
         console.log('✅ Connected to MongoDB');
-        const { calculateEconomy } = require('./utils/economyEngine');
-        // Initial run 10 seconds after boot
-        setTimeout(() => calculateEconomy(), 10000);
-        // Run every 24 hours
-        setInterval(() => calculateEconomy(), 86400000);
+        const cron = require('node-cron');
+        const { calculateEconomy, checkCatchUpEconomy } = require('./utils/economyEngine');
+        
+        // 1. Initial run: Check if we missed a day while the bot was offline
+        setTimeout(() => checkCatchUpEconomy(), 10000);
+        
+        // 2. Schedule the economy recalculation every day at exactly midnight (server time)
+        cron.schedule('0 0 * * *', () => {
+            console.log('[Cron] Running scheduled daily economy calculation...');
+            calculateEconomy();
+        });
     })
     .catch(err => {
         console.error('❌ MongoDB connection failed:', err.message);

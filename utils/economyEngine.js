@@ -97,7 +97,36 @@ async function getGlobalMultiplier() {
     return 1.0;
 }
 
+/**
+ * Checks if we missed today's economy snapshot and recalculates if needed.
+ */
+async function checkCatchUpEconomy() {
+    try {
+        const lastSnapshot = await EconomyMetrics.findOne().sort({ timestamp: -1 });
+        if (!lastSnapshot) {
+            console.log('[Economy Engine] No previous snapshots found. Generating initial snapshot...');
+            return calculateEconomy();
+        }
+
+        const lastDate = new Date(lastSnapshot.timestamp);
+        const today = new Date();
+        
+        // If the last snapshot was taken on a different day, take one now
+        if (lastDate.getUTCFullYear() !== today.getUTCFullYear() ||
+            lastDate.getUTCMonth() !== today.getUTCMonth() ||
+            lastDate.getUTCDate() !== today.getUTCDate()) {
+            console.log('[Economy Engine] Missed today\'s snapshot (or was offline). Running catch-up...');
+            return calculateEconomy();
+        } else {
+            console.log('[Economy Engine] Today\'s economy snapshot already exists. Skipping catch-up.');
+        }
+    } catch (err) {
+        console.error('[Economy Engine] Error during catch-up check:', err);
+    }
+}
+
 module.exports = {
     calculateEconomy,
-    getGlobalMultiplier
+    getGlobalMultiplier,
+    checkCatchUpEconomy
 };
