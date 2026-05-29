@@ -12,18 +12,22 @@ const Bauble = require('../../models/baubleSchema');
 const activeGames = new Set();
 
 async function fetchRandomWords() {
+    const allWords = [];
+
+    // Try random-word-api (general English words)
     try {
         const res = await fetch('https://random-word-api.herokuapp.com/word?number=100');
         if (res.ok) {
             const words = await res.json();
             if (Array.isArray(words) && words.length > 0) {
-                return words.map(w => w.trim().toLowerCase());
+                allWords.push(...words.map(w => w.trim().toLowerCase()).filter(w => /^[a-z]+$/.test(w)));
             }
         }
     } catch (err) {
-        console.error('Failed to fetch from random-word-api, trying datamuse:', err);
+        console.error('Failed to fetch from random-word-api:', err);
     }
-    
+
+    // Try datamuse (diverse vocabulary)
     try {
         const letters = 'abcdefghijklmnopqrstuvwxyz';
         const randChar = letters[Math.floor(Math.random() * letters.length)];
@@ -31,14 +35,75 @@ async function fetchRandomWords() {
         if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data) && data.length > 0) {
-                return data.map(item => item.word.trim().toLowerCase()).filter(w => /^[a-z]+$/.test(w));
+                allWords.push(...data.map(item => item.word.trim().toLowerCase()).filter(w => /^[a-z]+$/.test(w)));
             }
         }
     } catch (err) {
-        console.error('Failed to fetch fallback words from datamuse:', err);
+        console.error('Failed to fetch from datamuse:', err);
     }
-    
-    return ['apple', 'banana', 'cherry', 'elephant', 'giraffe', 'helicopter', 'internet', 'keyboard', 'laptop', 'monster', 'orange', 'penguin', 'quantum', 'rainbow', 'science', 'universe', 'volcano', 'whisper', 'xylophone', 'yellow', 'zebra'];
+
+    // Try Wikipedia random articles (includes locations, cultural references, etc)
+    try {
+        const res = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=50&format=json&origin=*');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.query && data.query.random && Array.isArray(data.query.random)) {
+                for (const item of data.query.random) {
+                    const title = item.title.trim().toLowerCase().replace(/\s+/g, '');
+                    if (/^[a-z]{3,}$/.test(title)) {
+                        allWords.push(title);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Failed to fetch from Wikipedia:', err);
+    }
+
+    // Try Jikan API for anime names (anime/meme culture)
+    try {
+        const res = await fetch('https://api.jikan.moe/v4/random/anime?query=title');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.data && data.data.title) {
+                const title = data.data.title.trim().toLowerCase().replace(/\s+/g, '');
+                if (/^[a-z]{3,}$/.test(title)) {
+                    allWords.push(title);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Failed to fetch from Jikan API:', err);
+    }
+
+    // Try REST Countries API for location names
+    try {
+        const res = await fetch('https://restcountries.com/v3.1/all');
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                for (const country of data.slice(0, 50)) {
+                    const name = country.name?.common?.trim().toLowerCase().replace(/\s+/g, '');
+                    if (name && /^[a-z]{3,}$/.test(name)) {
+                        allWords.push(name);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Failed to fetch from REST Countries API:', err);
+    }
+
+    // Deduplicate and filter
+    const uniqueWords = [...new Set(allWords)].filter(w => /^[a-z]{3,}$/.test(w));
+
+    if (uniqueWords.length > 0) {
+        return uniqueWords;
+    }
+
+    // Absolute fallback - minimal hardcoded list (only if all APIs fail)
+    console.warn('All APIs failed, using absolute fallback list');
+    return ['word', 'game', 'player', 'challenge', 'victory', 'action', 'character', 'element', 'fantasy', 'history'];
 }
 
 function getPromptFromPool(wordsPool, promptLength = 2) {
