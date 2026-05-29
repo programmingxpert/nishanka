@@ -2,6 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
     name: 'gta6',
+    data: { name: 'gta6' },
     category: 'fun',
     aliases: ['gtavi', 'gta'],
     
