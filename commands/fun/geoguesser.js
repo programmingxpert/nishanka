@@ -28,32 +28,39 @@ async function fetchRandomLocation() {
             
             let imgUrl = null;
             
-            // Try to fetch from LoremFlickr for street-level / landmark photos
+            // Try Wikimedia Commons search for cityscape/landmark
             try {
-                const lock = Math.floor(Math.random() * 10000);
-                const lfRes = await fetch(`https://loremflickr.com/json/800/600/${encodeURIComponent(capital)},city/all?lock=${lock}`);
-                if (lfRes.ok) {
-                    const lfData = await lfRes.json();
-                    if (lfData.file && !lfData.file.includes('defaultImage')) {
-                        imgUrl = lfData.file;
-                    }
-                }
+                const searchQueries = [`${encodeURIComponent(capital)}+cityscape`, `${encodeURIComponent(capital)}+skyline`, `${encodeURIComponent(capital)}+landmark`];
                 
-                // Fallback to just capital name if city tag failed
-                if (!imgUrl) {
-                    const lfRes2 = await fetch(`https://loremflickr.com/json/800/600/${encodeURIComponent(capital)}/all?lock=${lock}`);
-                    if (lfRes2.ok) {
-                        const lfData2 = await lfRes2.json();
-                        if (lfData2.file && !lfData2.file.includes('defaultImage')) {
-                            imgUrl = lfData2.file;
+                for (const query of searchQueries) {
+                    const wcUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${query}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&format=json`;
+                    const wcRes = await fetch(wcUrl);
+                    if (wcRes.ok) {
+                        const wcData = await wcRes.json();
+                        if (wcData.query && wcData.query.pages) {
+                            const pages = Object.values(wcData.query.pages);
+                            
+                            // Filter out files that are clearly maps, logos, flags, or non-photos (svg, pdf, webm)
+                            const validPages = pages.filter(p => {
+                                const title = p.title.toLowerCase();
+                                if (title.includes('map') || title.includes('flag') || title.includes('logo') || title.includes('coat of arms')) return false;
+                                if (title.endsWith('.svg') || title.endsWith('.pdf') || title.endsWith('.webm')) return false;
+                                return p.imageinfo && p.imageinfo[0] && p.imageinfo[0].url;
+                            });
+
+                            if (validPages.length > 0) {
+                                const randomPage = validPages[Math.floor(Math.random() * validPages.length)];
+                                imgUrl = randomPage.imageinfo[0].url;
+                                break;
+                            }
                         }
                     }
                 }
             } catch (err) {
-                // Ignore and fallback to wikipedia
+                // Ignore and fallback to wikipedia summary
             }
 
-            // Fallback to Wikipedia if LoremFlickr completely fails
+            // Fallback to Wikipedia Summary if Wikimedia Commons fails completely
             if (!imgUrl) {
                 const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(capital)}`);
                 if (wikiRes.ok) {
