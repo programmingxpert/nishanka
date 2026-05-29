@@ -1,5 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const FLAGS = {
     'us': ['united states', 'us', 'usa', 'america', 'united states of america'],
@@ -154,8 +155,9 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
     const sortedScores = Array.from(scores.entries()).sort((a, b) => b[1].points - a[1].points);
     let finalText = '';
     
+    const globalMultiplier = await getGlobalMultiplier();
     for (const [idx, [uId, data]] of sortedScores.entries()) {
-        const reward = data.points * 25;
+        const reward = Math.floor(data.points * 25 * globalMultiplier);
         finalText += `**${idx + 1}.** ${data.name} — ${data.points} pts (+**${reward.toLocaleString()}** Baubles)\n`;
         
         try {

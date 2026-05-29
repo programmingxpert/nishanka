@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const QUESTIONS = [
     { emojis: '🦁👑', answers: ['the lion king', 'lion king'], category: 'Movie' },
@@ -131,7 +132,9 @@ module.exports = {
             question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
         }
 
-        const reward = Math.floor(Math.random() * 76) + 25; // 25-100 Baubles
+        const globalMultiplier = await getGlobalMultiplier();
+        const baseReward = Math.floor(Math.random() * 76) + 25; // 25-100 Baubles
+        const reward = Math.floor(baseReward * globalMultiplier);
 
         const gameEmbed = new EmbedBuilder()
             .setColor(0x7c6cf0)
@@ -216,7 +219,9 @@ module.exports = {
             question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
         }
 
-        const reward = Math.floor(Math.random() * 76) + 25; // 25-100 Baubles
+        const globalMultiplier = await getGlobalMultiplier();
+        const baseReward = Math.floor(Math.random() * 76) + 25; // 25-100 Baubles
+        const reward = Math.floor(baseReward * globalMultiplier);
 
         const gameEmbed = new EmbedBuilder()
             .setColor(0x7c6cf0)

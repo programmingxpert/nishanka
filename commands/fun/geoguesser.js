@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const activeGames = new Set();
 const recentLocations = []; // Track recent locations to prevent repeats
@@ -318,8 +319,10 @@ module.exports = {
                 let leaderboardText = "";
                 let place = 1;
                 
+                const globalMultiplier = await getGlobalMultiplier();
+                
                 for (const [userId, data] of sortedParticipants) {
-                    const reward = data.score * 50; // 50 baubles per point
+                    const reward = Math.floor(data.score * 50 * globalMultiplier);
                     
                     let userDoc = await Bauble.findOne({ userId });
                     if (!userDoc) userDoc = new Bauble({ userId });

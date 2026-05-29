@@ -8,6 +8,7 @@ const {
     ComponentType
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 module.exports = {
     category: 'fun',
@@ -529,7 +530,9 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
     const winnerUser = forfeit ? (forfeit.user.id === p1.user.id ? p2.user : p1.user) : winner.user;
     let rewardText = '';
     if (!winnerUser.bot) {
-        const reward = Math.floor(Math.random() * 101) + 50; // 50-150 Baubles
+        const globalMultiplier = await getGlobalMultiplier();
+        const baseReward = Math.floor(Math.random() * 101) + 50; // 50-150 Baubles
+        const reward = Math.floor(baseReward * globalMultiplier);
         try {
             let baubleData = await Bauble.findOne({ userId: winnerUser.id });
             if (!baubleData) {

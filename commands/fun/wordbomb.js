@@ -8,6 +8,7 @@ const {
     ComponentType 
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const activeGames = new Set();
 
@@ -564,12 +565,15 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
     const winner = winnerData ? winnerData.user : null;
 
     const payoutDetails = [];
+    const globalMultiplier = await getGlobalMultiplier();
     for (const playerState of gameState) {
-        let prize = playerState.successfulGuesses * 10;
+        let basePrize = playerState.successfulGuesses * 10;
         const isWinner = winner && playerState.user.id === winner.id;
         if (isWinner) {
-            prize += 100;
+            basePrize += 100;
         }
+        
+        let prize = Math.floor(basePrize * globalMultiplier);
 
         if (prize > 0) {
             try {
