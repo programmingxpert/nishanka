@@ -2,7 +2,12 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const Family = require('../../models/familySchema');
 const Bauble = require('../../models/baubleSchema');
-const ITEMS = require('../../utils/items');
+
+const RING_ITEMS = {
+    ring_silver: { name: '💍 Silver Wedding Ring', emoji: '💍' },
+    ring_gold: { name: '💍 Gold Wedding Ring', emoji: '💍' },
+    ring_diamond: { name: '💎 Diamond Wedding Ring', emoji: '💎' }
+};
 
 module.exports = {
     category: 'fun',
@@ -72,7 +77,7 @@ async function handleProposalLogic(replyContext, proposer, target, isSlash, pref
 
     // Multiple rings, prompt selection
     const options = availableRings.map(ring => {
-        const itemDef = ITEMS[ring.itemId];
+        const itemDef = RING_ITEMS[ring.itemId];
         return {
             label: itemDef.name,
             description: `You own ${ring.quantity} of these`,
@@ -155,7 +160,7 @@ async function sendProposal(replyContext, proposer, target, ringId, isSlash, isU
     targetFamily.pendingSpouseRing = ringId; // Store which ring is being used
     await targetFamily.save();
 
-    const ringDef = ITEMS[ringId];
+    const ringDef = RING_ITEMS[ringId];
 
     const embed = new EmbedBuilder()
         .setColor(0x7c6cf0)
@@ -231,7 +236,7 @@ function handleMarriageCollector(message, proposer, target, ringId) {
                 const embed = new EmbedBuilder()
                     .setColor(0xf87171)
                     .setTitle('❌ Missing Ring')
-                    .setDescription(`**${proposer.username}** no longer has the **${ITEMS[ringId].name}** in their inventory! The proposal failed.`);
+                    .setDescription(`**${proposer.username}** no longer has the **${RING_ITEMS[ringId].name}** in their inventory! The proposal failed.`);
                 return message.edit({ embeds: [embed], components: [] });
             }
 
@@ -252,7 +257,7 @@ function handleMarriageCollector(message, proposer, target, ringId) {
             const embed = new EmbedBuilder()
                 .setColor(0x4ade80)
                 .setTitle('💖 JUST MARRIED!')
-                .setDescription(`🎉 **${target.username}** accepted the proposal! **${proposer.username}** and **${target.username}** are now officially married with a **${ITEMS[ringId].name}**! 🎉`)
+                .setDescription(`🎉 **${target.username}** accepted the proposal! **${proposer.username}** and **${target.username}** are now officially married with a **${RING_ITEMS[ringId].name}**! 🎉`)
                 .setTimestamp();
 
             await message.edit({ embeds: [embed], components: [] });
