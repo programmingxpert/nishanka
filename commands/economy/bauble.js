@@ -28,8 +28,7 @@ module.exports = {
             let description = `${user.username} has **${baubleData.baubles.toLocaleString()}** Glimmering Baubles!`;
             if (baubleData.baubles >= 150000) {
                 const taxPercent = baubleData.baubles >= 500000 ? 0.05 : 0.02;
-                const estimatedTax = Math.floor(baubleData.baubles * taxPercent);
-                description += `\n\n⚠️ **Wealth Tax Warning:** This balance is subject to a **${(taxPercent * 100).toFixed(0)}%** daily wealth tax. Estimated deduction at midnight: **-${estimatedTax.toLocaleString()}** Baubles.`;
+                description += `\n\n⚠️ **Wealth Transaction Tax Notice:** Because this balance is over **150,000 Baubles**, your transfers (-give) and shop purchases are subject to a **${(taxPercent * 100).toFixed(0)}%** transaction tax. *No daily wallet decay applies!*`;
             }
 
             const embed = new EmbedBuilder()
@@ -88,8 +87,7 @@ module.exports = {
             let description = `${user.username} has **${baubleData.baubles.toLocaleString()}** Glimmering Baubles!`;
             if (baubleData.baubles >= 150000) {
                 const taxPercent = baubleData.baubles >= 500000 ? 0.05 : 0.02;
-                const estimatedTax = Math.floor(baubleData.baubles * taxPercent);
-                description += `\n\n⚠️ **Wealth Tax Warning:** This balance is subject to a **${(taxPercent * 100).toFixed(0)}%** daily wealth tax. Estimated deduction at midnight: **-${estimatedTax.toLocaleString()}** Baubles.`;
+                description += `\n\n⚠️ **Wealth Transaction Tax Notice:** Because this balance is over **150,000 Baubles**, your transfers (-give) and shop purchases are subject to a **${(taxPercent * 100).toFixed(0)}%** transaction tax. *No daily wallet decay applies!*`;
             }
 
             const embed = new EmbedBuilder()

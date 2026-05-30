@@ -24,55 +24,9 @@ async function calculateEconomy(client) {
         let { total: currentTotal, count: userCount } = await getTotalBaubles();
 
         // --- AUTOMATED WEALTH TAX (MONEY SINK) ---
-        // Find users with over 150k baubles and apply a wealth tax
-        const wealthyUsers = await Bauble.find({ baubles: { $gte: 150000 } });
+        // Daily wallet wealth decay is completely disabled. Player balances are preserved.
+        // We now rely solely on progressive transaction taxes (give/shop) and dynamic inflation multipliers.
         let totalTaxCollected = 0;
-        const now = new Date();
-        
-        for (const u of wealthyUsers) {
-            let taxPercent = 0.02; // 2% for Tier 1 (150k-500k)
-            if (u.baubles >= 500000) {
-                taxPercent = 0.05; // 5% for Tier 2 (500k+)
-            }
-            const previousBaubles = u.baubles;
-            const taxAmount = Math.floor(u.baubles * taxPercent);
-            u.baubles -= taxAmount;
-            u.lastTaxPaid = taxAmount;
-            u.lastTaxDate = now;
-            await u.save();
-            totalTaxCollected += taxAmount;
-
-            // Notify user via Discord DM if client is provided
-            if (client) {
-                try {
-                    const discordUser = await client.users.fetch(u.userId);
-                    if (discordUser) {
-                        const { EmbedBuilder } = require('discord.js');
-                        const embed = new EmbedBuilder()
-                            .setColor(0xd9534f) // Crimson/Red
-                            .setTitle('📉 Wealth Tax Deducted')
-                            .setDescription(
-                                `Hello **${discordUser.username}**,\n\n` +
-                                `Your daily wealth tax has been collected and deposited into the server's Tax Fund.\n\n` +
-                                `• **Previous Balance:** ${previousBaubles.toLocaleString()} Baubles\n` +
-                                `• **Tax Collected:** -${taxAmount.toLocaleString()} Baubles (${(taxPercent * 100).toFixed(0)}%)\n` +
-                                `• **New Balance:** ${u.baubles.toLocaleString()} Baubles\n\n` +
-                                `*Wealth taxes keep our server economy balanced and fight inflation. Keep up the hustle!*`
-                            )
-                            .setTimestamp();
-                        await discordUser.send({ embeds: [embed] }).catch(() => {
-                            console.log(`[Economy Engine] Could not DM user ${u.userId} about tax.`);
-                        });
-                    }
-                } catch (dmErr) {
-                    console.error(`[Economy Engine] Error notifying user ${u.userId}:`, dmErr);
-                }
-            }
-        }
-
-        // Adjust the current total by the amount of tax destroyed
-        currentTotal -= totalTaxCollected;
-        console.log(`[Economy Engine] Collected and burned ${totalTaxCollected.toLocaleString()} baubles in wealth taxes.`);
         // ------------------------------------------
 
         // Get the latest metrics snapshot to compare
