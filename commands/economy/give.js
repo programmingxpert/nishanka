@@ -32,7 +32,13 @@ module.exports = {
             }
 
             if (giverId === receiverId) {
-                return interaction.reply({ content: '❌ You cannot give Baubles to yourself!', ephemeral: true });
+                return interaction.reply({ content: '❌ You cannot give Baubles to yourself!', flags: 64 });
+            }
+
+            // Get or create receiver bauble data
+            let receiverBaubleData = await Bauble.findOne({ userId: receiverId });
+            if (!receiverBaubleData) {
+                receiverBaubleData = await Bauble.create({ userId: receiverId, baubles: 0 });
             }
 
             // Calculate rich wealth tax if giver has >= 150,000 baubles
@@ -47,7 +53,7 @@ module.exports = {
             if (giverBaubleData.baubles < amount + taxAmount) {
                 return interaction.reply({ 
                     content: `❌ You do not have enough Baubles to cover the transfer + transaction tax! You need **${(amount + taxAmount).toLocaleString()}** Baubles (including a **${(taxPercent * 100).toFixed(0)}%** wealth transaction tax of **${taxAmount.toLocaleString()}**), but you only have **${giverBaubleData.baubles.toLocaleString()}** Glimmering Baubles.`, 
-                    ephemeral: true 
+                    flags: 64
                 });
             }
 
@@ -94,7 +100,7 @@ module.exports = {
 
         } catch (error) {
             console.error('Error in give command:', error);
-            await interaction.reply({ content: '❌ An error occurred while giving Baubles.', ephemeral: true });
+            await interaction.reply({ content: '❌ An error occurred while giving Baubles.', flags: 64 });
         }
     },
 
@@ -124,6 +130,12 @@ module.exports = {
 
             if (isNaN(amount) || amount <= 0) {
                 return message.reply('⚠️ Please specify a valid amount to give (must be a number greater than 0).');
+            }
+
+            // Get or create receiver bauble data
+            let receiverBaubleData = await Bauble.findOne({ userId: receiverId });
+            if (!receiverBaubleData) {
+                receiverBaubleData = await Bauble.create({ userId: receiverId, baubles: 0 });
             }
 
             // Calculate rich wealth tax if giver has >= 150,000 baubles

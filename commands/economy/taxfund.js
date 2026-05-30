@@ -13,7 +13,7 @@ module.exports = {
     async executePrefix(message, args) {
         if (!message.client.application) await message.client.application.fetch();
         const owner = message.client.application.owner;
-        const isOwner = (owner.members && owner.members.has(message.author.id)) || owner.id === message.author.id;
+        const isOwner = owner && ((owner.members && owner.members.has(message.author.id)) || owner.id === message.author.id);
         
         if (!isOwner) {
             return message.reply("❌ Only the bot owner can access the Tax Fund!");
