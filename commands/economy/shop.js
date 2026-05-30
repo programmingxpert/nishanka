@@ -466,6 +466,8 @@ module.exports = {
                         return { embeds: [getBoostersPageEmbed(baubles, globalMultiplier)], components: getBoostersComponents(globalMultiplier) };
                     case 'cosmetics':
                         return { embeds: [getCosmeticsPageEmbed(baubles, globalMultiplier)], components: getCosmeticsComponents(globalMultiplier) };
+                    case 'family':
+                        return { embeds: [getFamilyPageEmbed(baubles, globalMultiplier)], components: getFamilyComponents(globalMultiplier) };
                     case 'help':
                         return { embeds: [getHelpPageEmbed(baubles, globalMultiplier)], components: getHelpComponents() };
                 }
@@ -491,6 +493,7 @@ module.exports = {
                     if (btnId === 'shop_btn_home') currentPage = 'home';
                     else if (btnId === 'shop_btn_boosters') currentPage = 'boosters';
                     else if (btnId === 'shop_btn_cosmetics') currentPage = 'cosmetics';
+                    else if (btnId === 'shop_btn_family') currentPage = 'family';
                     else if (btnId === 'shop_btn_help') currentPage = 'help';
 
                     const freshMultiplier = await getGlobalMultiplier();
@@ -575,6 +578,8 @@ module.exports = {
                         return { embeds: [getBoostersPageEmbed(baubles, globalMultiplier)], components: getBoostersComponents(globalMultiplier) };
                     case 'cosmetics':
                         return { embeds: [getCosmeticsPageEmbed(baubles, globalMultiplier)], components: getCosmeticsComponents(globalMultiplier) };
+                    case 'family':
+                        return { embeds: [getFamilyPageEmbed(baubles, globalMultiplier)], components: getFamilyComponents(globalMultiplier) };
                     case 'help':
                         return { embeds: [getHelpPageEmbed(baubles, globalMultiplier)], components: getHelpComponents() };
                 }
@@ -599,6 +604,7 @@ module.exports = {
                     if (btnId === 'shop_btn_home') currentPage = 'home';
                     else if (btnId === 'shop_btn_boosters') currentPage = 'boosters';
                     else if (btnId === 'shop_btn_cosmetics') currentPage = 'cosmetics';
+                    else if (btnId === 'shop_btn_family') currentPage = 'family';
                     else if (btnId === 'shop_btn_help') currentPage = 'help';
 
                     const freshMultiplier = await getGlobalMultiplier();
