@@ -349,19 +349,32 @@ async function processItemUse(userId, itemId, targetUser, client, channel, conte
 
     } else if (itemId === 'broken_keyboard') {
         removeItem(baubleData, 'broken_keyboard', 1);
-        const chars = 'ASDFJKL;QWERTYUIOPZXCVBNM!@#';
+        const chars = 'ASDFJKL;QWERTYUIOPZXCVBNM!@#$%';
         let smash = '';
-        for (let i = 0; i < 20; i++) smash += chars[Math.floor(Math.random() * chars.length)];
+        for (let i = 0; i < 25; i++) smash += chars[Math.floor(Math.random() * chars.length)];
 
         const rng = Math.random();
-        if (rng < 0.30) {
-            const coins = Math.floor(Math.random() * 41) + 10; // 10-50 baubles
+        if (rng < 0.15) {
+            // Jackpot — somehow wrote a viral post
+            const coins = Math.floor(Math.random() * 2001) + 1000; // 1000-3000
             baubleData.baubles += coins;
-            msg = `⌨️ You slam your hands on the **Broken Keyboard**: \`*${smash}!*\` \n\n🎉 A shower of dust reveals **${coins}** Baubles shaken loose from under the spacebar!`;
+            msg = `⌨️ You rage-smash the **⌨️ Broken Keyboard**: \`*${smash}!*\`\n\n🤩 **ACCIDENTAL VIRAL POST!** Discord somehow auto-posted that gibberish and it got 40k likes. The ad revenue rolls in — you pocket **${coins.toLocaleString()} Baubles**!`;
+            color = 0xf1c40f;
+        } else if (rng < 0.55) {
+            // Standard loose change
+            const coins = Math.floor(Math.random() * 201) + 100; // 100-300
+            baubleData.baubles += coins;
+            msg = `⌨️ You slam your fists on the **⌨️ Broken Keyboard**: \`*${smash}!*\`\n\n💸 A cascade of dust and **${coins} Baubles** rattle loose from under the keycaps!`;
             color = 0x2ecc71;
-        } else {
-            msg = `⌨️ You slam your hands on the **Broken Keyboard**: \`*${smash}!*\` \n\nNo coins fell out, just some dried crumbs, loose keycaps, and digital regret.`;
+        } else if (rng < 0.80) {
+            // Nothing useful
+            msg = `⌨️ You slam your hands on the **⌨️ Broken Keyboard**: \`*${smash}!*\`\n\nCrumbs, two keycaps, and a USB stick with 37 renamed copies of a Rick Astley MP3 fall out. Absolutely nothing useful.`;
             color = 0x7f8c8d;
+        } else {
+            // Self-shock
+            baubleData.itemLockoutExpiresAt = new Date(Date.now() + 120000); // 2 min lockout
+            msg = `⌨️ You slam the **⌨️ Broken Keyboard**: \`*${smash}!*\`\n\n⚡ **ZAP!** A stray exposed wire zaps your hands! You drop it and your fingers won't cooperate for the next **2 minutes**.`;
+            color = 0xe74c3c;
         }
 
     } else if (itemId === 'rotten_banana') {
@@ -376,31 +389,45 @@ async function processItemUse(userId, itemId, targetUser, client, channel, conte
         if (!targetData) targetData = new Bauble({ userId: targetUser.id });
 
         if (targetData.invisibilityExpiresAt && Date.now() < new Date(targetData.invisibilityExpiresAt).getTime()) {
-            return { success: false, msg: `❌ **${targetUser.username}** is invisible! The banana slips right through their shadow.`, ephemeral: true };
+            return { success: false, msg: `❌ **${targetUser.username}** is invisible! The banana flies right through their shadow.`, ephemeral: true };
         }
         if (targetData.shieldExpiresAt && Date.now() < new Date(targetData.shieldExpiresAt).getTime()) {
-            return { success: false, msg: `🛡️ **${targetUser.username}** is shielding! The rotten banana splats harmlessly off their shield.`, ephemeral: true };
+            return { success: false, msg: `🛡️ **${targetUser.username}** is shielding! The rotten banana splats harmlessly off their cardboard wall.`, ephemeral: true };
         }
 
         removeItem(baubleData, 'rotten_banana', 1);
-        targetData.workStenchExpiresAt = new Date(Date.now() + 120000); // 2 minutes
+        // Lock their work for 5 minutes AND steal some baubles from the shock
+        targetData.workStenchExpiresAt = new Date(Date.now() + 300000); // 5 minutes
+        const slipSteal = Math.min(targetData.baubles, Math.floor(Math.random() * 201) + 100); // 100-300
+        targetData.baubles -= slipSteal;
+        baubleData.baubles += slipSteal;
         await targetData.save();
 
-        msg = `🍌 **SPLAT!** You threw a **Rotten Banana** directly at **${targetUser.username}**!\nThey are coated in a fly-ridden stench and cannot run \`-work\` for the next 2 minutes!`;
+        msg = `🍌 **SPLAT!** You lobbed a **Stinky Rotten Banana** directly at **${targetUser.username}**!\n\n🪰 They're covered in flies, coated in banana sludge, and dropped **${slipSteal} Baubles** while slipping! They also can't run \`-work\` for the next **5 minutes**!`;
         color = 0x8b5a2b;
 
     } else if (itemId === 'rabbits_feet') {
         removeItem(baubleData, 'rabbits_feet', 1);
+        // Always lucky — tiered good outcomes only
+        baubleData.luckExpiresAt = new Date(Math.floor((Date.now() + 600000) / 10) * 10 + 5); // 10m rabbit foot luck (ends in 5)
+        baubleData.luckPenaltyExpiresAt = null; // Clear any existing bad luck
         const rng = Math.random();
-        if (rng < 0.20) {
-            baubleData.luckPenaltyExpiresAt = new Date(Date.now() + 600000); // 10 minutes bad luck
-            baubleData.luckExpiresAt = null; // Clear good luck
-            msg = '🐰 You rubbed the **Unlucky Rabbit Foot**, but it twitch-kicked your hand! A wave of bad luck washes over you. You have **-15% luck** on Coinflip and Gamble for 10 minutes!';
-            color = 0xe74c3c;
+        if (rng < 0.10) {
+            // Jackpot tier — huge cash windfall
+            const windfall = Math.floor(Math.random() * 3001) + 2000; // 2000-5000
+            baubleData.baubles += windfall;
+            msg = `🐰 You rub the **🐰 Unlucky Rabbit Foot**... wait, why is it glowing?\n\n🌟 **MEGA LUCK!** You find **${windfall.toLocaleString()} Baubles** folded inside it, a +15% luck boost for 10 minutes, AND your existing bad luck was nuked! The rabbit was loaded this whole time!`;
+            color = 0xf1c40f;
+        } else if (rng < 0.35) {
+            // Mid tier — luck boost + clear penalty + bonus item
+            const bonusItems = ['coffee', 'clover', 'mystery_box'];
+            const bonus = bonusItems[Math.floor(Math.random() * bonusItems.length)];
+            addItem(baubleData, bonus, 1);
+            msg = `🐰 You rub the **🐰 Unlucky Rabbit Foot** and feel a warm tingle run up your arm!\n\n✨ **LUCKY STREAK!** You get a **+15% luck boost for 10 minutes**, your bad luck penalty was cancelled, AND a **${ITEMS[bonus].name}** fell out of the fur!`;
+            color = 0x2ecc71;
         } else {
-            baubleData.luckExpiresAt = new Date(Math.floor((Date.now() + 600000) / 10) * 10 + 5); // 10m rabbit foot good luck (ends in 5)
-            baubleData.luckPenaltyExpiresAt = null; // Clear bad luck
-            msg = '🐰 You rubbed the **Unlucky Rabbit Foot** and felt a surge of rabbit luck! You have **+15% luck** on Coinflip and Gamble for 10 minutes!';
+            // Standard tier — pure luck boost
+            msg = `🐰 You rub the **🐰 Unlucky Rabbit Foot** and hear a soft *click* of good fortune!\n\n🍀 **Lucky!** You have **+15% luck** on all Coinflip and Gamble actions for the next 10 minutes. Bad luck cleared!`;
             color = 0xf1c40f;
         }
 
@@ -447,14 +474,18 @@ async function processItemUse(userId, itemId, targetUser, client, channel, conte
 
     } else if (itemId === 'treasure_chest') {
         removeItem(baubleData, 'treasure_chest', 1);
-        const coins = Math.floor(Math.random() * 2001) + 1000; // 1000-3000 baubles
+        const coins = Math.floor(Math.random() * 5001) + 3000; // 3000-8000 baubles
         baubleData.baubles += coins;
 
-        const prizeBoosters = ['coffee', 'clover', 'mystery_box', 'padlock'];
-        const rolledItem = prizeBoosters[Math.floor(Math.random() * prizeBoosters.length)];
-        addItem(baubleData, rolledItem, 1);
+        // Give 2 random items including at least one rare-tier booster
+        const rarePool = ['shield', 'padlock', 'clover', 'rabbits_feet', 'golden_fish'];
+        const commonPool = ['coffee', 'mystery_box', 'rotten_banana', 'broken_keyboard'];
+        const item1 = rarePool[Math.floor(Math.random() * rarePool.length)];
+        const item2 = commonPool[Math.floor(Math.random() * commonPool.length)];
+        addItem(baubleData, item1, 1);
+        addItem(baubleData, item2, 1);
 
-        msg = `🏴‍☠️ You pry open the rusty padlock of the **Treasure Chest**!\n\nInside, you discover **${coins.toLocaleString()}** Glimmering Baubles and a **${ITEMS[rolledItem].name}**!`;
+        msg = `🏴‍☠️ You crowbar open the barnacle-crusted **Barnacle-Covered Chest**!\n\n💰 Inside you find **${coins.toLocaleString()} Baubles**, a **${ITEMS[item1].name}**, and a **${ITEMS[item2].name}**! Not bad for a fisherman's haul!`;
         color = 0xf1c40f;
 
     } else if (itemId === 'ancient_artifact') {
@@ -489,29 +520,59 @@ async function processItemUse(userId, itemId, targetUser, client, channel, conte
         let targetData = await Bauble.findOne({ userId: targetUser.id });
         if (!targetData) targetData = new Bauble({ userId: targetUser.id });
 
-        shouldSave = false; // Don't consume or save
-        
-        const scanLines = [];
-        scanLines.push(`👛 **Wallet Balance:** **${targetData.baubles.toLocaleString()}** Baubles`);
-        
         const nowTime = Date.now();
+        
+        // Consume the shell
+        removeItem(baubleData, 'fossil_shell', 1);
+        shouldSave = true;
+
+        const scanLines = [];
+        scanLines.push(`👛 **Wallet:** **${targetData.baubles.toLocaleString()}** Baubles`);
+
+        // Full status dump
         if (targetData.invisibilityExpiresAt && nowTime < new Date(targetData.invisibilityExpiresAt).getTime()) {
-            scanLines.push(`💍 **Invisibility:** Active`);
+            const ts = Math.floor(new Date(targetData.invisibilityExpiresAt).getTime() / 1000);
+            scanLines.push(`💍 **Invisible** — expires <t:${ts}:R>`);
         }
         if (targetData.shieldExpiresAt && nowTime < new Date(targetData.shieldExpiresAt).getTime()) {
-            scanLines.push(`🛡️ **Cardboard Shield:** Active`);
+            const ts = Math.floor(new Date(targetData.shieldExpiresAt).getTime() / 1000);
+            scanLines.push(`🛡️ **Shield** — expires <t:${ts}:R>`);
+        }
+        if (targetData.coffeeExpiresAt && nowTime < new Date(targetData.coffeeExpiresAt).getTime()) {
+            const ts = Math.floor(new Date(targetData.coffeeExpiresAt).getTime() / 1000);
+            scanLines.push(`☕ **Espresso Boost** — expires <t:${ts}:R>`);
+        }
+        if (targetData.luckExpiresAt && nowTime < new Date(targetData.luckExpiresAt).getTime()) {
+            const ts = Math.floor(new Date(targetData.luckExpiresAt).getTime() / 1000);
+            scanLines.push(`🍀 **Luck Boost** — expires <t:${ts}:R>`);
         }
         if (targetData.workStenchExpiresAt && nowTime < new Date(targetData.workStenchExpiresAt).getTime()) {
-            scanLines.push(`🤢 **Banana Stench:** Active`);
+            const ts = Math.floor(new Date(targetData.workStenchExpiresAt).getTime() / 1000);
+            scanLines.push(`🍌 **Banana Stench** — expires <t:${ts}:R>`);
         }
         if (targetData.blindedExpiresAt && nowTime < new Date(targetData.blindedExpiresAt).getTime()) {
-            scanLines.push(`🙈 **Blinded:** Active`);
+            const ts = Math.floor(new Date(targetData.blindedExpiresAt).getTime() / 1000);
+            scanLines.push(`🙈 **Blinded** — expires <t:${ts}:R>`);
         }
         if (targetData.itemLockoutExpiresAt && nowTime < new Date(targetData.itemLockoutExpiresAt).getTime()) {
-            scanLines.push(`⚡ **Paralyzed:** Active`);
+            const ts = Math.floor(new Date(targetData.itemLockoutExpiresAt).getTime() / 1000);
+            scanLines.push(`⚡ **Paralyzed** — expires <t:${ts}:R>`);
+        }
+        if (targetData.spaceDuckExpiresAt && nowTime < new Date(targetData.spaceDuckExpiresAt).getTime()) {
+            const ts = Math.floor(new Date(targetData.spaceDuckExpiresAt).getTime() / 1000);
+            scanLines.push(`🚀 **Space Duck** — expires <t:${ts}:R>`);
+        }
+        if (targetData.activeTitle) {
+            scanLines.push(`🏷️ **Active Title:** ${targetData.activeTitle}`);
         }
 
-        msg = `🐚 You hold the **Prehistoric Shell** to your ear and listen to the ocean frequencies... \n\n📖 **Scanned Data for ${targetUser.username}:**\n${scanLines.join('\n')}`;
+        // Bonus: peek at the first item in their inventory
+        const peekItem = targetData.inventory && targetData.inventory.find(i => i.quantity > 0);
+        if (peekItem && ITEMS[peekItem.itemId]) {
+            scanLines.push(`🎒 **Top Inventory Item:** ${ITEMS[peekItem.itemId].emoji} ${ITEMS[peekItem.itemId].name} ×${peekItem.quantity}`);
+        }
+
+        msg = `🐚 You hold the **Prehistoric Shell** to your ear... frequencies lock on to **${targetUser.username}**!\n\n📡 **Full Scan Results:**\n${scanLines.join('\n')}\n\n_Shell crumbles to dust after one use._`;
         color = 0x3498DB;
 
     } else if (itemId === 'ancient_bone') {
@@ -582,13 +643,22 @@ async function processItemUse(userId, itemId, targetUser, client, channel, conte
     } else if (itemId === 'common_meme') {
         removeItem(baubleData, 'common_meme', 1);
         const roll = Math.random();
-        if (roll < 0.50) {
-            baubleData.baubles += 100;
-            msg = `🐸 You posted a Pepe meme in the chat! \n\n📈 **UPVOTED!** Everyone loved it. You gained **100 Baubles** from internet points!`;
+        if (roll < 0.10) {
+            // Mega viral
+            const viral = Math.floor(Math.random() * 1501) + 1000; // 1000-2500
+            baubleData.baubles += viral;
+            msg = `🐸 You posted the **Stale Pepe Meme** and it unexpectedly exploded!\n\n🔥 **GOING VIRAL!** It got reposted 400k times overnight. The ad revenue hits your wallet — **${viral.toLocaleString()} Baubles**!`;
+            color = 0xf1c40f;
+        } else if (roll < 0.55) {
+            // Standard upvote
+            const gain = Math.floor(Math.random() * 301) + 200; // 200-500
+            baubleData.baubles += gain;
+            msg = `🐸 You posted the **Stale Pepe Meme** in the chat!\n\n📈 **UPVOTED!** Chat respects the classics. You pocket **${gain} Baubles** in internet validation!`;
             color = 0x2ECC71;
         } else {
-            baubleData.baubles = Math.max(0, baubleData.baubles - 50);
-            msg = `🐸 You posted a Pepe meme in the chat... \n\n📉 **DOWNVOTED!** The chat called it stale. You lost **50 Baubles** in shame.`;
+            const loss = Math.floor(Math.random() * 151) + 100; // 100-250
+            baubleData.baubles = Math.max(0, baubleData.baubles - loss);
+            msg = `🐸 You posted the **Stale Pepe Meme** in the chat...\n\n📉 **RATIO'D!** The chat was not feeling it. Someone replied "do better" and you lost **${loss} Baubles** in dignity.`;
             color = 0xE74C3C;
         }
 
@@ -604,12 +674,18 @@ async function processItemUse(userId, itemId, targetUser, client, channel, conte
         if (victim) {
             let victimData = await Bauble.findOne({ userId: victim.id });
             if (!victimData) victimData = new Bauble({ userId: victim.id });
-            victimData.baubles = Math.max(0, victimData.baubles - 5);
+            // Real cringe damage: 50-200 baubles and a 3 minute work stench
+            const cringeDmg = Math.min(victimData.baubles, Math.floor(Math.random() * 151) + 50);
+            victimData.baubles = Math.max(0, victimData.baubles - cringeDmg);
+            victimData.workStenchExpiresAt = new Date(Date.now() + 180000); // 3 min work lockout
             await victimData.save();
 
-            msg = `💀 You posted a 2011 rage comic.\n**${victim.username}** read it, cringed hard enough to sprain their neck, and lost **5 Baubles** due to intense second-hand embarrassment!`;
+            msg = `💀 You whip out the **💀 2011 Rage Comic** and force **${victim.username}** to read it!\n\n😖 They cringe so violently they physically convulse, drop **${cringeDmg} Baubles**, and are too embarrassed to work for the next **3 minutes**!`;
         } else {
-            msg = `💀 You posted a 2011 rage comic in the chat, but nobody cringed. You cringed at yourself.`;
+            // No victim — it backfires
+            const selfCringe = Math.min(baubleData.baubles, 100);
+            baubleData.baubles = Math.max(0, baubleData.baubles - selfCringe);
+            msg = `💀 You posted the **💀 2011 Rage Comic** but nobody was around...\n\nYou re-read it yourself and cringed so hard you dropped **${selfCringe} Baubles**. You only have yourself to blame.`;
         }
         color = 0xE74C3C;
 
@@ -647,22 +723,36 @@ async function processItemUse(userId, itemId, targetUser, client, channel, conte
         color = 0xF1C40F;
 
     } else if (itemId === 'rubber_duck') {
+        // NOT consumed — this duck is infinite use, but has cooldown flavour
         const roll = Math.random();
-        if (roll < 0.01) {
-            // Debug the economy
-            const boosters = ['coffee', 'clover', 'mystery_box', 'padlock'];
+        if (roll < 0.08) {
+            // Debug jackpot — get a random item
+            const boosters = ['coffee', 'clover', 'mystery_box', 'shield', 'rabbits_feet'];
             const itemGot = boosters[Math.floor(Math.random() * boosters.length)];
             addItem(baubleData, itemGot, 1);
-            msg = `🦆 You squeeze the **Rubber Duck**: \`*SQUEAK!*\` \n\n🛠️ **ECONOMY DEBUGGED:** The duck found a loophole in the bot code and generated a free **${ITEMS[itemGot].name}** for you!`;
+            msg = `🦆 You squeeze the **🦆 Debugging Rubber Duck**: \`*SQUEAK!*\`\n\n🛠️ **BUG FIXED!** The duck audited the economy codebase and found a dangling pointer worth a free **${ITEMS[itemGot].name}** — added to your inventory!`;
             color = 0x2ECC71;
-        } else if (roll < 0.02) {
-            // Crash bot
-            baubleData.blindedExpiresAt = new Date(Date.now() + 60000); // 1 minute
-            msg = `🦆 You squeeze the **Rubber Duck**: \`*SQUEAK!*\` \n\n💥 **CODE CRASHED:** The duck triggered a memory leak! Your bot console froze, and you cannot run commands for the next **1 minute**!`;
+        } else if (roll < 0.14) {
+            // Cash windfall
+            const coins = Math.floor(Math.random() * 501) + 200; // 200-700
+            baubleData.baubles += coins;
+            msg = `🦆 You squeeze the **🦆 Debugging Rubber Duck**: \`*SQUEAK!*\`\n\n💰 **MEMORY LEAK FOUND!** The duck discovered **${coins} Baubles** leaking from the server heap and patched them directly into your wallet!`;
+            color = 0xf1c40f;
+        } else if (roll < 0.17) {
+            // Crash — short item lockout
+            baubleData.itemLockoutExpiresAt = new Date(Date.now() + 90000); // 90 sec lockout
+            msg = `🦆 You squeeze the **🦆 Debugging Rubber Duck**: \`*SQUEAK!*\`\n\n💥 **SEGFAULT!** The duck triggered a null pointer exception and crashed your hands! You can't use items for **90 seconds**.`;
             color = 0xE74C3C;
         } else {
+            // Flavored nothing — rotate between funny messages
+            const quips = [
+                `It stares back with dead plastic eyes. Rubber duck debugging session complete. No bugs found. Move along.`,
+                `It lets out an **extremely** confident squeak and then just... sits there. Unhelpful.`,
+                `It squeaks, rolls sideways, and falls off your desk. Classic duck behavior.`,
+                `A single blinking cursor appears in your mind. Then disappears. The duck solved nothing.`,
+            ];
             shouldSave = false;
-            msg = `🦆 You squeeze the **Rubber Duck**:\n\n\`*SQUEAK!*\` \nIt stares back at you with dead, plastic eyes. Debugging complete. Nothing else happened.`;
+            msg = `🦆 You squeeze the **🦆 Debugging Rubber Duck**: \`*SQUEAK!*\`\n\n${quips[Math.floor(Math.random() * quips.length)]}`;
             color = 0x3498db;
         }
 
