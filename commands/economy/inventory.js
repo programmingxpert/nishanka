@@ -128,7 +128,8 @@ function buildMinimalInventory(baubleData, user, unlockedCollections, unlockedTi
         for (const invItem of baubleData.inventory) {
             const item = ITEMS[invItem.itemId];
             if (item && invItem.quantity > 0) {
-                itemsList.push(`• ${item.emoji} **${item.name}** × \`${invItem.quantity}\` (\`${item.id}\`)\n  ↳ _${item.description}_`);
+                const displayName = item.name.startsWith(item.emoji) ? item.name : `${item.emoji} ${item.name}`;
+                itemsList.push(`• **${displayName}** × \`${invItem.quantity}\` (\`${item.id}\`)\n  ↳ _${item.description}_`);
             }
         }
     }

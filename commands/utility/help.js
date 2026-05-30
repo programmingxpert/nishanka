@@ -10,34 +10,49 @@ const config = require('../../config.json');
 
 const categoryDetails = {
 	admin: {
-		label: 'Server Administration',
+		label: 'Administration',
 		emoji: '⚙️',
 		description: 'Configure server settings, prefix, quotes, and triggers.',
 	},
 	moderation: {
-		label: 'Moderation',
+		label: 'Moderation Tools',
 		emoji: '🛡️',
 		description: 'Manage members, warnings, mutes, bans, and auto-mod.',
 	},
 	giveaway: {
-		label: 'Giveaways',
+		label: 'Giveaway Controls',
 		emoji: '🎁',
 		description: 'Schedule, run, draw, and end server giveaways.',
 	},
 	economy: {
-		label: 'Economy & Wealth',
+		label: 'Economy & Shop',
 		emoji: '💵',
-		description: 'Earn baubles, check shop/inventory, and play casino games.',
+		description: 'Earn baubles, check shop/inventory, and view leaderboards.',
 	},
-	profile: {
-		label: 'User Profiles',
-		emoji: '👤',
-		description: 'Customize and view global user profile cards.',
+	casino: {
+		label: 'Casino & Betting',
+		emoji: '🎰',
+		description: 'Play risk-reward games like gamble, blackjack, slots, and mines.',
+	},
+	marriage: {
+		label: 'Marriage & Family',
+		emoji: '💍',
+		description: 'Propose, marry, divorce, adopt children, and build family trees.',
+	},
+	games: {
+		label: 'Minigames & Trivia',
+		emoji: '🎮',
+		description: 'Challenge others to wordbomb, scramble, hangman, and geoguesser.',
 	},
 	fun: {
-		label: 'Fun & Games',
+		label: 'Humor & Entertainment',
 		emoji: '🎭',
-		description: 'Play trivia, scramble, marriage/family systems, and memes.',
+		description: 'Check your iq, get random excuses, vibecheck, and post memes.',
+	},
+	profile: {
+		label: 'Profiles & Banners',
+		emoji: '👤',
+		description: 'Customize and show off your premium user profile cards.',
 	},
 	music: {
 		label: 'Music Player',
@@ -57,15 +72,147 @@ const categoryDetails = {
 };
 
 const categoryColors = {
-	admin: 0x555555,
+	admin: 0x2b2d42,
 	moderation: 0x2ecc71,
-	economy: 0xf1c40f,
-	fun: 0xe74c3c,
-	music: 0x9b59b6,
 	giveaway: 0xe67e22,
-	profile: 0x3498db,
-	utility: 0x95a5a6,
-	actions: 0xe84393
+	economy: 0xf1c40f,
+	casino: 0xe74c3c,
+	marriage: 0xe84393,
+	games: 0x3498db,
+	fun: 0x9b59b6,
+	profile: 0x1abc9c,
+	music: 0x9b59b6,
+	actions: 0xe84393,
+	utility: 0x95a5a6
+};
+
+const COMMAND_MAPPING = {
+	// Admin
+	setquoteschannel: 'admin',
+	trigger: 'admin',
+
+	// Moderation
+	automod: 'moderation',
+	antispam: 'moderation',
+	censor: 'moderation',
+	mediaonly: 'moderation',
+	ban: 'moderation',
+	unban: 'moderation',
+	fakeban: 'moderation',
+	mkick: 'moderation',
+	timeout: 'moderation',
+	removetimeout: 'moderation',
+	warn: 'moderation',
+	warnings: 'moderation',
+	clearwarn: 'moderation',
+	clearwarnings: 'moderation',
+	purge: 'moderation',
+	defaultpurge: 'moderation',
+	lock: 'moderation',
+	unlock: 'moderation',
+	temprole: 'moderation',
+
+	// Giveaway
+	giveaway: 'giveaway',
+	giveawayend: 'giveaway',
+
+	// Economy
+	bauble: 'economy',
+	inventory: 'economy',
+	passive: 'economy',
+	work: 'economy',
+	scavenge: 'economy',
+	rob: 'economy',
+	daily: 'economy',
+	weekly: 'economy',
+	checklist: 'economy',
+	grab: 'economy',
+	shop: 'economy',
+	sell: 'economy',
+	use: 'economy',
+	give: 'economy',
+	gift: 'economy',
+	leaderboard: 'economy',
+	globalleaderboard: 'economy',
+	add: 'economy',
+	take: 'economy',
+	reset: 'economy',
+	taxfund: 'economy',
+
+	// Casino
+	gamble: 'casino',
+	coinflip: 'casino',
+	slots: 'casino',
+	mines: 'casino',
+	buckshot: 'casino',
+	battle: 'casino',
+	blackjack: 'casino',
+	animebattle: 'casino',
+
+	// Profile
+	profile: 'profile',
+	'profile-edit': 'profile',
+	'profile-reset': 'profile',
+	title: 'profile',
+
+	// Marriage
+	family: 'marriage',
+	familytree: 'marriage',
+	proposals: 'marriage',
+	marry: 'marriage',
+	divorce: 'marriage',
+	adopt: 'marriage',
+	disown: 'marriage',
+
+	// Games
+	wordbomb: 'games',
+	scramble: 'games',
+	emojidecode: 'games',
+	guesstheflag: 'games',
+	deathbattle: 'games',
+	geoguesser: 'games',
+	hangman: 'games',
+	truthordare: 'games',
+
+	// Fun
+	meme: 'fun',
+	wanted: 'fun',
+	excuse: 'fun',
+	hack: 'fun',
+	iq: 'fun',
+	vibecheck: 'fun',
+	ship: 'fun',
+	pp: 'fun',
+	gayrate: 'fun',
+	'8ball': 'fun',
+	furry: 'fun',
+	quote: 'fun',
+	gta6: 'fun',
+
+	// Music
+	play: 'music',
+	stop: 'music',
+	pause: 'music',
+	resume: 'music',
+	queue: 'music',
+	skip: 'music',
+	remove: 'music',
+	clearmusic: 'music',
+
+	// Utility
+	help: 'utility',
+	ping: 'utility',
+	reload: 'utility',
+	togglecmd: 'utility',
+	remind: 'utility',
+	afk: 'utility',
+	server: 'utility',
+	servericon: 'utility',
+	user: 'utility',
+	avatar: 'utility',
+	rep: 'utility',
+	rank: 'utility',
+	snipe: 'utility'
 };
 
 const commandGroups = {
@@ -110,11 +257,7 @@ const commandGroups = {
 		},
 		{
 			title: '💼 Earnings & Work',
-			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'checklist', 'grab']
-		},
-		{
-			title: '🎲 Games & Gambling',
-			commands: ['gamble', 'coinflip', 'slots', 'mines', 'buckshot', 'battle']
+			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'checklist', 'grab', 'taxfund']
 		},
 		{
 			title: '🛒 Market & Trading',
@@ -129,24 +272,50 @@ const commandGroups = {
 			commands: ['add', 'take', 'reset']
 		}
 	],
+	casino: [
+		{
+			title: '🎰 Classic Casino Games',
+			commands: ['gamble', 'coinflip', 'slots', 'blackjack']
+		},
+		{
+			title: '💣 Survival & Strategy',
+			commands: ['mines', 'buckshot']
+		},
+		{
+			title: '⚔️ Battles & Duels',
+			commands: ['battle', 'animebattle']
+		}
+	],
+	marriage: [
+		{
+			title: '💍 Matrimony & Marriage',
+			commands: ['marry', 'divorce', 'proposals']
+		},
+		{
+			title: '👪 Family Dynamics',
+			commands: ['adopt', 'disown', 'family', 'familytree']
+		}
+	],
+	games: [
+		{
+			title: '🧠 Word & Vocabulary Games',
+			commands: ['wordbomb', 'scramble', 'hangman']
+		},
+		{
+			title: '🌐 Trivia & Logic',
+			commands: ['emojidecode', 'guesstheflag', 'geoguesser', 'truthordare']
+		}
+	],
 	profile: [
 		{
 			title: '👤 User Profile Customization',
-			commands: ['profile', 'profile-edit', 'profile-reset']
+			commands: ['profile', 'profile-edit', 'profile-reset', 'title']
 		}
 	],
 	fun: [
 		{
-			title: '💍 Family & Marriage System',
-			commands: ['family', 'familytree', 'proposals', 'marry', 'divorce', 'adopt', 'disown']
-		},
-		{
-			title: '⚔️ Games & Challenges',
-			commands: ['wordbomb', 'scramble', 'emojidecode', 'guesstheflag', 'deathbattle', 'geoguesser']
-		},
-		{
 			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry']
+			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry', 'gta6']
 		},
 		{
 			title: '💬 Attributions',
@@ -174,7 +343,7 @@ const commandGroups = {
 		},
 		{
 			title: 'ℹ️ Information Lookup',
-			commands: ['server', 'servericon', 'user', 'avatar', 'rep', 'rank']
+			commands: ['server', 'servericon', 'user', 'avatar', 'rep', 'rank', 'snipe']
 		}
 	]
 };
@@ -186,7 +355,7 @@ const actionGroups = [
 	},
 	{
 		title: '😄 Friendly & Social',
-		commands: ['happy', 'yay', 'laugh', 'wave', 'wink', 'thumbsup', 'highfive', 'dance', 'handshake']
+		commands: ['happy', 'yay', 'laugh', 'wave', 'wink', 'thumbsup', 'highfive', 'dance', 'handshake', 'cheer', 'whoop']
 	},
 	{
 		title: '😢 Sad & Tired',
@@ -198,12 +367,13 @@ const actionGroups = [
 	},
 	{
 		title: '🤔 Expressive & Anime Info',
-		commands: ['action', 'think', 'shrug', 'smug', 'stare', 'blush', 'baka', 'nom', 'nod', 'nope', 'facepalm', 'feed', 'lewd', 'waifu', 'neko', 'kitsune', 'husbando']
+		commands: ['action', 'think', 'shrug', 'smug', 'stare', 'blush', 'baka', 'nom', 'nod', 'nope', 'facepalm', 'feed', 'lewd', 'waifu', 'neko', 'kitsune', 'husbando', 'shocked', 'surprised']
 	}
 ];
 
 module.exports = {
 	category: 'utility',
+	aliases: ['h', 'commands'],
 	data: new SlashCommandBuilder()
 		.setName('help')
 		.setDescription('Displays all commands grouped by category.'),
@@ -211,7 +381,7 @@ module.exports = {
 	async execute(context) {
 		const commands = context.client.commands;
 		const grouped = {};
-		const isOwner = context.user?.id === config.devId;
+		const isOwner = (context.user?.id || context.author?.id) === config.devId;
 
 		// Group commands by category (collect name -> description map)
 		for (const [, cmd] of commands) {
@@ -225,7 +395,16 @@ module.exports = {
 				}
 			}
 
-			const category = cmd.category || 'Uncategorized';
+			// Map command to its category dynamically
+			let category = COMMAND_MAPPING[cmd.data.name];
+			if (!category) {
+				if (cmd.category === 'actions') {
+					category = 'actions';
+				} else {
+					category = cmd.category || 'Uncategorized';
+				}
+			}
+
 			if (category === 'admin' && !isOwner) continue;
 
 			if (!grouped[category]) grouped[category] = {};
@@ -233,7 +412,7 @@ module.exports = {
 		}
 
 		// Sort categories by predefined order
-		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'profile', 'fun', 'music', 'actions', 'utility'];
+		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'casino', 'marriage', 'games', 'fun', 'profile', 'music', 'actions', 'utility'];
 		const categories = Object.keys(grouped).sort((a, b) => {
 			const idxA = categoryOrder.indexOf(a);
 			const idxB = categoryOrder.indexOf(b);
@@ -243,27 +422,28 @@ module.exports = {
 			return idxA - idxB;
 		});
 
-		const fields = [];
-		if (isOwner) {
-			fields.push({ name: '⚙️ Admin', value: 'Server configs & triggers', inline: true });
+		const embed = new EmbedBuilder()
+			.setColor(0x2b2d42) // Minimal dark-slate theme
+			.setTitle('📘 Help Menu')
+			.setTimestamp();
+
+		const catLines = [];
+		for (const cat of categories) {
+			const details = categoryDetails[cat];
+			if (!details) continue;
+			if (cat === 'admin' && !isOwner) continue;
+
+			const count = Object.values(grouped[cat] || {}).length;
+			catLines.push(`• **${details.emoji} ${details.label}** (\`${cat}\` • ${count} commands)\n  ↳ _${details.description}_`);
 		}
-		fields.push(
-			{ name: '🛡️ Moderation', value: 'Auto-mod & mutes/bans', inline: true },
-			{ name: '💵 Economy', value: 'Wealth & casino games', inline: true },
-			{ name: '🎭 Fun & Games', value: 'Family system & minigames', inline: true },
-			{ name: '🎵 Music Player', value: 'Stream audio in VC', inline: true },
-			{ name: '👤 Profiles', value: 'Customize profile cards', inline: true }
+
+		embed.setDescription(
+			'Welcome to the **Nishanka Help Menu**!\n' +
+			'Please select a category from the dropdown menu below to view its available commands.\n\n' +
+			catLines.join('\n\n')
 		);
 
-		const embed = new EmbedBuilder()
-			.setTitle('📘 Help Menu')
-			.setDescription(
-				'Welcome to the **Nishanka Help Menu**!\n' +
-				'Please select a category from the dropdown menu below to view its available commands.'
-			)
-			.setColor(0x7c6cf0)
-			.addFields(fields)
-			.setFooter({ text: 'Use /help or -help | Nishanka ©️' });
+		embed.setFooter({ text: 'Use /help or -help | Nishanka ©️' });
 
 		const selectMenu = new StringSelectMenuBuilder()
 			.setCustomId('help-category-select')
@@ -352,7 +532,6 @@ module.exports = {
 				let currentDescription = '';
 				
 				for (const section of formattedSections) {
-					// Maximum length for a description chunk is ~2000 characters to keep it visually short
 					if (currentDescription.length + section.length > 1800) {
 						embeds.push(
 							new EmbedBuilder()
@@ -376,10 +555,8 @@ module.exports = {
 					);
 				}
 				
-				// Set footer on the last embed
 				embeds[embeds.length - 1].setFooter({ text: 'Use /help or -help | Nishanka ©️' });
 				
-				// Truncate to maximum 10 embeds just in case (Discord API limit)
 				const finalEmbeds = embeds.slice(0, 10);
 
 				await interaction.editReply({
@@ -416,7 +593,7 @@ module.exports = {
 	async executePrefix(message) {
 		await module.exports.execute({
 			client: message.client,
-			user: message.author,
+			author: message.author,
 			member: message.member,
 			channel: message.channel,
 			reply: (...args) => message.channel.send(...args),

@@ -85,11 +85,16 @@ function buildItemsEmbed(filter, user) {
                 const priceInfo = [];
                 if (item.basePrice) priceInfo.push(`Buy: **${item.basePrice.toLocaleString()}**`);
                 if (item.sellPrice) priceInfo.push(`Sell: **${item.sellPrice.toLocaleString()}**`);
-                const pricesStr = priceInfo.length > 0 ? ` • ${priceInfo.join(' / ')}` : ' • Unbuyable';
+                
+                const pricesStr = priceInfo.length > 0 
+                    ? `\n  💰 ${priceInfo.join('  •  ')}` 
+                    : '\n  💰 Unbuyable';
                 
                 const useStr = item.useInfo ? `\n  ⚡ *Use:* _${item.useInfo}_` : '';
                 
-                lines.push(`• ${item.emoji} **${item.name}** (\`${item.id}\`)${pricesStr} [${item.rarity}]\n  ↳ _${item.description}_${useStr}`);
+                const displayName = item.name.startsWith(item.emoji) ? item.name : `${item.emoji} ${item.name}`;
+                
+                lines.push(`• **${displayName}** (\`${item.id}\`) [${item.rarity}]${pricesStr}\n  ↳ _${item.description}_${useStr}`);
             }
             embed.setDescription(embed.data.description + lines.join('\n\n'));
         }
