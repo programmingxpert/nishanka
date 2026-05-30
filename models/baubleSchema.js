@@ -29,6 +29,8 @@ const baubleSchema = new Schema({
     passiveMode: { type: Boolean, default: false },
     passiveModeToggledAt: { type: Date, default: null },
     robLastAttemptedAt: { type: Date, default: null },
+    lastTaxPaid: { type: Number, default: 0 },
+    lastTaxDate: { type: Date, default: null },
 });
 
 const mongoose = require('mongoose');

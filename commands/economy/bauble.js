@@ -35,8 +35,19 @@ module.exports = {
                     { name: '🎰 Slots Streak', value: `\`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)`, inline: true },
                     { name: '📅 Daily Streak', value: `\`${baubleData.dailyStreak || 0}\` (Best: \`${baubleData.dailyMaxStreak || 0}\`)`, inline: true }
                 )
-                .setTimestamp()
-                .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
+                .setTimestamp();
+            
+            // Add wealth tax notice if applicable today
+            let footerText = `Requested by ${interaction.user.tag}`;
+            if (baubleData.lastTaxDate) {
+                const taxDate = new Date(baubleData.lastTaxDate);
+                const today = new Date();
+                if (taxDate.getDate() === today.getDate() && taxDate.getMonth() === today.getMonth() && taxDate.getFullYear() === today.getFullYear()) {
+                    footerText = `📉 Wealth Tax: ${user.username} paid ${baubleData.lastTaxPaid.toLocaleString()} baubles today! | ` + footerText;
+                }
+            }
+
+            embed.setFooter({ text: footerText, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
 
             await interaction.reply({ embeds: [embed], ephemeral: false }); // Or false if you want it public
         } catch (error) {
@@ -67,8 +78,19 @@ module.exports = {
                     { name: '🎰 Slots Streak', value: `\`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)`, inline: true },
                     { name: '📅 Daily Streak', value: `\`${baubleData.dailyStreak || 0}\` (Best: \`${baubleData.dailyMaxStreak || 0}\`)`, inline: true }
                 )
-                .setTimestamp()
-                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });
+                .setTimestamp();
+
+            // Add wealth tax notice if applicable today
+            let footerText = `Requested by ${message.author.tag}`;
+            if (baubleData.lastTaxDate) {
+                const taxDate = new Date(baubleData.lastTaxDate);
+                const today = new Date();
+                if (taxDate.getDate() === today.getDate() && taxDate.getMonth() === today.getMonth() && taxDate.getFullYear() === today.getFullYear()) {
+                    footerText = `📉 Wealth Tax: ${user.username} paid ${baubleData.lastTaxPaid.toLocaleString()} baubles today! | ` + footerText;
+                }
+            }
+
+            embed.setFooter({ text: footerText, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });
 
             await message.channel.send({ embeds: [embed]}); // Or false if you want it public
         } catch (error) {

@@ -21,7 +21,7 @@ const ITEMS = {
         name: '☕ Energizing Coffee',
         emoji: '☕',
         description: 'Halves work (10s -> 5s) and scavenge (10m -> 5m) cooldowns for 30 minutes.',
-        basePrice: 5000,
+        basePrice: 15000,
         sellPrice: null,
         type: 'consumable',
         category: 'boosters'
@@ -31,7 +31,7 @@ const ITEMS = {
         name: '🍀 Lucky Clover',
         emoji: '🍀',
         description: 'Increases Coinflip and Gamble win rates by 10% for 15 minutes.',
-        basePrice: 10000,
+        basePrice: 25000,
         sellPrice: null,
         type: 'consumable',
         category: 'boosters'
@@ -41,7 +41,7 @@ const ITEMS = {
         name: '🛡️ Aegis Shield',
         emoji: '🛡️',
         description: 'Passive. Protects you from wager loss on your next failed Brawl duel (consumed on use).',
-        basePrice: 35000,
+        basePrice: 60000,
         sellPrice: null,
         type: 'collectible',
         category: 'boosters'
@@ -51,7 +51,7 @@ const ITEMS = {
         name: '📦 Mystery Box',
         emoji: '📦',
         description: 'Open to win Coffee, Clovers, Aegis Shields, or bonus Baubles.',
-        basePrice: 8500,
+        basePrice: 20000,
         sellPrice: null,
         type: 'consumable',
         category: 'boosters'
@@ -61,7 +61,7 @@ const ITEMS = {
         name: '🔒 Safe Padlock',
         emoji: '🔒',
         description: 'Passive. Protects your wallet from being robbed once. Consumed on successful defense.',
-        basePrice: 10000,
+        basePrice: 25000,
         sellPrice: null,
         type: 'collectible',
         category: 'boosters'
@@ -73,7 +73,7 @@ const ITEMS = {
         name: '🏷️ Custom Tag',
         emoji: '🏷️',
         description: 'Cosmetic. Gives you a custom tag role in the server (ask an admin to apply!).',
-        basePrice: 25000,
+        basePrice: 50000,
         sellPrice: null,
         type: 'collectible',
         category: 'cosmetics',
@@ -84,7 +84,7 @@ const ITEMS = {
         name: '🎨 Profile Paintbrush',
         emoji: '🎨',
         description: 'Cosmetic tool. Required to customize profile banners (color and URL) using /profile-edit.',
-        basePrice: 40000,
+        basePrice: 80000,
         sellPrice: null,
         type: 'collectible',
         category: 'cosmetics'
@@ -93,9 +93,9 @@ const ITEMS = {
         id: 'nugget',
         name: '💎 Golden Nugget',
         emoji: '💎',
-        description: 'A premium gold chunk. High value for selling back (45,000 Baubles) or gifting.',
-        basePrice: 75000,
-        sellPrice: 45000,
+        description: 'A premium gold chunk. High value for selling back (150,000 Baubles) or gifting.',
+        basePrice: 150000,
+        sellPrice: 150000,
         type: 'collectible',
         category: 'cosmetics'
     },
@@ -104,11 +104,53 @@ const ITEMS = {
         name: '👑 Crown of Royalty',
         emoji: '👑',
         description: 'The ultimate status symbol of absolute wealth. Displays proudly in your inventory.',
-        basePrice: 250000,
+        basePrice: 500000,
         sellPrice: null,
         type: 'collectible',
         category: 'cosmetics',
         giftable: false
+    },
+
+    // --- Family Essentials ---
+    ring_silver: {
+        id: 'ring_silver',
+        name: '💍 Silver Wedding Ring',
+        emoji: '💍',
+        description: 'A modest, affordable silver ring. Required to propose marriage to another user.',
+        basePrice: 30000,
+        sellPrice: null,
+        type: 'collectible',
+        category: 'family'
+    },
+    ring_gold: {
+        id: 'ring_gold',
+        name: '💍 Gold Wedding Ring',
+        emoji: '💍',
+        description: 'A classic, gleaming gold ring. Required to propose marriage to another user.',
+        basePrice: 100000,
+        sellPrice: null,
+        type: 'collectible',
+        category: 'family'
+    },
+    ring_diamond: {
+        id: 'ring_diamond',
+        name: '💎 Diamond Wedding Ring',
+        emoji: '💎',
+        description: 'The ultimate symbol of love. A gorgeous diamond ring to propose marriage with.',
+        basePrice: 300000,
+        sellPrice: null,
+        type: 'collectible',
+        category: 'family'
+    },
+    adoption_papers: {
+        id: 'adoption_papers',
+        name: '📄 Adoption Papers',
+        emoji: '📄',
+        description: 'Official legal documents required to adopt a child and expand your family.',
+        basePrice: 15000,
+        sellPrice: null,
+        type: 'consumable',
+        category: 'family'
     }
 };
 
@@ -140,6 +182,8 @@ async function executePurchase(userId, itemId, quantity, baubleData, globalMulti
 function getHomePageEmbed(baubles, globalMultiplier) {
     return new EmbedBuilder()
         .setColor(0x00AE86)
+    return new EmbedBuilder()
+        .setColor(0x00AE86)
         .setTitle('🛍️ Glimmering Bauble Shop')
         .setDescription(
             `Spend your hard-earned **Glimmering Baubles** here!\n\n` +
@@ -147,7 +191,8 @@ function getHomePageEmbed(baubles, globalMultiplier) {
             `📈 **Economy Multiplier:** **${globalMultiplier.toFixed(2)}x** (Prices scale inversely with the multiplier)\n\n` +
             `Please select a category button below to browse items:\n` +
             `⚡ **Economy & Utility Boosters:** Lower cooldowns, boost gamble win rates, and protect wagers.\n` +
-            `🎨 **Cosmetics & Collectibles:** Flaunt your status, customize profile banners, and stand out.`
+            `🎨 **Cosmetics & Collectibles:** Flaunt your status, customize profile banners, and stand out.\n` +
+            `🏠 **Family Essentials:** Buy rings to propose marriage or adoption papers to expand your family.`
         )
         .addFields({
             name: '🛍️ How to Buy Items',
@@ -168,6 +213,10 @@ function getHomePageComponents() {
             .setCustomId('shop_btn_cosmetics')
             .setLabel('🎨 Cosmetics & Profile')
             .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_family')
+            .setLabel('🏠 Family')
+            .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
             .setCustomId('shop_btn_help')
             .setLabel('❓ Help Guide')
@@ -213,7 +262,11 @@ function getBoostersComponents(globalMultiplier) {
         new ButtonBuilder()
             .setCustomId('shop_btn_cosmetics')
             .setLabel('🎨 Cosmetics & Profile')
-            .setStyle(ButtonStyle.Primary)
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_family')
+            .setLabel('🏠 Family')
+            .setStyle(ButtonStyle.Success)
     );
 
     return [row1, row2];
@@ -259,7 +312,58 @@ function getCosmeticsComponents(globalMultiplier) {
         new ButtonBuilder()
             .setCustomId('shop_btn_boosters')
             .setLabel('⚡ Boosters')
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_family')
+            .setLabel('🏠 Family')
             .setStyle(ButtonStyle.Success)
+    );
+
+    return [row1, row2];
+}
+
+function getFamilyPageEmbed(baubles, globalMultiplier) {
+    const list = Object.values(ITEMS)
+        .filter(item => item.category === 'family')
+        .map(item => `**${item.name}** (\`${item.id}\`)\nPrice: **${Math.floor(item.basePrice / globalMultiplier).toLocaleString()}** Baubles\n_${item.description}_`)
+        .join('\n\n');
+
+    return new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle('🏠 Shop: Family Essentials')
+        .setDescription(`💰 **Your Balance:** **${baubles.toLocaleString()}** Baubles\n\n${list}`)
+        .setFooter({ text: 'Select an item from the dropdown below to buy 1x.' });
+}
+
+function getFamilyComponents(globalMultiplier) {
+    const items = Object.values(ITEMS).filter(item => item.category === 'family');
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('shop_select_buy')
+        .setPlaceholder('Select an item to buy 1x')
+        .addOptions(
+            items.map(item => ({
+                label: item.name.replace(/^[^\s]+\s+/, ''),
+                description: `${Math.floor(item.basePrice / globalMultiplier).toLocaleString()} Baubles - ${item.description.substring(0, 50)}`,
+                value: item.id
+            }))
+        );
+
+    const row1 = new ActionRowBuilder().addComponents(selectMenu);
+
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('shop_btn_home')
+            .setLabel('⬅️ Back to Categories')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_boosters')
+            .setLabel('⚡ Boosters')
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('shop_btn_cosmetics')
+            .setLabel('🎨 Cosmetics')
+            .setStyle(ButtonStyle.Primary)
     );
 
     return [row1, row2];

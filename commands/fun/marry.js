@@ -1,6 +1,8 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const Family = require('../../models/familySchema');
+const Bauble = require('../../models/baubleSchema');
+const ITEMS = require('../../utils/items');
 
 module.exports = {
     category: 'fun',
@@ -18,18 +20,7 @@ module.exports = {
         const proposer = interaction.user;
         const target = interaction.options.getUser('user');
 
-        const { embed, components, error, directAccept } = await proposeMarriage(proposer, target, interaction.guild);
-
-        if (error) {
-            return interaction.editReply({ content: `❌ ${error}` });
-        }
-
-        if (directAccept) {
-            return interaction.editReply({ embeds: [embed] });
-        }
-
-        const msg = await interaction.editReply({ embeds: [embed], components: [components] });
-        handleMarriageCollector(msg, proposer, target);
+        await handleProposalLogic(interaction, proposer, target, true);
     },
 
     async executePrefix(message, args) {
@@ -42,50 +33,102 @@ module.exports = {
         }
 
         const msgIndicator = await message.reply('💍 Processing proposal...');
-        const { embed, components, error, directAccept } = await proposeMarriage(proposer, target, message.guild);
-
-        if (error) {
-            return msgIndicator.edit({ content: `❌ ${error}` }).catch(() => {});
-        }
-
-        if (directAccept) {
-            await msgIndicator.delete().catch(() => {});
-            return message.reply({ embeds: [embed] });
-        }
-
-        await msgIndicator.delete().catch(() => {});
-        const mainMsg = await message.reply({ embeds: [embed], components: [components] });
-        handleMarriageCollector(mainMsg, proposer, target);
+        await handleProposalLogic(msgIndicator, proposer, target, false, message);
     }
 };
 
-async function proposeMarriage(proposer, target, guild) {
+async function handleProposalLogic(replyContext, proposer, target, isSlash, prefixMessage) {
     if (proposer.id === target.id) {
-        return { error: "You cannot marry yourself! That's just sad." };
+        return editReply(replyContext, isSlash, "❌ You cannot marry yourself! That's just sad.");
     }
     if (target.bot) {
-        return { error: "You cannot marry a bot! Robots don't feel love... yet." };
+        return editReply(replyContext, isSlash, "❌ You cannot marry a bot! Robots don't feel love... yet.");
     }
 
-    // Helper to get/create family
-    const getFamily = async (id) => {
-        let f = await Family.findOne({ userId: id });
-        if (!f) {
-            f = new Family({ userId: id });
-            await f.save();
-        }
-        return f;
-    };
-
-    const proposerFamily = await getFamily(proposer.id);
-    const targetFamily = await getFamily(target.id);
+    const proposerFamily = await Family.findOne({ userId: proposer.id }) || new Family({ userId: proposer.id });
+    const targetFamily = await Family.findOne({ userId: target.id }) || new Family({ userId: target.id });
 
     if (proposerFamily.spouseId) {
-        return { error: "You are already married! Do you want to be called out for cheating? Divorce your spouse first." };
+        return editReply(replyContext, isSlash, "❌ You are already married! Do you want to be called out for cheating? Divorce your spouse first.");
     }
     if (targetFamily.spouseId) {
-        return { error: "This person is already married! Don't try to break their family." };
+        return editReply(replyContext, isSlash, "❌ This person is already married! Don't try to break their family.");
     }
+
+    const proposerEconomy = await Bauble.findOne({ userId: proposer.id });
+    if (!proposerEconomy || !proposerEconomy.inventory) {
+        return editReply(replyContext, isSlash, "❌ You don't have a wedding ring! Buy a `ring_silver`, `ring_gold`, or `ring_diamond` from the shop (`-shop`) first!");
+    }
+
+    const availableRings = proposerEconomy.inventory.filter(i => ['ring_silver', 'ring_gold', 'ring_diamond'].includes(i.itemId) && i.quantity > 0);
+    if (availableRings.length === 0) {
+        return editReply(replyContext, isSlash, "❌ You don't have a wedding ring! Buy one from the shop (`-shop`) first!");
+    }
+
+    if (availableRings.length === 1) {
+        // Only one ring, proceed immediately
+        return await sendProposal(replyContext, proposer, target, availableRings[0].itemId, isSlash);
+    }
+
+    // Multiple rings, prompt selection
+    const options = availableRings.map(ring => {
+        const itemDef = ITEMS[ring.itemId];
+        return {
+            label: itemDef.name,
+            description: `You own ${ring.quantity} of these`,
+            value: ring.itemId,
+            emoji: itemDef.emoji
+        };
+    });
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('select_ring')
+        .setPlaceholder('Select a ring to propose with')
+        .addOptions(options);
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+    const embed = new EmbedBuilder()
+        .setColor(0xf472b6)
+        .setTitle('💍 Choose Your Ring')
+        .setDescription(`You have multiple wedding rings. Which one do you want to use to propose to **${target.username}**?`);
+
+    let msg;
+    if (isSlash) {
+        msg = await replyContext.editReply({ embeds: [embed], components: [row] });
+    } else {
+        msg = await replyContext.edit({ content: null, embeds: [embed], components: [row] });
+    }
+
+    const collector = msg.createMessageComponentCollector({
+        componentType: ComponentType.StringSelect,
+        time: 60000,
+        filter: i => i.user.id === proposer.id
+    });
+
+    collector.on('collect', async i => {
+        await i.deferUpdate();
+        collector.stop('selected');
+        await sendProposal(isSlash ? replyContext : msg, proposer, target, i.values[0], isSlash, true);
+    });
+
+    collector.on('end', (collected, reason) => {
+        if (reason === 'time') {
+            msg.edit({ content: '❌ Ring selection timed out.', embeds: [], components: [] }).catch(() => {});
+        }
+    });
+}
+
+async function editReply(replyContext, isSlash, content) {
+    if (isSlash) {
+        return replyContext.editReply({ content });
+    } else {
+        return replyContext.edit({ content });
+    }
+}
+
+async function sendProposal(replyContext, proposer, target, ringId, isSlash, isUpdate = false) {
+    const proposerFamily = await Family.findOne({ userId: proposer.id }) || new Family({ userId: proposer.id });
+    const targetFamily = await Family.findOne({ userId: target.id }) || new Family({ userId: target.id });
 
     // Check if target had already proposed to proposer (auto-accept)
     if (proposerFamily.pendingSpouseProposal === target.id) {
@@ -93,6 +136,8 @@ async function proposeMarriage(proposer, target, guild) {
         targetFamily.spouseId = proposer.id;
         proposerFamily.pendingSpouseProposal = null;
         targetFamily.pendingSpouseProposal = null;
+        proposerFamily.pendingSpouseRing = null;
+        targetFamily.pendingSpouseRing = null;
         await proposerFamily.save();
         await targetFamily.save();
 
@@ -101,17 +146,21 @@ async function proposeMarriage(proposer, target, guild) {
             .setTitle('💖 MARRIAGE ACCEPTED!')
             .setDescription(`**${proposer.username}** and **${target.username}** had already proposed to each other, so they are now officially married! 🎉`)
             .setTimestamp();
-        return { embed, directAccept: true };
+        
+        if (isUpdate && !isSlash) return replyContext.edit({ embeds: [embed], components: [] });
+        return editReply(replyContext, isSlash, { content: null, embeds: [embed] });
     }
 
-    // Save proposal in DB
     targetFamily.pendingSpouseProposal = proposer.id;
+    targetFamily.pendingSpouseRing = ringId; // Store which ring is being used
     await targetFamily.save();
+
+    const ringDef = ITEMS[ringId];
 
     const embed = new EmbedBuilder()
         .setColor(0x7c6cf0)
         .setTitle('💍 Marriage Proposal!')
-        .setDescription(`**${proposer.username}** has proposed to **${target.username}**!\n\n*${target.username}, do you accept?*`)
+        .setDescription(`**${proposer.username}** has proposed to **${target.username}** with a **${ringDef.name}**!\n\n*${target.username}, do you accept?*`)
         .setFooter({ text: 'This proposal will expire in 60 seconds.' })
         .setTimestamp();
 
@@ -128,10 +177,21 @@ async function proposeMarriage(proposer, target, guild) {
             .setEmoji('💔')
     );
 
-    return { embed, components: row };
+    let mainMsg;
+    if (isUpdate && !isSlash) {
+        mainMsg = await replyContext.edit({ content: null, embeds: [embed], components: [row] });
+    } else {
+        if (isSlash) {
+            mainMsg = await replyContext.editReply({ content: null, embeds: [embed], components: [row] });
+        } else {
+            mainMsg = await replyContext.edit({ content: null, embeds: [embed], components: [row] });
+        }
+    }
+
+    handleMarriageCollector(mainMsg, proposer, target, ringId);
 }
 
-function handleMarriageCollector(message, proposer, target) {
+function handleMarriageCollector(message, proposer, target, ringId) {
     const collector = message.createMessageComponentCollector({
         componentType: ComponentType.Button,
         time: 60000
@@ -154,6 +214,7 @@ function handleMarriageCollector(message, proposer, target) {
         if (i.customId === 'accept_marriage') {
             if (proposerFamily.spouseId || targetFamily.spouseId) {
                 targetFamily.pendingSpouseProposal = null;
+                targetFamily.pendingSpouseRing = null;
                 await targetFamily.save();
                 const embed = new EmbedBuilder()
                     .setColor(0xf87171)
@@ -162,22 +223,42 @@ function handleMarriageCollector(message, proposer, target) {
                 return message.edit({ embeds: [embed], components: [] });
             }
 
+            // Verify the proposer still has the specific ring
+            const proposerEco = await Bauble.findOne({ userId: proposer.id });
+            const ringIndex = proposerEco?.inventory?.findIndex(item => item.itemId === ringId && item.quantity > 0);
+            
+            if (!proposerEco || ringIndex === -1 || ringIndex === undefined) {
+                const embed = new EmbedBuilder()
+                    .setColor(0xf87171)
+                    .setTitle('❌ Missing Ring')
+                    .setDescription(`**${proposer.username}** no longer has the **${ITEMS[ringId].name}** in their inventory! The proposal failed.`);
+                return message.edit({ embeds: [embed], components: [] });
+            }
+
+            // Deduct the ring
+            proposerEco.inventory[ringIndex].quantity -= 1;
+            await proposerEco.save();
+
             proposerFamily.spouseId = target.id;
             targetFamily.spouseId = proposer.id;
             proposerFamily.pendingSpouseProposal = null;
             targetFamily.pendingSpouseProposal = null;
+            proposerFamily.pendingSpouseRing = null;
+            targetFamily.pendingSpouseRing = null;
+            
             await proposerFamily.save();
             await targetFamily.save();
 
             const embed = new EmbedBuilder()
                 .setColor(0x4ade80)
                 .setTitle('💖 JUST MARRIED!')
-                .setDescription(`🎉 **${target.username}** accepted the proposal! **${proposer.username}** and **${target.username}** are now officially married! 🎉`)
+                .setDescription(`🎉 **${target.username}** accepted the proposal! **${proposer.username}** and **${target.username}** are now officially married with a **${ITEMS[ringId].name}**! 🎉`)
                 .setTimestamp();
 
             await message.edit({ embeds: [embed], components: [] });
         } else {
             targetFamily.pendingSpouseProposal = null;
+            targetFamily.pendingSpouseRing = null;
             await targetFamily.save();
 
             const embed = new EmbedBuilder()
@@ -195,6 +276,7 @@ function handleMarriageCollector(message, proposer, target) {
             const targetFamily = await Family.findOne({ userId: target.id });
             if (targetFamily && targetFamily.pendingSpouseProposal === proposer.id) {
                 targetFamily.pendingSpouseProposal = null;
+                targetFamily.pendingSpouseRing = null;
                 await targetFamily.save();
             }
 

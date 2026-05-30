@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Family = require('../../models/familySchema');
+const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
     category: 'fun',
@@ -64,7 +65,13 @@ async function getProposalsMessage(user) {
 
     // Marriage Proposal
     if (familyData.pendingSpouseProposal) {
-        embed.addFields({ name: '💍 Marriage Proposal', value: `Proposer: <@${familyData.pendingSpouseProposal}>\n*Do you want to accept?*` });
+        const ringId = familyData.pendingSpouseRing;
+        let ringText = "a Wedding Ring";
+        if (ringId === 'ring_silver') ringText = "a 💍 Silver Wedding Ring";
+        if (ringId === 'ring_gold') ringText = "a 💍 Gold Wedding Ring";
+        if (ringId === 'ring_diamond') ringText = "a 💎 Diamond Wedding Ring";
+        
+        embed.addFields({ name: '💍 Marriage Proposal', value: `Proposer: <@${familyData.pendingSpouseProposal}>\nThey proposed with ${ringText}!\n*Do you want to accept?*` });
         row.addComponents(
             new ButtonBuilder()
                 .setCustomId(`prop_accept_marriage_${familyData.pendingSpouseProposal}`)
@@ -138,10 +145,36 @@ function handleProposalsCollector(message, user) {
                 return message.edit({ embeds: [embed], components: [] });
             }
 
+            // Verify the proposer still has the specific ring
+            const proposerEco = await Bauble.findOne({ userId: proposerId });
+            const requiredRingId = familyData.pendingSpouseRing;
+            
+            let ringIndex = -1;
+            if (requiredRingId) {
+                ringIndex = proposerEco?.inventory?.findIndex(item => item.itemId === requiredRingId && item.quantity > 0);
+            } else {
+                // Fallback for older proposals before the ring selection was added
+                ringIndex = proposerEco?.inventory?.findIndex(item => ['ring_diamond', 'ring_gold', 'ring_silver'].includes(item.itemId) && item.quantity > 0);
+            }
+
+            if (!proposerEco || ringIndex === -1 || ringIndex === undefined) {
+                const embed = new EmbedBuilder()
+                    .setColor(0xf87171)
+                    .setTitle('❌ Missing Ring')
+                    .setDescription(`<@${proposerId}> no longer has the wedding ring in their inventory! The proposal failed.`);
+                return message.edit({ embeds: [embed], components: [] });
+            }
+
+            // Deduct the ring
+            proposerEco.inventory[ringIndex].quantity -= 1;
+            await proposerEco.save();
+
             familyData.spouseId = proposerId;
             proposerFamily.spouseId = user.id;
             familyData.pendingSpouseProposal = null;
             proposerFamily.pendingSpouseProposal = null;
+            familyData.pendingSpouseRing = null;
+            proposerFamily.pendingSpouseRing = null;
             
             const allChildren = new Set([...familyData.children, ...proposerFamily.children]);
             const sharedChildren = Array.from(allChildren);
@@ -170,6 +203,7 @@ function handleProposalsCollector(message, user) {
         } else if (customId.startsWith('prop_decline_marriage_')) {
             const proposerId = customId.split('_')[3];
             familyData.pendingSpouseProposal = null;
+            familyData.pendingSpouseRing = null;
             await familyData.save();
 
             const embed = new EmbedBuilder()
@@ -191,7 +225,23 @@ function handleProposalsCollector(message, user) {
             }
 
             const parentFamily = await Family.findOne({ userId: parentId });
+            
+            // Verify proposer still has adoption papers
+            const proposerEco = await Bauble.findOne({ userId: parentId });
+            const paperIndex = proposerEco?.inventory?.findIndex(item => item.itemId === 'adoption_papers' && item.quantity > 0);
+            if (!proposerEco || paperIndex === -1 || paperIndex === undefined) {
+                const embed = new EmbedBuilder()
+                    .setColor(0xf87171)
+                    .setTitle('❌ Missing Papers')
+                    .setDescription(`<@${parentId}> no longer has adoption papers in their inventory! The adoption failed.`);
+                return message.edit({ embeds: [embed], components: [] });
+            }
+
             if (parentFamily) {
+                // Deduct papers
+                proposerEco.inventory[paperIndex].quantity -= 1;
+                await proposerEco.save();
+
                 if (!familyData.parents.includes(parentId)) familyData.parents.push(parentId);
                 if (!parentFamily.children.includes(user.id)) parentFamily.children.push(user.id);
                 

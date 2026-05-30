@@ -21,7 +21,31 @@ async function getTotalBaubles() {
  */
 async function calculateEconomy() {
     try {
-        const { total: currentTotal, count: userCount } = await getTotalBaubles();
+        let { total: currentTotal, count: userCount } = await getTotalBaubles();
+
+        // --- AUTOMATED WEALTH TAX (MONEY SINK) ---
+        // Find users with over 150k baubles and apply a wealth tax
+        const wealthyUsers = await Bauble.find({ baubles: { $gte: 150000 } });
+        let totalTaxCollected = 0;
+        const now = new Date();
+        
+        for (const u of wealthyUsers) {
+            let taxPercent = 0.02; // 2% for Tier 1 (150k-500k)
+            if (u.baubles >= 500000) {
+                taxPercent = 0.05; // 5% for Tier 2 (500k+)
+            }
+            const taxAmount = Math.floor(u.baubles * taxPercent);
+            u.baubles -= taxAmount;
+            u.lastTaxPaid = taxAmount;
+            u.lastTaxDate = now;
+            await u.save();
+            totalTaxCollected += taxAmount;
+        }
+
+        // Adjust the current total by the amount of tax destroyed
+        currentTotal -= totalTaxCollected;
+        console.log(`[Economy Engine] Collected and burned ${totalTaxCollected.toLocaleString()} baubles in wealth taxes.`);
+        // ------------------------------------------
 
         // Get the latest metrics snapshot to compare
         const lastSnapshot = await EconomyMetrics.findOne().sort({ timestamp: -1 });
@@ -73,6 +97,7 @@ async function calculateEconomy() {
         currentGlobal.marketStatus = status;
         currentGlobal.totalBaublesInCirculation = currentTotal;
         currentGlobal.activeUsersCount = userCount;
+        currentGlobal.taxFund = (currentGlobal.taxFund || 0) + totalTaxCollected;
         currentGlobal.lastCalculated = new Date();
         await currentGlobal.save();
 

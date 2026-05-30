@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Family = require('../../models/familySchema');
+const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
     category: 'fun',
@@ -76,6 +77,16 @@ async function proposeAdoption(proposer, target) {
     if (proposerFamily.spouseId === target.id) {
         return { error: "You cannot adopt your spouse!" };
     }
+
+    const proposerEconomy = await Bauble.findOne({ userId: proposer.id });
+    if (!proposerEconomy || !proposerEconomy.inventory) {
+        return { error: "You don't have Adoption Papers! Buy `adoption_papers` from the shop (`-shop`) first!" };
+    }
+
+    const hasPapers = proposerEconomy.inventory.some(i => i.itemId === 'adoption_papers' && i.quantity > 0);
+    if (!hasPapers) {
+        return { error: "You don't have Adoption Papers! Buy `adoption_papers` from the shop (`-shop`) first!" };
+    }
     if (targetFamily.parents.length >= 2) {
         return { error: "This user already has 2 parents!" };
     }
@@ -141,6 +152,21 @@ function handleAdoptionCollector(message, proposer, target) {
                     .setDescription(`**${target.username}** already has the maximum limit of 2 parents!`);
                 return message.edit({ embeds: [embed], components: [] });
             }
+
+            // Verify the proposer still has adoption papers
+            const proposerEco = await Bauble.findOne({ userId: proposer.id });
+            const paperIndex = proposerEco?.inventory?.findIndex(item => item.itemId === 'adoption_papers' && item.quantity > 0);
+            if (!proposerEco || paperIndex === -1 || paperIndex === undefined) {
+                const embed = new EmbedBuilder()
+                    .setColor(0xf87171)
+                    .setTitle('❌ Missing Papers')
+                    .setDescription(`**${proposer.username}** no longer has adoption papers in their inventory! The adoption failed.`);
+                return message.edit({ embeds: [embed], components: [] });
+            }
+
+            // Deduct the papers
+            proposerEco.inventory[paperIndex].quantity -= 1;
+            await proposerEco.save();
 
             if (!targetFamily.parents.includes(proposer.id)) targetFamily.parents.push(proposer.id);
             if (!proposerFamily.children.includes(target.id)) proposerFamily.children.push(target.id);

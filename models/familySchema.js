@@ -6,6 +6,7 @@ const familySchema = new Schema({
     parents: { type: [String], default: [] },
     children: { type: [String], default: [] },
     pendingSpouseProposal: { type: String, default: null },
+    pendingSpouseRing: { type: String, default: null },
     pendingAdoptionProposals: { type: [String], default: [] }
 });
 

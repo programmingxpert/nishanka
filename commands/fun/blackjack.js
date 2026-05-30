@@ -55,36 +55,16 @@ function calculateHand(cards) {
 function drawCardsANSI(cards, hideFirst = false) {
     if (!cards || cards.length === 0) return 'No cards';
     
-    const lines = ['', '', '', '', ''];
+    let result = '';
     for (let i = 0; i < cards.length; i++) {
         if (hideFirst && i === 0) {
-            // Hidden card - drawn in blue/purple
-            lines[0] += '\u001b[1;34m┌─────┐\u001b[0m ';
-            lines[1] += '\u001b[1;34m│░░░░░│\u001b[0m ';
-            lines[2] += '\u001b[1;34m│░🂠░░│\u001b[0m ';
-            lines[3] += '\u001b[1;34m│░░░░░│\u001b[0m ';
-            lines[4] += '\u001b[1;34m└─────┘\u001b[0m ';
+            result += '`[ ? ]` ';
         } else {
             const card = cards[i];
-            const rank = card.rank;
-            const suit = card.suit;
-            
-            const isRed = ['♥', '♦'].includes(suit);
-            const colorCode = isRed ? '\u001b[1;31m' : '\u001b[1;37m'; // bold red or bold white
-            const suitColor = isRed ? '\u001b[1;31m' : '\u001b[1;34m'; // bold red or bold blue
-            const reset = '\u001b[0m';
-            
-            const rankTop = rank === '10' ? '10 ' : `${rank}  `;
-            const rankBottom = rank === '10' ? ' 10' : `  ${rank}`;
-            
-            lines[0] += `${colorCode}┌─────┐${reset} `;
-            lines[1] += `${colorCode}│${rankTop} │${reset} `;
-            lines[2] += `${colorCode}│  ${suitColor}${suit}${colorCode}  │${reset} `;
-            lines[3] += `${colorCode}│ ${rankBottom}│${reset} `;
-            lines[4] += `${colorCode}└─────┘${reset} `;
+            result += `\`[${card.rank}${card.suit}]\` `;
         }
     }
-    return '```ansi\n' + lines.join('\n') + '\n```';
+    return result.trim() + '\n';
 }
 
 // ─── Active games tracking ────────────────────────────────────────────────────
