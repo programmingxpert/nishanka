@@ -11,19 +11,7 @@ const hardcodedGifs = [
 module.exports = {
 	category: 'actions',
 	aliases: ['whip'],
-	data: new SlashCommandBuilder()
-		.setName('whoop')
-		.setDescription('Whoop someone!')
-		.addUserOption(option =>
-			option.setName('target')
-				.setDescription('The user to whoop')
-				.setRequired(false)
-		)
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to include')
-				.setRequired(false)
-		),
+	data: { name: 'whoop' },
 
 	async execute(interaction) {
 		const targetUser = interaction.options.getUser('target');

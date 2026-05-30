@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 
 module.exports = {
     category: 'fun',
-    aliases: ['tod', 'party', 'nhie', 'wyr'],
+    aliases: ['tod', 'nhie', 'wyr'],
     data: new SlashCommandBuilder()
         .setName('truthordare')
         .setDescription('Get a random Truth, Would You Rather, or Never Have I Ever question!'),

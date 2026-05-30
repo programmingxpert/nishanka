@@ -8,26 +8,7 @@ const ADMIN_ID = '805007574193405952';
 module.exports = {
     category: 'economy',
 
-    data: new SlashCommandBuilder()
-        .setName('reset')
-        .setDescription('[ADMIN ONLY] Reset or set a user\'s Glimmering Baubles.')
-
-        // CHANGED FROM USER OPTION TO STRING OPTION
-        // This allows raw IDs, mentions, or anything
-        .addStringOption(option =>
-            option
-                .setName('target')
-                .setDescription('User ID or mention')
-                .setRequired(true)
-        )
-
-        .addIntegerOption(option =>
-            option
-                .setName('amount')
-                .setDescription('Amount to set (defaults to 0)')
-                .setRequired(false)
-                .setMinValue(0)
-        ),
+    data: { name: 'reset' },
 
     async execute(interaction) {
 

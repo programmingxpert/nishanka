@@ -10,19 +10,7 @@ const hardcodedGifs = [
 module.exports = {
 	category: 'actions',
 	aliases: ['surprise'],
-	data: new SlashCommandBuilder()
-		.setName('surprised')
-		.setDescription('React with surprise!')
-		.addUserOption(option =>
-			option.setName('target')
-				.setDescription('The user who surprised you')
-				.setRequired(false)
-		)
-		.addStringOption(option =>
-			option.setName('message')
-				.setDescription('An optional message to include')
-				.setRequired(false)
-		),
+	data: { name: 'surprised' },
 
 	async execute(interaction) {
 		const targetUser = interaction.options.getUser('target');

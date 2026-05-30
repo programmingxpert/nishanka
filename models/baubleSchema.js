@@ -11,6 +11,8 @@ const baubleSchema = new Schema({
     slotsMaxStreak: { type: Number, default: 0 },
     blackjackStreak: { type: Number, default: 0 },
     blackjackMaxStreak: { type: Number, default: 0 },
+    animebattleStreak: { type: Number, default: 0 },
+    animebattleMaxStreak: { type: Number, default: 0 },
     dailyStreak: { type: Number, default: 0 },
     dailyMaxStreak: { type: Number, default: 0 },
     dailyLastClaimed: { type: Date, default: null },

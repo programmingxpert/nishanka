@@ -4,32 +4,7 @@ const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
     category: 'economy',
-    data: new SlashCommandBuilder()
-        .setName('take')
-        .setDescription('[ADMIN ONLY] Take Glimmering Baubles or shop items from a user.')
-        .addUserOption(option =>
-            option.setName('user')
-                .setDescription('The user to take from.')
-                .setRequired(true))
-        .addIntegerOption(option =>
-            option.setName('amount')
-                .setDescription('The amount of Baubles or quantity of items to take.')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('item')
-                .setDescription('The shop item to take (leave blank for Baubles).')
-                .setRequired(false)
-                .addChoices(
-                    { name: '☕ Energizing Coffee', value: 'coffee' },
-                    { name: '🍀 Lucky Clover', value: 'clover' },
-                    { name: '🛡️ Aegis Shield', value: 'shield' },
-                    { name: '📦 Mystery Box', value: 'mystery_box' },
-                    { name: '🔒 Safe Padlock', value: 'padlock' },
-                    { name: '🏷️ Custom Tag', value: 'tag' },
-                    { name: '🎨 Profile Paintbrush', value: 'paintbrush' },
-                    { name: '💎 Golden Nugget', value: 'nugget' },
-                    { name: '👑 Crown of Royalty', value: 'crown' }
-                )),
+    data: { name: 'take' },
     async execute(interaction) {
         const adminId = "805007574193405952";
 

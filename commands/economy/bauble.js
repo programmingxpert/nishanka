@@ -35,7 +35,8 @@ module.exports = {
                         value: `**🪙 Coinflip:** \`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)\n` +
                                `**🎲 Gamble:** \`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)\n` +
                                `**🎰 Slots:** \`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)\n` +
-                               `**🃏 Blackjack:** \`${baubleData.blackjackStreak || 0}\` (Best: \`${baubleData.blackjackMaxStreak || 0}\`)`,
+                               `**🃏 Blackjack:** \`${baubleData.blackjackStreak || 0}\` (Best: \`${baubleData.blackjackMaxStreak || 0}\`)\n` +
+                               `**⚔️ Anime Battle:** \`${baubleData.animebattleStreak || 0}\` (Best: \`${baubleData.animebattleMaxStreak || 0}\`)`,
                         inline: false
                     },
                     { 
@@ -87,7 +88,8 @@ module.exports = {
                         value: `**🪙 Coinflip:** \`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)\n` +
                                `**🎲 Gamble:** \`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)\n` +
                                `**🎰 Slots:** \`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)\n` +
-                               `**🃏 Blackjack:** \`${baubleData.blackjackStreak || 0}\` (Best: \`${baubleData.blackjackMaxStreak || 0}\`)`,
+                               `**🃏 Blackjack:** \`${baubleData.blackjackStreak || 0}\` (Best: \`${baubleData.blackjackMaxStreak || 0}\`)\n` +
+                               `**⚔️ Anime Battle:** \`${baubleData.animebattleStreak || 0}\` (Best: \`${baubleData.animebattleMaxStreak || 0}\`)`,
                         inline: false
                     },
                     { 
