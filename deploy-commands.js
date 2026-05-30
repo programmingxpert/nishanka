@@ -9,44 +9,23 @@
  */
 require('dotenv').config();
 const { REST, Routes } = require('discord.js');
-const fs   = require('fs');
-const path = require('path');
+const { bundleSlashCommands } = require('./utils/slashCommandsBundler');
 
-const commands = [];
+const commands = bundleSlashCommands();
 
-// Recursively collect all command data
-(function collectCommands(dir) {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-            collectCommands(fullPath);
-        } else if (entry.name.endsWith('.js') && !entry.name.endsWith('.example')) {
-            try {
-                const command = require(fullPath);
-                if (command?.data?.toJSON) {
-                    commands.push(command.data.toJSON());
-                }
-            } catch (err) {
-                console.warn(`Skipping ${entry.name}: ${err.message}`);
-            }
-        }
-    }
-})(path.join(__dirname, 'commands'));
-
-console.log(`📦 Found ${commands.length} command(s) to register`);
+console.log(`📦 Found ${commands.length} top-level category command(s) to register`);
 
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
     try {
-        // Global (takes up to 1 hour to propagate)
         await rest.put(
             Routes.applicationCommands(process.env.CLIENT_ID),
             { body: commands },
         );
-        console.log(`✅ Successfully registered ${commands.length} command(s) globally`);
+        console.log(`✅ Successfully registered ${commands.length} top-level command(s) globally`);
     } catch (error) {
         console.error('❌ Failed to register commands:', error);
     }
 })();
+

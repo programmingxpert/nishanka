@@ -9,6 +9,7 @@ const {
     TextInputStyle 
 } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 module.exports = {
     category: 'fun',
@@ -191,7 +192,8 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
             let prize = 0;
             let prizeMsg = '';
             if (successScore >= 40) {
-                prize = successScore;
+                const globalMultiplier = await getGlobalMultiplier();
+                prize = Math.floor(successScore * globalMultiplier);
                 try {
                     let userBaubles = await Bauble.findOne({ userId: user.id });
                     if (!userBaubles) {
@@ -199,7 +201,7 @@ async function runExcuseGameSolo(initialData, channel, user, apiKey) {
                     }
                     userBaubles.baubles += prize;
                     await userBaubles.save();
-                    prizeMsg = `\n\n🪙 You earned **${prize}** Baubles!`;
+                    prizeMsg = `\n\n🪙 You earned **${prize}** Baubles! *(Economy Multiplier: ${globalMultiplier}x)*`;
                 } catch (dbErr) {
                     console.error('Failed to save baubles for solo player:', dbErr);
                 }
@@ -461,13 +463,15 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
         return;
     }
 
+    const globalMultiplier = await getGlobalMultiplier();
     const payoutDetails = [];
     for (let i = 0; i < sortedPlayers.length; i++) {
         const [userId, totalScore] = sortedPlayers[i];
         const isWinner = i === 0;
         
         const accumulatedPrize = playerPrizes[userId] || 0;
-        const prize = (isWinner && accumulatedPrize > 0) ? accumulatedPrize + 500 : accumulatedPrize;
+        const basePrize = (isWinner && accumulatedPrize > 0) ? accumulatedPrize + 500 : accumulatedPrize;
+        const prize = Math.floor(basePrize * globalMultiplier);
 
         const username = userMap.get(userId) || `<@${userId}>`;
         
@@ -482,7 +486,7 @@ async function runExcuseGameMultiplayer(initialData, channel, user, apiKey) {
             } catch (dbErr) {
                 console.error(`Failed to save baubles for user ${userId}:`, dbErr);
             }
-            payoutDetails.push(`${isWinner ? '👑' : '👤'} **${username}**: +${prize} Baubles (Total Score: ${totalScore})`);
+            payoutDetails.push(`${isWinner ? '👑' : '👤'} **${username}**: +${prize} Baubles *(Economy: ${globalMultiplier}x)* (Total Score: ${totalScore})`);
         } else {
             payoutDetails.push(`${isWinner ? '👑' : '👤'} **${username}**: +0 Baubles (Guilty - Total Score: ${totalScore})`);
         }

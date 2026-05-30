@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const scavengeLocations = [
     "the dark forest",
@@ -61,14 +62,16 @@ module.exports = {
             }
 
             // Determine earnings
-            const earnings = Math.floor(Math.random() * 30) + 5; // Random earnings between 5 and 35
+            const globalMultiplier = await getGlobalMultiplier();
+            const baseEarnings = Math.floor(Math.random() * 30) + 5; // Random base earnings between 5 and 35
+            const earnings = Math.floor(baseEarnings * globalMultiplier);
             baubleData.baubles += earnings;
             await baubleData.save();
 
             // Final result
             const finalEmbed = new EmbedBuilder()
                 .setColor(0x00FF00)
-                .setDescription(`✨ You scavenged ${location} and found **${earnings}** Glimmering Baubles!`)
+                .setDescription(`✨ You scavenged ${location} and found **${earnings}** Glimmering Baubles! *(Economy Multiplier: ${globalMultiplier}x)*`)
                 .addFields({ name: 'New Balance', value: `${baubleData.baubles} Baubles`, inline: true })
                 .setTimestamp();
 
@@ -123,14 +126,16 @@ module.exports = {
             }
 
             // Determine earnings
-            const earnings = Math.floor(Math.random() * 30) + 5; // Random earnings between 5 and 35
+            const globalMultiplier = await getGlobalMultiplier();
+            const baseEarnings = Math.floor(Math.random() * 30) + 5; // Random base earnings between 5 and 35
+            const earnings = Math.floor(baseEarnings * globalMultiplier);
             baubleData.baubles += earnings;
             await baubleData.save();
 
             // Final result
             const finalEmbed = new EmbedBuilder()
                 .setColor(0x00FF00)
-                .setDescription(`✨ You scavenged ${location} and found **${earnings}** Glimmering Baubles!`)
+                .setDescription(`✨ You scavenged ${location} and found **${earnings}** Glimmering Baubles! *(Economy Multiplier: ${globalMultiplier}x)*`)
                 .addFields({ name: 'New Balance', value: `${baubleData.baubles} Baubles`, inline: true })
                 .setTimestamp();
 

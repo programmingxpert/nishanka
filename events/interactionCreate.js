@@ -8,7 +8,8 @@ module.exports = {
     async execute(interaction, client) {
         // Handle autocomplete interactions
         if (interaction.isAutocomplete()) {
-            const command = client.commands.get(interaction.commandName);
+            const { resolveGroupedCommand } = require('../utils/slashCommandsBundler');
+            const command = resolveGroupedCommand(interaction, client);
             if (command && typeof command.autocomplete === 'function') {
                 try {
                     await command.autocomplete(interaction);
@@ -22,10 +23,19 @@ module.exports = {
         // Only handle slash/chat-input commands
         if (!interaction.isChatInputCommand()) return;
 
-        const command = client.commands.get(interaction.commandName);
+        const { resolveGroupedCommand } = require('../utils/slashCommandsBundler');
+        const command = resolveGroupedCommand(interaction, client);
         if (!command) {
             return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });
         }
+
+        let fullCommandPath = `/${interaction.commandName}`;
+        try {
+            const subGroup = interaction.options.getSubcommandGroup(false);
+            const subCmd = interaction.options.getSubcommand(false);
+            if (subGroup) fullCommandPath += ` ${subGroup}`;
+            if (subCmd) fullCommandPath += ` ${subCmd}`;
+        } catch (_) {}
 
         if (command.category === 'admin' && interaction.user.id !== config.devId) {
             return interaction.reply({ content: '❌ This command is restricted to the bot developer only.', ephemeral: true });
@@ -33,6 +43,18 @@ module.exports = {
 
         if (client.disabledCommands && client.disabledCommands.has(command.data.name)) {
             return interaction.reply({ content: '❌ This command is currently disabled by the developer.', ephemeral: true });
+        }
+
+        // Programmatically enforce default_member_permissions for subcommands
+        if (command.data && command.data.default_member_permissions) {
+            const perm = command.data.default_member_permissions;
+            const requiredPermission = typeof perm === 'string' && /^\d+$/.test(perm) ? BigInt(perm) : perm;
+            if (interaction.member && !interaction.member.permissions.has(requiredPermission)) {
+                return interaction.reply({
+                    content: '❌ You do not have the required permissions to execute this subcommand.',
+                    flags: MessageFlags.Ephemeral,
+                });
+            }
         }
 
         // --- Cooldown logic ---
@@ -58,7 +80,7 @@ module.exports = {
             if (now < expiry) {
                 const timestampId = Math.floor(expiry / 1000);
                 return interaction.reply({
-                    content: `⏳ Please wait, you can use \`/${command.data.name}\` again <t:${timestampId}:R>.`,
+                    content: `⏳ Please wait, you can use \`${fullCommandPath}\` again <t:${timestampId}:R>.`,
                     flags: MessageFlags.Ephemeral,
                 });
             }
@@ -106,7 +128,7 @@ module.exports = {
             await command.execute(interaction);
         } catch (error) {
             timestamps.delete(interaction.user.id); // Clear cooldown on command error
-            console.error(`[interactionCreate] Error in /${interaction.commandName}:`, error);
+            console.error(`[interactionCreate] Error in ${fullCommandPath}:`, error);
             const msg = { content: '❌ An error occurred while executing that command.', flags: MessageFlags.Ephemeral };
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp(msg).catch(() => {});

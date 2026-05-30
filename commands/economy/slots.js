@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const slotEmojis = ['💎', '💰', '🍀', '🔔', '🍒']; // Slot machine emojis
 
@@ -100,15 +101,17 @@ module.exports = {
             const previousStreak = baubleData.slotsStreak || 0;
             let isWin = false;
 
+            const globalMultiplier = await getGlobalMultiplier();
+
             // Check for win conditions
             if (slotResults[0] === slotResults[1] && slotResults[1] === slotResults[2]) {
-                winnings = bet * 5; // Three in a row: 5x payout
+                winnings = Math.floor(bet * 5 * globalMultiplier); // Three in a row: 5x payout
                 isWin = true;
-                finalEmbed.setColor(0x00FF00).setDescription('🎉 Jackpot! Three in a row!');
+                finalEmbed.setColor(0x00FF00).setDescription(`🎉 Jackpot! Three in a row! *(Economy Multiplier: ${globalMultiplier}x)*`);
             } else if (slotResults[0] === slotResults[1] || slotResults[1] === slotResults[2] || slotResults[0] === slotResults[2]) {
-                winnings = bet * 2; // Two in a row: 2x payout
+                winnings = Math.floor(bet * 2 * globalMultiplier); // Two in a row: 2x payout
                 isWin = true;
-                finalEmbed.setColor(0x00FFFF).setDescription('✨ Two in a row!');
+                finalEmbed.setColor(0x00FFFF).setDescription(`✨ Two in a row! *(Economy Multiplier: ${globalMultiplier}x)*`);
             } else {
                 finalEmbed.setColor(0xFF0000).setDescription('🙁 No luck this time!');
             }

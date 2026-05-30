@@ -173,7 +173,7 @@ async function executePurchase(userId, itemId, quantity, baubleData, globalMulti
     } else {
         baubleData.inventory.push({ itemId, quantity });
     }
-    await baubleData.save();
+    await baubleData.save();
     return { success: true, totalPrice, itemName: item.name };
 }
 

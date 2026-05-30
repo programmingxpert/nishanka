@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 function getWeeklyRarity(amount) {
     if (amount <= 7500) {
@@ -86,23 +87,26 @@ module.exports = {
             }
 
             // Calculate reward (6000-12000)
-            const reward = Math.floor(Math.random() * 6001) + 6000;
+            const baseReward = Math.floor(Math.random() * 6001) + 6000;
+            const globalMultiplier = await getGlobalMultiplier();
+            const reward = Math.floor(baseReward * globalMultiplier);
 
             // Save to database
             baubleData.baubles = (baubleData.baubles || 0) + reward;
             baubleData.weeklyLastClaimed = now;
             await baubleData.save();
 
-            const rarity = getWeeklyRarity(reward);
+            const rarity = getWeeklyRarity(baseReward);
 
             const embed = new EmbedBuilder()
                 .setColor(rarity.color)
                 .setTitle('🎁 Weekly Treasure Claimed!')
-                .setDescription(`You successfully claimed your weekly Glimmering Baubles!`)
+                .setDescription(`You successfully claimed your weekly Glimmering Baubles!\n*(Economy Multiplier: ${globalMultiplier}x)*`)
                 .addFields(
                     { name: '✨ Treasure Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
                     { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
-                    { name: '💰 Reward Earned', value: `**${reward}** Baubles`, inline: true },
+                    { name: '💰 Base Reward', value: `**${baseReward}** Baubles`, inline: true },
+                    { name: '💵 Total Earned', value: `**${reward}** Baubles`, inline: true },
                     { name: '💼 New Balance', value: `**${baubleData.baubles}** Baubles`, inline: true }
                 )
                 .setTimestamp()
@@ -146,22 +150,25 @@ module.exports = {
                 }
             }
 
-            const reward = Math.floor(Math.random() * 6001) + 6000;
+            const baseReward = Math.floor(Math.random() * 6001) + 6000;
+            const globalMultiplier = await getGlobalMultiplier();
+            const reward = Math.floor(baseReward * globalMultiplier);
 
             baubleData.baubles = (baubleData.baubles || 0) + reward;
             baubleData.weeklyLastClaimed = now;
             await baubleData.save();
 
-            const rarity = getWeeklyRarity(reward);
+            const rarity = getWeeklyRarity(baseReward);
 
             const embed = new EmbedBuilder()
                 .setColor(rarity.color)
                 .setTitle('🎁 Weekly Treasure Claimed!')
-                .setDescription(`You successfully claimed your weekly Glimmering Baubles!`)
+                .setDescription(`You successfully claimed your weekly Glimmering Baubles!\n*(Economy Multiplier: ${globalMultiplier}x)*`)
                 .addFields(
                     { name: '✨ Treasure Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
                     { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
-                    { name: '💰 Reward Earned', value: `**${reward}** Baubles`, inline: true },
+                    { name: '💰 Base Reward', value: `**${baseReward}** Baubles`, inline: true },
+                    { name: '💵 Total Earned', value: `**${reward}** Baubles`, inline: true },
                     { name: '💼 New Balance', value: `**${baubleData.baubles}** Baubles`, inline: true }
                 )
                 .setTimestamp()
