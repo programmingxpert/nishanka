@@ -292,7 +292,7 @@ async function generateTreeImage(client, subjectUser) {
     }
 
     const canvasWidth = maxGenWidth;
-    const canvasHeight = Math.max(600, (maxGen - minGen + 1) * 180 + 120);
+    const canvasHeight = Math.max(600, (maxGen - minGen + 1) * 180 + 160);
 
     const canvas = createCanvas(canvasWidth, canvasHeight);
     const ctx = canvas.getContext('2d');
@@ -331,7 +331,7 @@ async function generateTreeImage(client, subjectUser) {
         const userProfile = profileMap.get(id);
         const label = getRelationshipLabel(id, subjectUser.id, docMap, gen);
         const x = xMap.get(id) + canvasWidth / 2;
-        const y = 90 + (gen - minGen) * 180;
+        const y = 140 + (gen - minGen) * 180;
         
         nodes.push({
             user: userProfile,
@@ -351,7 +351,7 @@ async function generateTreeImage(client, subjectUser) {
         if (doc.spouseId && id < doc.spouseId) {
             const x1 = xMap.get(id) + canvasWidth / 2;
             const x2 = xMap.get(doc.spouseId) + canvasWidth / 2;
-            const y = 90 + (generationMap.get(id) - minGen) * 180;
+            const y = 140 + (generationMap.get(id) - minGen) * 180;
             lines.push({ x1, y1: y - 10, x2, y2: y - 10, isSpouse: true });
         }
     }
@@ -374,7 +374,7 @@ async function generateTreeImage(client, subjectUser) {
         const parentCoords = parentIds.map(pId => {
             return {
                 x: xMap.get(pId) + canvasWidth / 2,
-                y: 90 + (generationMap.get(pId) - minGen) * 180
+                y: 140 + (generationMap.get(pId) - minGen) * 180
             };
         });
         
@@ -386,7 +386,7 @@ async function generateTreeImage(client, subjectUser) {
             midParentX = parentCoords[0].x;
         }
         
-        const childY = 90 + (generationMap.get(childIds[0]) - minGen) * 180;
+        const childY = 140 + (generationMap.get(childIds[0]) - minGen) * 180;
         const midY = (parentY + childY) / 2;
         
         // Drop vertical line from parents midpoint
