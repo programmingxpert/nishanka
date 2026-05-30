@@ -35,32 +35,57 @@ module.exports = {
                 return interaction.reply({ content: '❌ You cannot give Baubles to yourself!', ephemeral: true });
             }
 
-            if (giverBaubleData.baubles < amount) {
-                return interaction.reply({ content: `❌ You do not have enough Baubles! You only have ${giverBaubleData.baubles}.`, ephemeral: true });
+            // Calculate rich wealth tax if giver has >= 150,000 baubles
+            const isRich = giverBaubleData.baubles >= 150000;
+            let taxPercent = 0;
+            let taxAmount = 0;
+            if (isRich) {
+                taxPercent = giverBaubleData.baubles >= 500000 ? 0.05 : 0.02;
+                taxAmount = Math.floor(amount * taxPercent);
             }
 
-            // Check if the Reciever account exists and the send welcome message
-            let receiverBaubleData = await Bauble.findOne({ userId: receiverId});
-
-            if (!receiverBaubleData) {
-                receiverBaubleData = new Bauble({ userId: receiverId, baubles: 0 });
-                await receiverBaubleData.save();
+            if (giverBaubleData.baubles < amount + taxAmount) {
+                return interaction.reply({ 
+                    content: `❌ You do not have enough Baubles to cover the transfer + transaction tax! You need **${(amount + taxAmount).toLocaleString()}** Baubles (including a **${(taxPercent * 100).toFixed(0)}%** wealth transaction tax of **${taxAmount.toLocaleString()}**), but you only have **${giverBaubleData.baubles.toLocaleString()}** Glimmering Baubles.`, 
+                    ephemeral: true 
+                });
             }
 
-            // Perform the transfer
-            giverBaubleData.baubles -= amount;
+            // Perform the transfer with tax
+            giverBaubleData.baubles -= (amount + taxAmount);
             receiverBaubleData.baubles += amount;
 
             await giverBaubleData.save();
             await receiverBaubleData.save();
 
+            // Add tax to the GlobalEconomy federal tax fund
+            if (taxAmount > 0) {
+                try {
+                    const GlobalEconomy = require('../../models/GlobalEconomy');
+                    let globalEco = await GlobalEconomy.findOne();
+                    if (!globalEco) {
+                        globalEco = await GlobalEconomy.create({
+                            currentMultiplier: 1.0,
+                            marketStatus: "⚖️ Stable Market",
+                            totalBaublesInCirculation: 0,
+                            activeUsersCount: 0,
+                            taxFund: 0
+                        });
+                    }
+                    globalEco.taxFund = (globalEco.taxFund || 0) + taxAmount;
+                    await globalEco.save();
+                } catch (e) {
+                    console.error('[Give Command] Failed to deposit transaction tax into tax fund:', e);
+                }
+            }
+
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color
                 .setTitle('🎁 Bauble Transfer')
-                .setDescription(`Successfully gave **${amount}** Glimmering Baubles to <@${receiverId}>!`)
+                .setDescription(`Successfully gave **${amount.toLocaleString()}** Glimmering Baubles to <@${receiverId}>!${taxAmount > 0 ? `\n\n📉 **Wealth Transaction Tax:** Paid **${taxAmount.toLocaleString()}** Baubles (**${(taxPercent * 100).toFixed(0)}%**) to the federal Tax Fund.` : ''}`)
                 .addFields(
-                    { name: 'Your New Balance', value: `${giverBaubleData.baubles} Baubles`, inline: true },
-                    { name: 'Their New Balance', value: `${receiverBaubleData.baubles} Baubles`, inline: true }
+                    { name: 'Your New Balance', value: `${giverBaubleData.baubles.toLocaleString()} Baubles`, inline: true },
+                    { name: 'Their New Balance', value: `${receiverBaubleData.baubles.toLocaleString()} Baubles`, inline: true }
                 )
                 .setTimestamp()
                 .setFooter({ text: `Transaction by ${interaction.user.tag}`, iconURL: interaction.member?.displayAvatarURL({ dynamic: true }) || interaction.user.displayAvatarURL({ dynamic: true }) });
@@ -101,32 +126,54 @@ module.exports = {
                 return message.reply('⚠️ Please specify a valid amount to give (must be a number greater than 0).');
             }
 
-            if (giverBaubleData.baubles < amount) {
-                return message.reply(`❌ You do not have enough Baubles! You only have ${giverBaubleData.baubles}.`);
+            // Calculate rich wealth tax if giver has >= 150,000 baubles
+            const isRich = giverBaubleData.baubles >= 150000;
+            let taxPercent = 0;
+            let taxAmount = 0;
+            if (isRich) {
+                taxPercent = giverBaubleData.baubles >= 500000 ? 0.05 : 0.02;
+                taxAmount = Math.floor(amount * taxPercent);
             }
 
-            // Check if the Reciever account exists and the send welcome message
-            let receiverBaubleData = await Bauble.findOne({ userId: receiverId});
-
-            if (!receiverBaubleData) {
-                receiverBaubleData = new Bauble({ userId: receiverId, baubles: 0 });
-                await receiverBaubleData.save();
+            if (giverBaubleData.baubles < amount + taxAmount) {
+                return message.reply(`❌ You do not have enough Baubles to cover the transfer + transaction tax! You need **${(amount + taxAmount).toLocaleString()}** Baubles (including a **${(taxPercent * 100).toFixed(0)}%** wealth transaction tax of **${taxAmount.toLocaleString()}**), but you only have **${giverBaubleData.baubles.toLocaleString()}** Glimmering Baubles.`);
             }
 
-            // Perform the transfer
-            giverBaubleData.baubles -= amount;
+            // Perform the transfer with tax
+            giverBaubleData.baubles -= (amount + taxAmount);
             receiverBaubleData.baubles += amount;
 
             await giverBaubleData.save();
             await receiverBaubleData.save();
 
+            // Add tax to the GlobalEconomy federal tax fund
+            if (taxAmount > 0) {
+                try {
+                    const GlobalEconomy = require('../../models/GlobalEconomy');
+                    let globalEco = await GlobalEconomy.findOne();
+                    if (!globalEco) {
+                        globalEco = await GlobalEconomy.create({
+                            currentMultiplier: 1.0,
+                            marketStatus: "⚖️ Stable Market",
+                            totalBaublesInCirculation: 0,
+                            activeUsersCount: 0,
+                            taxFund: 0
+                        });
+                    }
+                    globalEco.taxFund = (globalEco.taxFund || 0) + taxAmount;
+                    await globalEco.save();
+                } catch (e) {
+                    console.error('[Give Command (Prefix)] Failed to deposit transaction tax into tax fund:', e);
+                }
+            }
+
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('🎁 Bauble Transfer')
-                .setDescription(`Successfully gave **${amount}** Glimmering Baubles to <@${receiverId}>!`)
+                .setDescription(`Successfully gave **${amount.toLocaleString()}** Glimmering Baubles to <@${receiverId}>!${taxAmount > 0 ? `\n\n📉 **Wealth Transaction Tax:** Paid **${taxAmount.toLocaleString()}** Baubles (**${(taxPercent * 100).toFixed(0)}%**) to the federal Tax Fund.` : ''}`)
                 .addFields(
-                    { name: 'Your New Balance', value: `${giverBaubleData.baubles} Baubles`, inline: true },
-                    { name: 'Their New Balance', value: `${receiverBaubleData.baubles} Baubles`, inline: true }
+                    { name: 'Your New Balance', value: `${giverBaubleData.baubles.toLocaleString()} Baubles`, inline: true },
+                    { name: 'Their New Balance', value: `${receiverBaubleData.baubles.toLocaleString()} Baubles`, inline: true }
                 )
                 .setTimestamp()
                 .setFooter({ text: `Transaction by ${message.author.tag}`, iconURL: message.member?.displayAvatarURL({ dynamic: true }) || message.author.displayAvatarURL({ dynamic: true }) });

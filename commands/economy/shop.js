@@ -160,11 +160,24 @@ async function executePurchase(userId, itemId, quantity, baubleData, globalMulti
 
     const dynamicPrice = Math.floor(item.basePrice / globalMultiplier);
     const totalPrice = dynamicPrice * quantity;
-    if (baubleData.baubles < totalPrice) {
+
+    // Calculate rich wealth tax if buyer has >= 150,000 baubles
+    const isRich = baubleData.baubles >= 150000;
+    let taxPercent = 0;
+    let taxAmount = 0;
+    if (isRich) {
+        taxPercent = baubleData.baubles >= 500000 ? 0.05 : 0.02;
+        taxAmount = Math.floor(totalPrice * taxPercent);
+    }
+
+    if (baubleData.baubles < totalPrice + taxAmount) {
+        if (taxAmount > 0) {
+            return { error: `❌ You need **${(totalPrice + taxAmount).toLocaleString()}** Baubles to complete this purchase (Price: **${totalPrice.toLocaleString()}**, including **${(taxPercent * 100).toFixed(0)}%** wealth transaction tax of **${taxAmount.toLocaleString()}**), but you only have **${baubleData.baubles.toLocaleString()}** Glimmering Baubles.` };
+        }
         return { error: `❌ You need **${totalPrice.toLocaleString()}** Baubles to buy **${quantity}x ${item.name}**, but you only have **${baubleData.baubles.toLocaleString()}**.` };
     }
 
-    baubleData.baubles -= totalPrice;
+    baubleData.baubles -= (totalPrice + taxAmount);
 
     if (!baubleData.inventory) baubleData.inventory = [];
     const invItem = baubleData.inventory.find(i => i.itemId === itemId);
@@ -174,7 +187,22 @@ async function executePurchase(userId, itemId, quantity, baubleData, globalMulti
         baubleData.inventory.push({ itemId, quantity });
     }
     await baubleData.save();
-    return { success: true, totalPrice, itemName: item.name };
+
+    // Add tax to the GlobalEconomy federal tax fund
+    if (taxAmount > 0) {
+        try {
+            const GlobalEconomy = require('../../models/GlobalEconomy');
+            let globalEco = await GlobalEconomy.findOne();
+            if (globalEco) {
+                globalEco.taxFund = (globalEco.taxFund || 0) + taxAmount;
+                await globalEco.save();
+            }
+        } catch (e) {
+            console.error('[Shop Purchase] Failed to deposit transaction tax into tax fund:', e);
+        }
+    }
+
+    return { success: true, totalPrice, taxAmount, taxPercent, itemName: item.name };
 }
 
 // Embed and component helper functions for pagination
@@ -443,10 +471,15 @@ module.exports = {
                     return interaction.reply({ content: result.error, ephemeral: true });
                 }
                 
+                let description = `You successfully purchased **${quantityOption}x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!`;
+                if (result.taxAmount > 0) {
+                    description += `\n\n📉 **Wealth Transaction Tax:** Paid **${result.taxAmount.toLocaleString()}** Baubles (**${(result.taxPercent * 100).toFixed(0)}%**) to the federal Tax Fund.`;
+                }
+
                 const successEmbed = new EmbedBuilder()
                     .setColor(0x2ECC71)
                     .setTitle('🛍️ Purchase Successful!')
-                    .setDescription(`You successfully purchased **${quantityOption}x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!`)
+                    .setDescription(description)
                     .addFields(
                         { name: '💰 Remaining Balance', value: `${baubleData.baubles.toLocaleString()} Baubles`, inline: true },
                         { name: '🎒 Action', value: 'Use `/inventory` to view your items, or `/use <item>` to activate them!', inline: true }
@@ -514,8 +547,9 @@ module.exports = {
                     }
 
                     // Success reply
+                    const taxNotice = result.taxAmount > 0 ? ` (including **${result.taxAmount.toLocaleString()}** transaction tax)` : '';
                     await i.reply({
-                        content: `🛍️ **Purchase Successful!** You bought **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles.`,
+                        content: `🛍️ **Purchase Successful!** You bought **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles${taxNotice}.`,
                         ephemeral: true
                     });
 
@@ -559,10 +593,15 @@ module.exports = {
                 const result = await executePurchase(userId, itemId, quantity, baubleData, globalMultiplier);
                 if (result.error) return message.reply(result.error);
 
+                let description = `You successfully purchased **${quantity}x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!`;
+                if (result.taxAmount > 0) {
+                    description += `\n\n📉 **Wealth Transaction Tax:** Paid **${result.taxAmount.toLocaleString()}** Baubles (**${(result.taxPercent * 100).toFixed(0)}%**) to the federal Tax Fund.`;
+                }
+
                 const successEmbed = new EmbedBuilder()
                     .setColor(0x2ECC71)
                     .setTitle('🛍️ Purchase Successful!')
-                    .setDescription(`You successfully purchased **${quantity}x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!\n\nNew Balance: **${baubleData.baubles.toLocaleString()}** Baubles.`)
+                    .setDescription(description + `\n\nNew Balance: **${baubleData.baubles.toLocaleString()}** Baubles.`)
                     .setTimestamp();
                 return message.reply({ embeds: [successEmbed] });
             }
@@ -625,8 +664,9 @@ module.exports = {
                     }
 
                     // Success reply (ephemeral is fine for components collected from prefix messages!)
+                    const taxNotice = result.taxAmount > 0 ? ` (including **${result.taxAmount.toLocaleString()}** transaction tax)` : '';
                     await i.reply({
-                        content: `🛍️ **Purchase Successful!** You bought **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles.`,
+                        content: `🛍️ **Purchase Successful!** You bought **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles${taxNotice}.`,
                         ephemeral: true
                     });
 
