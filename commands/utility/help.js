@@ -158,6 +158,7 @@ const COMMAND_MAPPING = {
 	blackjack: 'casino',
 	bj: 'casino',
 	animebattle: 'casino',
+	mblackjack: 'fun',
 
 	// Profile
 	profile: 'profile',
@@ -325,7 +326,7 @@ const commandGroups = {
 	fun: [
 		{
 			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry', 'gta6']
+			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry', 'gta6', 'mblackjack']
 		},
 		{
 			title: '💬 Attributions',
