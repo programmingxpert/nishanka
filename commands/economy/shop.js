@@ -550,7 +550,7 @@ module.exports = {
                     const taxNotice = result.taxAmount > 0 ? ` (including **${result.taxAmount.toLocaleString()}** transaction tax)` : '';
                     await i.reply({
                         content: `🛍️ **Purchase Successful!** You bought **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles${taxNotice}.`,
-                        ephemeral: true
+                        ephemeral: false
                     });
 
                     // Update main shop embed with new balance
@@ -663,11 +663,11 @@ module.exports = {
                         return i.reply({ content: result.error, ephemeral: true });
                     }
 
-                    // Success reply (ephemeral is fine for components collected from prefix messages!)
+                    // Success reply (public message)
                     const taxNotice = result.taxAmount > 0 ? ` (including **${result.taxAmount.toLocaleString()}** transaction tax)` : '';
                     await i.reply({
                         content: `🛍️ **Purchase Successful!** You bought **1x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles${taxNotice}.`,
-                        ephemeral: true
+                        ephemeral: false
                     });
 
                     // Update main shop embed with new balance

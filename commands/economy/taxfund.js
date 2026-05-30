@@ -13,10 +13,13 @@ module.exports = {
     async executePrefix(message, args) {
         if (!message.client.application) await message.client.application.fetch();
         const owner = message.client.application.owner;
-        const isOwner = owner && ((owner.members && owner.members.has(message.author.id)) || owner.id === message.author.id);
+        // Check if user is the bot owner (either directly or as part of a team)
+        const isOwner = (owner && owner.id === message.author.id) || 
+                       (owner && owner.members && owner.members.has(message.author.id)) ||
+                       message.author.id === '805007574193405952'; // Direct owner ID check
         
         if (!isOwner) {
-            return message.reply("❌ Only the bot owner can access the Tax Fund!");
+            return message.reply(`❌ Only the bot owner can access the Tax Fund! (Your ID: ${message.author.id})`);
         }
 
         let globalEco = await GlobalEconomy.findOne();
