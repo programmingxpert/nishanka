@@ -56,7 +56,7 @@ module.exports = {
 		const response = await interaction.reply({
 			embeds: [confirmEmbed],
 			components: [row],
-			fetchReply: true
+			withResponse: true
 		});
 
 		const collector = response.createMessageComponentCollector({

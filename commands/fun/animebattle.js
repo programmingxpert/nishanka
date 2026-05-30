@@ -1015,7 +1015,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     .setEmoji('🏳️')
             );
 
-            const msgOptions = { content: `${opponent}`, embeds: [challengeEmbed], components: [challengeRow], fetchReply: true };
+            const msgOptions = { content: `${opponent}`, embeds: [challengeEmbed], components: [challengeRow], withResponse: true };
             battleMsg = await context.reply(msgOptions);
 
             try {
@@ -1076,7 +1076,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
         if (isPvP) {
             await battleMsg.edit({ content: '', embeds: [p1Embed], components: [selectRow] });
         } else {
-            const msgOptions = { embeds: [p1Embed], components: [selectRow], fetchReply: true };
+            const msgOptions = { embeds: [p1Embed], components: [selectRow], withResponse: true };
             battleMsg = await context.reply(msgOptions);
         }
 

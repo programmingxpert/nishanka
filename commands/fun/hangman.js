@@ -550,7 +550,7 @@ async function createLobby(interactionOrMessage, channel) {
 
     let lobbyMsg;
     if (isSlash) {
-        lobbyMsg = await interactionOrMessage.reply({ embeds: [buildLobbyEmbed()], components: [row], fetchReply: true });
+        lobbyMsg = await interactionOrMessage.reply({ embeds: [buildLobbyEmbed()], components: [row], withResponse: true });
     } else {
         lobbyMsg = await channel.send({ embeds: [buildLobbyEmbed()], components: [row] });
     }

@@ -243,7 +243,7 @@ module.exports = {
         const response = await interaction.reply({
             content: `🖥️ **HACK TERMINAL v2.0**\nSelect a vector to initiate the hack on **${targetUser.username}**:`,
             components: [buttons],
-            fetchReply: true
+            withResponse: true
         });
 
         const filter = i => i.user.id === interaction.user.id;

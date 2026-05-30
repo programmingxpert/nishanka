@@ -667,7 +667,7 @@ async function selectBet(context, channel, user) {
 
     let betMsg;
     if (context.reply && typeof context.deferReply === 'function') {
-        betMsg = await context.reply({ embeds: [betEmbed], components: [row], fetchReply: true });
+        betMsg = await context.reply({ embeds: [betEmbed], components: [row], withResponse: true });
     } else {
         betMsg = await context.reply({ embeds: [betEmbed], components: [row] });
     }

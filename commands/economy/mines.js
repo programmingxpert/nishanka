@@ -338,7 +338,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                 await setupMsg.edit({ embeds: [initialEmbed], components: rows });
             } else {
                 if (isSlash) {
-                    initialMsg = await interaction.reply({ embeds: [initialEmbed], components: rows, fetchReply: true });
+                    initialMsg = await interaction.reply({ embeds: [initialEmbed], components: rows, withResponse: true });
                 } else {
                     initialMsg = await message.reply({ embeds: [initialEmbed], components: rows });
                 }
@@ -632,7 +632,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
 
         let setupMsg;
         if (isSlash) {
-            setupMsg = await interaction.reply({ embeds: [setupEmbed], components: [selectRow, btnRow], fetchReply: true });
+            setupMsg = await interaction.reply({ embeds: [setupEmbed], components: [selectRow, btnRow], withResponse: true });
         } else {
             setupMsg = await message.reply({ embeds: [setupEmbed], components: [selectRow, btnRow] });
         }

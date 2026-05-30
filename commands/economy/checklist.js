@@ -170,7 +170,7 @@ module.exports = {
             const embed = buildChecklistEmbed(status, baubleData);
             const components = buildChecklistComponents(status);
 
-            const initialMsg = await interaction.reply({ embeds: [embed], components, fetchReply: true });
+            const initialMsg = await interaction.reply({ embeds: [embed], components, withResponse: true });
 
             if (status.allCompleted && !status.claimed) {
                 const filter = i => {

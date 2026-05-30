@@ -129,7 +129,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
                 content: `${user2}`,
                 embeds: [challengeEmbed],
                 components: [challengeRow],
-                fetchReply: true
+                withResponse: true
             });
         } else {
             battleMsg = await context.reply({
@@ -184,7 +184,7 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
         if (isSlash) {
             battleMsg = await context.reply({
                 embeds: [startEmbed],
-                fetchReply: true
+                withResponse: true
             });
         } else {
             battleMsg = await context.reply({

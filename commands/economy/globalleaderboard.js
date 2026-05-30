@@ -66,7 +66,7 @@ module.exports = {
             ];
 
             const embed = await getLeaderboardEmbed(page);
-            const msg = await interaction.reply({ embeds: [embed], components: components(page), fetchReply: true });
+            const msg = await interaction.reply({ embeds: [embed], components: components(page), withResponse: true });
 
             const collector = msg.createMessageComponentCollector({ time: 60000 });
 

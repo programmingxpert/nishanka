@@ -60,7 +60,7 @@ module.exports = {
 			new ButtonBuilder().setCustomId('next').setLabel('➡️').setStyle(ButtonStyle.Secondary)
 		);
 
-		const msg = await interaction.reply({ embeds: [generateEmbed(currentPage)], components: totalPages > 1 ? [row] : [], ephemeral: false, fetchReply: true });
+		const msg = await interaction.reply({ embeds: [generateEmbed(currentPage)], components: totalPages > 1 ? [row] : [], ephemeral: false, withResponse: true });
 
 		if (totalPages <= 1) return;
 

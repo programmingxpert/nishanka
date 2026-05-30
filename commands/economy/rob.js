@@ -262,7 +262,7 @@ async function runRob({ interaction, message, robberUser, targetUser, strategyOv
 
         let setupMsg;
         if (isSlash) {
-            setupMsg = await interaction.reply({ embeds: [setupEmbed], components: [btnRow], fetchReply: true });
+            setupMsg = await interaction.reply({ embeds: [setupEmbed], components: [btnRow], withResponse: true });
         } else {
             setupMsg = await message.reply({ embeds: [setupEmbed], components: [btnRow] });
         }
@@ -431,9 +431,9 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         } else {
             if (isSlash) {
                 if (!interaction.replied && !interaction.deferred) {
-                    initialMsg = await interaction.reply({ embeds: [embed], components: row ? [row] : [], fetchReply: true });
+                    initialMsg = await interaction.reply({ embeds: [embed], components: row ? [row] : [], withResponse: true });
                 } else {
-                    initialMsg = await interaction.followUp({ embeds: [embed], components: row ? [row] : [], fetchReply: true });
+                    initialMsg = await interaction.followUp({ embeds: [embed], components: row ? [row] : [], withResponse: true });
                 }
             } else {
                 initialMsg = await message.reply({ embeds: [embed], components: row ? [row] : [] });

@@ -168,7 +168,7 @@ module.exports = {
                     .setFooter({ text: 'Current Players: 1' });
 
                 const lobbyMsg = isSlash ? 
-                    await context.reply({ embeds: [lobbyEmbed], components: [row], fetchReply: true }) : 
+                    await context.reply({ embeds: [lobbyEmbed], components: [row], withResponse: true }) : 
                     await channel.send({ embeds: [lobbyEmbed], components: [row] });
 
                 const collector = lobbyMsg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 300000 }); // 5 minutes max wait

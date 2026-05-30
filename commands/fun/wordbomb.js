@@ -288,7 +288,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
         lobbyMsg = await initialMessageOrInteraction.reply({
             embeds: [getLobbyEmbed()],
             components: [row],
-            fetchReply: true
+            withResponse: true
         });
     } else {
         lobbyMsg = await channel.send({

@@ -50,7 +50,7 @@ module.exports = {
                 .setColor(0xFFA500)
                 .setDescription(searchingMessages[0]);
 
-            const reply = await interaction.reply({ embeds: [initialEmbed], fetchReply: true });
+            const reply = await interaction.reply({ embeds: [initialEmbed], withResponse: true });
 
             // Simulate searching with message edits
             for (let i = 1; i < searchingMessages.length; i++) {

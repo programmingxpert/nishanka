@@ -142,14 +142,14 @@ async function runMiningGame(initialData, channel, user, baubleData) {
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                fetchReply: true
+                withResponse: true
             });
         } else {
             mainMessage = await initialData.reply({
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                fetchReply: true
+                withResponse: true
             });
         }
     } else {
@@ -321,14 +321,14 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                fetchReply: true
+                withResponse: true
             });
         } else {
             mainMessage = await initialData.reply({
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                fetchReply: true
+                withResponse: true
             });
         }
     } else {
@@ -560,14 +560,14 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                fetchReply: true
+                withResponse: true
             });
         } else {
             mainMessage = await initialData.reply({
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                fetchReply: true
+                withResponse: true
             });
         }
     } else {
@@ -746,9 +746,9 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
     let mainMessage;
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], withResponse: true });
         } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], fetchReply: true });
+            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], withResponse: true });
         }
     } else {
         mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [btnRow] });

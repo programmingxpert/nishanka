@@ -510,7 +510,7 @@ module.exports = {
             const response = await interaction.reply({
                 embeds: initialData.embeds,
                 components: initialData.components,
-                fetchReply: true
+                withResponse: true
             });
 
             const collector = response.createMessageComponentCollector({

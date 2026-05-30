@@ -165,9 +165,9 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
         let initialMsg;
         if (isSlash) {
             if (interaction.deferred || interaction.replied) {
-                initialMsg = await interaction.followUp({ embeds: [initialEmbed], components: [row], fetchReply: true });
+                initialMsg = await interaction.followUp({ embeds: [initialEmbed], components: [row], withResponse: true });
             } else {
-                initialMsg = await interaction.reply({ embeds: [initialEmbed], components: [row], fetchReply: true });
+                initialMsg = await interaction.reply({ embeds: [initialEmbed], components: [row], withResponse: true });
             }
         } else {
             initialMsg = await message.reply({ embeds: [initialEmbed], components: [row] });
@@ -276,9 +276,9 @@ async function executeCoinflipFlip({ userId, amount, side, interaction, message,
 
     if (isSlash) {
         if (interaction.deferred || interaction.replied) {
-            replyMsg = await interaction.followUp({ embeds: [initialEmbed], fetchReply: true });
+            replyMsg = await interaction.followUp({ embeds: [initialEmbed], withResponse: true });
         } else {
-            replyMsg = await interaction.reply({ embeds: [initialEmbed], fetchReply: true });
+            replyMsg = await interaction.reply({ embeds: [initialEmbed], withResponse: true });
         }
     } else {
         replyMsg = await message.reply({ embeds: [initialEmbed] });
