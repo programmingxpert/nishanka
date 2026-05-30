@@ -55,6 +55,148 @@ async function fetchGiphyGifs(query) {
     }
 }
 
+// Hand-picked curated GIFs for ultimate accuracy and randomization
+const CURATED_GIFS = {
+    'goku-kamehameha': [
+        'https://media.giphy.com/media/EbRIxoUny8GJKkRZ8S/giphy.gif',
+        'https://media.giphy.com/media/jIgyPWFtAiwr3YLhgS/giphy.gif',
+        'https://media.giphy.com/media/dmFXUZ5up1T896HP8B/giphy.gif'
+    ],
+    'goku-super-saiyan-power-up': [
+        'https://media.giphy.com/media/MO2owFzRR1UVt6v5qT/giphy.gif',
+        'https://media.giphy.com/media/wFwE4eFeJPjPA0qk48/giphy.gif',
+        'https://media.giphy.com/media/H3FWsVbJipyXDxb01k/giphy.gif'
+    ],
+    'goku-instant-transmission': [
+        'https://media.giphy.com/media/UG3ZEtxdjevg1JZqNw/giphy.gif',
+        'https://media.giphy.com/media/B6SyssSlTgPXq/giphy.gif',
+        'https://media.giphy.com/media/BWZslVd1zXsHK/giphy.gif'
+    ],
+    'goku-spirit-bomb': [
+        'https://media.giphy.com/media/4Cpgf1zzMMy4w/giphy.gif',
+        'https://media.giphy.com/media/4GL9tIgSeKBxiJmQPN/giphy.gif',
+        'https://media.giphy.com/media/pudlTW65M2qDGzYdvd/giphy.gif'
+    ],
+    'gojo-reversal-red': [
+        'https://media.giphy.com/media/CkzASXWphfkQ5CF6ny/giphy.gif',
+        'https://media.giphy.com/media/u4G75tJV0RtqJWjrpg/giphy.gif',
+        'https://media.giphy.com/media/HARTNiFs9XM7DqfUtc/giphy.gif'
+    ],
+    'gojo-infinity': [
+        'https://media.giphy.com/media/HARTNiFs9XM7DqfUtc/giphy.gif',
+        'https://media.giphy.com/media/9Xx1OMQIiA9feabm70/giphy.gif',
+        'https://media.giphy.com/media/ykskFiNdEJI3xUOUso/giphy.gif'
+    ],
+    'gojo-lapse-blue': [
+        'https://media.giphy.com/media/CkzASXWphfkQ5CF6ny/giphy.gif',
+        'https://media.giphy.com/media/u4G75tJV0RtqJWjrpg/giphy.gif',
+        'https://media.giphy.com/media/HARTNiFs9XM7DqfUtc/giphy.gif'
+    ],
+    'gojo-satoru-unlimited-void': [
+        'https://media.giphy.com/media/jOSVfsfl6cMhrWyoWG/giphy.gif',
+        'https://media.giphy.com/media/iTDA3afE82s87NWVee/giphy.gif',
+        'https://media.giphy.com/media/mhfqfSii6aBk3AUWY3/giphy.gif'
+    ],
+    'saitama-normal-punch': [
+        'https://media.giphy.com/media/9D3hrntdTv1BAweMbW/giphy.gif',
+        'https://media.giphy.com/media/U9G6mhCvaw4qVRBCUv/giphy.gif',
+        'https://media.giphy.com/media/hWdCiKGt2eWGEDAmHo/giphy.gif'
+    ],
+    'saitama-serious-side-steps': [
+        'https://media.giphy.com/media/8L1Ks4Tbwp1uGpWcpu/giphy.gif',
+        'https://media.giphy.com/media/6VAaFtY6x1dXRZOp3A/giphy.gif',
+        'https://media.giphy.com/media/5QS0lUL4z61x32rEkc/giphy.gif'
+    ],
+    'saitama-consecutive-normal-punches': [
+        'https://media.giphy.com/media/25GIZ43xeTpQkSf3Il/giphy.gif',
+        'https://media.giphy.com/media/6VAaFtY6x1dXRZOp3A/giphy.gif',
+        'https://media.giphy.com/media/wMR4dFOtB91sq2Ll8T/giphy.gif'
+    ],
+    'saitama-serious-punch': [
+        'https://media.giphy.com/media/E3xWsHoZueBUl2Btyd/giphy.gif',
+        'https://media.giphy.com/media/U9G6mhCvaw4qVRBCUv/giphy.gif',
+        'https://media.giphy.com/media/6VAaFtY6x1dXRZOp3A/giphy.gif'
+    ],
+    'naruto-rasengan': [
+        'https://media.giphy.com/media/OU6tgBi0YJ4HK/giphy.gif',
+        'https://media.giphy.com/media/YD8BdrZl0aXpS/giphy.gif',
+        'https://media.giphy.com/media/A8UFISckEbokw/giphy.gif'
+    ],
+    'naruto-shadow-clone-jutsu': [
+        'https://media.giphy.com/media/4zur2JOAWcatZyK2ub/giphy.gif',
+        'https://media.giphy.com/media/xyuBl6Mxs2jbiWJicT/giphy.gif',
+        'https://media.giphy.com/media/ZTyc58rdwZ6C7RTFtX/giphy.gif'
+    ],
+    'naruto-kurama-link-mode': [
+        'https://media.giphy.com/media/JCHM2csigByOLgpwYf/giphy.gif',
+        'https://media.giphy.com/media/qMnhxcHyeBJDFlxnZa/giphy.gif',
+        'https://media.giphy.com/media/QeqTT6YyA9duYWqZKD/giphy.gif'
+    ],
+    'naruto-rasenshuriken': [
+        'https://media.giphy.com/media/tWev5cS9QHeKnWRUcU/giphy.gif',
+        'https://media.giphy.com/media/7JqCZCuwEYdry/giphy.gif',
+        'https://media.giphy.com/media/K4rDu65eHSsNO/giphy.gif'
+    ],
+    'luffy-gum-gum-pistol': [
+        'https://media.giphy.com/media/7caW5waFywBAQ/giphy.gif',
+        'https://media.giphy.com/media/noOo1kWba5NNKe8rVH/giphy.gif',
+        'https://media.giphy.com/media/EIUE5ay7Lt8cN4juFp/giphy.gif'
+    ],
+    'luffy-gear-second': [
+        'https://media.giphy.com/media/DwZ392mpIdkvrvTnjm/giphy.gif',
+        'https://media.giphy.com/media/S98RiiVlRUC03R5cX3/giphy.gif',
+        'https://media.giphy.com/media/YDMZ4OfrWuExzZE1up/giphy.gif'
+    ],
+    'luffy-armament-haki': [
+        'https://media.giphy.com/media/hgsPEyU4B3wZ8nffCi/giphy.gif',
+        'https://media.giphy.com/media/dmqnEU3LCyOkM/giphy.gif',
+        'https://media.giphy.com/media/drbq2TQK8UkG4OLLAj/giphy.gif'
+    ],
+    'luffy-gear-5-bajrang-gun': [
+        'https://media.giphy.com/media/j0DWZloeosVkAOKuFI/giphy.gif',
+        'https://media.giphy.com/media/TUOSneOOtImPurKwph/giphy.gif',
+        'https://media.giphy.com/media/lTWrURRi8Di59m4x8f/giphy.gif'
+    ],
+    'goku-dodge': [
+        'https://media.giphy.com/media/JGCjVD4LzIY981qoZW/giphy.gif',
+        'https://media.giphy.com/media/kvn0FeqyOXgohYNBNa/giphy.gif',
+        'https://media.giphy.com/media/9wSeWPdg5T3Uv9d624/giphy.gif'
+    ],
+    'gojo-dodge': [
+        'https://media.giphy.com/media/HARTNiFs9XM7DqfUtc/giphy.gif',
+        'https://media.giphy.com/media/9Xx1OMQIiA9feabm70/giphy.gif',
+        'https://media.giphy.com/media/ykskFiNdEJI3xUOUso/giphy.gif'
+    ],
+    'saitama-dodge': [
+        'https://media.giphy.com/media/JGCjVD4LzIY981qoZW/giphy.gif',
+        'https://media.giphy.com/media/qdxmKHDrVIFWZyqmNW/giphy.gif',
+        'https://media.giphy.com/media/AufdOhpzZRuHLutc2Y/giphy.gif'
+    ],
+    'naruto-dodge': [
+        'https://media.giphy.com/media/Nzz86dByLtYTS/giphy.gif',
+        'https://media.giphy.com/media/7DtA5riKTwHljx4Fdr/giphy.gif',
+        'https://media.giphy.com/media/JoLIe41YKd3Xj4sX8s/giphy.gif'
+    ],
+    'luffy-dodge': [
+        'https://media.giphy.com/media/1K8NlomCFNuKcGlHxT/giphy.gif',
+        'https://media.giphy.com/media/0sxbHUgX22Tv6Shubn/giphy.gif',
+        'https://media.giphy.com/media/drbq2TQK8UkG4OLLAj/giphy.gif'
+    ],
+    'rimuru-dodge': [
+        'https://media.giphy.com/media/Op8FGber9HSfdIYWR6/giphy.gif',
+        'https://media.giphy.com/media/riAnEhoDPDs9gwZ6bm/giphy.gif',
+        'https://media.giphy.com/media/FeAxKYM3TUjaCr3y0T/giphy.gif'
+    ]
+};
+
+async function getGifsForMove(query) {
+    const normalizedKey = query.toLowerCase().trim().replace(/\s+/g, '-');
+    if (CURATED_GIFS[normalizedKey] && CURATED_GIFS[normalizedKey].length > 0) {
+        return CURATED_GIFS[normalizedKey];
+    }
+    return await fetchGiphyGifs(query);
+}
+
 // Shared combat math helper to handle damage, critical hits, and buff multipliers
 function executeAttack(p, o, minDmg, maxDmg, ignoreShield = false) {
     let baseDmg = randRange(minDmg, maxDmg);
@@ -1306,7 +1448,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     battleLog.push(lastActionLog);
                     if (battleLog.length > 4) battleLog.shift();
                     
-                    const gifs = await fetchGiphyGifs(`${idlePlayer.name.toLowerCase()} dodge`);
+                    const gifs = await getGifsForMove(`${idlePlayer.name.toLowerCase()} dodge`);
                     lastActionGif = gifs.length > 0 ? gifs[0] : idlePlayer.avatar;
                     lastActionAnime = idlePlayer.series;
                 } else {
@@ -1315,7 +1457,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     if (battleLog.length > 4) battleLog.shift();
                     
                     // Fetch dynamic GIF from Giphy matching the exact move query
-                    const gifs = await fetchGiphyGifs(ability.query);
+                    const gifs = await getGifsForMove(ability.query);
                     lastActionGif = gifs.length > 0 
                         ? gifs[Math.floor(Math.random() * Math.min(8, gifs.length))] 
                         : turnPlayer.avatar;
@@ -1398,7 +1540,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     battleLog.push(lastActionLog);
                     if (battleLog.length > 4) battleLog.shift();
 
-                    const gifs = await fetchGiphyGifs(`${idlePlayer.name.toLowerCase()} dodge`);
+                    const gifs = await getGifsForMove(`${idlePlayer.name.toLowerCase()} dodge`);
                     lastActionGif = gifs.length > 0 ? gifs[0] : idlePlayer.avatar;
                     lastActionAnime = idlePlayer.series;
                 } else {
@@ -1413,7 +1555,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     battleLog.push(lastActionLog);
                     if (battleLog.length > 4) battleLog.shift();
 
-                    const gifs = await fetchGiphyGifs(bossAbility.query);
+                    const gifs = await getGifsForMove(bossAbility.query);
                     lastActionGif = gifs.length > 0 
                         ? gifs[Math.floor(Math.random() * Math.min(8, gifs.length))] 
                         : turnPlayer.avatar;
@@ -1449,8 +1591,16 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
         // 7. Final Battle Results Processing
         // Reload player database data
         baubleData = await Bauble.findOne({ userId });
+        if (baubleData) {
+            baubleData.dailyGameLastCompleted = new Date();
+            baubleData.dailyGambleLastCompleted = new Date();
+        }
         if (isPvP) {
             opponentData = await Bauble.findOne({ userId: opponent.id });
+            if (opponentData) {
+                opponentData.dailyGameLastCompleted = new Date();
+                opponentData.dailyGambleLastCompleted = new Date();
+            }
         }
 
         let finalEmbed = new EmbedBuilder().setTimestamp();
@@ -1476,8 +1626,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     baubleData.animebattleMaxStreak = baubleData.animebattleStreak;
                 }
                 if (bet > 0) {
-                    const globalMultiplier = await getGlobalMultiplier();
-                    const winnings = Math.floor(bet * 2 * globalMultiplier);
+                    const winnings = isPvP ? (bet * 2) : Math.floor(bet * 2 * (await getGlobalMultiplier()));
                     baubleData.baubles += winnings;
                     payoutInfo = `\n\n👑 **Winner:** **${winnerState.name}**\n💰 **Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${baubleData.baubles.toLocaleString()} Baubles\``;
                 }
@@ -1488,8 +1637,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     opponentData.animebattleMaxStreak = opponentData.animebattleStreak;
                 }
                 if (bet > 0) {
-                    const globalMultiplier = await getGlobalMultiplier();
-                    const winnings = Math.floor(bet * 2 * globalMultiplier);
+                    const winnings = isPvP ? (bet * 2) : Math.floor(bet * 2 * (await getGlobalMultiplier()));
                     opponentData.baubles += winnings;
                     payoutInfo = `\n\n👑 **Winner:** **${winnerState.name}**\n💰 **Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${opponentData.baubles.toLocaleString()} Baubles\``;
                 }
@@ -1521,8 +1669,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     baubleData.animebattleMaxStreak = baubleData.animebattleStreak;
                 }
                 if (bet > 0) {
-                    const globalMultiplier = await getGlobalMultiplier();
-                    const winnings = Math.floor(bet * 2 * globalMultiplier);
+                    const winnings = isPvP ? (bet * 2) : Math.floor(bet * 2 * (await getGlobalMultiplier()));
                     baubleData.baubles += winnings;
                     payoutInfo = `\n\n💰 **Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${baubleData.baubles.toLocaleString()} Baubles\`\n🔥 **Your Win Streak:** \`${baubleData.animebattleStreak}\` (Best: \`${baubleData.animebattleMaxStreak}\`)`;
                 } else {
@@ -1535,8 +1682,7 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
                     opponentData.animebattleMaxStreak = opponentData.animebattleStreak;
                 }
                 if (bet > 0) {
-                    const globalMultiplier = await getGlobalMultiplier();
-                    const winnings = Math.floor(bet * 2 * globalMultiplier);
+                    const winnings = isPvP ? (bet * 2) : Math.floor(bet * 2 * (await getGlobalMultiplier()));
                     opponentData.baubles += winnings;
                     payoutInfo = `\n\n💰 **Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${opponentData.baubles.toLocaleString()} Baubles\`\n🔥 **${opponent.username}'s Win Streak:** \`${opponentData.animebattleStreak}\` (Best: \`${opponentData.animebattleMaxStreak}\`)`;
                 } else {
