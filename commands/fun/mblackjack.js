@@ -278,8 +278,9 @@ async function runDealerTurn(session) {
 // ─── Results ──────────────────────────────────────────────────────────────────
 async function showResults(session) {
     session.phase = 'ended';
-    const dTotal  = calculateHand(session.dealerHand);
-    const channel = session.gameMsg.channel;
+    const dTotal        = calculateHand(session.dealerHand);
+    const dealerNatural = session.dealerHand.length === 2 && dTotal === 21;
+    const channel       = session.gameMsg.channel;
 
     const lines = [];
 
@@ -289,22 +290,24 @@ async function showResults(session) {
         const pTotal = calculateHand(p.hand);
         let result = '', payout = 0;
 
-        if (p.naturalBJ && dTotal !== 21) {
-            // Natural BJ vs non-BJ dealer → 3:2
+        if (p.naturalBJ && !dealerNatural) {
+            // Natural BJ vs non-natural dealer 21 or lower → 3:2
             payout = Math.floor(p.bet * 2.5);
             result = `🌟 **Natural Blackjack!** — Won **${(payout - p.bet).toLocaleString()} Baubles** (3:2 payout)`;
-        } else if (p.naturalBJ && dTotal === 21) {
-            // Both BJ → push
+        } else if (p.naturalBJ && dealerNatural) {
+            // Both player and dealer have Blackjack → push
             payout = p.bet;
             result = `🤝 Both Blackjack — Push, bet returned`;
         } else if (p.busted) {
             result = `💥 Busted **(${pTotal})** — lost **${p.bet.toLocaleString()} Baubles**`;
+        } else if (dealerNatural) {
+            result = `❌ Dealer has Blackjack — lost **${p.bet.toLocaleString()} Baubles**`;
         } else if (dTotal > 21) {
             payout = p.bet * 2;
-            result = `🎉 Dealer busted! — Won **${p.bet.toLocaleString()} Baubles**`;
+            result = `🎉 Dealer busted! — Won **${(payout - p.bet).toLocaleString()} Baubles**`;
         } else if (pTotal > dTotal) {
             payout = p.bet * 2;
-            result = `🏆 Won! **(${pTotal} vs ${dTotal})** — Won **${p.bet.toLocaleString()} Baubles**`;
+            result = `🏆 Won! **(${pTotal} vs ${dTotal})** — Won **${(payout - p.bet).toLocaleString()} Baubles**`;
         } else if (pTotal === dTotal) {
             payout = p.bet;
             result = `🤝 Push **(${pTotal})** — bet returned`;
@@ -316,8 +319,10 @@ async function showResults(session) {
             await Bauble.findOneAndUpdate(
                 { userId: p.userId },
                 { $inc: { baubles: payout } },
-                { upsert: true }
-            ).catch(() => {});
+                { upsert: true, setDefaultsOnInsert: true }
+            ).catch((err) => {
+                console.error('[MBlackjack] Failed to credit payout for', p.userId, 'payout', payout, err);
+            });
         }
 
         lines.push(`**${p.username}:** ${result}`);
