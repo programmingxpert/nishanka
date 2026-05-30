@@ -24,7 +24,7 @@ function buildProgressBar(current, max, colorEmoji, emptyEmoji = '⬛', length =
     return `${colorEmoji.repeat(filledCount)}${emptyEmoji.repeat(emptyCount)} **${current}/${max}${suffix}** (${percentage}%)`;
 }
 
-// Dynamic Giphy search scraper to parse direct GIF links
+// Dynamic Giphy search scraper to parse direct Fastly CDN hotlink URLs (i.giphy.com)
 async function fetchGiphyGifs(query) {
     const formattedQuery = encodeURIComponent(query.replace(/\s+/g, '-'));
     const url = `https://giphy.com/search/${formattedQuery}`;
@@ -39,11 +39,16 @@ async function fetchGiphyGifs(query) {
         if (!res.ok) return [];
         const html = await res.text();
         
-        // Matches Giphy direct CDN media URLs
-        const regex = /https:\/\/media\d+\.giphy\.com\/media\/[a-zA-Z0-9_.\-\/]+\/giphy\.gif/g;
-        const matches = html.match(regex) || [];
+        // Match Giphy direct CDN media URLs and capture the unique ID group
+        const regex = /https:\/\/media\d+\.giphy\.com\/media\/[a-zA-Z0-9_.\-\/]+\/([a-zA-Z0-9]+)\/giphy\.gif/g;
+        const gifs = [];
+        let match;
+        while ((match = regex.exec(html)) !== null) {
+            const id = match[1];
+            gifs.push(`https://i.giphy.com/media/${id}/giphy.gif`);
+        }
         
-        return [...new Set(matches)];
+        return [...new Set(gifs)];
     } catch (e) {
         console.error("Giphy scraper error:", e);
         return [];
@@ -85,7 +90,7 @@ const PLAYABLE_CHARACTERS = [
         emoji: '🔥',
         series: 'Dragon Ball',
         maxHp: 125,
-        avatar: 'https://i.imgur.com/Kz8Jp58.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/14/401183.jpg',
         abilities: [
             { 
                 name: 'Kamehameha', 
@@ -116,7 +121,7 @@ const PLAYABLE_CHARACTERS = [
                     p.energy = Math.min(100, p.energy + 30);
                     p.hp = Math.min(p.maxHp, p.hp + 15);
                     return `🗣️ Goku: *"And this... is to go even further beyond!"*\n` +
-                           `⚡ **Goku** powered up into **Super Saiyan**! Heals **15 HP**, gains **+30 Energy**, and boosts his next attack's damage by **40%**!`;
+                           `⚡ **Goku** powered up into **Super Saiyan**! Heals **15 HP**, gains **+30 Energy**, and boosts next attack's damage by **40%**!`;
                 }
             },
             { 
@@ -157,7 +162,7 @@ const PLAYABLE_CHARACTERS = [
         emoji: '👁️',
         series: 'Jujutsu Kaisen',
         maxHp: 100,
-        avatar: 'https://i.imgur.com/6a6Q46L.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/15/422168.jpg',
         abilities: [
             { 
                 name: 'Reversal Red', 
@@ -225,7 +230,7 @@ const PLAYABLE_CHARACTERS = [
         emoji: '🥚',
         series: 'One Punch Man',
         maxHp: 95,
-        avatar: 'https://i.imgur.com/8Q8W17Y.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/11/294388.jpg',
         abilities: [
             { 
                 name: 'Normal Punch', 
@@ -299,7 +304,7 @@ const PLAYABLE_CHARACTERS = [
         emoji: '🍥',
         series: 'Naruto',
         maxHp: 110,
-        avatar: 'https://i.imgur.com/gK9C1lS.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/2/284121.jpg',
         abilities: [
             { 
                 name: 'Rasengan', 
@@ -364,7 +369,7 @@ const PLAYABLE_CHARACTERS = [
         emoji: '👒',
         series: 'One Piece',
         maxHp: 115,
-        avatar: 'https://i.imgur.com/E16J5xK.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/9/310307.jpg',
         abilities: [
             { 
                 name: 'Gum-Gum Pistol', 
@@ -433,7 +438,7 @@ const PLAYABLE_CHARACTERS = [
         emoji: '💧',
         series: 'Slime',
         maxHp: 105,
-        avatar: 'https://i.imgur.com/KqW426A.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/4/495795.jpg',
         abilities: [
             { 
                 name: 'Water Blade', 
@@ -503,13 +508,13 @@ const PLAYABLE_CHARACTERS = [
     }
 ];
 
-// ─── Boss Opponents ──────────────────────────────────────────────────────────
+// ─── Boss Opponents (PvE) ───────────────────────────────────────────────────
 const BOSSES = [
     {
         name: 'Sukuna',
         emoji: '💀',
         maxHp: 120,
-        avatar: 'https://i.imgur.com/eB0rNpe.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/6/431152.jpg',
         abilities: [
             { 
                 name: 'Dismantle', 
@@ -565,7 +570,7 @@ const BOSSES = [
         name: 'Madara Uchiha',
         emoji: '☄️',
         maxHp: 130,
-        avatar: 'https://i.imgur.com/X4yD3mB.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/12/450359.jpg',
         abilities: [
             { 
                 name: 'Susanoo Strike', 
@@ -622,7 +627,7 @@ const BOSSES = [
         name: 'Kaido',
         emoji: '🐲',
         maxHp: 135,
-        avatar: 'https://i.imgur.com/w2LdO9A.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/13/631359.jpg',
         abilities: [
             { 
                 name: 'Kanabo Strike', 
@@ -679,7 +684,7 @@ const BOSSES = [
         name: 'Frieza',
         emoji: '🛸',
         maxHp: 115,
-        avatar: 'https://i.imgur.com/7KylvE6.png',
+        avatar: 'https://cdn.myanimelist.net/images/characters/16/561778.jpg',
         abilities: [
             { 
                 name: 'Death Beam', 
@@ -745,32 +750,40 @@ module.exports = {
         .setDescription('An epic interactive turn-based anime fighting minigame wagered with baubles!')
         .addIntegerOption(option =>
             option.setName('bet')
-                .setDescription('The amount of Glimmering Baubles to bet (0 for free/fun).')
+                .setDescription('The amount of Glimmering Baubles to bet (minimum 200).')
                 .setRequired(true)
-                .setMinValue(0)
+                .setMinValue(200)
+        )
+        .addUserOption(option =>
+            option.setName('opponent')
+                .setDescription('Challenge a friend to a 1v1 fight (leave blank to fight a CPU Boss).')
+                .setRequired(false)
         ),
 
     async execute(interaction) {
         const bet = interaction.options.getInteger('bet');
+        const opponent = interaction.options.getUser('opponent');
         await runAnimeBattle({
             context: interaction,
             userId: interaction.user.id,
             user: interaction.user,
             bet,
+            opponent,
             isSlash: true
         });
     },
 
     async executePrefix(message, args) {
-        let betArg = args[0] || '0';
+        // Find mentioned opponent
+        const opponent = message.mentions.users.first() || null;
+        
+        // Remove mention from args to find the bet number
+        const argsWithoutMentions = args.filter(arg => !arg.match(/^<@!?\d+>$/));
+        let betArg = argsWithoutMentions[0] || '0';
         const bet = parseInt(betArg);
 
-        if (isNaN(bet) || bet < 0) {
-            return message.reply('❌ Please enter a valid non-negative integer for your bet. (Example: `-ab 500` or `-ab 0` for fun!)');
-        }
-
-        if (bet > 0 && bet < 200) {
-            return message.reply('❌ The minimum bet to gamble is **200** Baubles. Set your bet to **0** to play for free!');
+        if (isNaN(bet) || bet < 200) {
+            return message.reply('❌ The minimum bet to play is **200** Baubles. Free play is not allowed! (Example: `-ab 500` or `-ab @friend 500`)');
         }
 
         await runAnimeBattle({
@@ -778,36 +791,128 @@ module.exports = {
             userId: message.author.id,
             user: message.author,
             bet,
+            opponent,
             isSlash: false
         });
     }
 };
 
-async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
+async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash }) {
     try {
-        // 1. Database Balance Checks
+        if (bet < 200) {
+            const minBetMsg = `❌ The minimum bet to play is **200** Baubles. Free play is not allowed!`;
+            return isSlash 
+                ? context.reply({ content: minBetMsg, ephemeral: true })
+                : context.reply(minBetMsg);
+        }
+
         let baubleData = await Bauble.findOne({ userId });
         if (!baubleData) {
             baubleData = new Bauble({ userId, baubles: 0 });
             await baubleData.save();
         }
 
-        if (bet > 0 && baubleData.baubles < bet) {
+        if (baubleData.baubles < bet) {
             const errorMsg = `❌ You only have **${baubleData.baubles}** Baubles. You cannot bet **${bet}** Baubles.`;
             return isSlash 
                 ? context.reply({ content: errorMsg, ephemeral: true })
                 : context.reply(errorMsg);
         }
 
-        // 2. Character Selection Phase
-        const selectEmbed = new EmbedBuilder()
+        // 2. Distinguish PvE and PvP
+        const isPvP = opponent !== null;
+
+        let opponentData = null;
+        if (isPvP) {
+            if (opponent.id === userId) {
+                const selfMsg = `❌ You cannot challenge yourself to a battle! 😹`;
+                return isSlash 
+                    ? context.reply({ content: selfMsg, ephemeral: true })
+                    : context.reply(selfMsg);
+            }
+            if (opponent.bot) {
+                const botMsg = `❌ You cannot challenge bots! Leave the opponent blank to battle a CPU Boss.`;
+                return isSlash 
+                    ? context.reply({ content: botMsg, ephemeral: true })
+                    : context.reply(botMsg);
+            }
+
+            opponentData = await Bauble.findOne({ userId: opponent.id });
+            if (!opponentData) {
+                opponentData = new Bauble({ userId: opponent.id, baubles: 0 });
+                await opponentData.save();
+            }
+
+            if (opponentData.baubles < bet) {
+                const oppBetMsg = `❌ **${opponent.username}** does not have enough Baubles (**${opponentData.baubles}**) to match your bet of **${bet}**!`;
+                return isSlash 
+                    ? context.reply({ content: oppBetMsg, ephemeral: true })
+                    : context.reply(oppBetMsg);
+            }
+        }
+
+        // 3. Challenge Phase (For PvP)
+        let battleMsg;
+        if (isPvP) {
+            const challengeEmbed = new EmbedBuilder()
+                .setColor(0xe74c3c)
+                .setTitle('⚔️ ANIME SHOWDOWN CHALLENGE')
+                .setDescription(`🔥 **${user.username}** has challenged **${opponent.username}** to an epic 1v1 anime fight!\n\n💰 **Wager Stakes:** \`${bet.toLocaleString()} Baubles\` from each player!`)
+                .setFooter({ text: 'Showdown expires in 45 seconds.' });
+
+            const challengeRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('ab_accept')
+                    .setLabel('Accept Showdown')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('⚔️'),
+                new ButtonBuilder()
+                    .setCustomId('ab_decline')
+                    .setLabel('Decline')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🏳️')
+            );
+
+            const msgOptions = { content: `${opponent}`, embeds: [challengeEmbed], components: [challengeRow], fetchReply: true };
+            battleMsg = await context.reply(msgOptions);
+
+            try {
+                const challengeInteraction = await battleMsg.awaitMessageComponent({
+                    filter: i => i.user.id === opponent.id && ['ab_accept', 'ab_decline'].includes(i.customId),
+                    componentType: ComponentType.Button,
+                    time: 45000
+                });
+
+                await challengeInteraction.deferUpdate();
+
+                if (challengeInteraction.customId === 'ab_decline') {
+                    const decEmbed = new EmbedBuilder()
+                        .setColor(0x747f8d)
+                        .setTitle('🏳️ Challenge Declined')
+                        .setDescription(`**${opponent.username}** has declined the battle! 🐔`);
+                    await battleMsg.edit({ content: '', embeds: [decEmbed], components: [] });
+                    return;
+                }
+            } catch (e) {
+                const expEmbed = new EmbedBuilder()
+                    .setColor(0x747f8d)
+                    .setTitle('⏰ Challenge Expired')
+                    .setDescription(`**${opponent.username}** didn't accept the challenge in time.`);
+                await battleMsg.edit({ content: '', embeds: [expEmbed], components: [] });
+                return;
+            }
+        }
+
+        // 4. Character Selection Phase
+        // Step A: Player 1 Selection
+        const p1Embed = new EmbedBuilder()
             .setColor(0x3498db)
-            .setTitle('🎮 CHOOSE YOUR ANIME FIGHTER')
+            .setTitle(`🎮 PLAYER 1 SELECTION: ${user.username}`)
             .setDescription('Select the character you want to lead into battle!')
             .addFields(
                 PLAYABLE_CHARACTERS.map(c => ({
-                    name: `${c.emoji} ${c.name} (${c.series})`,
-                    value: `**HP:** ${c.maxHp} | **Abilities:**\n` + c.abilities.map((a, i) => `${i+1}. ${a.name} *(Energy: ${a.cost})*`).join('\n'),
+                    name: `${c.emoji} ${c.name}`,
+                    value: `**HP:** ${c.maxHp} | **Abilities:**\n` + c.abilities.map((a, i) => `${i+1}. ${a.name}`).join('\n'),
                     inline: true
                 }))
             )
@@ -820,67 +925,116 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                 PLAYABLE_CHARACTERS.map((c, i) => ({
                     label: c.name,
                     value: i.toString(),
-                    description: `Play as ${c.name} from ${c.series}`,
                     emoji: c.emoji
                 }))
             );
 
         const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
-        let initialMsg;
-        const msgOptions = { embeds: [selectEmbed], components: [selectRow], fetchReply: true };
-        if (isSlash) {
-            initialMsg = await context.reply(msgOptions);
+        if (isPvP) {
+            await battleMsg.edit({ content: '', embeds: [p1Embed], components: [selectRow] });
         } else {
-            initialMsg = await context.reply(msgOptions);
+            const msgOptions = { embeds: [p1Embed], components: [selectRow], fetchReply: true };
+            battleMsg = await context.reply(msgOptions);
         }
 
-        let selectedCharIdx;
+        let p1CharIdx;
         try {
-            const menuInteraction = await initialMsg.awaitMessageComponent({
+            const menuInteraction = await battleMsg.awaitMessageComponent({
                 filter: i => i.user.id === userId && i.customId === 'ab_select_char',
                 componentType: ComponentType.StringSelect,
                 time: 30000
             });
-
             await menuInteraction.deferUpdate();
-            selectedCharIdx = parseInt(menuInteraction.values[0]);
+            p1CharIdx = parseInt(menuInteraction.values[0]);
         } catch (e) {
             const timeoutEmbed = new EmbedBuilder()
                 .setColor(0x747f8d)
                 .setTitle('⏰ SELECTION TIMED OUT')
-                .setDescription('You took too long to pick a fighter. Battle cancelled.');
-            return await initialMsg.edit({ embeds: [timeoutEmbed], components: [] });
+                .setDescription(`**${user.username}** took too long to pick a champion.`);
+            return await battleMsg.edit({ embeds: [timeoutEmbed], components: [] });
         }
 
-        // Refetch baubleData
+        // Step B: Player 2 Selection (if PvP)
+        let p2CharIdx;
+        if (isPvP) {
+            const p2Embed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle(`🎮 PLAYER 2 SELECTION: ${opponent.username}`)
+                .setDescription('Select the character you want to lead into battle!')
+                .addFields(
+                    PLAYABLE_CHARACTERS.map(c => ({
+                        name: `${c.emoji} ${c.name}`,
+                        value: `**HP:** ${c.maxHp} | **Abilities:**\n` + c.abilities.map((a, i) => `${i+1}. ${a.name}`).join('\n'),
+                        inline: true
+                    }))
+                )
+                .setFooter({ text: 'Selection expires in 30 seconds.' });
+
+            await battleMsg.edit({ embeds: [p2Embed], components: [selectRow] });
+
+            try {
+                const menuInteraction2 = await battleMsg.awaitMessageComponent({
+                    filter: i => i.user.id === opponent.id && i.customId === 'ab_select_char',
+                    componentType: ComponentType.StringSelect,
+                    time: 30000
+                });
+                await menuInteraction2.deferUpdate();
+                p2CharIdx = parseInt(menuInteraction2.values[0]);
+            } catch (e) {
+                const timeoutEmbed = new EmbedBuilder()
+                    .setColor(0x747f8d)
+                    .setTitle('⏰ SELECTION TIMED OUT')
+                    .setDescription(`**${opponent.username}** took too long to pick a champion.`);
+                
+                // Return Player 1 bet since game was cancelled
+                if (bet > 0) {
+                    baubleData = await Bauble.findOne({ userId });
+                    baubleData.baubles += bet;
+                    await baubleData.save();
+                }
+                return await battleMsg.edit({ embeds: [timeoutEmbed], components: [] });
+            }
+        }
+
+        // Refetch balances and deduct stakes
         baubleData = await Bauble.findOne({ userId });
-        if (bet > 0 && (!baubleData || baubleData.baubles < bet)) {
-            const errEmbed = new EmbedBuilder()
-                .setColor(0xff0000)
-                .setTitle('❌ TRANSACTION FAILED')
-                .setDescription(`You no longer have enough Baubles to complete this bet.`);
-            return await initialMsg.edit({ embeds: [errEmbed], components: [] });
+        if (isPvP) {
+            opponentData = await Bauble.findOne({ userId: opponent.id });
         }
 
-        // Deduct bet immediately
         if (bet > 0) {
+            if (baubleData.baubles < bet || (isPvP && opponentData.baubles < bet)) {
+                const errEmbed = new EmbedBuilder()
+                    .setColor(0xff0000)
+                    .setTitle('❌ TRANSACTION FAILED')
+                    .setDescription(`One of the players no longer has enough Baubles to match the bet.`);
+                return await battleMsg.edit({ embeds: [errEmbed], components: [] });
+            }
+
             baubleData.baubles -= bet;
             await baubleData.save();
+
+            if (isPvP) {
+                opponentData.baubles -= bet;
+                await opponentData.save();
+            }
         }
 
-        // 3. Initialize Battle State
-        const chosenChar = PLAYABLE_CHARACTERS[selectedCharIdx];
-        const chosenBoss = BOSSES[Math.floor(Math.random() * BOSSES.length)];
-
-        let player = {
-            name: chosenChar.name,
+        // 5. Initialize Battle State
+        const chosenChar = PLAYABLE_CHARACTERS[p1CharIdx];
+        
+        let p1State = {
+            id: userId,
+            name: user.username,
             maxHp: chosenChar.maxHp,
             hp: chosenChar.maxHp,
             energy: 0,
             maxEnergy: 100,
             avatar: chosenChar.avatar,
             abilities: chosenChar.abilities,
+            emoji: chosenChar.emoji,
+            series: chosenChar.series,
             // Buff states
             ssjBuff: false,
             kuramaBuff: false,
@@ -899,67 +1053,115 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
             extraTurn: false
         };
 
-        let boss = {
-            name: chosenBoss.name,
-            maxHp: chosenBoss.maxHp,
-            hp: chosenBoss.maxHp,
-            energy: 0,
-            maxEnergy: 100,
-            avatar: chosenBoss.avatar,
-            abilities: chosenBoss.abilities,
-            // Buff states
-            goldBuff: false,
-            shield: false,
-            shieldTurns: 0,
-            shieldRate: 0,
-            dodge: false,
-            dodgeCounter: 0,
-            stunned: false,
-            burned: false,
-            burnTurns: 0,
-            burnDmg: 0
-        };
+        let p2State;
+        if (isPvP) {
+            const chosenChar2 = PLAYABLE_CHARACTERS[p2CharIdx];
+            p2State = {
+                id: opponent.id,
+                name: opponent.username,
+                maxHp: chosenChar2.maxHp,
+                hp: chosenChar2.maxHp,
+                energy: 0,
+                maxEnergy: 100,
+                avatar: chosenChar2.avatar,
+                abilities: chosenChar2.abilities,
+                emoji: chosenChar2.emoji,
+                series: chosenChar2.series,
+                // Buff states
+                ssjBuff: false,
+                kuramaBuff: false,
+                kuramaBuffTurns: 0,
+                reflect: false,
+                sageBuff: false,
+                shield: false,
+                shieldTurns: 0,
+                shieldRate: 0,
+                dodge: false,
+                dodgeCounter: 0,
+                stunned: false,
+                burned: false,
+                burnTurns: 0,
+                burnDmg: 0,
+                extraTurn: false
+            };
+        } else {
+            const chosenBoss = BOSSES[Math.floor(Math.random() * BOSSES.length)];
+            p2State = {
+                id: 'bot',
+                name: chosenBoss.name,
+                maxHp: chosenBoss.maxHp,
+                hp: chosenBoss.maxHp,
+                energy: 0,
+                maxEnergy: 100,
+                avatar: chosenBoss.avatar,
+                abilities: chosenBoss.abilities,
+                emoji: chosenBoss.emoji,
+                series: 'Boss Opponent',
+                // Buff states
+                goldBuff: false,
+                shield: false,
+                shieldTurns: 0,
+                shieldRate: 0,
+                dodge: false,
+                dodgeCounter: 0,
+                stunned: false,
+                burned: false,
+                burnTurns: 0,
+                burnDmg: 0
+            };
+        }
 
-        let turn = 'player';
+        let turnPlayer = p1State;
+        let idlePlayer = p2State;
         let turnCount = 1;
-        let lastActionLog = `⚔️ The arena vibrates! **${player.name}** faces off against the legendary **${boss.name}**!\nYour bet of **${bet.toLocaleString()} Baubles** has been locked.`;
-        let lastActionGif = player.avatar;
-        let lastActionAnime = chosenChar.series;
+        
+        let lastActionLog = isPvP 
+            ? `⚔️ The PvP Arena is set! **${p1State.name}** vs **${p2State.name}**!\nTotal stakes: **${(bet * 2).toLocaleString()} Baubles**`
+            : `⚔️ The arena vibrates! **${p1State.name}** faces off against the legendary **${p2State.name}**!\nYour bet of **${bet.toLocaleString()} Baubles** has been locked.`;
+        
+        let lastActionGif = p1State.avatar;
+        let lastActionAnime = p1State.series;
+        let battleLog = [lastActionLog];
 
-        // Visual battle game UI generator
+        // Visual battle UI generator
         function buildBattleEmbed(footerText = `Anime: ${lastActionAnime} | Turn ${turnCount}`) {
-            const pStatus = [];
-            if (player.shield) pStatus.push('🛡️ Shielded');
-            if (player.dodge) pStatus.push('💨 Evading');
-            if (player.ssjBuff) pStatus.push('⚡ Super Saiyan');
-            if (player.kuramaBuff) pStatus.push(`🦊 Sage (${player.kuramaBuffTurns}t)`);
-            if (player.sageBuff) pStatus.push('🧠 Analyzed');
-            if (player.stunned) pStatus.push('💫 Stunned');
-            if (player.burned) pStatus.push(`🔥 Burned (${player.burnTurns}t)`);
+            const p1Status = [];
+            if (p1State.shield) p1Status.push('🛡️ Shielded');
+            if (p1State.dodge) p1Status.push('💨 Evading');
+            if (p1State.ssjBuff) p1Status.push('⚡ Super Saiyan');
+            if (p1State.kuramaBuff) p1Status.push(`🦊 Sage (${p1State.kuramaBuffTurns}t)`);
+            if (p1State.sageBuff) p1Status.push('🧠 Analyzed');
+            if (p1State.stunned) p1Status.push('💫 Stunned');
+            if (p1State.burned) p1Status.push(`🔥 Burned (${p1State.burnTurns}t)`);
 
-            const bStatus = [];
-            if (boss.shield) bStatus.push('🛡️ Shielded');
-            if (boss.dodge) bStatus.push('💨 Evading');
-            if (boss.goldBuff) bStatus.push('✨ Golden Form');
-            if (boss.stunned) bStatus.push('💫 Stunned');
-            if (boss.burned) bStatus.push(`🔥 Burned (${boss.burnTurns}t)`);
+            const p2Status = [];
+            if (p2State.shield) p2Status.push('🛡️ Shielded');
+            if (p2State.dodge) p2Status.push('💨 Evading');
+            if (p2State.ssjBuff) p2Status.push('⚡ Super Saiyan'); // or goldBuff for Frieza
+            if (p2State.kuramaBuff) p2Status.push(`🦊 Sage (${p2State.kuramaBuffTurns}t)`);
+            if (p2State.sageBuff) p2Status.push('🧠 Analyzed');
+            if (p2State.goldBuff) p2Status.push('✨ Golden Form');
+            if (p2State.stunned) p2Status.push('💫 Stunned');
+            if (p2State.burned) p2Status.push(`🔥 Burned (${p2State.burnTurns}t)`);
 
-            const pStatusStr = pStatus.length > 0 ? `\n*(${pStatus.join(', ')})*` : '';
-            const bStatusStr = bStatus.length > 0 ? `\n*(${bStatus.join(', ')})*` : '';
+            const p1StatusStr = p1Status.length > 0 ? `\n*(${p1Status.join(', ')})*` : '';
+            const p2StatusStr = p2Status.length > 0 ? `\n*(${p2Status.join(', ')})*` : '';
+
+            const logStr = battleLog.map(line => `• ${line}`).join('\n');
 
             return new EmbedBuilder()
                 .setColor(0x992d22) // Crimson battle theme
                 .setTitle(`⚔️ ANIME SHOWDOWN — Turn ${turnCount}`)
-                .setDescription(`> ${lastActionLog}\n\n${turn === 'player' ? `🟢 **It is your turn!** Select an ability.` : `🔴 **${boss.name}** is preparing their attack...`}`)
+                .setDescription(`📜 **Recent Actions:**\n${logStr}\n\n🗣️ It is **${turnPlayer.name}**'s turn! Select an ability.`)
                 .addFields(
                     {
-                        name: `${chosenChar.emoji} ${player.name} (You)`,
-                        value: `❤️ **HP:** ${buildProgressBar(player.hp, player.maxHp, '🟩', '⬛', 12, ' HP')}${pStatusStr}\n⚡ **Energy:** ${buildProgressBar(player.energy, 100, '🟦', '⬛', 12, '')}`,
+                        name: `${p1State.emoji} ${p1State.name} (${isPvP ? 'P1' : 'You'})`,
+                        value: `❤️ **HP:** ${buildProgressBar(p1State.hp, p1State.maxHp, '🟩', '⬛', 12, ' HP')}${p1StatusStr}\n⚡ **Energy:** ${buildProgressBar(p1State.energy, 100, '🟦', '⬛', 12, '')}`,
                         inline: false
                     },
                     {
-                        name: `${chosenBoss.emoji} ${boss.name} (Boss)`,
-                        value: `❤️ **HP:** ${buildProgressBar(boss.hp, boss.maxHp, '🟥', '⬛', 12, ' HP')}${bStatusStr}\n⚡ **Energy:** ${buildProgressBar(boss.energy, 100, '🟧', '⬛', 12, '')}`,
+                        name: `${p2State.emoji} ${p2State.name} (${isPvP ? 'P2' : 'Boss'})`,
+                        value: `❤️ **HP:** ${buildProgressBar(p2State.hp, p2State.maxHp, isPvP ? '🟩' : '🟥', '⬛', 12, ' HP')}${p2StatusStr}\n⚡ **Energy:** ${buildProgressBar(p2State.energy, 100, isPvP ? '🟦' : '🟧', '⬛', 12, '')}`,
                         inline: false
                     }
                 )
@@ -971,16 +1173,15 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
         // Buttons generator
         function buildBattleButtons(disabled = false) {
             const row = new ActionRowBuilder();
-            player.abilities.forEach((a, idx) => {
+            turnPlayer.abilities.forEach((a, idx) => {
                 const button = new ButtonBuilder()
                     .setCustomId(`ab_move_${idx}`)
                     .setLabel(`${a.name} (${a.cost})`)
                     .setStyle(a.style || ButtonStyle.Primary)
-                    .setDisabled(disabled || player.energy < a.cost);
+                    .setDisabled(disabled || turnPlayer.energy < a.cost);
                 row.addComponents(button);
             });
 
-            // Add Forfeit button
             row.addComponents(
                 new ButtonBuilder()
                     .setCustomId('ab_forfeit')
@@ -994,93 +1195,81 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
         }
 
         let isGameOver = false;
-        let gameWinner = null;
+        let gameWinner = null; // 'p1State' or 'p2State'
         let gameForfeit = false;
+        let forfeitUser = null;
 
-        // 4. Main Battle Loop
+        // 6. Main Battle Loop
         while (!isGameOver) {
-            // Apply Burn damage at the start of the turn
-            if (turn === 'player' && player.burned) {
-                player.hp = Math.max(0, player.hp - player.burnDmg);
-                lastActionLog = `🔥 **${player.name}** takes **${player.burnDmg}** burn damage at the start of their turn!`;
-                player.burnTurns--;
-                if (player.burnTurns <= 0) player.burned = false;
+            // Apply Burn damage
+            if (turnPlayer.burned) {
+                turnPlayer.hp = Math.max(0, turnPlayer.hp - turnPlayer.burnDmg);
+                lastActionLog = `🔥 **${turnPlayer.name}** takes **${turnPlayer.burnDmg}** burn damage at the start of their turn!`;
+                battleLog.push(lastActionLog);
+                if (battleLog.length > 4) battleLog.shift();
+                turnPlayer.burnTurns--;
+                if (turnPlayer.burnTurns <= 0) turnPlayer.burned = false;
 
-                if (player.hp <= 0) {
+                if (turnPlayer.hp <= 0) {
                     isGameOver = true;
-                    gameWinner = 'boss';
-                    break;
-                }
-            } else if (turn === 'boss' && boss.burned) {
-                boss.hp = Math.max(0, boss.hp - boss.burnDmg);
-                lastActionLog = `🔥 **${boss.name}** takes **${boss.burnDmg}** burn damage at the start of their turn!`;
-                boss.burnTurns--;
-                if (boss.burnTurns <= 0) boss.burned = false;
-
-                if (boss.hp <= 0) {
-                    isGameOver = true;
-                    gameWinner = 'player';
+                    gameWinner = (turnPlayer.id === p1State.id) ? p2State : p1State;
                     break;
                 }
             }
 
             // Check for Stun status
-            if (turn === 'player' && player.stunned) {
-                player.stunned = false;
-                player.energy = Math.min(100, player.energy + 20); // Still gain energy
-                lastActionLog = `💫 **${player.name}** is stunned/confused and skips their turn!`;
-                lastActionGif = 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2ptMXR6aGl6YTVicGRrcG13b2phd3plcnEydnE5eXUwcTFscWFqbyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7bu3XilJ5BOiSGic/giphy.gif';
+            if (turnPlayer.stunned) {
+                turnPlayer.stunned = false;
+                turnPlayer.energy = Math.min(100, turnPlayer.energy + 20); // Still gain energy
+                lastActionLog = `💫 **${turnPlayer.name}** is stunned/confused and skips their turn!`;
+                battleLog.push(lastActionLog);
+                if (battleLog.length > 4) battleLog.shift();
+                lastActionGif = 'https://i.giphy.com/media/3o7bu3XilJ5BOiSGic/giphy.gif';
                 lastActionAnime = 'Jujutsu Kaisen';
 
-                await initialMsg.edit({ embeds: [buildBattleEmbed('Stunned!')], components: [] });
+                await battleMsg.edit({ embeds: [buildBattleEmbed('Stunned!')], components: [] });
                 await new Promise(resolve => setTimeout(resolve, 2500));
                 
-                // Tick down shields
-                if (player.shield) {
-                    player.shieldTurns--;
-                    if (player.shieldTurns <= 0) player.shield = false;
+                // Tick down shields & buffs
+                if (turnPlayer.shield) {
+                    turnPlayer.shieldTurns--;
+                    if (turnPlayer.shieldTurns <= 0) {
+                        turnPlayer.shield = false;
+                        turnPlayer.reflect = false;
+                    }
                 }
-                if (player.kuramaBuff) {
-                    player.kuramaBuffTurns--;
-                    if (player.kuramaBuffTurns <= 0) player.kuramaBuff = false;
-                }
-
-                turn = 'boss';
-                turnCount++;
-                continue;
-            } else if (turn === 'boss' && boss.stunned) {
-                boss.stunned = false;
-                boss.energy = Math.min(100, boss.energy + 20);
-                lastActionLog = `💫 **${boss.name}** is stunned/confused and skips their turn!`;
-                lastActionGif = 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2ptMXR6aGl6YTVicGRrcG13b2phd3plcnEydnE5eXUwcTFscWFqbyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7bu3XilJ5BOiSGic/giphy.gif';
-                lastActionAnime = 'Jujutsu Kaisen';
-
-                await initialMsg.edit({ embeds: [buildBattleEmbed('Stunned!')], components: [] });
-                await new Promise(resolve => setTimeout(resolve, 2500));
-
-                if (boss.shield) {
-                    boss.shieldTurns--;
-                    if (boss.shieldTurns <= 0) boss.shield = false;
+                if (turnPlayer.kuramaBuff) {
+                    turnPlayer.kuramaBuffTurns--;
+                    if (turnPlayer.kuramaBuffTurns <= 0) turnPlayer.kuramaBuff = false;
                 }
 
-                turn = 'player';
+                // Swap turns
+                let temp = turnPlayer;
+                turnPlayer = idlePlayer;
+                idlePlayer = temp;
                 turnCount++;
                 continue;
             }
 
-            // ─── Player Turn ─────────────────────────────────────────────────
-            if (turn === 'player') {
-                player.energy = Math.min(100, player.energy + 20);
+            // ─── Human Player Turn (P1 always, or P2 if PvP) ─────────────────
+            if (turnPlayer.id !== 'bot') {
+                turnPlayer.energy = Math.min(100, turnPlayer.energy + 20);
 
-                await initialMsg.edit({ 
+                await battleMsg.edit({ 
                     embeds: [buildBattleEmbed()], 
                     components: [buildBattleButtons(false)] 
                 });
 
                 let chosenMoveIdx = null;
                 try {
-                    const btnInteraction = await initialMsg.awaitMessageComponent({
-                        filter: i => i.user.id === userId && i.customId.startsWith('ab_'),
+                    const btnInteraction = await battleMsg.awaitMessageComponent({
+                        filter: i => {
+                            if (i.user.id !== turnPlayer.id) {
+                                i.reply({ content: `❌ It is not your turn! Only **${turnPlayer.name}** can move.`, ephemeral: true });
+                                return false;
+                            }
+                            return i.customId.startsWith('ab_');
+                        },
                         componentType: ComponentType.Button,
                         time: 60000
                     });
@@ -1090,6 +1279,7 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                     if (btnInteraction.customId === 'ab_forfeit') {
                         isGameOver = true;
                         gameForfeit = true;
+                        forfeitUser = turnPlayer;
                         break;
                     }
 
@@ -1097,205 +1287,270 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                 } catch (e) {
                     isGameOver = true;
                     gameForfeit = true;
+                    forfeitUser = turnPlayer;
                     break;
                 }
 
-                const ability = player.abilities[chosenMoveIdx];
-                player.energy -= ability.cost;
+                const ability = turnPlayer.abilities[chosenMoveIdx];
+                turnPlayer.energy -= ability.cost;
 
-                // Handle Boss Evade / Dodge
-                if (boss.dodge && ability.cost > 0) {
-                    boss.dodge = false;
-                    let evadeText = `💨 **${boss.name}** completely evaded **${player.name}**'s **${ability.name}**!`;
-                    if (boss.dodgeCounter > 0) {
-                        player.hp = Math.max(0, player.hp - boss.dodgeCounter);
-                        evadeText += ` and counter-attacked for **${boss.dodgeCounter}** damage!`;
+                // Handle defender evade/dodge
+                if (idlePlayer.dodge && ability.cost > 0) {
+                    idlePlayer.dodge = false;
+                    let evadeText = `💨 **${idlePlayer.name}** completely evaded **${turnPlayer.name}**'s **${ability.name}**!`;
+                    if (idlePlayer.dodgeCounter > 0) {
+                        turnPlayer.hp = Math.max(0, turnPlayer.hp - idlePlayer.dodgeCounter);
+                        evadeText += ` and counter-attacked for **${idlePlayer.dodgeCounter}** damage!`;
                     }
                     lastActionLog = evadeText;
+                    battleLog.push(lastActionLog);
+                    if (battleLog.length > 4) battleLog.shift();
                     
-                    // Fetch dodge gif
-                    const gifs = await fetchGiphyGifs(`${boss.name.toLowerCase()} dodge`);
-                    lastActionGif = gifs.length > 0 ? gifs[0] : boss.avatar;
-                    lastActionAnime = boss.name === 'Sukuna' ? 'Jujutsu Kaisen' : boss.name === 'Madara Uchiha' ? 'Naruto' : boss.name === 'Kaido' ? 'One Piece' : 'Dragon Ball';
+                    const gifs = await fetchGiphyGifs(`${idlePlayer.name.toLowerCase()} dodge`);
+                    lastActionGif = gifs.length > 0 ? gifs[0] : idlePlayer.avatar;
+                    lastActionAnime = idlePlayer.series;
                 } else {
-                    lastActionLog = ability.execute(player, boss);
+                    lastActionLog = ability.execute(turnPlayer, idlePlayer);
+                    battleLog.push(lastActionLog);
+                    if (battleLog.length > 4) battleLog.shift();
                     
                     // Fetch dynamic GIF from Giphy matching the exact move query
                     const gifs = await fetchGiphyGifs(ability.query);
                     lastActionGif = gifs.length > 0 
                         ? gifs[Math.floor(Math.random() * Math.min(8, gifs.length))] 
-                        : player.avatar;
-                    lastActionAnime = chosenChar.series;
+                        : turnPlayer.avatar;
+                    lastActionAnime = turnPlayer.series;
                 }
 
-                await initialMsg.edit({
+                await battleMsg.edit({
                     embeds: [buildBattleEmbed(`Cast: ${ability.name}`)],
                     components: [buildBattleButtons(true)]
                 });
 
                 await new Promise(resolve => setTimeout(resolve, 2500));
 
-                if (boss.hp <= 0) {
+                if (idlePlayer.hp <= 0) {
                     isGameOver = true;
-                    gameWinner = 'player';
+                    gameWinner = turnPlayer;
                     break;
                 }
 
                 // Tick down shields & buffs
-                if (player.shield) {
-                    player.shieldTurns--;
-                    if (player.shieldTurns <= 0) {
-                        player.shield = false;
-                        player.reflect = false;
+                if (turnPlayer.shield) {
+                    turnPlayer.shieldTurns--;
+                    if (turnPlayer.shieldTurns <= 0) {
+                        turnPlayer.shield = false;
+                        turnPlayer.reflect = false;
                     }
                 }
-                if (player.kuramaBuff) {
-                    player.kuramaBuffTurns--;
-                    if (player.kuramaBuffTurns <= 0) player.kuramaBuff = false;
+                if (turnPlayer.kuramaBuff) {
+                    turnPlayer.kuramaBuffTurns--;
+                    if (turnPlayer.kuramaBuffTurns <= 0) turnPlayer.kuramaBuff = false;
                 }
 
-                if (player.extraTurn) {
-                    player.extraTurn = false;
-                    lastActionLog = `⚡ **${player.name}** speed blitzes and gains an extra turn immediately!`;
+                if (turnPlayer.extraTurn) {
+                    turnPlayer.extraTurn = false;
+                    lastActionLog = `⚡ **${turnPlayer.name}** speed blitzes and gains an extra turn immediately!`;
+                    battleLog.push(lastActionLog);
+                    if (battleLog.length > 4) battleLog.shift();
                 } else {
-                    turn = 'boss';
+                    // Swap roles
+                    let temp = turnPlayer;
+                    turnPlayer = idlePlayer;
+                    idlePlayer = temp;
                 }
 
                 turnCount++;
             } 
-            // ─── Boss Turn ───────────────────────────────────────────────────
+            // ─── CPU Boss Turn (PvE only) ────────────────────────────────────
             else {
-                boss.energy = Math.min(100, boss.energy + 20);
+                turnPlayer.energy = Math.min(100, turnPlayer.energy + 20);
 
-                await initialMsg.edit({
-                    embeds: [buildBattleEmbed(`Boss ${boss.name} is planning...`)],
+                await battleMsg.edit({
+                    embeds: [buildBattleEmbed(`Boss ${turnPlayer.name} is planning...`)],
                     components: [buildBattleButtons(true)]
                 });
 
                 await new Promise(resolve => setTimeout(resolve, 1500));
 
                 let bossAbility;
-                if (boss.energy >= 60 && Math.random() < 0.7) {
-                    bossAbility = boss.abilities[3];
-                } else if (boss.energy >= 35 && Math.random() < 0.5) {
-                    bossAbility = boss.abilities[2];
-                } else if (boss.energy >= 25 && Math.random() < 0.6) {
-                    bossAbility = boss.abilities[1];
+                if (turnPlayer.energy >= 60 && Math.random() < 0.7) {
+                    bossAbility = turnPlayer.abilities[3];
+                } else if (turnPlayer.energy >= 35 && Math.random() < 0.5) {
+                    bossAbility = turnPlayer.abilities[2];
+                } else if (turnPlayer.energy >= 25 && Math.random() < 0.6) {
+                    bossAbility = turnPlayer.abilities[1];
                 } else {
-                    bossAbility = boss.abilities[0];
+                    bossAbility = turnPlayer.abilities[0];
                 }
 
-                boss.energy -= bossAbility.cost;
+                turnPlayer.energy -= bossAbility.cost;
 
                 // Handle Player Evade / Dodge
-                if (player.dodge) {
-                    player.dodge = false;
-                    let evadeText = `💨 **${player.name}** completely evaded **${boss.name}**'s **${bossAbility.name}**!`;
-                    if (player.dodgeCounter > 0) {
-                        boss.hp = Math.max(0, boss.hp - player.dodgeCounter);
-                        evadeText += ` and counter-attacked for **${player.dodgeCounter}** damage!`;
+                if (idlePlayer.dodge) {
+                    idlePlayer.dodge = false;
+                    let evadeText = `💨 **${idlePlayer.name}** completely evaded **${turnPlayer.name}**'s **${bossAbility.name}**!`;
+                    if (idlePlayer.dodgeCounter > 0) {
+                        turnPlayer.hp = Math.max(0, turnPlayer.hp - idlePlayer.dodgeCounter);
+                        evadeText += ` and counter-attacked for **${idlePlayer.dodgeCounter}** damage!`;
                     }
                     lastActionLog = evadeText;
+                    battleLog.push(lastActionLog);
+                    if (battleLog.length > 4) battleLog.shift();
 
-                    const gifs = await fetchGiphyGifs(`${player.name.toLowerCase()} dodge`);
-                    lastActionGif = gifs.length > 0 ? gifs[0] : player.avatar;
-                    lastActionAnime = chosenChar.series;
+                    const gifs = await fetchGiphyGifs(`${idlePlayer.name.toLowerCase()} dodge`);
+                    lastActionGif = gifs.length > 0 ? gifs[0] : idlePlayer.avatar;
+                    lastActionAnime = idlePlayer.series;
                 } else {
-                    let logText = bossAbility.execute(boss, player);
+                    let logText = bossAbility.execute(turnPlayer, idlePlayer);
                     
-                    if (player.reflect && bossAbility.cost > 0) {
+                    if (idlePlayer.reflect && bossAbility.cost > 0) {
                         let reflectedDmg = Math.floor(randRange(14, 18) * 0.3);
-                        boss.hp = Math.max(0, boss.hp - reflectedDmg);
-                        logText += `\n⚡ **${player.name}** reflected **${reflectedDmg}** damage back at **${boss.name}**!`;
+                        turnPlayer.hp = Math.max(0, turnPlayer.hp - reflectedDmg);
+                        logText += `\n⚡ **${idlePlayer.name}** reflected **${reflectedDmg}** damage back at **${turnPlayer.name}**!`;
                     }
                     lastActionLog = logText;
+                    battleLog.push(lastActionLog);
+                    if (battleLog.length > 4) battleLog.shift();
 
                     const gifs = await fetchGiphyGifs(bossAbility.query);
                     lastActionGif = gifs.length > 0 
                         ? gifs[Math.floor(Math.random() * Math.min(8, gifs.length))] 
-                        : boss.avatar;
-                    lastActionAnime = boss.name === 'Sukuna' ? 'Jujutsu Kaisen' : boss.name === 'Madara Uchiha' ? 'Naruto' : boss.name === 'Kaido' ? 'One Piece' : 'Dragon Ball';
+                        : turnPlayer.avatar;
+                    lastActionAnime = turnPlayer.name === 'Sukuna' ? 'Jujutsu Kaisen' : turnPlayer.name === 'Madara Uchiha' ? 'Naruto' : turnPlayer.name === 'Kaido' ? 'One Piece' : 'Dragon Ball';
                 }
 
-                await initialMsg.edit({
+                await battleMsg.edit({
                     embeds: [buildBattleEmbed(`Cast: ${bossAbility.name}`)],
                     components: [buildBattleButtons(true)]
                 });
 
                 await new Promise(resolve => setTimeout(resolve, 2500));
 
-                if (player.hp <= 0) {
+                if (idlePlayer.hp <= 0) {
                     isGameOver = true;
-                    gameWinner = 'boss';
+                    gameWinner = turnPlayer;
                     break;
                 }
 
-                if (boss.shield) {
-                    boss.shieldTurns--;
-                    if (boss.shieldTurns <= 0) boss.shield = false;
+                if (turnPlayer.shield) {
+                    turnPlayer.shieldTurns--;
+                    if (turnPlayer.shieldTurns <= 0) turnPlayer.shield = false;
                 }
 
-                turn = 'player';
+                // Swap roles
+                let temp = turnPlayer;
+                turnPlayer = idlePlayer;
+                idlePlayer = temp;
                 turnCount++;
             }
         }
 
-        // 5. Final Battle Results Processing
+        // 7. Final Battle Results Processing
+        // Reload player database data
         baubleData = await Bauble.findOne({ userId });
-        const previousStreak = baubleData.animebattleStreak || 0;
+        if (isPvP) {
+            opponentData = await Bauble.findOne({ userId: opponent.id });
+        }
 
         let finalEmbed = new EmbedBuilder().setTimestamp();
         let payoutInfo = '';
 
         if (gameForfeit) {
-            baubleData.animebattleStreak = 0;
-            await baubleData.save();
+            const loserState = forfeitUser;
+            const winnerState = (forfeitUser.id === p1State.id) ? p2State : p1State;
+
+            // Reset loser streak
+            if (loserState.id === userId) {
+                baubleData.animebattleStreak = 0;
+                await baubleData.save();
+            } else if (isPvP && loserState.id === opponent.id) {
+                opponentData.animebattleStreak = 0;
+                await opponentData.save();
+            }
+
+            // Award winnings to winner
+            if (winnerState.id === userId) {
+                baubleData.animebattleStreak = (baubleData.animebattleStreak || 0) + 1;
+                if (baubleData.animebattleStreak > (baubleData.animebattleMaxStreak || 0)) {
+                    baubleData.animebattleMaxStreak = baubleData.animebattleStreak;
+                }
+                if (bet > 0) {
+                    const globalMultiplier = await getGlobalMultiplier();
+                    const winnings = Math.floor(bet * 2 * globalMultiplier);
+                    baubleData.baubles += winnings;
+                    payoutInfo = `\n\n👑 **Winner:** **${winnerState.name}**\n💰 **Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${baubleData.baubles.toLocaleString()} Baubles\``;
+                }
+                await baubleData.save();
+            } else if (isPvP && winnerState.id === opponent.id) {
+                opponentData.animebattleStreak = (opponentData.animebattleStreak || 0) + 1;
+                if (opponentData.animebattleStreak > (opponentData.animebattleMaxStreak || 0)) {
+                    opponentData.animebattleMaxStreak = opponentData.animebattleStreak;
+                }
+                if (bet > 0) {
+                    const globalMultiplier = await getGlobalMultiplier();
+                    const winnings = Math.floor(bet * 2 * globalMultiplier);
+                    opponentData.baubles += winnings;
+                    payoutInfo = `\n\n👑 **Winner:** **${winnerState.name}**\n💰 **Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${opponentData.baubles.toLocaleString()} Baubles\``;
+                }
+                await opponentData.save();
+            }
 
             finalEmbed.setColor(0xe74c3c)
                 .setTitle('🏳️ BATTLE FORFEITED')
-                .setDescription(`You abandoned the fight! **${boss.name}** claims victory by default.\n\n❌ **Lost:** **${bet.toLocaleString()} Baubles**\n🔥 **Streak:** Reset to 0 (Best: \`${baubleData.animebattleMaxStreak || 0}\`)`);
-        } 
-        else if (gameWinner === 'player') {
-            const globalMultiplier = await getGlobalMultiplier();
-            const winnings = Math.floor(bet * 2 * globalMultiplier);
-
-            baubleData.animebattleStreak = (baubleData.animebattleStreak || 0) + 1;
-            if (baubleData.animebattleStreak > (baubleData.animebattleMaxStreak || 0)) {
-                baubleData.animebattleMaxStreak = baubleData.animebattleStreak;
-            }
-
-            if (bet > 0) {
-                baubleData.baubles += winnings;
-                payoutInfo = `\n\n💰 **Wager Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${baubleData.baubles.toLocaleString()} Baubles\``;
-            } else {
-                payoutInfo = `\n\n🎮 *Played for fun without wagering baubles.*`;
-            }
-
-            await baubleData.save();
-
-            finalEmbed.setColor(0x2ecc71)
-                .setTitle('🏆 VICTORY FOR THE HERO!')
-                .setDescription(`👑 **${player.name}** defeated **${boss.name}** in a legendary showdown!\n\n` +
-                    `💖 **Your HP:** \`${player.hp}/${player.maxHp}\` | 💀 **Boss HP:** \`0/${boss.maxHp}\`` +
-                    `${payoutInfo}\n🔥 **Win Streak:** \`${baubleData.animebattleStreak}\` (Best: \`${baubleData.animebattleMaxStreak}\`)`)
-                .setThumbnail(player.avatar);
+                .setDescription(`**${loserState.name}** has forfeited the match!\n\n👑 **Winner:** **${winnerState.name}** by default.${payoutInfo}`);
         } 
         else {
-            baubleData.animebattleStreak = 0;
-            await baubleData.save();
+            // Normal Win/Loss
+            const winState = gameWinner;
+            const loseState = (gameWinner.id === p1State.id) ? p2State : p1State;
 
-            if (bet > 0) {
-                payoutInfo = `\n\n💸 **Lost:** \`-${bet.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${baubleData.baubles.toLocaleString()} Baubles\``;
-            } else {
-                payoutInfo = `\n\n🎮 *Played for fun without wagering baubles.*`;
+            // Reset loser streak
+            if (loseState.id === userId) {
+                baubleData.animebattleStreak = 0;
+                await baubleData.save();
+            } else if (isPvP && loseState.id === opponent.id) {
+                opponentData.animebattleStreak = 0;
+                await opponentData.save();
             }
 
-            finalEmbed.setColor(0xe74c3c)
-                .setTitle('💀 YOU WERE DEFEATED')
-                .setDescription(`💀 **${boss.name}** has crushed **${player.name}** in the arena!\n\n` +
-                    `💖 **Your HP:** \`0/${player.maxHp}\` | 💀 **Boss HP:** \`${boss.hp}/${boss.maxHp}\`` +
-                    `${payoutInfo}\n🔥 **Win Streak:** Reset to 0 (Best: \`${baubleData.animebattleMaxStreak || 0}\`)`)
-                .setThumbnail(boss.avatar);
+            // Award winner
+            if (winState.id === userId) {
+                baubleData.animebattleStreak = (baubleData.animebattleStreak || 0) + 1;
+                if (baubleData.animebattleStreak > (baubleData.animebattleMaxStreak || 0)) {
+                    baubleData.animebattleMaxStreak = baubleData.animebattleStreak;
+                }
+                if (bet > 0) {
+                    const globalMultiplier = await getGlobalMultiplier();
+                    const winnings = Math.floor(bet * 2 * globalMultiplier);
+                    baubleData.baubles += winnings;
+                    payoutInfo = `\n\n💰 **Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${baubleData.baubles.toLocaleString()} Baubles\`\n🔥 **Your Win Streak:** \`${baubleData.animebattleStreak}\` (Best: \`${baubleData.animebattleMaxStreak}\`)`;
+                } else {
+                    payoutInfo = `\n\n🎮 *Played for fun! Your Win Streak is now \`${baubleData.animebattleStreak}\`.*`;
+                }
+                await baubleData.save();
+            } else if (isPvP && winState.id === opponent.id) {
+                opponentData.animebattleStreak = (opponentData.animebattleStreak || 0) + 1;
+                if (opponentData.animebattleStreak > (opponentData.animebattleMaxStreak || 0)) {
+                    opponentData.animebattleMaxStreak = opponentData.animebattleStreak;
+                }
+                if (bet > 0) {
+                    const globalMultiplier = await getGlobalMultiplier();
+                    const winnings = Math.floor(bet * 2 * globalMultiplier);
+                    opponentData.baubles += winnings;
+                    payoutInfo = `\n\n💰 **Winnings:** \`+${winnings.toLocaleString()} Baubles\`\n👛 **New Balance:** \`${opponentData.baubles.toLocaleString()} Baubles\`\n🔥 **${opponent.username}'s Win Streak:** \`${opponentData.animebattleStreak}\` (Best: \`${opponentData.animebattleMaxStreak}\`)`;
+                } else {
+                    payoutInfo = `\n\n🎮 *Played for fun! ${opponent.username}'s Win Streak is now \`${opponentData.animebattleStreak}\`.*`;
+                }
+                await opponentData.save();
+            }
+
+            finalEmbed.setColor(0x2ecc71)
+                .setTitle('🏆 SHOWDOWN COMPLETE')
+                .setDescription(`👑 **${winState.name}** has defeated **${loseState.name}** in the arena!\n\n` +
+                    `💖 **${p1State.name} HP:** \`${p1State.hp}/${p1State.maxHp}\` | 💀 **${p2State.name} HP:** \`${p2State.hp}/${p2State.maxHp}\`` +
+                    `${payoutInfo}`)
+                .setThumbnail(winState.avatar);
         }
 
         // Add Play Again Button
@@ -1307,10 +1562,10 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                 .setEmoji('🔄')
         );
 
-        await initialMsg.edit({ embeds: [finalEmbed], components: [playAgainRow] });
+        await battleMsg.edit({ embeds: [finalEmbed], components: [playAgainRow] });
 
         // Setup Collector for Play Again
-        const playAgainCollector = initialMsg.createMessageComponentCollector({
+        const playAgainCollector = battleMsg.createMessageComponentCollector({
             filter: i => i.user.id === userId && i.customId === 'ab_play_again',
             componentType: ComponentType.Button,
             time: 20000
@@ -1328,13 +1583,14 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                     .setEmoji('🔄')
                     .setDisabled(true)
             );
-            await initialMsg.edit({ components: [disabledRow] }).catch(() => {});
+            await battleMsg.edit({ components: [disabledRow] }).catch(() => {});
 
             await runAnimeBattle({
                 context: i,
                 userId,
                 user,
                 bet,
+                opponent,
                 isSlash: true
             });
         });
@@ -1349,7 +1605,7 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                         .setEmoji('🔄')
                         .setDisabled(true)
                 );
-                await initialMsg.edit({ components: [disabledRow] }).catch(() => {});
+                await battleMsg.edit({ components: [disabledRow] }).catch(() => {});
             }
         });
 
