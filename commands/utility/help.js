@@ -138,6 +138,15 @@ const COMMAND_MAPPING = {
 	take: 'economy',
 	reset: 'economy',
 	taxfund: 'economy',
+	collections: 'economy',
+	crime: 'economy',
+	dig: 'economy',
+	dumpster: 'economy',
+	economy: 'economy',
+	expedition: 'economy',
+	fish: 'economy',
+	items: 'economy',
+	memehunt: 'economy',
 
 	// Casino
 	gamble: 'casino',
@@ -253,15 +262,15 @@ const commandGroups = {
 	economy: [
 		{
 			title: '💳 Balance & Stats',
-			commands: ['bauble', 'inventory', 'passive']
+			commands: ['bauble', 'inventory', 'passive', 'collections', 'economy']
 		},
 		{
 			title: '💼 Earnings & Work',
-			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'checklist', 'grab', 'taxfund']
+			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'checklist', 'grab', 'taxfund', 'crime', 'dig', 'dumpster', 'expedition', 'fish', 'memehunt']
 		},
 		{
 			title: '🛒 Market & Trading',
-			commands: ['shop', 'sell', 'use', 'give', 'gift']
+			commands: ['shop', 'sell', 'use', 'give', 'gift', 'items']
 		},
 		{
 			title: '📈 Leaderboards',
