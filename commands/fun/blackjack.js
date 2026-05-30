@@ -67,7 +67,7 @@ function drawCardsANSI(cards, hideFirst = false) {
     return result.trim() + '\n';
 }
 
-// ─── Active games tracking ────────────────────────────────────────────────────
+// ─── Active games tracking (keyed by userId — allows multiple concurrent games per channel) ───
 const activeGames = new Set();
 
 // ─── Database helper ──────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
                     );
 
                 await channel.send({ embeds: [insResultEmbed] });
-                activeGames.delete(channel.id);
+                activeGames.delete(playerId);
                 return;
             } else {
                 const insLostEmbed = new EmbedBuilder()
@@ -236,7 +236,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
                 { name: "Dealer's Hand", value: drawCardsANSI(dealerHand), inline: true }
             );
         await channel.send({ embeds: [naturalPushEmbed] });
-        activeGames.delete(channel.id);
+        activeGames.delete(playerId);
         return;
     } else if (player1Total === 21) {
         const payout = Math.floor(betAmount * 2.5);
@@ -256,7 +256,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
         if (currentStreak >= 3) naturalWinEmbed.setDescription(naturalWinEmbed.data.description + `\n🔥 **Streak:** ${currentStreak}`);
         
         await channel.send({ embeds: [naturalWinEmbed] });
-        activeGames.delete(channel.id);
+        activeGames.delete(playerId);
         return;
     } else if (dealerStartTotal === 21) {
         const naturalLossEmbed = new EmbedBuilder()
@@ -269,7 +269,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
             );
         await handleStreak(playerId, false);
         await channel.send({ embeds: [naturalLossEmbed] });
-        activeGames.delete(channel.id);
+        activeGames.delete(playerId);
         return;
     }
 
@@ -387,7 +387,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
             );
 
             await gameMsg.edit({ embeds: [surrenderEmbed], components: [disabledRow] });
-            activeGames.delete(channel.id);
+            activeGames.delete(playerId);
             return;
         }
 
@@ -534,7 +534,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
         await handleStreak(playerId, false);
         await gameMsg.edit({ embeds: [buildEmbed(true, 'Bust!')] }).catch(() => {});
         await channel.send({ embeds: [bustEmbed] });
-        activeGames.delete(channel.id);
+        activeGames.delete(playerId);
         return;
     }
 
@@ -631,7 +631,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
     }
 
     await channel.send({ embeds: [finalEmbed] });
-    activeGames.delete(channel.id);
+    activeGames.delete(playerId);
 }
 
 // ─── Bet selection ────────────────────────────────────────────────────────────
@@ -710,14 +710,14 @@ async function selectBet(context, channel, user) {
         betCollector.stop('selected');
 
         // Start the game
-        if (activeGames.has(channel.id)) {
-            return channel.send('⚠️ A Blackjack game is already running in this channel!');
+        if (activeGames.has(userId)) {
+            return channel.send('⚠️ You already have a Blackjack game running!');
         }
-        activeGames.add(channel.id);
+        activeGames.add(userId);
 
         runBlackjackGame(channel, userId, username, betAmount).catch(err => {
             console.error('[Blackjack] Game error:', err);
-            activeGames.delete(channel.id);
+            activeGames.delete(userId);
             channel.send({ content: '⚠️ An unexpected error ended the game. Sorry!' });
         });
     });
@@ -739,6 +739,7 @@ async function selectBet(context, channel, user) {
 // ─── Module export ────────────────────────────────────────────────────────────
 module.exports = {
     category: 'fun',
+    aliases: ['bj'],
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('blackjack')
@@ -774,17 +775,17 @@ module.exports = {
 
             await interaction.reply({ content: `🎰 Starting Blackjack with a bet of **${betAmount.toLocaleString()}** Baubles!`, ephemeral: true });
 
-            if (activeGames.has(interaction.channelId)) {
-                return interaction.channel.send('⚠️ A Blackjack game is already running in this channel!');
+            if (activeGames.has(userId)) {
+                return interaction.followUp({ content: '⚠️ You already have a Blackjack game running!', ephemeral: true });
             }
-            activeGames.add(interaction.channelId);
+            activeGames.add(userId);
 
             // Deduct bet
             await adjustBaubles(userId, -betAmount);
 
             runBlackjackGame(interaction.channel, userId, username, betAmount).catch(err => {
                 console.error('[Blackjack] Game error:', err);
-                activeGames.delete(interaction.channelId);
+                activeGames.delete(userId);
                 interaction.channel.send({ content: '⚠️ An unexpected error ended the game. Sorry!' });
             });
         } else {
@@ -824,17 +825,17 @@ module.exports = {
                 return message.reply(`❌ You don't have enough Baubles! You tried to bet ${betAmount.toLocaleString()} but only have ${balance.toLocaleString()}.`);
             }
 
-            if (activeGames.has(message.channel.id)) {
-                return message.reply('⚠️ A Blackjack game is already running in this channel!');
+            if (activeGames.has(userId)) {
+                return message.reply('⚠️ You already have a Blackjack game running!');
             }
-            activeGames.add(message.channel.id);
+            activeGames.add(userId);
 
             // Deduct bet
             await adjustBaubles(userId, -betAmount);
 
             runBlackjackGame(message.channel, userId, username, betAmount).catch(err => {
                 console.error('[Blackjack] Game error:', err);
-                activeGames.delete(message.channel.id);
+                activeGames.delete(userId);
                 message.channel.send({ content: '⚠️ An unexpected error ended the game. Sorry!' });
             });
         }

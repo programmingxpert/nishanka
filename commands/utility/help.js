@@ -156,6 +156,7 @@ const COMMAND_MAPPING = {
 	buckshot: 'casino',
 	battle: 'casino',
 	blackjack: 'casino',
+	bj: 'casino',
 	animebattle: 'casino',
 
 	// Profile
