@@ -25,31 +25,13 @@ async function resolveUser(client, id) {
 }
 
 async function generateTreeImage(client, subjectUser) {
-    const canvas = createCanvas(1000, 600);
-    const ctx = canvas.getContext('2d');
-
-    // 1. Background Gradient
-    const grad = ctx.createLinearGradient(0, 0, 1000, 600);
-    grad.addColorStop(0, '#0d0d14');
-    grad.addColorStop(1, '#1b1b26');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 2. Main Outer Border
-    ctx.strokeStyle = '#2f2f3f';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(1.5, 1.5, canvas.width - 3, canvas.height - 3);
-
-    // Title text
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(`FAMILY TREE: ${subjectUser.username.toUpperCase()}`, 500, 30);
-
     // Fetch family data and auto-sync retroactively
     await syncFamily(subjectUser.id);
     let familyData = await Family.findOne({ userId: subjectUser.id });
+
+    if (!familyData) {
+        familyData = new Family({ userId: subjectUser.id });
+    }
 
     // Resolve Siblings
     let siblingIds = [];
@@ -80,81 +62,132 @@ async function generateTreeImage(client, subjectUser) {
     const activeChildren = children.filter(Boolean);
     const activeSiblings = siblings.filter(Boolean);
 
+    const maxNodesInRow = Math.max(
+        activeParents.length,
+        activeSiblings.length + (spouse ? 2 : 1),
+        activeChildren.length
+    );
+
+    const nodeSpacing = 160;
+    const canvasWidth = Math.max(1000, maxNodesInRow * nodeSpacing + 200);
+    const canvasHeight = 600;
+
+    const canvas = createCanvas(canvasWidth, canvasHeight);
+    const ctx = canvas.getContext('2d');
+
+    // 1. Background Gradient
+    const grad = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+    grad.addColorStop(0, '#0d0d14');
+    grad.addColorStop(1, '#1b1b26');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Main Outer Border
+    ctx.strokeStyle = '#2f2f3f';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(1.5, 1.5, canvas.width - 3, canvas.height - 3);
+
+    // Title text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`FAMILY TREE: ${subjectUser.username.toUpperCase()}`, canvasWidth / 2, 30);
+
     // 3. Layout Mapping
     const nodes = [];
     const lines = [];
+    const midpointX = canvasWidth / 2;
 
     // Gen 2: Subject & Spouse & Siblings (y = 300)
-    let userX = 500;
+    // Draw subject + spouse in middle, siblings spread around them
+    const gen2Y = 300;
+    let userX = midpointX;
     let spouseX = null;
+    let subjectBlockCenter = midpointX;
 
     if (spouse) {
-        userX = 420;
-        spouseX = 580;
-        nodes.push({ user: subjectProfile, label: 'You', x: userX, y: 300, isHighlighted: true });
-        nodes.push({ user: spouse, label: 'Spouse', x: spouseX, y: 300 });
-        lines.push({ x1: userX, y1: 290, x2: spouseX, y2: 290, isSpouse: true });
+        userX = midpointX - 80;
+        spouseX = midpointX + 80;
+        nodes.push({ user: subjectProfile, label: 'You', x: userX, y: gen2Y, isHighlighted: true });
+        nodes.push({ user: spouse, label: 'Spouse', x: spouseX, y: gen2Y });
+        lines.push({ x1: userX, y1: gen2Y - 10, x2: spouseX, y2: gen2Y - 10, isSpouse: true });
     } else {
-        nodes.push({ user: subjectProfile, label: 'You', x: userX, y: 300, isHighlighted: true });
+        nodes.push({ user: subjectProfile, label: 'You', x: userX, y: gen2Y, isHighlighted: true });
     }
 
-    const midpointX = spouse ? 500 : 500;
-
-    // Gen 1: Parents (y = 110)
-    let parentMidpointX = 500;
-    if (activeParents.length === 1) {
-        const px = 500;
-        nodes.push({ user: activeParents[0], label: 'Parent', x: px, y: 110 });
-        lines.push({ x1: px, y1: 110, x2: px, y2: 200 }); // Line down to gen divider
-    } else if (activeParents.length === 2) {
-        const p1x = 380;
-        const p2x = 620;
-        nodes.push({ user: activeParents[0], label: 'Parent', x: p1x, y: 110 });
-        nodes.push({ user: activeParents[1], label: 'Parent', x: p2x, y: 110 });
-        lines.push({ x1: p1x, y1: 100, x2: p2x, y2: 100, isHorizontal: true }); // Line between parents
-        lines.push({ x1: 500, y1: 100, x2: 500, y2: 200 }); // Line down from parent midpoint
-    }
-
-    // Gen 2 Siblings placement
     if (activeSiblings.length > 0) {
-        activeSiblings.forEach((sib, index) => {
-            // Draw siblings starting left (180, 80) or right (820, 920)
-            const sx = index % 2 === 0 ? 180 - Math.floor(index / 2) * 100 : 820 + Math.floor(index / 2) * 100;
-            nodes.push({ user: sib, label: 'Sibling', x: sx, y: 300 });
-            // Drop lines from parent divider down to siblings
-            lines.push({ x1: sx, y1: 200, x2: sx, y2: 290 });
+        let leftSiblings = [];
+        let rightSiblings = [];
+        activeSiblings.forEach((sib, idx) => {
+            if (idx % 2 === 0) leftSiblings.push(sib);
+            else rightSiblings.push(sib);
+        });
+
+        const sibSpacing = nodeSpacing;
+        leftSiblings.forEach((sib, idx) => {
+            const sx = (userX - sibSpacing) - (idx * sibSpacing);
+            nodes.push({ user: sib, label: 'Sibling', x: sx, y: gen2Y });
+            lines.push({ x1: sx, y1: 200, x2: sx, y2: gen2Y - 10 });
+        });
+
+        const rightBase = spouse ? spouseX : userX;
+        rightSiblings.forEach((sib, idx) => {
+            const sx = (rightBase + sibSpacing) + (idx * sibSpacing);
+            nodes.push({ user: sib, label: 'Sibling', x: sx, y: gen2Y });
+            lines.push({ x1: sx, y1: 200, x2: sx, y2: gen2Y - 10 });
         });
     }
 
-    // Connect Gen 1 drop line to Gen 2 family line
+    // Gen 1: Parents (y = 110)
+    const gen1Y = 110;
     if (activeParents.length > 0) {
-        lines.push({ x1: 500, y1: 200, x2: userX, y2: 200, isHorizontal: true });
-        lines.push({ x1: userX, y1: 200, x2: userX, y2: 290 }); // drop to subject
+        const pCount = activeParents.length;
+        const pStartX = midpointX - ((pCount - 1) * nodeSpacing) / 2;
         
+        let minPX = pStartX;
+        let maxPX = pStartX;
+
+        activeParents.forEach((parent, index) => {
+            const px = pStartX + index * nodeSpacing;
+            nodes.push({ user: parent, label: 'Parent', x: px, y: gen1Y });
+            lines.push({ x1: px, y1: gen1Y, x2: px, y2: 200 }); // drop to gen 1 divider
+            if (px > maxPX) maxPX = px;
+        });
+
+        // Parent connecting line
+        if (pCount > 1) {
+            lines.push({ x1: minPX, y1: 200, x2: maxPX, y2: 200, isHorizontal: true });
+        }
+        
+        // Link to Gen 2
+        lines.push({ x1: midpointX, y1: 200, x2: userX, y2: 200, isHorizontal: true });
+        lines.push({ x1: userX, y1: 200, x2: userX, y2: gen2Y - 10 });
+
+        // Connect siblings to parents
         if (activeSiblings.length > 0) {
-            const minSibX = Math.min(...nodes.filter(n => n.label === 'Sibling').map(n => n.x));
-            const maxSibX = Math.max(...nodes.filter(n => n.label === 'Sibling').map(n => n.x));
-            lines.push({ x1: Math.min(minSibX, 500), y1: 200, x2: Math.max(maxSibX, 500), y2: 200, isHorizontal: true });
+            const allSibXs = nodes.filter(n => n.label === 'Sibling').map(n => n.x);
+            const minSibX = Math.min(...allSibXs);
+            const maxSibX = Math.max(...allSibXs);
+            lines.push({ x1: Math.min(minSibX, userX), y1: 200, x2: Math.max(maxSibX, userX), y2: 200, isHorizontal: true });
         }
     }
 
     // Gen 3: Children (y = 490)
+    const gen3Y = 490;
     if (activeChildren.length > 0) {
-        // Compute children X positions spaced around midpoint
         const cCount = activeChildren.length;
-        const spacing = 140;
-        const startX = midpointX - ((cCount - 1) * spacing) / 2;
+        const cStartX = subjectBlockCenter - ((cCount - 1) * nodeSpacing) / 2;
 
         activeChildren.forEach((child, index) => {
-            const cx = startX + index * spacing;
-            nodes.push({ user: child, label: 'Child', x: cx, y: 490 });
-            lines.push({ x1: cx, y1: 390, x2: cx, y2: 480 }); // Drop to child node
+            const cx = cStartX + index * nodeSpacing;
+            nodes.push({ user: child, label: 'Child', x: cx, y: gen3Y });
+            lines.push({ x1: cx, y1: 390, x2: cx, y2: gen3Y - 10 }); 
         });
 
-        // Vertical drop from Gen 2 midpoint down to Gen 3 divider
-        lines.push({ x1: midpointX, y1: 290, x2: midpointX, y2: 390 });
+        lines.push({ x1: subjectBlockCenter, y1: gen2Y - 10, x2: subjectBlockCenter, y2: 390 });
         if (cCount > 1) {
-            lines.push({ x1: startX, y1: 390, x2: startX + (cCount - 1) * spacing, y2: 390, isHorizontal: true });
+            lines.push({ x1: cStartX, y1: 390, x2: cStartX + (cCount - 1) * nodeSpacing, y2: 390, isHorizontal: true });
         }
     }
 
@@ -164,14 +197,12 @@ async function generateTreeImage(client, subjectUser) {
     lines.forEach(line => {
         ctx.beginPath();
         if (line.isSpouse) {
-            // Draw double line for marriage
-            ctx.strokeStyle = '#f97fa8'; // Pink line
+            ctx.strokeStyle = '#f97fa8';
             ctx.lineWidth = 4;
             ctx.moveTo(line.x1, line.y1);
             ctx.lineTo(line.x2, line.y2);
             ctx.stroke();
 
-            // Reset line style
             ctx.strokeStyle = '#2f2f3f';
             ctx.lineWidth = 3.5;
         } else {
@@ -215,12 +246,12 @@ async function generateTreeImage(client, subjectUser) {
         ctx.beginPath();
         ctx.arc(node.x, node.y - 10, radius, 0, Math.PI * 2, true);
         if (node.isHighlighted) {
-            ctx.strokeStyle = '#ffd700'; // Gold glow for User
+            ctx.strokeStyle = '#ffd700'; 
             ctx.lineWidth = 4.5;
             ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
             ctx.shadowBlur = 15;
         } else {
-            ctx.strokeStyle = '#7c6cf0'; // Primary color
+            ctx.strokeStyle = '#7c6cf0'; 
             ctx.lineWidth = 2.5;
         }
         ctx.stroke();
