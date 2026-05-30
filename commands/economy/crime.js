@@ -23,25 +23,27 @@ const ARREST_SCENARIOS = [
     { text: "🚔 SWAT BUST! You got caught red-handed! The police fined you **{coins}** Baubles and locked you up in jail (5-minute crime lockout)!" }
 ];
 
-async function doCrime(userId, client) {
+async function doCrime(userId, client, isButton = false) {
     const now = Date.now();
     const cooldownMs = COOLDOWN_SEC * 1000;
 
-    if (!client.cooldowns.has('crime')) {
-        client.cooldowns.set('crime', new Collection());
-    }
-    const timestamps = client.cooldowns.get('crime');
-
-    if (timestamps.has(userId)) {
-        const expirationTime = timestamps.get(userId) + cooldownMs;
-        if (now < expirationTime) {
-            return { error: true, timeLeft: Math.ceil((expirationTime - now) / 1000) };
+    if (isButton) {
+        if (!client.cooldowns.has('crime')) {
+            client.cooldowns.set('crime', new Collection());
         }
-    }
+        const timestamps = client.cooldowns.get('crime');
 
-    // Set standard cooldown first
-    timestamps.set(userId, now);
-    setTimeout(() => timestamps.delete(userId), cooldownMs);
+        if (timestamps.has(userId)) {
+            const expirationTime = timestamps.get(userId) + cooldownMs;
+            if (now < expirationTime) {
+                return { error: true, timeLeft: Math.ceil((expirationTime - now) / 1000) };
+            }
+        }
+
+        // Set standard cooldown first
+        timestamps.set(userId, now);
+        setTimeout(() => timestamps.delete(userId), cooldownMs);
+    }
 
     let baubleData = await Bauble.findOne({ userId });
     if (!baubleData) {
@@ -102,8 +104,12 @@ async function doCrime(userId, client) {
         color = 0xe74c3c; // Red for arrest
 
         // Lock them out of crime for 5 minutes by overriding the cooldown timestamp in client cache
+        if (!client.cooldowns.has('crime')) {
+            client.cooldowns.set('crime', new Collection());
+        }
+        const crimeTimestamps = client.cooldowns.get('crime');
         const arrestLockMs = 300 * 1000;
-        timestamps.set(userId, now + arrestLockMs - cooldownMs);
+        crimeTimestamps.set(userId, now + arrestLockMs - cooldownMs);
     }
 
     await baubleData.save();
@@ -161,7 +167,7 @@ module.exports = {
             collector.on('collect', async i => {
                 try {
                     await i.deferUpdate();
-                    const newRes = await doCrime(userId, interaction.client);
+                    const newRes = await doCrime(userId, interaction.client, true);
                     if (newRes.error) {
                         return i.followUp({ content: `⏳ Cooldown active! Wait **${newRes.timeLeft}s**.`, ephemeral: true });
                     }
@@ -216,7 +222,7 @@ module.exports = {
             collector.on('collect', async i => {
                 try {
                     await i.deferUpdate();
-                    const newRes = await doCrime(userId, message.client);
+                    const newRes = await doCrime(userId, message.client, true);
                     if (newRes.error) {
                         return i.followUp({ content: `⏳ Cooldown active! Wait **${newRes.timeLeft}s**.`, ephemeral: true });
                     }

@@ -6,31 +6,33 @@ const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const COOLDOWN_SEC = 300; // 5 minutes
 
-async function doDumpsterDive(userId, client) {
+async function doDumpsterDive(userId, client, isButton = false) {
     const now = Date.now();
     const cooldownMs = COOLDOWN_SEC * 1000;
 
-    if (!client.cooldowns.has('dumpster')) {
-        client.cooldowns.set('dumpster', new Collection());
-    }
-    const timestamps = client.cooldowns.get('dumpster');
-
-    // Coffee booster halves scavenge AND dumpster cooldowns! Let's check:
-    let finalCooldownMs = cooldownMs;
-    const baubleDataCheck = await Bauble.findOne({ userId }).lean();
-    if (baubleDataCheck && baubleDataCheck.coffeeExpiresAt && now < new Date(baubleDataCheck.coffeeExpiresAt).getTime()) {
-        finalCooldownMs /= 2; // 2.5 minutes if coffee is active
-    }
-
-    if (timestamps.has(userId)) {
-        const expirationTime = timestamps.get(userId) + finalCooldownMs;
-        if (now < expirationTime) {
-            return { error: true, timeLeft: Math.ceil((expirationTime - now) / 1000) };
+    if (isButton) {
+        if (!client.cooldowns.has('dumpster')) {
+            client.cooldowns.set('dumpster', new Collection());
         }
-    }
+        const timestamps = client.cooldowns.get('dumpster');
 
-    timestamps.set(userId, now);
-    setTimeout(() => timestamps.delete(userId), finalCooldownMs);
+        // Coffee booster halves scavenge AND dumpster cooldowns! Let's check:
+        let finalCooldownMs = cooldownMs;
+        const baubleDataCheck = await Bauble.findOne({ userId }).lean();
+        if (baubleDataCheck && baubleDataCheck.coffeeExpiresAt && now < new Date(baubleDataCheck.coffeeExpiresAt).getTime()) {
+            finalCooldownMs /= 2; // 2.5 minutes if coffee is active
+        }
+
+        if (timestamps.has(userId)) {
+            const expirationTime = timestamps.get(userId) + finalCooldownMs;
+            if (now < expirationTime) {
+                return { error: true, timeLeft: Math.ceil((expirationTime - now) / 1000) };
+            }
+        }
+
+        timestamps.set(userId, now);
+        setTimeout(() => timestamps.delete(userId), finalCooldownMs);
+    }
 
     let baubleData = await Bauble.findOne({ userId });
     if (!baubleData) {
@@ -124,7 +126,7 @@ module.exports = {
             collector.on('collect', async i => {
                 try {
                     await i.deferUpdate();
-                    const newRes = await doDumpsterDive(userId, interaction.client);
+                    const newRes = await doDumpsterDive(userId, interaction.client, true);
                     if (newRes.error) {
                         return i.followUp({ content: `⏳ Cooldown active! Wait **${newRes.timeLeft}s**.`, ephemeral: true });
                     }
@@ -179,7 +181,7 @@ module.exports = {
             collector.on('collect', async i => {
                 try {
                     await i.deferUpdate();
-                    const newRes = await doDumpsterDive(userId, message.client);
+                    const newRes = await doDumpsterDive(userId, message.client, true);
                     if (newRes.error) {
                         return i.followUp({ content: `⏳ Cooldown active! Wait **${newRes.timeLeft}s**.`, ephemeral: true });
                     }

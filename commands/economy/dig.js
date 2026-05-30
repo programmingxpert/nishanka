@@ -6,24 +6,26 @@ const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const COOLDOWN_SEC = 30;
 
-async function doDigging(userId, client) {
+async function doDigging(userId, client, isButton = false) {
     const now = Date.now();
     const cooldownMs = COOLDOWN_SEC * 1000;
 
-    if (!client.cooldowns.has('dig')) {
-        client.cooldowns.set('dig', new Collection());
-    }
-    const timestamps = client.cooldowns.get('dig');
-
-    if (timestamps.has(userId)) {
-        const expirationTime = timestamps.get(userId) + cooldownMs;
-        if (now < expirationTime) {
-            return { error: true, timeLeft: Math.ceil((expirationTime - now) / 1000) };
+    if (isButton) {
+        if (!client.cooldowns.has('dig')) {
+            client.cooldowns.set('dig', new Collection());
         }
-    }
+        const timestamps = client.cooldowns.get('dig');
 
-    timestamps.set(userId, now);
-    setTimeout(() => timestamps.delete(userId), cooldownMs);
+        if (timestamps.has(userId)) {
+            const expirationTime = timestamps.get(userId) + cooldownMs;
+            if (now < expirationTime) {
+                return { error: true, timeLeft: Math.ceil((expirationTime - now) / 1000) };
+            }
+        }
+
+        timestamps.set(userId, now);
+        setTimeout(() => timestamps.delete(userId), cooldownMs);
+    }
 
     let baubleData = await Bauble.findOne({ userId });
     if (!baubleData) {
@@ -117,7 +119,7 @@ module.exports = {
             collector.on('collect', async i => {
                 try {
                     await i.deferUpdate();
-                    const newRes = await doDigging(userId, interaction.client);
+                    const newRes = await doDigging(userId, interaction.client, true);
                     if (newRes.error) {
                         return i.followUp({ content: `⏳ Cooldown active! Wait **${newRes.timeLeft}s**.`, ephemeral: true });
                     }
@@ -172,7 +174,7 @@ module.exports = {
             collector.on('collect', async i => {
                 try {
                     await i.deferUpdate();
-                    const newRes = await doDigging(userId, message.client);
+                    const newRes = await doDigging(userId, message.client, true);
                     if (newRes.error) {
                         return i.followUp({ content: `⏳ Cooldown active! Wait **${newRes.timeLeft}s**.`, ephemeral: true });
                     }
