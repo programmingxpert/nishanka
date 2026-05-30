@@ -173,15 +173,12 @@ async function executePurchase(userId, itemId, quantity, baubleData, globalMulti
     } else {
         baubleData.inventory.push({ itemId, quantity });
     }
-
-    await baubleData.save();
+    await baubleData.save();
     return { success: true, totalPrice, itemName: item.name };
 }
 
 // Embed and component helper functions for pagination
 function getHomePageEmbed(baubles, globalMultiplier) {
-    return new EmbedBuilder()
-        .setColor(0x00AE86)
     return new EmbedBuilder()
         .setColor(0x00AE86)
         .setTitle('🛍️ Glimmering Bauble Shop')
