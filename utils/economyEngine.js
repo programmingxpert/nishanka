@@ -36,29 +36,37 @@ async function calculateEconomy() {
             });
         }
 
-        let newMultiplier = currentGlobal.currentMultiplier;
-        let inflationRate = 0;
-
-        if (lastSnapshot && lastSnapshot.totalBaubles > 0) {
-            const previousTotal = lastSnapshot.totalBaubles;
-            inflationRate = (currentTotal - previousTotal) / previousTotal;
-
-            // Simple adaptive algorithm:
-            // If inflation is positive (more money in system), we decrease the multiplier to slow down earning.
-            // If inflation is negative (deflation, money sink), we increase the multiplier to stimulate the economy.
-            // Weighting factor: 1.5x of the inflation rate.
-            const adjustment = inflationRate * 1.5; 
-            newMultiplier -= adjustment;
-
-            // Hard caps to prevent extreme values
-            if (newMultiplier < 0.5) newMultiplier = 0.5;
-            if (newMultiplier > 2.0) newMultiplier = 2.0;
+        // Calculate average baubles per active user
+        const averagePerUser = userCount > 0 ? currentTotal / userCount : 0;
+        
+        // Define a healthy target average wealth per user
+        const TARGET_AVERAGE = 75000; // 75k baubles per person is considered "stable/normal"
+        
+        let newMultiplier = 1.0;
+        
+        if (averagePerUser > 0) {
+            // Adaptive Wealth Curve: 
+            // Instead of punishing raw growth, it balances around the target average.
+            // Using a square root curve softens the impact so it doesn't swing wildly.
+            newMultiplier = Math.sqrt(TARGET_AVERAGE / averagePerUser);
         }
+        
+        // Hard caps to prevent extreme values
+        if (newMultiplier < 0.5) newMultiplier = 0.5;
+        if (newMultiplier > 2.0) newMultiplier = 2.0;
 
         let status = "⚖️ Stable Market";
-        if (newMultiplier >= 1.3) status = "🚀 Booming Market (High Rewards)";
-        else if (newMultiplier <= 0.7) status = "📉 Bear Market (Low Rewards)";
-        else if (inflationRate > 0.05) status = "🔥 Inflation Warning (Slowing Rewards)";
+        if (newMultiplier >= 1.5) {
+            status = "🚀 Booming Market (High Rewards)";
+        } else if (newMultiplier >= 1.1) {
+            status = "📈 Growing Market (Good Rewards)";
+        } else if (newMultiplier >= 0.9) {
+            status = "⚖️ Stable Market";
+        } else if (newMultiplier >= 0.7) {
+            status = "📉 Cooling Market (Slowing Rewards)";
+        } else {
+            status = "🔥 High Inflation (Minimal Rewards)";
+        }
         
         // Update live state
         currentGlobal.currentMultiplier = Number(newMultiplier.toFixed(2));
