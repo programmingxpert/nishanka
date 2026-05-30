@@ -3,17 +3,17 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { ITEMS, RARITIES } = require('../../utils/items');
 
 const CATEGORIES = {
-    boosters: { name: '⚡ Boosters', desc: 'Consumables, luck enhancers, and wager shields.' },
-    cosmetics: { name: '🎨 Cosmetics', desc: 'Prestige items, nuggets, and banner tools.' },
-    family: { name: '🏠 Family', desc: 'Wedding rings and adoption papers.' },
-    dumpster: { name: '🗑️ Dumpster', desc: 'Trash finds and funny rabbit feet.' },
-    fishing: { name: '🎣 Fishing', desc: 'Chests, artifacts, and slimy catches.' },
-    digging: { name: '⛏️ Digging', desc: 'Bones, shells, and massive skulls.' },
-    memehunt: { name: '🐸 Meme Hunt', desc: 'Dead memes and legendary classics.' },
+    boosters: { name: '⚡ Boosters', desc: 'Consumables, luck enhancers, and vault shields.' },
+    cosmetics: { name: '🎨 Cosmetics', desc: 'Prestige items, nuggets, and profile titles.' },
+    family: { name: '🏠 Family', desc: 'Commitment rings and adoption papers.' },
+    dumpster: { name: '🗑️ Dumpster', desc: 'Trash finds and lucky/unlucky rabbit feet.' },
+    fishing: { name: '🎣 Fishing', desc: 'Chests, urns, and slimy fish catches.' },
+    digging: { name: '⛏️ Digging', desc: 'Fossils, mammoth bones, and skulls.' },
+    memehunt: { name: '🐸 Meme Hunt', desc: 'Stale Pepes and legendary rickrolls.' },
     ducks: { name: '🦆 Ducks', desc: 'Collectible rubber ducks.' },
-    computers: { name: '💻 Computers', desc: 'Laptops, gaming PCs, and alien tech.' },
-    mythic: { name: '✨ Mythic', desc: 'High-value treasures and boss drops.' },
-    unique: { name: '👑 Unique', desc: 'One-of-a-kind items (only 1 exists globally).' }
+    computers: { name: '💻 Computers', desc: 'Mining rigs, quantum grids, and alien terminals.' },
+    mythic: { name: '✨ Mythic', desc: 'High-value dragon eggs and void stars.' },
+    unique: { name: '👑 Unique', desc: 'One-of-a-kind items (exactly 1 copy exists globally).' }
 };
 
 module.exports = {
@@ -65,47 +65,45 @@ module.exports = {
 
 function buildItemsEmbed(filter, user) {
     const embed = new EmbedBuilder()
-        .setColor(0x3498db)
-        .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+        .setColor(0x2b2d42) // Minimal dark-slate theme
         .setTimestamp();
 
     const normalizedFilter = filter && CATEGORIES[filter.trim().toLowerCase()] ? filter.trim().toLowerCase() : null;
 
     if (normalizedFilter) {
         const catInfo = CATEGORIES[normalizedFilter];
-        embed.setTitle(`📖 Items Catalog: ${catInfo.name}`)
-             .setDescription(`_${catInfo.desc}_\nUse \`-use <item_id>\` to activate them!`);
+        embed.setTitle(`📖 Catalog: ${catInfo.name}`)
+             .setDescription(`_${catInfo.desc}_\nUse \`-use <item_id>\` to activate them!\n\n`);
 
         const matchingItems = Object.values(ITEMS).filter(i => i.category === normalizedFilter);
 
         if (matchingItems.length === 0) {
-            embed.addFields({ name: 'Items', value: '_No items in this category._' });
+            embed.setDescription(embed.data.description + '_No items in this category._');
         } else {
+            const lines = [];
             for (const item of matchingItems) {
                 const priceInfo = [];
                 if (item.basePrice) priceInfo.push(`Buy: **${item.basePrice.toLocaleString()}**`);
                 if (item.sellPrice) priceInfo.push(`Sell: **${item.sellPrice.toLocaleString()}**`);
-                const pricesStr = priceInfo.length > 0 ? ` (${priceInfo.join(' | ')})` : ' (Unbuyable)';
-
-                const useStr = item.useInfo ? `\n⚡ **Use Effect:** _${item.useInfo}_` : '';
-
-                embed.addFields({
-                    name: `${item.name} \`(${item.id})\` [${item.rarity}]${pricesStr}`,
-                    value: `_${item.description}_${useStr}`
-                });
+                const pricesStr = priceInfo.length > 0 ? ` • ${priceInfo.join(' / ')}` : ' • Unbuyable';
+                
+                const useStr = item.useInfo ? `\n  ⚡ *Use:* _${item.useInfo}_` : '';
+                
+                lines.push(`• ${item.emoji} **${item.name}** (\`${item.id}\`)${pricesStr} [${item.rarity}]\n  ↳ _${item.description}_${useStr}`);
             }
+            embed.setDescription(embed.data.description + lines.join('\n\n'));
         }
     } else {
-        embed.setTitle('📖 Nishanka Items Catalog')
-             .setDescription('View items available in Nishanka. Run \`-items <category>\` or \`/items [category]\` to see specific item details.');
+        embed.setTitle('📖 Items Catalog')
+             .setDescription('Use \`-items <category>\` to see specific item details.\n\n');
 
         const catLines = [];
         for (const [key, cat] of Object.entries(CATEGORIES)) {
             const count = Object.values(ITEMS).filter(i => i.category === key).length;
-            catLines.push(`**${cat.name}** (\`${key}\`) - _${cat.desc}_ (\`${count}\` items)`);
+            catLines.push(`• **${cat.name}** (\`${key}\` • ${count} items)\n  ↳ _${cat.desc}_`);
         }
 
-        embed.addFields({ name: '📂 Categories', value: catLines.join('\n') });
+        embed.setDescription(embed.data.description + catLines.join('\n\n'));
     }
 
     return embed;
