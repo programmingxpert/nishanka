@@ -223,6 +223,40 @@ module.exports = {
             return originalMessageReply.apply(this, [options, ...args]);
         };
 
+        // --- Prioritize text mentions over reply mentions ---
+        if (message.reference && message.reference.messageId) {
+            const repliedUser = message.mentions.repliedUser;
+            if (repliedUser) {
+                const hasOtherMention = message.mentions.users.some(u => u.id !== repliedUser.id);
+                if (hasOtherMention) {
+                    // Re-order users collection to move repliedUser to the end
+                    const usersMap = new Map(message.mentions.users);
+                    message.mentions.users.clear();
+                    for (const [id, user] of usersMap) {
+                        if (id !== repliedUser.id) {
+                            message.mentions.users.set(id, user);
+                        }
+                    }
+                    message.mentions.users.set(repliedUser.id, repliedUser);
+
+                    // Re-order members collection if applicable
+                    if (message.mentions.members && message.mentions.members.size > 0) {
+                        const membersMap = new Map(message.mentions.members);
+                        const repliedMember = membersMap.get(repliedUser.id);
+                        if (repliedMember) {
+                            message.mentions.members.clear();
+                            for (const [id, member] of membersMap) {
+                                if (id !== repliedUser.id) {
+                                    message.mentions.members.set(id, member);
+                                }
+                            }
+                            message.mentions.members.set(repliedUser.id, repliedMember);
+                        }
+                    }
+                }
+            }
+        }
+
         // --- Execute command ---
         try {
             await command.executePrefix(message, args);
