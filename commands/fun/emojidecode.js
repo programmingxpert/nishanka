@@ -27,23 +27,63 @@ const QUESTIONS = [
 ];
 
 const activeGames = new Set();
-const recentAIQuestions = [];
+
+function getRecentAIQuestions() {
+    const fs = require('fs');
+    const path = require('path');
+    const recentFilePath = path.join(__dirname, '..', '..', 'recent_emojidecode.json');
+    let recent = [];
+    try {
+        if (fs.existsSync(recentFilePath)) {
+            recent = JSON.parse(fs.readFileSync(recentFilePath, 'utf8'));
+        }
+    } catch (e) {}
+    if (!Array.isArray(recent)) recent = [];
+    
+    // Include all fallback answers to avoid duplicate generation
+    const fallbackAnswers = QUESTIONS.flatMap(q => q.answers);
+    const combined = [...new Set([...recent, ...fallbackAnswers])];
+    return combined;
+}
+
+function saveRecentAIQuestion(answer) {
+    const fs = require('fs');
+    const path = require('path');
+    const recentFilePath = path.join(__dirname, '..', '..', 'recent_emojidecode.json');
+    let recent = [];
+    try {
+        if (fs.existsSync(recentFilePath)) {
+            recent = JSON.parse(fs.readFileSync(recentFilePath, 'utf8'));
+        }
+    } catch (e) {}
+    if (!Array.isArray(recent)) recent = [];
+    
+    if (!recent.includes(answer)) {
+        recent.push(answer);
+        if (recent.length > 100) {
+            recent.shift();
+        }
+        try {
+            fs.writeFileSync(recentFilePath, JSON.stringify(recent, null, 2), 'utf8');
+        } catch (e) {}
+    }
+}
 
 async function generateAIEmojiQuestion(apiKey) {
-    const avoidList = recentAIQuestions.length > 0 ? recentAIQuestions.join(', ') : 'none';
-    const prompt = `Generate a single emoji decode trivia question. The user will be shown a set of emojis and must guess the title or name of the thing represented.
+    const avoidList = getRecentAIQuestions().join(', ');
+    const prompt = `Generate a single emoji decode trivia question. The user will be shown a set of emojis and must guess the title or name of the thing represented (famous movie, video game, book, pop culture franchise, song, or concept).
 Return the result strictly as a valid JSON object matching exactly this structure (no markdown, no backticks, no other text):
 {
   "emojis": "<a string of 1-5 emojis representing a famous movie, video game, book, pop culture franchise, song, or concept>",
   "answers": [
-    "<the primary correct answer in lowercase, e.g., 'the lion king'>",
-    "<alternative acceptable answers/spellings in lowercase, e.g., 'lion king' (optional)>"
+    "<the primary correct answer in lowercase, e.g., 'minecraft'>",
+    "<alternative acceptable answers/spellings in lowercase, e.g., 'mc' (optional)>"
   ],
   "category": "<the category, e.g., Movie, Video Game, Song, Book, Pop Culture, etc.>"
 }
 Ensure the question is fun, guessable, and uses common emojis. Ensure all entries in the "answers" array are in lowercase.
-CRITICAL: Do NOT generate a question for any of the following recently used topics/answers: [${avoidList}].
-Choose a completely different, interesting, and recognizable title or concept. Be creative! Avoid cliché trivia answers (like harry potter, titanic, star wars, frozen, spiderman, minecraft) unless they are not recently used.`;
+CRITICAL: Do NOT generate a question for any of the following recently used or built-in topics/answers: [${avoidList}].
+You must choose a completely different, interesting, and recognizable title or concept (e.g. popular video games like Portal, movies like Shrek, books like Hobbit, etc.). Be creative and do not repeat the same topics!`;
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
@@ -91,12 +131,7 @@ Choose a completely different, interesting, and recognizable title or concept. B
 
     // Track recently used answers to prevent repetition
     const primaryAnswer = parsed.answers[0];
-    if (!recentAIQuestions.includes(primaryAnswer)) {
-        recentAIQuestions.push(primaryAnswer);
-        if (recentAIQuestions.length > 50) {
-            recentAIQuestions.shift();
-        }
-    }
+    saveRecentAIQuestion(primaryAnswer);
 
     return parsed;
 }

@@ -2,26 +2,16 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
 const WORDS = [
-    'javascript', 'moderation', 'giveaway', 'economy', 'discord', 
-    'developer', 'community', 'antigravity', 'adventure', 'championship', 
-    'programming', 'database', 'keyboard', 'beautiful', 'universe',
-    'algorithm', 'technology', 'network', 'cybersecurity', 'blockchain',
-    'encryption', 'processor', 'server', 'application', 'hardware',
-    'software', 'compiler', 'variable', 'function', 'coefficient',
-    'dashboard', 'automation', 'astronomy', 'chocolate', 'dinosaur',
-    'matrix', 'sanctuary', 'glimmering', 'baubles', 'spacetime',
-    'galaxy', 'telescope', 'constellation', 'astronaut', 'nebula',
-    'supernova', 'meteorite', 'eclipse', 'gravity', 'satellite',
-    'volcano', 'avalanche', 'hurricane', 'earthquake', 'tsunami',
-    'lightning', 'thunderstorm', 'monsoon', 'blizzard', 'tornado',
-    'wilderness', 'rainforest', 'waterfall', 'canyon', 'mountain',
-    'glacier', 'archipelago', 'peninsula', 'oasis', 'savannah',
-    'adventure', 'expedition', 'odyssey', 'journey', 'voyage',
-    'quest', 'safari', 'pilgrimage', 'excursion', 'crusade',
-    'symphony', 'orchestra', 'melody', 'harmony', 'rhythm',
-    'serenade', 'crescendo', 'concert', 'festival', 'carnival',
-    'labyrinth', 'mystery', 'enigma', 'puzzle', 'riddle',
-    'paradox', 'conundrum', 'illusion', 'mirage', 'phantom'
+    'garden', 'guitar', 'kitchen', 'planet', 'summer', 'jungle', 'castle',
+    'monkey', 'dragon', 'blanket', 'cookie', 'island', 'flight', 'pocket',
+    'shadow', 'banana', 'pencil', 'yellow', 'window', 'orange', 'soccer',
+    'bottle', 'button', 'forest', 'wizard', 'rabbit', 'sunset', 'anchor',
+    'jacket', 'ladder', 'palace', 'candle', 'helmet', 'hammer', 'puzzle',
+    'ticket', 'cushion', 'violin', 'trumpet', 'dancer', 'artist', 'nature',
+    'camera', 'mirror', 'bucket', 'feather', 'lizard', 'dolphin', 'spider',
+    'kitten', 'puppy', 'panda', 'tiger', 'squirrel', 'rainbow', 'autumn',
+    'spring', 'winter', 'silver', 'bronze', 'diamond', 'emerald', 'sapphire',
+    'crystal', 'beacon', 'shield', 'trophy', 'badge'
 ];
 
 const activeGames = new Set();
@@ -29,11 +19,11 @@ const recentWords = [];
 
 async function generateAIScrambleWords(apiKey, totalRounds) {
     const avoidList = recentWords.length > 0 ? recentWords.join(', ') : 'none';
-    const prompt = `Generate a list of ${totalRounds} unique, interesting, and single-word English nouns, verbs, or adjectives (no spaces, no punctuation, no special characters, between 5 and 12 characters long) suitable for a word scramble game. The words should be recognizable but fun to solve.
+    const prompt = `Generate a list of ${totalRounds} unique, simple, and highly recognizable single-word English nouns, verbs, or adjectives (no spaces, no punctuation, no special characters, between 5 and 9 characters long) suitable for a word scramble game.
+The words must be common, everyday vocabulary that an average person easily knows how to read and spell. Do NOT generate obscure, archaic, slang, or complex compound words (e.g. avoid words like "jazzman", "conundrum", "coefficient", "crescendo").
 CRITICAL: Do NOT generate any of the following recently used words: [${avoidList}].
-Avoid cliché words like 'dinosaur', 'keyboard', 'universe', 'technology', 'chocolate', 'computer', 'science'. Focus on variety and interesting, recognizable vocabulary.
 Return the result strictly as a valid JSON array of strings, e.g.:
-["backpack", "wilderness", "microscope", "symphony", "explorer"]
+["monkey", "guitar", "window", "kitchen", "blanket"]
 Do not wrap the JSON in markdown code blocks or any other formatting, and do not provide any extra text.`;
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
