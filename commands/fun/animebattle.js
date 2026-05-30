@@ -16,44 +16,66 @@ function randRange(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Helper to build visual progress bar (HP / Energy)
-function buildProgressBar(current, max, colorEmoji, emptyEmoji = '⬛', length = 10) {
+// RPG-style stat bar builder
+function buildProgressBar(current, max, colorEmoji, emptyEmoji = '⬛', length = 12, suffix = '') {
     const filledCount = Math.min(length, Math.max(0, Math.round((current / max) * length)));
     const emptyCount = length - filledCount;
-    return `${colorEmoji.repeat(filledCount)}${emptyEmoji.repeat(emptyCount)} (${current}/${max})`;
+    const percentage = Math.round((current / max) * 100);
+    return `${colorEmoji.repeat(filledCount)}${emptyEmoji.repeat(emptyCount)} **${current}/${max}${suffix}** (${percentage}%)`;
 }
 
-// Fallback anime gifs if API fails or for generic actions
-const FALLBACKS = {
-    punch: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3hxdmxuNTVpajU4NnJrZDN2ZDV2NzgxNWF0M2I0MGsxdDFmdXN4dyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/yo3TC0yeHd53G/giphy.gif', anime: 'One Punch Man' },
-    kick: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG96c3R4NWJjZXFxbmdwYWx1ZHJrOGI5bHN3bzFpa3AxeTFjOXlyayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cOz2ZfC9e9c70QO6yU/giphy.gif', anime: 'Dragon Ball Z' },
-    shoot: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaTJwNno3dDVqcmEyd2c4bmpsZHJ0NXk0dG96cHhrMW8xcmM5N2RjdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/U3UP4fTE6Qfu8/giphy.gif', anime: 'Dragon Ball Z' },
-    yeet: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNnkxdW9jOHdqdzlqM3B5aTlhNXJ0YTFkYjY1Mjlvd2x5MWF4dHlhZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/xT39CVCn6zwkGeFdVm/giphy.gif', anime: 'Jujutsu Kaisen' },
-    slap: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMTI1ZmlvbnU5OXoxbXB5ejVsdmJhZWtyaGx6OHJ3bXJhYWY5cW9wayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/k1uX5J0YLrj0c/giphy.gif', anime: 'Naruto' },
-    run: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNWV6Zm0xNmptYW05Zmp3Nnk2YndmNzhnd3FmeHhhc2s1OXQ4amgyMCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JRlqKEIncTAVJ9hoET/giphy.gif', anime: 'Naruto' },
-    angry: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbm4yc3BhZjI2dWRwODh4amJhdGZ3cm8xMXA4djV5MTRxMzAwdTFkayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Ul16jlGQHOCFW/giphy.gif', anime: 'Dragon Ball Z' },
-    smile: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaG9wOXc1dnpnb2g2dmhpNXh0eDBpcTV6NGVmd3lpeHhxd3QzdGptdCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/8gP14r9kP0lM3h2u57/giphy.gif', anime: 'One Piece' },
-    stare: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMnptZnk4MGEzOWc1MndudW9uMWh5ZWpxMTBhODhyMHNldHRrZjRvaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/12WnC0A4YSfS5W/giphy.gif', anime: 'Jujutsu Kaisen' },
-    bite: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExa3V0ZXNscDVtMTdseGNuMWthYzhoY3A2ZHk4MGt2bnRwNm1xbjM1ayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Z7B97kDSGUsp2/giphy.gif', anime: 'Slime' }
-};
-
-// Fetch real anime action GIF from nekos.best
-async function fetchAnimeGif(action) {
+// Dynamic Giphy search scraper to parse direct GIF links
+async function fetchGiphyGifs(query) {
+    const formattedQuery = encodeURIComponent(query.replace(/\s+/g, '-'));
+    const url = `https://giphy.com/search/${formattedQuery}`;
+    
     try {
-        const res = await fetch(`https://nekos.best/api/v2/${action}`);
-        if (res.ok) {
-            const data = await res.json();
-            if (data.results && data.results.length > 0) {
-                return {
-                    url: data.results[0].url,
-                    anime: data.results[0].anime_name
-                };
+        const res = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
             }
-        }
-    } catch (err) {
-        console.error(`Failed to fetch anime gif for ${action}:`, err);
+        });
+        
+        if (!res.ok) return [];
+        const html = await res.text();
+        
+        // Matches Giphy direct CDN media URLs
+        const regex = /https:\/\/media\d+\.giphy\.com\/media\/[a-zA-Z0-9_.\-\/]+\/giphy\.gif/g;
+        const matches = html.match(regex) || [];
+        
+        return [...new Set(matches)];
+    } catch (e) {
+        console.error("Giphy scraper error:", e);
+        return [];
     }
-    return FALLBACKS[action] || { url: 'https://i.imgur.com/3N0sYwD.gif', anime: 'Unknown Anime' };
+}
+
+// Shared combat math helper to handle damage, critical hits, and buff multipliers
+function executeAttack(p, o, minDmg, maxDmg, ignoreShield = false) {
+    let baseDmg = randRange(minDmg, maxDmg);
+    let isCrit = Math.random() < 0.10;
+    let finalDmg = baseDmg;
+
+    // Critical Hit multiplier (1.5x)
+    if (isCrit) {
+        finalDmg = Math.floor(finalDmg * 1.5);
+    }
+
+    // Character specific attack buffs
+    if (p.ssjBuff) finalDmg = Math.floor(finalDmg * 1.4);
+    if (p.kuramaBuff) finalDmg = Math.floor(finalDmg * 1.3);
+    if (p.sageBuff) finalDmg = Math.floor(finalDmg * 1.3);
+    if (p.goldBuff) finalDmg = Math.floor(finalDmg * 1.4);
+
+    // Defender shield reduction
+    if (o.shield && !ignoreShield) {
+        finalDmg = Math.floor(finalDmg * (1 - o.shieldRate));
+    }
+
+    finalDmg = Math.max(0, finalDmg);
+    o.hp = Math.max(0, o.hp - finalDmg);
+
+    return { damage: finalDmg, isCrit };
 }
 
 // ─── Playable Characters ─────────────────────────────────────────────────────
@@ -68,54 +90,64 @@ const PLAYABLE_CHARACTERS = [
             { 
                 name: 'Kamehameha', 
                 cost: 25, 
-                action: 'shoot', 
+                query: 'goku-kamehameha',
                 style: ButtonStyle.Primary,
                 desc: '💥 Fires a powerful energy wave dealing 18-28 damage.', 
                 execute: (p, o) => {
-                    let dmg = randRange(18, 28);
-                    if (p.ssjBuff) { dmg = Math.floor(dmg * 1.4); p.ssjBuff = false; }
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `💥 **Goku** fired a massive **Kamehameha** at **${o.name}** dealing **${dmg}** damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 18, 28);
+                    const ssjUsed = p.ssjBuff;
+                    if (p.ssjBuff) p.ssjBuff = false; // consume buff
+                    
+                    let log = `🗣️ Goku: *"Ka... me... ha... me... HA!"*\n` +
+                              `💥 **Goku** fired a massive **Kamehameha** at **${o.name}** dealing **${damage}** damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    if (ssjUsed) log += `\n⚡ *(Super Saiyan Boosted!)*`;
+                    return log;
                 }
             },
             { 
                 name: 'Super Saiyan', 
                 cost: 0, 
-                action: 'angry', 
+                query: 'goku-super-saiyan-power-up',
                 style: ButtonStyle.Success,
                 desc: '⚡ Powers up! Gains +30 Energy, heals 15 HP, and boosts next attack by 40%.', 
                 execute: (p, o) => {
                     p.ssjBuff = true;
                     p.energy = Math.min(100, p.energy + 30);
                     p.hp = Math.min(p.maxHp, p.hp + 15);
-                    return `⚡ **Goku** powered up into **Super Saiyan**! Heals 15 HP, gains +30 Energy, and boosts next attack's damage by 40%!`;
+                    return `🗣️ Goku: *"And this... is to go even further beyond!"*\n` +
+                           `⚡ **Goku** powered up into **Super Saiyan**! Heals **15 HP**, gains **+30 Energy**, and boosts his next attack's damage by **40%**!`;
                 }
             },
             { 
                 name: 'Instant Transmission', 
                 cost: 15, 
-                action: 'run', 
+                query: 'goku-instant-transmission',
                 style: ButtonStyle.Primary,
                 desc: '🌀 Evades the next attack and counters for 10 damage.', 
                 execute: (p, o) => {
                     p.dodge = true;
                     p.dodgeCounter = 10;
-                    return `🌀 **Goku** vanishes using **Instant Transmission**, preparing to evade the next attack and counter-attack!`;
+                    return `🗣️ Goku: *"You can't catch me!"*\n` +
+                           `🌀 **Goku** vanishes using **Instant Transmission**, preparing to evade the next attack and counter-attack!`;
                 }
             },
             { 
                 name: 'Spirit Bomb', 
                 cost: 60, 
-                action: 'yeet', 
+                query: 'goku-spirit-bomb',
                 style: ButtonStyle.Danger,
                 desc: '🌟 Gathers planetary energy to hurl a colossal Spirit Bomb dealing 40-60 damage.', 
                 execute: (p, o) => {
-                    let dmg = randRange(40, 60);
-                    if (p.ssjBuff) { dmg = Math.floor(dmg * 1.4); p.ssjBuff = false; }
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🌟 **Goku** gathered the energy of the universe and hurled a colossal **Spirit Bomb** at **${o.name}** for **${dmg}** massive damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 40, 60);
+                    const ssjUsed = p.ssjBuff;
+                    if (p.ssjBuff) p.ssjBuff = false;
+                    
+                    let log = `🗣️ Goku: *"People of Earth! Share your energy with me!"*\n` +
+                              `🌟 **Goku** hurls a colossal **Spirit Bomb** at **${o.name}** for **${damage}** massive damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    if (ssjUsed) log += `\n⚡ *(Super Saiyan Boosted!)*`;
+                    return log;
                 }
             }
         ]
@@ -130,20 +162,21 @@ const PLAYABLE_CHARACTERS = [
             { 
                 name: 'Reversal Red', 
                 cost: 20, 
-                action: 'yeet', 
+                query: 'gojo-reversal-red',
                 style: ButtonStyle.Primary,
                 desc: '🔴 Deals 16-24 repelling damage.', 
                 execute: (p, o) => {
-                    let dmg = randRange(16, 24);
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🔴 **Gojo** released Curse Technique Reversal **Red** dealing **${dmg}** damage to **${o.name}**!`;
+                    const { damage, isCrit } = executeAttack(p, o, 16, 24);
+                    let log = `🗣️ Gojo: *"Curse Technique Reversal: Red."*\n` +
+                              `🔴 **Gojo** released Curse Technique Reversal **Red** dealing **${damage}** damage to **${o.name}**!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Infinity Shield', 
                 cost: 10, 
-                action: 'smile', 
+                query: 'gojo-infinity',
                 style: ButtonStyle.Success,
                 desc: '🛡️ Deploys Infinity. Reduces incoming damage by 80% for 2 turns and heals 10 HP.', 
                 execute: (p, o) => {
@@ -151,34 +184,38 @@ const PLAYABLE_CHARACTERS = [
                     p.shieldTurns = 2;
                     p.shieldRate = 0.8;
                     p.hp = Math.min(p.maxHp, p.hp + 10);
-                    return `🛡️ **Gojo** deployed his **Infinity** shield! Incoming damage reduced by 80% for 2 turns. Heals 10 HP.`;
+                    return `🗣️ Gojo: *"My Infinity exists everywhere around me."*\n` +
+                           `🛡️ **Gojo** deployed his **Infinity** shield! Incoming damage reduced by **80%** for 2 turns. Heals **10 HP**.`;
                 }
             },
             { 
                 name: 'Curse Lapse Blue', 
                 cost: 25, 
-                action: 'slap', 
+                query: 'gojo-lapse-blue',
                 style: ButtonStyle.Primary,
                 desc: '🔵 Deals 10 damage and stuns the opponent for 1 turn.', 
                 execute: (p, o) => {
-                    let dmg = 10;
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
+                    const { damage, isCrit } = executeAttack(p, o, 10, 10);
                     o.stunned = true;
-                    return `🔵 **Gojo** used Curse Technique Lapse **Blue** to pull **${o.name}** in, dealing **${dmg}** damage and **stunning** them for 1 turn!`;
+                    let log = `🗣️ Gojo: *"Curse Technique Lapse: Blue!"*\n` +
+                              `🔵 **Gojo** uses **Blue** to pull **${o.name}** in, dealing **${damage}** damage and **stunning** them for 1 turn!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Unlimited Void', 
                 cost: 70, 
-                action: 'stare', 
+                query: 'gojo-satoru-unlimited-void',
                 style: ButtonStyle.Danger,
                 desc: '🌌 Expands domain. Deals 35-45 absolute damage (ignores shield) and stuns for 1 turn.', 
                 execute: (p, o) => {
-                    let dmg = randRange(35, 45); // ignores shields
-                    o.hp = Math.max(0, o.hp - dmg);
+                    const { damage, isCrit } = executeAttack(p, o, 35, 45, true);
                     o.stunned = true;
-                    return `🌌 **Gojo** expanded his domain: **Unlimited Void**! Brain-overloading **${o.name}**, dealing **${dmg}** absolute damage and **stunning** them for 1 turn!`;
+                    let log = `🗣️ Gojo: *"Domain Expansion: Unlimited Void."*\n` +
+                              `🌌 **Gojo** expands **Unlimited Void**! Brain-overloading **${o.name}**, dealing **${damage}** absolute damage and **stunning** them for 1 turn!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             }
         ]
@@ -193,21 +230,22 @@ const PLAYABLE_CHARACTERS = [
             { 
                 name: 'Normal Punch', 
                 cost: 0, 
-                action: 'punch', 
+                query: 'saitama-normal-punch',
                 style: ButtonStyle.Primary,
                 desc: '✊ Standard punch dealing 12-16 damage. Gains +20 Energy.', 
                 execute: (p, o) => {
-                    let dmg = randRange(12, 16);
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
+                    const { damage, isCrit } = executeAttack(p, o, 12, 16);
                     p.energy = Math.min(100, p.energy + 20);
-                    return `✊ **Saitama** threw a **Normal Punch** at **${o.name}** dealing **${dmg}** damage and gaining +20 Energy!`;
+                    let log = `🗣️ Saitama: *"I'll just use a normal punch."*\n` +
+                              `✊ **Saitama** threw a **Normal Punch** at **${o.name}** dealing **${damage}** damage and gaining **+20 Energy**!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Serious Dodge', 
                 cost: 10, 
-                action: 'run', 
+                query: 'saitama-serious-side-steps',
                 style: ButtonStyle.Success,
                 desc: '💨 Evades all attacks next turn, gains +30 Energy, and heals 10 HP.', 
                 execute: (p, o) => {
@@ -215,35 +253,43 @@ const PLAYABLE_CHARACTERS = [
                     p.dodgeCounter = 0;
                     p.energy = Math.min(100, p.energy + 30);
                     p.hp = Math.min(p.maxHp, p.hp + 10);
-                    return `💨 **Saitama** executed a **Serious Dodge** side-step! Evading all attacks next turn, gaining +30 Energy, and healing 10 HP.`;
+                    return `🗣️ Saitama: *"Serious Series... Serious Side-Steps!"*\n` +
+                           `💨 **Saitama** executed a **Serious Dodge** side-step! Evading all attacks next turn, gaining **+30 Energy**, and healing **10 HP**.`;
                 }
             },
             { 
                 name: 'Consecutive Punches', 
                 cost: 20, 
-                action: 'punch', 
+                query: 'saitama-consecutive-normal-punches',
                 style: ButtonStyle.Primary,
                 desc: '👊 Rapid punches dealing 16-30 damage.', 
                 execute: (p, o) => {
                     let hits = randRange(4, 6);
-                    let total = 0;
-                    for (let k = 0; k < hits; k++) total += randRange(4, 5);
-                    if (o.shield) { total = Math.floor(total * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - total);
-                    return `👊 **Saitama** threw **Consecutive Normal Punches** at **${o.name}** landing **${hits}** hits for **${total}** total damage!`;
+                    let baseTotal = 0;
+                    let hasCrit = false;
+                    for (let k = 0; k < hits; k++) {
+                        const { damage, isCrit } = executeAttack(p, o, 4, 5);
+                        baseTotal += damage;
+                        if (isCrit) hasCrit = true;
+                    }
+                    let log = `🗣️ Saitama: *"Consecutive Normal Punches."*\n` +
+                              `👊 **Saitama** landed **${hits} Consecutive Normal Punches** on **${o.name}** for **${baseTotal}** total damage!`;
+                    if (hasCrit) log = `✨ **CRITICAL HITS!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Serious Punch', 
                 cost: 80, 
-                action: 'yeet', 
+                query: 'saitama-serious-punch',
                 style: ButtonStyle.Danger,
                 desc: '💥 Serious Series: Serious Punch! Deals 60-80 apocalyptic damage.', 
                 execute: (p, o) => {
-                    let dmg = randRange(60, 80);
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `💥 **Saitama** unleashed a **Serious Punch**! The shockwave blasts **${o.name}** for **${dmg}** colossal damage, parting the clouds!`;
+                    const { damage, isCrit } = executeAttack(p, o, 60, 80);
+                    let log = `🗣️ Saitama: *"Serious Series... SERIOUS PUNCH!"*\n` +
+                              `💥 **Saitama** unleashed a **Serious Punch**! The shockwave blasts **${o.name}** for **${damage}** colossal damage, parting the clouds!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             }
         ]
@@ -258,33 +304,34 @@ const PLAYABLE_CHARACTERS = [
             { 
                 name: 'Rasengan', 
                 cost: 20, 
-                action: 'punch', 
+                query: 'naruto-rasengan',
                 style: ButtonStyle.Primary,
                 desc: '🌀 Swirling sphere of chakra dealing 16-26 damage.', 
                 execute: (p, o) => {
-                    let dmg = randRange(16, 26);
-                    if (p.kuramaBuff) { dmg = Math.floor(dmg * 1.3); }
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🌀 **Naruto** charges forward with a **Rasengan**, smashing **${o.name}** for **${dmg}** damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 16, 26);
+                    let log = `🗣️ Naruto: *"Rasengan!"*\n` +
+                              `🌀 **Naruto** charges forward with a **Rasengan**, smashing **${o.name}** for **${damage}** damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Shadow Clone Jutsu', 
                 cost: 15, 
-                action: 'dance', 
+                query: 'naruto-shadow-clone-jutsu',
                 style: ButtonStyle.Primary,
                 desc: '👥 Summons clones. Evades the next attack completely and counters for 10 damage.', 
                 execute: (p, o) => {
                     p.dodge = true;
                     p.dodgeCounter = 10;
-                    return `👥 **Naruto** creates a squad of **Shadow Clones**! They prepare to shield the real Naruto and counter-attack.`;
+                    return `🗣️ Naruto: *"Shadow Clone Jutsu!"*\n` +
+                           `👥 **Naruto** creates a squad of **Shadow Clones**! They prepare to shield the real Naruto and counter-attack.`;
                 }
             },
             { 
                 name: 'Kurama Sage Mode', 
                 cost: 0, 
-                action: 'angry', 
+                query: 'naruto-kurama-link-mode',
                 style: ButtonStyle.Success,
                 desc: '🦊 Heals 20 HP, gains +40 Energy, and boosts all damage by 30% for 3 turns.', 
                 execute: (p, o) => {
@@ -292,21 +339,22 @@ const PLAYABLE_CHARACTERS = [
                     p.kuramaBuffTurns = 3;
                     p.energy = Math.min(100, p.energy + 40);
                     p.hp = Math.min(p.maxHp, p.hp + 20);
-                    return `🦊 **Naruto** enters **Kurama Sage Mode**! Heals 20 HP, gains +40 Energy, and gains a 30% damage boost for 3 turns!`;
+                    return `🗣️ Naruto: *"Let's do this, Kurama! Combined power!"*\n` +
+                           `🦊 **Naruto** enters **Kurama Sage Mode**! Heals **20 HP**, gains **+40 Energy**, and gains a **30% damage boost** for 3 turns!`;
                 }
             },
             { 
                 name: 'Rasenshuriken', 
                 cost: 60, 
-                action: 'yeet', 
+                query: 'naruto-rasenshuriken',
                 style: ButtonStyle.Danger,
                 desc: '🌪️ Throws a wind-shuriken of dense Tailed Beast chakra dealing 38-50 damage.', 
                 execute: (p, o) => {
-                    let dmg = randRange(38, 50);
-                    if (p.kuramaBuff) { dmg = Math.floor(dmg * 1.3); }
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🌪️ **Naruto** hurls a **Tailed Beast Rasenshuriken**! The exploding wind vortex shreds **${o.name}** for **${dmg}** massive damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 38, 50);
+                    let log = `🗣️ Naruto: *"Wind Style: Rasenshuriken!"*\n` +
+                              `🌪️ **Naruto** hurls a **Tailed Beast Rasenshuriken**! The wind vortex shreds **${o.name}** for **${damage}** massive damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             }
         ]
@@ -321,35 +369,37 @@ const PLAYABLE_CHARACTERS = [
             { 
                 name: 'Gum-Gum Pistol', 
                 cost: 0, 
-                action: 'punch', 
+                query: 'luffy-gum-gum-pistol',
                 style: ButtonStyle.Primary,
                 desc: '🥊 Stretches his arm for a quick punch dealing 14-18 damage. Gains +25 Energy.', 
                 execute: (p, o) => {
-                    let dmg = randRange(14, 18);
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
+                    const { damage, isCrit } = executeAttack(p, o, 14, 18);
                     p.energy = Math.min(100, p.energy + 25);
-                    return `🥊 **Luffy** stretches his arm and lands a **Gum-Gum Pistol** on **${o.name}** for **${dmg}** damage, gaining +25 Energy!`;
+                    let log = `🗣️ Luffy: *"Gum-Gum... PISTOL!"*\n` +
+                              `🥊 **Luffy** stretches his arm and lands a **Gum-Gum Pistol** on **${o.name}** for **${damage}** damage, gaining **+25 Energy**!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Gear 2nd Speed', 
                 cost: 30, 
-                action: 'run', 
+                query: 'luffy-gear-second',
                 style: ButtonStyle.Primary,
                 desc: '⚡ Deals 10 damage and grants an immediate extra turn!', 
                 execute: (p, o) => {
-                    let dmg = 10;
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
+                    const { damage, isCrit } = executeAttack(p, o, 10, 10);
                     p.extraTurn = true;
-                    return `⚡ **Luffy** activates **Gear 2nd**! Strikes **${o.name}** for **${dmg}** damage and speeds up, gaining an immediate extra turn!`;
+                    let log = `🗣️ Luffy: *"Gear... SECOND!"*\n` +
+                              `⚡ **Luffy** activates **Gear 2nd**! Strikes **${o.name}** for **${damage}** damage and speeds up, gaining an immediate extra turn!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Rubber Haki Defense', 
                 cost: 10, 
-                action: 'stare', 
+                query: 'luffy-armament-haki',
                 style: ButtonStyle.Success,
                 desc: '🛡️ Reduces damage by 60% and reflects 30% of incoming damage next turn.', 
                 execute: (p, o) => {
@@ -357,20 +407,23 @@ const PLAYABLE_CHARACTERS = [
                     p.shieldTurns = 1;
                     p.shieldRate = 0.6;
                     p.reflect = true;
-                    return `🛡️ **Luffy** hardens with Armament Haki! Reduces damage taken by 60% and reflects 30% of incoming damage!`;
+                    return `🗣️ Luffy: *"Busoshoku Haki!"*\n` +
+                           `🛡️ **Luffy** hardens with Armament Haki! Reduces damage taken by **60%** and reflects **30%** of incoming damage!`;
                 }
             },
             { 
                 name: 'Bajrang Gun', 
                 cost: 70, 
-                action: 'yeet', 
+                query: 'luffy-gear-5-bajrang-gun',
                 style: ButtonStyle.Danger,
                 desc: '☀️ Sun God Nika! Deals 35-55 damage and stuns the target for 1 turn.', 
                 execute: (p, o) => {
-                    let dmg = randRange(35, 55);
-                    o.hp = Math.max(0, o.hp - dmg);
+                    const { damage, isCrit } = executeAttack(p, o, 35, 55);
                     o.stunned = true;
-                    return `☀️ **Luffy** laughs joyfully in **Gear 5th** and crushes **${o.name}** with a giant **Bajrang Gun** for **${dmg}** damage, **stunning** them!`;
+                    let log = `🗣️ Luffy: *"This is my peak! Bajrang Gun!"*\n` +
+                              `☀️ **Luffy** laughs joyfully in **Gear 5th** and crushes **${o.name}** with a giant **Bajrang Gun** for **${damage}** damage, **stunning** them!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             }
         ]
@@ -385,58 +438,65 @@ const PLAYABLE_CHARACTERS = [
             { 
                 name: 'Water Blade', 
                 cost: 15, 
-                action: 'shoot', 
+                query: 'rimuru-tempest-water-blade',
                 style: ButtonStyle.Primary,
                 desc: '🌊 Sharp water blades dealing 15-22 damage.', 
                 execute: (p, o) => {
-                    let dmg = randRange(15, 22);
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🌊 **Rimuru** fires sharp, slicing **Water Blades** at **${o.name}** dealing **${dmg}** damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 15, 22);
+                    let log = `🗣️ Rimuru: *"Water Blade!"*\n` +
+                              `🌊 **Rimuru** fires sharp, slicing **Water Blades** at **${o.name}** dealing **${damage}** damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Gluttony', 
                 cost: 25, 
-                action: 'bite', 
+                query: 'rimuru-tempest-gluttony',
                 style: ButtonStyle.Primary,
                 desc: '😈 Devours enemy energy. Deals 15-20 damage and heals Rimuru for the same amount.', 
                 execute: (p, o) => {
-                    let dmg = randRange(15, 20);
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
-                    p.hp = Math.min(p.maxHp, p.hp + dmg);
-                    return `😈 **Rimuru** activates **Gluttony**, devouring **${o.name}**'s lifeforce. Deals **${dmg}** damage and heals Rimuru for that amount!`;
+                    const { damage, isCrit } = executeAttack(p, o, 15, 20);
+                    p.hp = Math.min(p.maxHp, p.hp + damage);
+                    let log = `🗣️ Rimuru: *"Devour everything... Beelzebuth!"*\n` +
+                              `😈 **Rimuru** devours **${o.name}**'s lifeforce. Deals **${damage}** damage and heals Rimuru for that amount!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Great Sage Analysis', 
                 cost: 0, 
-                action: 'smile', 
+                query: 'rimuru-tempest-great-sage',
                 style: ButtonStyle.Success,
                 desc: '🧠 Gains +35 Energy, heals 10 HP, and next attack deals +30% damage.', 
                 execute: (p, o) => {
                     p.sageBuff = true;
                     p.energy = Math.min(100, p.energy + 35);
                     p.hp = Math.min(p.maxHp, p.hp + 10);
-                    return `🧠 **Rimuru** consults **Great Sage**! Analyzes enemy weakness, gains +35 Energy, heals 10 HP, and boosts next attack by 30%!`;
+                    return `🗣️ Rimuru: *"Great Sage, analyze the opponent!"*\n` +
+                           `🧠 **Rimuru** consults **Great Sage**! Analyzes weakness, gains **+35 Energy**, heals **10 HP**, and boosts next attack by **30%**!`;
                 }
             },
             { 
                 name: 'Megiddo', 
                 cost: 65, 
-                action: 'shoot', 
+                query: 'rimuru-tempest-megiddo',
                 style: ButtonStyle.Danger,
                 desc: '☀️ Solar rays deal 35-45 damage and burn for 6 damage/turn for 2 turns.', 
                 execute: (p, o) => {
-                    let dmg = randRange(35, 45);
-                    if (p.sageBuff) { dmg = Math.floor(dmg * 1.3); p.sageBuff = false; }
-                    if (o.shield) { dmg = Math.floor(dmg * (1 - o.shieldRate)); }
-                    o.hp = Math.max(0, o.hp - dmg);
+                    const { damage, isCrit } = executeAttack(p, o, 35, 45);
+                    const sageUsed = p.sageBuff;
+                    if (p.sageBuff) p.sageBuff = false;
                     o.burned = true;
                     o.burnTurns = 2;
                     o.burnDmg = 6;
-                    return `☀️ **Rimuru** executes **Megiddo**! Countless solar rays pierce **${o.name}** dealing **${dmg}** damage and leaving them **burned**!`;
+                    
+                    let log = `🗣️ Rimuru: *"May the wrath of the gods pierce you. Megiddo!"*\n` +
+                              `☀️ **Rimuru** executes **Megiddo**! Solar rays pierce **${o.name}** dealing **${damage}** damage and leaving them **burned**!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    if (sageUsed) log += `\n🧠 *(Great Sage Boosted!)*`;
+                    return log;
                 }
             }
         ]
@@ -454,44 +514,49 @@ const BOSSES = [
             { 
                 name: 'Dismantle', 
                 cost: 0, 
-                action: 'slap', 
+                query: 'sukuna-dismantle', 
                 execute: (p, o) => {
-                    let dmg = randRange(14, 19);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `⚔️ **Sukuna** casts **Dismantle** dealing **${dmg}** slashing damage to **${o.name}**!`;
+                    const { damage, isCrit } = executeAttack(p, o, 14, 19);
+                    let log = `🗣️ Sukuna: *"Dismantle."*\n` +
+                              `⚔️ **Sukuna** casts **Dismantle** dealing **${damage}** slashing damage to **${o.name}**!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Cleave', 
                 cost: 25, 
-                action: 'slap', 
+                query: 'sukuna-cleave', 
                 execute: (p, o) => {
-                    let dmg = randRange(20, 26);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `⚔️ **Sukuna** casts **Cleave** on **${o.name}** dealing **${dmg}** high-slashing damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 20, 26);
+                    let log = `🗣️ Sukuna: *"Cleave!"*\n` +
+                              `⚔️ **Sukuna** casts **Cleave** on **${o.name}** dealing **${damage}** high-slashing damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Flame Arrow', 
                 cost: 35, 
-                action: 'shoot', 
+                query: 'sukuna-fire-arrow', 
                 execute: (p, o) => {
-                    let dmg = randRange(22, 30);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🔥 **Sukuna** chants and fires his **Flame Arrow (Fuga)** hitting **${o.name}** for **${dmg}** fire damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 22, 30);
+                    let log = `🗣️ Sukuna: *"Open (Fuga)."*\n` +
+                              `🔥 **Sukuna** fires his **Flame Arrow (Fuga)** hitting **${o.name}** for **${damage}** fire damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Malevolent Shrine', 
                 cost: 60, 
-                action: 'yeet', 
+                query: 'sukuna-malevolent-shrine', 
                 execute: (p, o) => {
-                    let dmg = randRange(35, 45); // ignores shields
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `⛩️ **Sukuna** expands his domain: **Malevolent Shrine**! A storm of cuts shreds **${o.name}** for **${dmg}** absolute damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 35, 45, true);
+                    let log = `🗣️ Sukuna: *"Domain Expansion: Malevolent Shrine."*\n` +
+                              `⛩️ **Sukuna** expands his domain: **Malevolent Shrine**! A storm of cuts shreds **${o.name}** for **${damage}** absolute damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             }
         ]
@@ -505,46 +570,50 @@ const BOSSES = [
             { 
                 name: 'Susanoo Strike', 
                 cost: 0, 
-                action: 'slap', 
+                query: 'madara-susanoo', 
                 execute: (p, o) => {
-                    let dmg = randRange(15, 20);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `⚔️ **Madara** swings his **Susanoo Blade** dealing **${dmg}** slash damage to **${o.name}**!`;
+                    const { damage, isCrit } = executeAttack(p, o, 15, 20);
+                    let log = `🗣️ Madara: *"This is the power of a god."*\n` +
+                              `⚔️ **Madara** swings his **Susanoo Blade** dealing **${damage}** slash damage to **${o.name}**!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Destroyer Flame', 
                 cost: 25, 
-                action: 'shoot', 
+                query: 'madara-majestic-destroyer-flame', 
                 execute: (p, o) => {
-                    let dmg = randRange(20, 27);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🔥 **Madara** spews a sea of fire: **Majestic Destroyer Flame**, burning **${o.name}** for **${dmg}** fire damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 20, 27);
+                    let log = `🗣️ Madara: *"Fire Style: Majestic Destroyer Flame!"*\n` +
+                              `🔥 **Madara** spews a sea of fire, burning **${o.name}** for **${damage}** fire damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Deep Forest Emergence', 
                 cost: 35, 
-                action: 'stare', 
+                query: 'madara-wood-style', 
                 execute: (p, o) => {
-                    let dmg = 10;
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
+                    const { damage, isCrit } = executeAttack(p, o, 10, 10);
                     o.stunned = true;
-                    return `🪵 **Madara** uses **Deep Forest Emergence**, trapping **${o.name}** for **${dmg}** damage and **stunning** them for 1 turn!`;
+                    let log = `🗣️ Madara: *"Deep Forest Emergence!"*\n` +
+                              `🪵 **Madara** uses Wood Style, trapping **${o.name}** for **${damage}** damage and **stunning** them for 1 turn!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Shattered Heaven', 
                 cost: 60, 
-                action: 'yeet', 
+                query: 'madara-shattered-heaven', 
                 execute: (p, o) => {
-                    let dmg = randRange(35, 48);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `☄️ **Madara** summons a colossal meteor: **Shattered Heaven**! The sky falls upon **${o.name}** dealing **${dmg}** devastating damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 35, 48);
+                    let log = `🗣️ Madara: *"What will you do about the second one, Ohnoki?"*\n` +
+                              `☄️ **Madara** summons a colossal meteor: **Shattered Heaven**! The sky falls upon **${o.name}** dealing **${damage}** devastating damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             }
         ]
@@ -558,46 +627,50 @@ const BOSSES = [
             { 
                 name: 'Kanabo Strike', 
                 cost: 0, 
-                action: 'punch', 
+                query: 'kaido-club-strike', 
                 execute: (p, o) => {
-                    let dmg = randRange(14, 18);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🥊 **Kaido** swings his spiked iron club dealing **${dmg}** blunt damage to **${o.name}**!`;
+                    const { damage, isCrit } = executeAttack(p, o, 14, 18);
+                    let log = `🗣️ Kaido: *"Is that all you've got?"*\n` +
+                              `🥊 **Kaido** swings his spiked club dealing **${damage}** blunt damage to **${o.name}**!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Bolo Breath', 
                 cost: 25, 
-                action: 'shoot', 
+                query: 'kaido-bolo-breath', 
                 execute: (p, o) => {
-                    let dmg = randRange(18, 25);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🔥 **Kaido** releases **Bolo Breath** from his dragon mouth, scorching **${o.name}** for **${dmg}** fire damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 18, 25);
+                    let log = `🗣️ Kaido: *"Bolo Breath!"*\n` +
+                              `🔥 **Kaido** releases **Bolo Breath** scorching **${o.name}** for **${damage}** fire damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Dragon Scale Fortify', 
                 cost: 35, 
-                action: 'angry', 
+                query: 'kaido-dragon-scales', 
                 execute: (p, o) => {
                     p.shield = true;
                     p.shieldTurns = 2;
                     p.shieldRate = 0.5;
                     p.hp = Math.min(p.maxHp, p.hp + 12);
-                    return `🐲 **Kaido** hardens his dragon scales! Heals 12 HP and reduces incoming damage by 50% for 2 turns.`;
+                    return `🗣️ Kaido: *"My scales are indestructible!"*\n` +
+                           `🐲 **Kaido** hardens his scales! Heals **12 HP** and reduces incoming damage by **50%** for 2 turns.`;
                 }
             },
             { 
                 name: 'Thunder Bagua', 
                 cost: 60, 
-                action: 'yeet', 
+                query: 'kaido-thunder-bagua', 
                 execute: (p, o) => {
-                    let dmg = randRange(36, 46);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `⚡ **Kaido** blitzes forward at god speed, unleashing **Thunder Bagua** and smashing **${o.name}** for **${dmg}** lightning damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 36, 46);
+                    let log = `🗣️ Kaido: *"Raimei Hakke!"*\n` +
+                              `⚡ **Kaido** blitzes forward at god speed, unleashing **Thunder Bagua** and smashing **${o.name}** for **${damage}** lightning damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             }
         ]
@@ -611,45 +684,52 @@ const BOSSES = [
             { 
                 name: 'Death Beam', 
                 cost: 0, 
-                action: 'shoot', 
+                query: 'frieza-death-beam', 
                 execute: (p, o) => {
-                    let dmg = randRange(15, 20);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `👉 **Frieza** fires a piercing **Death Beam** dealing **${dmg}** damage to **${o.name}**!`;
+                    const { damage, isCrit } = executeAttack(p, o, 15, 20);
+                    let log = `🗣️ Frieza: *"Why don't you just die?"*\n` +
+                              `👉 **Frieza** fires a piercing **Death Beam** dealing **${damage}** damage to **${o.name}**!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Death Psycho Bomb', 
                 cost: 25, 
-                action: 'yeet', 
+                query: 'frieza-death-psycho-bomb', 
                 execute: (p, o) => {
-                    let dmg = randRange(20, 26);
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `🌀 **Frieza** lifts **${o.name}** telekinetically and detonates them with a **Death Psycho Bomb** for **${dmg}** damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 20, 26);
+                    let log = `🗣️ Frieza: *"I'll blow you to pieces!"*\n` +
+                              `🌀 **Frieza** detonates **${o.name}** with a **Death Psycho Bomb** for **${damage}** damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    return log;
                 }
             },
             { 
                 name: 'Golden Evolution', 
                 cost: 35, 
-                action: 'angry', 
+                query: 'golden-frieza-transformation', 
                 execute: (p, o) => {
                     p.hp = Math.min(p.maxHp, p.hp + 15);
                     p.goldBuff = true;
-                    return `✨ **Frieza** transforms into **Golden Frieza**! Heals 15 HP and his next attack deals 40% more damage!`;
+                    return `🗣️ Frieza: *"Behold... my Golden Form!"*\n` +
+                           `✨ **Frieza** transforms into **Golden Frieza**! Heals **15 HP** and his next attack deals **40% more damage**!`;
                 }
             },
             { 
                 name: 'Supernova', 
                 cost: 60, 
-                action: 'yeet', 
+                query: 'frieza-supernova', 
                 execute: (p, o) => {
-                    let dmg = randRange(38, 48);
-                    if (p.goldBuff) { dmg = Math.floor(dmg * 1.4); p.goldBuff = false; }
-                    if (o.shield) dmg = Math.floor(dmg * (1 - o.shieldRate));
-                    o.hp = Math.max(0, o.hp - dmg);
-                    return `☄️ **Frieza** drops a planet-destroying **Supernova** on **${o.name}** for **${dmg}** absolute damage!`;
+                    const { damage, isCrit } = executeAttack(p, o, 38, 48);
+                    const goldUsed = p.goldBuff;
+                    if (p.goldBuff) p.goldBuff = false;
+                    
+                    let log = `🗣️ Frieza: *"I will reduce this planet to cosmic dust!"*\n` +
+                              `☄️ **Frieza** drops the **Supernova** on **${o.name}** for **${damage}** absolute damage!`;
+                    if (isCrit) log = `✨ **CRITICAL HIT!** ✨\n` + log;
+                    if (goldUsed) log += `\n✨ *(Golden Evolution Boosted!)*`;
+                    return log;
                 }
             }
         ]
@@ -773,7 +853,7 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
             return await initialMsg.edit({ embeds: [timeoutEmbed], components: [] });
         }
 
-        // Refetch/reload baubleData to prevent race conditions after the selection pause
+        // Refetch baubleData
         baubleData = await Bauble.findOne({ userId });
         if (bet > 0 && (!baubleData || baubleData.baubles < bet)) {
             const errEmbed = new EmbedBuilder()
@@ -783,7 +863,7 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
             return await initialMsg.edit({ embeds: [errEmbed], components: [] });
         }
 
-        // Deduct bet immediately to secure stakes
+        // Deduct bet immediately
         if (bet > 0) {
             baubleData.baubles -= bet;
             await baubleData.save();
@@ -874,12 +954,12 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                 .addFields(
                     {
                         name: `${chosenChar.emoji} ${player.name} (You)`,
-                        value: `**HP:** ${buildProgressBar(player.hp, player.maxHp, '🟩')}${pStatusStr}\n**Energy:** ${buildProgressBar(player.energy, 100, '🟦', '⬛')}`,
+                        value: `❤️ **HP:** ${buildProgressBar(player.hp, player.maxHp, '🟩', '⬛', 12, ' HP')}${pStatusStr}\n⚡ **Energy:** ${buildProgressBar(player.energy, 100, '🟦', '⬛', 12, '')}`,
                         inline: false
                     },
                     {
                         name: `${chosenBoss.emoji} ${boss.name} (Boss)`,
-                        value: `**HP:** ${buildProgressBar(boss.hp, boss.maxHp, '🟥')}${bStatusStr}\n**Energy:** ${buildProgressBar(boss.energy, 100, '🟧', '⬛')}`,
+                        value: `❤️ **HP:** ${buildProgressBar(boss.hp, boss.maxHp, '🟥', '⬛', 12, ' HP')}${bStatusStr}\n⚡ **Energy:** ${buildProgressBar(boss.energy, 100, '🟧', '⬛', 12, '')}`,
                         inline: false
                     }
                 )
@@ -950,7 +1030,7 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                 player.energy = Math.min(100, player.energy + 20); // Still gain energy
                 lastActionLog = `💫 **${player.name}** is stunned/confused and skips their turn!`;
                 lastActionGif = 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2ptMXR6aGl6YTVicGRrcG13b2phd3plcnEydnE5eXUwcTFscWFqbyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7bu3XilJ5BOiSGic/giphy.gif';
-                lastActionAnime = 'Unknown Anime';
+                lastActionAnime = 'Jujutsu Kaisen';
 
                 await initialMsg.edit({ embeds: [buildBattleEmbed('Stunned!')], components: [] });
                 await new Promise(resolve => setTimeout(resolve, 2500));
@@ -973,7 +1053,7 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                 boss.energy = Math.min(100, boss.energy + 20);
                 lastActionLog = `💫 **${boss.name}** is stunned/confused and skips their turn!`;
                 lastActionGif = 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2ptMXR6aGl6YTVicGRrcG13b2phd3plcnEydnE5eXUwcTFscWFqbyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7bu3XilJ5BOiSGic/giphy.gif';
-                lastActionAnime = 'Unknown Anime';
+                lastActionAnime = 'Jujutsu Kaisen';
 
                 await initialMsg.edit({ embeds: [buildBattleEmbed('Stunned!')], components: [] });
                 await new Promise(resolve => setTimeout(resolve, 2500));
@@ -990,10 +1070,8 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
 
             // ─── Player Turn ─────────────────────────────────────────────────
             if (turn === 'player') {
-                // Gain 20 Energy at the start of Player turn
                 player.energy = Math.min(100, player.energy + 20);
 
-                // Edit Message with interactive UI
                 await initialMsg.edit({ 
                     embeds: [buildBattleEmbed()], 
                     components: [buildBattleButtons(false)] 
@@ -1034,19 +1112,22 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                         evadeText += ` and counter-attacked for **${boss.dodgeCounter}** damage!`;
                     }
                     lastActionLog = evadeText;
-                    lastActionGif = FALLBACKS.run.url;
-                    lastActionAnime = 'Dragon Ball';
+                    
+                    // Fetch dodge gif
+                    const gifs = await fetchGiphyGifs(`${boss.name.toLowerCase()} dodge`);
+                    lastActionGif = gifs.length > 0 ? gifs[0] : boss.avatar;
+                    lastActionAnime = boss.name === 'Sukuna' ? 'Jujutsu Kaisen' : boss.name === 'Madara Uchiha' ? 'Naruto' : boss.name === 'Kaido' ? 'One Piece' : 'Dragon Ball';
                 } else {
-                    // Normal execution
                     lastActionLog = ability.execute(player, boss);
                     
-                    // Fetch real-time visual GIF matching the ability action tag
-                    const gifData = await fetchAnimeGif(ability.action);
-                    lastActionGif = gifData.url;
-                    lastActionAnime = gifData.anime;
+                    // Fetch dynamic GIF from Giphy matching the exact move query
+                    const gifs = await fetchGiphyGifs(ability.query);
+                    lastActionGif = gifs.length > 0 
+                        ? gifs[Math.floor(Math.random() * Math.min(8, gifs.length))] 
+                        : player.avatar;
+                    lastActionAnime = chosenChar.series;
                 }
 
-                // Show player's action result
                 await initialMsg.edit({
                     embeds: [buildBattleEmbed(`Cast: ${ability.name}`)],
                     components: [buildBattleButtons(true)]
@@ -1054,7 +1135,6 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
 
                 await new Promise(resolve => setTimeout(resolve, 2500));
 
-                // Check win/loss
                 if (boss.hp <= 0) {
                     isGameOver = true;
                     gameWinner = 'player';
@@ -1074,7 +1154,6 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                     if (player.kuramaBuffTurns <= 0) player.kuramaBuff = false;
                 }
 
-                // If player has extraTurn buff (Luffy Gear 2nd)
                 if (player.extraTurn) {
                     player.extraTurn = false;
                     lastActionLog = `⚡ **${player.name}** speed blitzes and gains an extra turn immediately!`;
@@ -1088,7 +1167,6 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
             else {
                 boss.energy = Math.min(100, boss.energy + 20);
 
-                // Show Boss thinking
                 await initialMsg.edit({
                     embeds: [buildBattleEmbed(`Boss ${boss.name} is planning...`)],
                     components: [buildBattleButtons(true)]
@@ -1096,16 +1174,15 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
 
                 await new Promise(resolve => setTimeout(resolve, 1500));
 
-                // Boss AI decision making:
                 let bossAbility;
                 if (boss.energy >= 60 && Math.random() < 0.7) {
-                    bossAbility = boss.abilities[3]; // Ultimate
+                    bossAbility = boss.abilities[3];
                 } else if (boss.energy >= 35 && Math.random() < 0.5) {
-                    bossAbility = boss.abilities[2]; // Utility
+                    bossAbility = boss.abilities[2];
                 } else if (boss.energy >= 25 && Math.random() < 0.6) {
-                    bossAbility = boss.abilities[1]; // Medium
+                    bossAbility = boss.abilities[1];
                 } else {
-                    bossAbility = boss.abilities[0]; // Basic
+                    bossAbility = boss.abilities[0];
                 }
 
                 boss.energy -= bossAbility.cost;
@@ -1119,14 +1196,13 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                         evadeText += ` and counter-attacked for **${player.dodgeCounter}** damage!`;
                     }
                     lastActionLog = evadeText;
-                    lastActionGif = chosenChar.avatar;
+
+                    const gifs = await fetchGiphyGifs(`${player.name.toLowerCase()} dodge`);
+                    lastActionGif = gifs.length > 0 ? gifs[0] : player.avatar;
                     lastActionAnime = chosenChar.series;
                 } else {
-                    // Normal execution
-                    let isReflected = false;
                     let logText = bossAbility.execute(boss, player);
                     
-                    // Reflect calculation
                     if (player.reflect && bossAbility.cost > 0) {
                         let reflectedDmg = Math.floor(randRange(14, 18) * 0.3);
                         boss.hp = Math.max(0, boss.hp - reflectedDmg);
@@ -1134,12 +1210,13 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                     }
                     lastActionLog = logText;
 
-                    const gifData = await fetchAnimeGif(bossAbility.action);
-                    lastActionGif = gifData.url;
-                    lastActionAnime = gifData.anime;
+                    const gifs = await fetchGiphyGifs(bossAbility.query);
+                    lastActionGif = gifs.length > 0 
+                        ? gifs[Math.floor(Math.random() * Math.min(8, gifs.length))] 
+                        : boss.avatar;
+                    lastActionAnime = boss.name === 'Sukuna' ? 'Jujutsu Kaisen' : boss.name === 'Madara Uchiha' ? 'Naruto' : boss.name === 'Kaido' ? 'One Piece' : 'Dragon Ball';
                 }
 
-                // Show Boss's action result
                 await initialMsg.edit({
                     embeds: [buildBattleEmbed(`Cast: ${bossAbility.name}`)],
                     components: [buildBattleButtons(true)]
@@ -1153,7 +1230,6 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
                     break;
                 }
 
-                // Tick down shields & buffs
                 if (boss.shield) {
                     boss.shieldTurns--;
                     if (boss.shieldTurns <= 0) boss.shield = false;
@@ -1165,7 +1241,6 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
         }
 
         // 5. Final Battle Results Processing
-        // Refetch/reload baubleData before final update
         baubleData = await Bauble.findOne({ userId });
         const previousStreak = baubleData.animebattleStreak || 0;
 
@@ -1245,7 +1320,6 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
             playAgainCollector.stop();
             await i.deferUpdate();
 
-            // Disable buttons on the old message
             const disabledRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('ab_play_again_disabled')
@@ -1256,7 +1330,6 @@ async function runAnimeBattle({ context, userId, user, bet, isSlash }) {
             );
             await initialMsg.edit({ components: [disabledRow] }).catch(() => {});
 
-            // Start a new fight!
             await runAnimeBattle({
                 context: i,
                 userId,
