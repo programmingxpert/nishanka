@@ -42,7 +42,19 @@ const baubleSchema = new Schema({
         startedAt: { type: Date, default: null },
         endTime: { type: Date, default: null },
         status: { type: String, default: 'idle' }
-    }
+    },
+    workStenchExpiresAt: { type: Date, default: null },
+    invisibilityExpiresAt: { type: Date, default: null },
+    luckPenaltyExpiresAt: { type: Date, default: null },
+    grailIncomeExpiresAt: { type: Date, default: null },
+    divineDuckExpiresAt: { type: Date, default: null },
+    blindedExpiresAt: { type: Date, default: null },
+    bribedLockoutExpiresAt: { type: Date, default: null },
+    shieldExpiresAt: { type: Date, default: null },
+    padlockedExpiresAt: { type: Date, default: null },
+    beamedExpiresAt: { type: Date, default: null },
+    spaceDuckExpiresAt: { type: Date, default: null },
+    itemLockoutExpiresAt: { type: Date, default: null }
 });
 
 const mongoose = require('mongoose');

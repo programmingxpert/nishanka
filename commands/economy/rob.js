@@ -155,8 +155,50 @@ async function runRob({ interaction, message, robberUser, targetUser, strategyOv
             return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
         }
 
-        // Cooldown checks
         const now = Date.now();
+
+        // Status effect checks for Robber
+        if (robberData.blindedExpiresAt && now < new Date(robberData.blindedExpiresAt).getTime()) {
+            const left = Math.ceil((new Date(robberData.blindedExpiresAt).getTime() - now) / 1000);
+            const msg = `❌ You are blinded! You cannot execute a heist when you cannot see. Wait **${left}s**!`;
+            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
+        }
+        if (robberData.itemLockoutExpiresAt && now < new Date(robberData.itemLockoutExpiresAt).getTime()) {
+            const left = Math.ceil((new Date(robberData.itemLockoutExpiresAt).getTime() - now) / 1000);
+            const msg = `❌ You are paralyzed by electric shock! Wait **${left}s** to recover.`;
+            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
+        }
+        if (robberData.beamedExpiresAt && now < new Date(robberData.beamedExpiresAt).getTime()) {
+            const left = Math.ceil((new Date(robberData.beamedExpiresAt).getTime() - now) / 1000);
+            const msg = `❌ You have been beamed up by aliens! You are floating in space for another **${left}s**!`;
+            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
+        }
+        if (robberData.padlockedExpiresAt && now < new Date(robberData.padlockedExpiresAt).getTime()) {
+            const left = Math.ceil((new Date(robberData.padlockedExpiresAt).getTime() - now) / 1000);
+            const msg = `❌ You are padlocked inside your own vault! You cannot sneak out to rob others. Wait **${left}s**!`;
+            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
+        }
+        if (robberData.invisibilityExpiresAt && now < new Date(robberData.invisibilityExpiresAt).getTime()) {
+            const left = Math.ceil((new Date(robberData.invisibilityExpiresAt).getTime() - now) / 1000);
+            const msg = `❌ You cannot sneak up on anyone while invisible! Wait **${left}s** for the invisibility to fade.`;
+            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
+        }
+
+        // Status effect checks for Target
+        if (targetData.invisibilityExpiresAt && now < new Date(targetData.invisibilityExpiresAt).getTime()) {
+            const msg = `❌ **${targetUser.username}** is currently invisible in the shadow realm! Your hands swing right through their shadow.`;
+            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
+        }
+        if (targetData.shieldExpiresAt && now < new Date(targetData.shieldExpiresAt).getTime()) {
+            const msg = `🛡️ **${targetUser.username}** is shielded by a **Cardboard Aegis Shield**! You cannot break through their defenses.`;
+            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
+        }
+        if (targetData.padlockedExpiresAt && now < new Date(targetData.padlockedExpiresAt).getTime()) {
+            const msg = `🛡️ **${targetUser.username}** is locked inside a vault with a padlock! You cannot bypass their lock.`;
+            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
+        }
+
+        // Cooldown checks
         let currentCooldown = BASE_COOLDOWN_MS;
         if (robberData.coffeeExpiresAt && now < new Date(robberData.coffeeExpiresAt).getTime()) {
             currentCooldown = BASE_COOLDOWN_MS / 2;

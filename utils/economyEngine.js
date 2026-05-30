@@ -2,6 +2,9 @@ const Bauble = require('../models/baubleSchema');
 const EconomyMetrics = require('../models/EconomyMetrics');
 const GlobalEconomy = require('../models/GlobalEconomy');
 
+let tempMultiplierOverride = null;
+let tempMultiplierExpiresAt = null;
+
 /**
  * Calculates the total baubles across all users.
  */
@@ -104,12 +107,20 @@ async function calculateEconomy(client) {
  */
 async function getGlobalMultiplier() {
     try {
+        if (tempMultiplierOverride && tempMultiplierExpiresAt && Date.now() < tempMultiplierExpiresAt) {
+            return tempMultiplierOverride;
+        }
         const globalEco = await GlobalEconomy.findOne();
         if (globalEco) return globalEco.currentMultiplier;
     } catch (e) {
         console.error('[Economy Engine] Failed to get multiplier:', e);
     }
     return 1.0;
+}
+
+function setTempMultiplier(mult, durationMs) {
+    tempMultiplierOverride = mult;
+    tempMultiplierExpiresAt = Date.now() + durationMs;
 }
 
 /**
@@ -166,5 +177,6 @@ module.exports = {
     calculateEconomy,
     getGlobalMultiplier,
     checkCatchUpEconomy,
-    parseAmount
+    parseAmount,
+    setTempMultiplier
 };

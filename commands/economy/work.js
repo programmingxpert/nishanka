@@ -8,6 +8,7 @@ const {
 } = require('discord.js');
 
 const Bauble = require('../../models/baubleSchema');
+const Family = require('../../models/familySchema');
 
 module.exports = {
     category: 'economy',
@@ -32,6 +33,41 @@ async function runWorkGame(initialData, channel, user) {
 
     try {
         let baubleData = await Bauble.findOne({ userId });
+
+        if (baubleData) {
+            const now = Date.now();
+            if (baubleData.workStenchExpiresAt && now < new Date(baubleData.workStenchExpiresAt).getTime()) {
+                const timeLeft = Math.ceil((new Date(baubleData.workStenchExpiresAt).getTime() - now) / 1000);
+                const msg = `🤢 **PEW!** You are covered in rotting banana stench and nobody wants to hire you! \nWait **${timeLeft} seconds** for the smell to wear off before working.`;
+                
+                const client = initialData.client;
+                if (client && client.cooldowns && client.cooldowns.has('work')) {
+                    client.cooldowns.get('work').delete(userId);
+                }
+
+                if (isSlash) {
+                    return initialData.reply({ content: msg, ephemeral: true });
+                } else {
+                    return initialData.reply ? initialData.reply(msg) : channel.send(msg);
+                }
+            }
+
+            if (baubleData.padlockedExpiresAt && now < new Date(baubleData.padlockedExpiresAt).getTime()) {
+                const timeLeft = Math.ceil((new Date(baubleData.padlockedExpiresAt).getTime() - now) / 1000);
+                const msg = `🔒 You are padlocked inside your own vault! You cannot go out to work. \nWait **${timeLeft} seconds** to be let out.`;
+                
+                const client = initialData.client;
+                if (client && client.cooldowns && client.cooldowns.has('work')) {
+                    client.cooldowns.get('work').delete(userId);
+                }
+
+                if (isSlash) {
+                    return initialData.reply({ content: msg, ephemeral: true });
+                } else {
+                    return initialData.reply ? initialData.reply(msg) : channel.send(msg);
+                }
+            }
+        }
 
         if (!baubleData) {
             const welcomeEmbed = new EmbedBuilder()
@@ -226,12 +262,14 @@ async function runMiningGame(initialData, channel, user, baubleData) {
         const baseEarnings = Math.min(80, clicks * 4);
         const earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
 
+        const { finalEarnings, taxMsg } = await applyParentLaborTax(userId, earnings, baubleData);
+
         try {
             const currentProfile =
                 await Bauble.findOne({ userId });
 
             if (currentProfile) {
-                currentProfile.baubles += earnings;
+                currentProfile.baubles += finalEarnings;
                 currentProfile.dailyWorkLastCompleted = new Date();
 
                 await currentProfile.save();
@@ -254,7 +292,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
                     : '💎 Mining Complete!'
             )
             .setDescription(
-                `You swung your pickaxe **${clicks}** times and extracted **${earnings}** Glimmering Baubles! *(Economy Multiplier: ${globalMultiplier}x)*`
+                `You swung your pickaxe **${clicks}** times and extracted **${finalEarnings}** Glimmering Baubles! *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
             )
             .addFields({
                 name: '💰 New Balance',
@@ -448,11 +486,13 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
             
             earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
 
+            const { finalEarnings, taxMsg } = await applyParentLaborTax(userId, earnings, baubleData);
+
             resultEmbed
                 .setColor(0x2ecc71)
                 .setTitle('👮 Security Job Complete!')
                 .setDescription(
-                    `You caught the intruder in **${ms}ms**!\n\nEarned **${earnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*`
+                    `You caught the intruder in **${ms}ms**!\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
                 );
 
             try {
@@ -460,7 +500,7 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                     await Bauble.findOne({ userId });
 
                 if (currentProfile) {
-                    currentProfile.baubles += earnings;
+                    currentProfile.baubles += finalEarnings;
                     currentProfile.dailyWorkLastCompleted = new Date();
 
                     await currentProfile.save();
@@ -656,11 +696,13 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
             const incomeMultiplier = await getIncomeMultiplier(userId);
             earnings = Math.floor(65 * globalMultiplier * incomeMultiplier);
 
+            const { finalEarnings, taxMsg } = await applyParentLaborTax(userId, earnings, baubleData);
+
             resultEmbed
                 .setColor(0x2ecc71)
                 .setTitle('✅ Generator Stabilized!')
                 .setDescription(
-                    `Excellent work! You cut the **${clickedColor.toUpperCase()}** wire.\n\nEarned **${earnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*`
+                    `Excellent work! You cut the **${clickedColor.toUpperCase()}** wire.\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
                 );
 
             try {
@@ -668,7 +710,7 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
                     await Bauble.findOne({ userId });
 
                 if (currentProfile) {
-                    currentProfile.baubles += earnings;
+                    currentProfile.baubles += finalEarnings;
                     currentProfile.dailyWorkLastCompleted = new Date();
 
                     await currentProfile.save();
@@ -813,17 +855,19 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
                 const globalMultiplier = await getGlobalMultiplier();
                 const incomeMultiplier = await getIncomeMultiplier(userId);
                 earnings = Math.floor(70 * globalMultiplier * incomeMultiplier);
+
+                const { finalEarnings, taxMsg } = await applyParentLaborTax(userId, earnings, baubleData);
                 
                 resultEmbed
                     .setColor(0x2ecc71)
                     .setTitle('☕ Order Served!')
-                    .setDescription(`Perfect! You brewed a fresh **${recipe.name}**! The customer tipped you generously.\n\nEarned **${earnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*`)
+                    .setDescription(`Perfect! You brewed a fresh **${recipe.name}**! The customer tipped you generously.\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`)
                     .setTimestamp();
 
                 try {
                     const currentProfile = await Bauble.findOne({ userId });
                     if (currentProfile) {
-                        currentProfile.baubles += earnings;
+                        currentProfile.baubles += finalEarnings;
                         currentProfile.dailyWorkLastCompleted = new Date();
                         await currentProfile.save();
                         baubleData.baubles = currentProfile.baubles;
@@ -851,4 +895,28 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
 
         await mainMessage.edit({ embeds: [resultEmbed], components: [disabledRow] }).catch(() => {});
     });
+}
+
+async function applyParentLaborTax(userId, earnings, baubleData) {
+    let finalEarnings = earnings;
+    let taxMsg = '';
+    try {
+        const fam = await Family.findOne({ userId });
+        if (fam && fam.parents && fam.parents.length > 0) {
+            const parentId = fam.parents[0];
+            const tax = Math.floor(earnings * 0.05);
+            if (tax > 0) {
+                const parentProfile = await Bauble.findOne({ userId: parentId });
+                if (parentProfile) {
+                    parentProfile.baubles += tax;
+                    await parentProfile.save();
+                    finalEarnings -= tax;
+                    taxMsg = `\n\n📄 **Child Labor Tax:** **${tax} Baubles** (5%) transferred to your parent <@${parentId}>!`;
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Error applying parent labor tax:', e);
+    }
+    return { finalEarnings, taxMsg };
 }

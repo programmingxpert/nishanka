@@ -99,9 +99,25 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
 
         let actualChance = chance;
         let cloverUsed = false;
-        if (baubleData.luckExpiresAt && Date.now() < new Date(baubleData.luckExpiresAt).getTime()) {
-            actualChance += 0.10;
-            cloverUsed = true;
+        let rabbitUsed = false;
+        let luckPenaltyActive = false;
+
+        const now = Date.now();
+        if (baubleData.luckPenaltyExpiresAt && now < new Date(baubleData.luckPenaltyExpiresAt).getTime()) {
+            actualChance -= 0.15;
+            luckPenaltyActive = true;
+        }
+
+        if (baubleData.luckExpiresAt && now < new Date(baubleData.luckExpiresAt).getTime()) {
+            const luckTime = new Date(baubleData.luckExpiresAt).getTime();
+            const isRabbit = (luckTime % 10 === 5);
+            if (isRabbit) {
+                actualChance += 0.15;
+                rabbitUsed = true;
+            } else {
+                actualChance += 0.10;
+                cloverUsed = true;
+            }
         }
 
         const didWin = isGuaranteedWin || Math.random() < actualChance;
@@ -118,10 +134,15 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
 
             LOSS_TRACKER.set(userId, 0); // reset loss streak
 
+            let luckText = '';
+            if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot luck boost (+15%) was active!*';
+            else if (cloverUsed) luckText = '\n\n🍀 *Lucky Clover boost (+10%) was active!*';
+            else if (luckPenaltyActive) luckText = '\n\n🐰 *Rabbit\'s Foot curse (-15%) was active, but you overcame it!*';
+
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('🎉 YOU WON!')
-                .setDescription(`Risk: **${risk}**\nYou gambled **${amount}** and won **${earnings}**!${cloverUsed ? '\n\n🍀 *Lucky Clover boost was active!*' : ''}`)
+                .setDescription(`Risk: **${risk}**\nYou gambled **${amount}** and won **${earnings}**!${luckText}`)
                 .addFields(
                     { name: '💰 New Balance', value: `${baubleData.baubles} Baubles`, inline: true },
                     { name: '🔥 Win Streak', value: `\`${baubleData.gambleStreak} wins\` (Best: \`${baubleData.gambleMaxStreak}\`)`, inline: true }
@@ -146,10 +167,15 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
                 streakLossDesc = `\n\n*💔 Loss ended your winning streak of **${previousStreak}** wins!*`;
             }
 
+            let luckText = '';
+            if (luckPenaltyActive) luckText = '\n\n🐰 *Rabbit\'s Foot curse (-15%) was active and dragged you down!*';
+            else if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot boost (+15%) was active, but failed you!*';
+            else if (cloverUsed) luckText = '\n\n🍀 *Lucky Clover boost (+10%) was active, but failed you!*';
+
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle('💔 You Lost...')
-                .setDescription(`Risk: **${risk}**\nYou lost **${amount}**, but got **${pity}** Baubles back out of pity.${streakLossDesc}`)
+                .setDescription(`Risk: **${risk}**\nYou lost **${amount}**, but got **${pity}** Baubles back out of pity.${streakLossDesc}${luckText}`)
                 .addFields(
                     { name: '💸 New Balance', value: `${baubleData.baubles} Baubles`, inline: true },
                     { name: '🪹 Win Streak', value: `\`0 wins\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)`, inline: true }

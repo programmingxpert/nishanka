@@ -29,6 +29,20 @@ module.exports = {
             ];
 
             let baubleData = await Bauble.findOne({ userId });
+            if (baubleData) {
+                const now = Date.now();
+                if (baubleData.padlockedExpiresAt && now < new Date(baubleData.padlockedExpiresAt).getTime()) {
+                    const timeLeft = Math.ceil((new Date(baubleData.padlockedExpiresAt).getTime() - now) / 1000);
+                    const msg = `🔒 You are padlocked inside your own vault! You cannot go out to scavenge. \nWait **${timeLeft} seconds** to be let out.`;
+                    
+                    const client = interaction.client;
+                    if (client && client.cooldowns && client.cooldowns.has('scavenge')) {
+                        client.cooldowns.get('scavenge').delete(userId);
+                    }
+                    return interaction.reply({ content: msg, ephemeral: true });
+                }
+            }
+
             if (!baubleData) {
                 baubleData = new Bauble({ userId, baubles: 0 });
                  const welcomeEmbed = new EmbedBuilder()
@@ -95,6 +109,20 @@ module.exports = {
             ];
 
             let baubleData = await Bauble.findOne({ userId });
+            if (baubleData) {
+                const now = Date.now();
+                if (baubleData.padlockedExpiresAt && now < new Date(baubleData.padlockedExpiresAt).getTime()) {
+                    const timeLeft = Math.ceil((new Date(baubleData.padlockedExpiresAt).getTime() - now) / 1000);
+                    const msg = `🔒 You are padlocked inside your own vault! You cannot go out to scavenge. \nWait **${timeLeft} seconds** to be let out.`;
+                    
+                    const client = message.client;
+                    if (client && client.cooldowns && client.cooldowns.has('scavenge')) {
+                        client.cooldowns.get('scavenge').delete(userId);
+                    }
+                    return message.reply(msg);
+                }
+            }
+
             if (!baubleData) {
                 baubleData = new Bauble({ userId, baubles: 0 });
                  const welcomeEmbed = new EmbedBuilder()

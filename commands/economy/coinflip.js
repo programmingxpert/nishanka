@@ -310,10 +310,32 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
 
     let didWin = (side === outcome);
     let cloverUsed = false;
-    if (!didWin && baubleData.luckExpiresAt && Date.now() < new Date(baubleData.luckExpiresAt).getTime()) {
-        if (Math.random() < 0.20) { // 20% of losses are converted to wins (boosts overall 50% win rate to 60%)
-            didWin = true;
-            cloverUsed = true;
+    let rabbitUsed = false;
+    let luckPenaltyActive = false;
+
+    const now = Date.now();
+    // 1. Luck penalty (-15%): converts 30% of wins into losses (making overall rate 35%)
+    if (baubleData.luckPenaltyExpiresAt && now < new Date(baubleData.luckPenaltyExpiresAt).getTime()) {
+        luckPenaltyActive = true;
+        if (didWin && Math.random() < 0.30) {
+            didWin = false;
+        }
+    }
+
+    // 2. Good luck boost: clover (+10% win rate -> convert 20% of losses to wins) or rabbit's foot (+15% win rate -> convert 30% of losses to wins)
+    if (!didWin && baubleData.luckExpiresAt && now < new Date(baubleData.luckExpiresAt).getTime()) {
+        const luckTime = new Date(baubleData.luckExpiresAt).getTime();
+        const isRabbit = (luckTime % 10 === 5);
+        if (isRabbit) {
+            if (Math.random() < 0.30) {
+                didWin = true;
+                rabbitUsed = true;
+            }
+        } else {
+            if (Math.random() < 0.20) {
+                didWin = true;
+                cloverUsed = true;
+            }
         }
     }
 
@@ -340,14 +362,17 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
 
     if (didWin) {
         finalEmbed.setColor(0x2ecc71); // Aesthetic emerald green
+        let luckText = '';
+        if (rabbitUsed) luckText = '\n\n🐰 *Your Rabbit\'s Foot saved you and converted a loss into a win!*';
+        else if (cloverUsed) luckText = '\n\n🍀 *Your Lucky Clover saved you and converted a loss into a win!*';
+        else if (luckPenaltyActive) luckText = '\n\n🐰 *Rabbit\'s Foot curse (-15%) was active, but you overcame it!*';
+
         if (outcome === 'draw') {
             finalEmbed.setTitle('🏆  UNBELIEVABLE DRAW!')
-                .setDescription(`🪙 The coin landed perfectly **sideways/upright**!\nYou guessed the **0.1% chance** draw correctly! Absolutely insane luck! 💫` + (cloverUsed ? `\n\n🍀 *Lucky Clover boost converted a loss into a win!*` : ''));
+                .setDescription(`🪙 The coin landed perfectly **sideways/upright**!\nYou guessed the **0.1% chance** draw correctly! Absolutely insane luck! 💫${luckText}`);
         } else {
             finalEmbed.setTitle('🎉  VICTORY!')
-                .setDescription(cloverUsed 
-                    ? `🪙 The coin landed on **${outcome.toUpperCase()}**.\nYour guess was **${side.toUpperCase()}**, but your 🍀 **Lucky Clover** saved you and converted the loss into a win! 🌟`
-                    : `🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟`);
+                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟${luckText}`);
         }
         finalEmbed.addFields(
             { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },
@@ -363,12 +388,17 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
             streakLossDesc = `\n\n*💔 Loss ended your winning streak of **${previousStreak}** wins!*`;
         }
 
+        let luckText = '';
+        if (luckPenaltyActive) luckText = '\n\n🐰 *Rabbit\'s Foot curse (-15%) was active and dragged you down!*';
+        else if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot boost (+15%) was active, but failed you!*';
+        else if (cloverUsed) luckText = '\n\n🍀 *Lucky Clover boost (+10%) was active, but failed you!*';
+
         if (outcome === 'draw') {
             finalEmbed.setTitle('💔  COIN STOOD UPRIGHT!')
-                .setDescription(`🪙 The coin landed perfectly **sideways/upright** (0.1% chance)!\nYou guessed **${side.toUpperCase()}** and got nothing.${streakLossDesc}`);
+                .setDescription(`🪙 The coin landed perfectly **sideways/upright** (0.1% chance)!\nYou guessed **${side.toUpperCase()}** and got nothing.${streakLossDesc}${luckText}`);
         } else {
             finalEmbed.setTitle('💔  DEFEAT...')
-                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**.\nYou guessed **${side.toUpperCase()}** and lost your bet.${streakLossDesc}`);
+                .setDescription(`🪙 The coin landed on **${outcome.toUpperCase()}**.\nYou guessed **${side.toUpperCase()}** and lost your bet.${streakLossDesc}${luckText}`);
         }
         finalEmbed.addFields(
             { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },

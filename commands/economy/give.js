@@ -57,12 +57,30 @@ module.exports = {
                 });
             }
 
-            // Perform the transfer with tax
+            // Check for Space Duck interception
+            const nowTime = new Date();
+            const spaceDuckUsers = await Bauble.find({
+                spaceDuckExpiresAt: { $gt: nowTime },
+                userId: { $ne: giverId }
+            });
+            let spaceDuckUser = null;
+            let interceptAmount = 0;
+            if (spaceDuckUsers.length > 0) {
+                spaceDuckUser = spaceDuckUsers[Math.floor(Math.random() * spaceDuckUsers.length)];
+                interceptAmount = Math.floor(amount * 0.05);
+            }
+
+            // Perform the transfer with tax and space duck interception
             giverBaubleData.baubles -= (amount + taxAmount);
-            receiverBaubleData.baubles += amount;
+            receiverBaubleData.baubles += (amount - interceptAmount);
 
             await giverBaubleData.save();
             await receiverBaubleData.save();
+
+            if (spaceDuckUser && interceptAmount > 0) {
+                spaceDuckUser.baubles += interceptAmount;
+                await spaceDuckUser.save();
+            }
 
             // Add tax to the GlobalEconomy federal tax fund
             if (taxAmount > 0) {
@@ -85,10 +103,15 @@ module.exports = {
                 }
             }
 
+            let interceptMsg = '';
+            if (spaceDuckUser && interceptAmount > 0) {
+                interceptMsg = `\n\n🛰️ **Space Interception!** <@${spaceDuckUser.userId}>'s Space Duck orbited overhead and intercepted **${interceptAmount.toLocaleString()}** Baubles (**5%**) from the transfer!`;
+            }
+
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color
                 .setTitle('🎁 Bauble Transfer')
-                .setDescription(`Successfully gave **${amount.toLocaleString()}** Glimmering Baubles to <@${receiverId}>!${taxAmount > 0 ? `\n\n📉 **Wealth Transaction Tax:** Paid **${taxAmount.toLocaleString()}** Baubles (**${(taxPercent * 100).toFixed(0)}%**) to the federal Tax Fund.` : ''}`)
+                .setDescription(`Successfully gave **${amount.toLocaleString()}** Glimmering Baubles to <@${receiverId}>!${taxAmount > 0 ? `\n\n📉 **Wealth Transaction Tax:** Paid **${taxAmount.toLocaleString()}** Baubles (**${(taxPercent * 100).toFixed(0)}%**) to the federal Tax Fund.` : ''}${interceptMsg}`)
                 .addFields(
                     { name: 'Your New Balance', value: `${giverBaubleData.baubles.toLocaleString()} Baubles`, inline: true },
                     { name: 'Their New Balance', value: `${receiverBaubleData.baubles.toLocaleString()} Baubles`, inline: true }
@@ -152,12 +175,30 @@ module.exports = {
                 return message.reply(`❌ You do not have enough Baubles to cover the transfer + transaction tax! You need **${(amount + taxAmount).toLocaleString()}** Baubles (including a **${(taxPercent * 100).toFixed(0)}%** wealth transaction tax of **${taxAmount.toLocaleString()}**), but you only have **${giverBaubleData.baubles.toLocaleString()}** Glimmering Baubles.`);
             }
 
-            // Perform the transfer with tax
+            // Check for Space Duck interception
+            const nowTime = new Date();
+            const spaceDuckUsers = await Bauble.find({
+                spaceDuckExpiresAt: { $gt: nowTime },
+                userId: { $ne: giverId }
+            });
+            let spaceDuckUser = null;
+            let interceptAmount = 0;
+            if (spaceDuckUsers.length > 0) {
+                spaceDuckUser = spaceDuckUsers[Math.floor(Math.random() * spaceDuckUsers.length)];
+                interceptAmount = Math.floor(amount * 0.05);
+            }
+
+            // Perform the transfer with tax and space duck interception
             giverBaubleData.baubles -= (amount + taxAmount);
-            receiverBaubleData.baubles += amount;
+            receiverBaubleData.baubles += (amount - interceptAmount);
 
             await giverBaubleData.save();
             await receiverBaubleData.save();
+
+            if (spaceDuckUser && interceptAmount > 0) {
+                spaceDuckUser.baubles += interceptAmount;
+                await spaceDuckUser.save();
+            }
 
             // Add tax to the GlobalEconomy federal tax fund
             if (taxAmount > 0) {
@@ -180,10 +221,15 @@ module.exports = {
                 }
             }
 
+            let interceptMsg = '';
+            if (spaceDuckUser && interceptAmount > 0) {
+                interceptMsg = `\n\n🛰️ **Space Interception!** <@${spaceDuckUser.userId}>'s Space Duck orbited overhead and intercepted **${interceptAmount.toLocaleString()}** Baubles (**5%**) from the transfer!`;
+            }
+
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('🎁 Bauble Transfer')
-                .setDescription(`Successfully gave **${amount.toLocaleString()}** Glimmering Baubles to <@${receiverId}>!${taxAmount > 0 ? `\n\n📉 **Wealth Transaction Tax:** Paid **${taxAmount.toLocaleString()}** Baubles (**${(taxPercent * 100).toFixed(0)}%**) to the federal Tax Fund.` : ''}`)
+                .setDescription(`Successfully gave **${amount.toLocaleString()}** Glimmering Baubles to <@${receiverId}>!${taxAmount > 0 ? `\n\n📉 **Wealth Transaction Tax:** Paid **${taxAmount.toLocaleString()}** Baubles (**${(taxPercent * 100).toFixed(0)}%**) to the federal Tax Fund.` : ''}${interceptMsg}`)
                 .addFields(
                     { name: 'Your New Balance', value: `${giverBaubleData.baubles.toLocaleString()} Baubles`, inline: true },
                     { name: 'Their New Balance', value: `${receiverBaubleData.baubles.toLocaleString()} Baubles`, inline: true }
