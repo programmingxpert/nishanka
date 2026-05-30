@@ -1,7 +1,6 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
-const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 const LOSS_TRACKER = new Map(); // Hidden 5-loss safety net
 
@@ -107,8 +106,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
         const didWin = isGuaranteedWin || Math.random() < actualChance;
 
         if (didWin) {
-            const globalMultiplier = await getGlobalMultiplier();
-            const earnings = Math.floor(amount * multiplier * globalMultiplier);
+            const earnings = Math.floor(amount * multiplier);
             baubleData.baubles += earnings;
             baubleData.gambleStreak = (baubleData.gambleStreak || 0) + 1;
             if (baubleData.gambleStreak > (baubleData.gambleMaxStreak || 0)) {
@@ -122,7 +120,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('🎉 YOU WON!')
-                .setDescription(`Risk: **${risk}**\nYou gambled **${amount}** and won **${earnings}**! (Economy Multiplier: ${globalMultiplier}x)${cloverUsed ? '\n\n🍀 *Lucky Clover boost was active!*' : ''}`)
+                .setDescription(`Risk: **${risk}**\nYou gambled **${amount}** and won **${earnings}**!${cloverUsed ? '\n\n🍀 *Lucky Clover boost was active!*' : ''}`)
                 .addFields(
                     { name: '💰 New Balance', value: `${baubleData.baubles} Baubles`, inline: true },
                     { name: '🔥 Win Streak', value: `\`${baubleData.gambleStreak} wins\` (Best: \`${baubleData.gambleMaxStreak}\`)`, inline: true }

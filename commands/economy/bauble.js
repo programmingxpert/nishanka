@@ -25,10 +25,17 @@ module.exports = {
                 await baubleData.save();
             }
 
+            let description = `${user.username} has **${baubleData.baubles.toLocaleString()}** Glimmering Baubles!`;
+            if (baubleData.baubles >= 150000) {
+                const taxPercent = baubleData.baubles >= 500000 ? 0.05 : 0.02;
+                const estimatedTax = Math.floor(baubleData.baubles * taxPercent);
+                description += `\n\n⚠️ **Wealth Tax Warning:** This balance is subject to a **${(taxPercent * 100).toFixed(0)}%** daily wealth tax. Estimated deduction at midnight: **-${estimatedTax.toLocaleString()}** Baubles.`;
+            }
+
             const embed = new EmbedBuilder()
                 .setColor(0xFFA500) // Gold color
                 .setTitle('💰 Bauble Balance')
-                .setDescription(`${user.username} has **${baubleData.baubles}** Glimmering Baubles!`)
+                .setDescription(description)
                 .addFields(
                     { 
                         name: '🔥 Minigame Streaks', 
@@ -78,10 +85,17 @@ module.exports = {
                 await baubleData.save();
             }
 
+            let description = `${user.username} has **${baubleData.baubles.toLocaleString()}** Glimmering Baubles!`;
+            if (baubleData.baubles >= 150000) {
+                const taxPercent = baubleData.baubles >= 500000 ? 0.05 : 0.02;
+                const estimatedTax = Math.floor(baubleData.baubles * taxPercent);
+                description += `\n\n⚠️ **Wealth Tax Warning:** This balance is subject to a **${(taxPercent * 100).toFixed(0)}%** daily wealth tax. Estimated deduction at midnight: **-${estimatedTax.toLocaleString()}** Baubles.`;
+            }
+
             const embed = new EmbedBuilder()
                 .setColor(0xFFA500) // Gold color
                 .setTitle('💰 Bauble Balance')
-                .setDescription(`${user.username} has **${baubleData.baubles}** Glimmering Baubles!`)
+                .setDescription(description)
                 .addFields(
                     { 
                         name: '🔥 Minigame Streaks', 

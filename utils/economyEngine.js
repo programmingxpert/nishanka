@@ -19,7 +19,7 @@ async function getTotalBaubles() {
  * Recalculates the Global Economy Multiplier.
  * Should be run daily via a scheduled task.
  */
-async function calculateEconomy() {
+async function calculateEconomy(client) {
     try {
         let { total: currentTotal, count: userCount } = await getTotalBaubles();
 
@@ -34,12 +34,40 @@ async function calculateEconomy() {
             if (u.baubles >= 500000) {
                 taxPercent = 0.05; // 5% for Tier 2 (500k+)
             }
+            const previousBaubles = u.baubles;
             const taxAmount = Math.floor(u.baubles * taxPercent);
             u.baubles -= taxAmount;
             u.lastTaxPaid = taxAmount;
             u.lastTaxDate = now;
             await u.save();
             totalTaxCollected += taxAmount;
+
+            // Notify user via Discord DM if client is provided
+            if (client) {
+                try {
+                    const discordUser = await client.users.fetch(u.userId);
+                    if (discordUser) {
+                        const { EmbedBuilder } = require('discord.js');
+                        const embed = new EmbedBuilder()
+                            .setColor(0xd9534f) // Crimson/Red
+                            .setTitle('📉 Wealth Tax Deducted')
+                            .setDescription(
+                                `Hello **${discordUser.username}**,\n\n` +
+                                `Your daily wealth tax has been collected and deposited into the server's Tax Fund.\n\n` +
+                                `• **Previous Balance:** ${previousBaubles.toLocaleString()} Baubles\n` +
+                                `• **Tax Collected:** -${taxAmount.toLocaleString()} Baubles (${(taxPercent * 100).toFixed(0)}%)\n` +
+                                `• **New Balance:** ${u.baubles.toLocaleString()} Baubles\n\n` +
+                                `*Wealth taxes keep our server economy balanced and fight inflation. Keep up the hustle!*`
+                            )
+                            .setTimestamp();
+                        await discordUser.send({ embeds: [embed] }).catch(() => {
+                            console.log(`[Economy Engine] Could not DM user ${u.userId} about tax.`);
+                        });
+                    }
+                } catch (dmErr) {
+                    console.error(`[Economy Engine] Error notifying user ${u.userId}:`, dmErr);
+                }
+            }
         }
 
         // Adjust the current total by the amount of tax destroyed
@@ -133,12 +161,12 @@ async function getGlobalMultiplier() {
 /**
  * Checks if we missed today's economy snapshot and recalculates if needed.
  */
-async function checkCatchUpEconomy() {
+async function checkCatchUpEconomy(client) {
     try {
         const lastSnapshot = await EconomyMetrics.findOne().sort({ timestamp: -1 });
         if (!lastSnapshot) {
             console.log('[Economy Engine] No previous snapshots found. Generating initial snapshot...');
-            return calculateEconomy();
+            return calculateEconomy(client);
         }
 
         const lastDate = new Date(lastSnapshot.timestamp);
@@ -149,7 +177,7 @@ async function checkCatchUpEconomy() {
             lastDate.getUTCMonth() !== today.getUTCMonth() ||
             lastDate.getUTCDate() !== today.getUTCDate()) {
             console.log('[Economy Engine] Missed today\'s snapshot (or was offline). Running catch-up...');
-            return calculateEconomy();
+            return calculateEconomy(client);
         } else {
             console.log('[Economy Engine] Today\'s economy snapshot already exists. Skipping catch-up.');
         }

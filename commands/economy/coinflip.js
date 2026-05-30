@@ -316,12 +316,9 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         }
     }
 
-    const { getGlobalMultiplier } = require('../../utils/economyEngine');
-    const globalMultiplier = await getGlobalMultiplier();
-
     let winnings = 0;
     if (didWin) {
-        winnings = Math.floor(amount * 2 * globalMultiplier);
+        winnings = amount * 2;
     }
 
     if (didWin) {
@@ -348,8 +345,8 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         } else {
             finalEmbed.setTitle('🎉  VICTORY!')
                 .setDescription(cloverUsed 
-                    ? `🪙 The coin landed on **${outcome.toUpperCase()}**.\nYour guess was **${side.toUpperCase()}**, but your 🍀 **Lucky Clover** saved you and converted the loss into a win! 🌟\n*(Economy Multiplier: ${globalMultiplier}x)*`
-                    : `🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟\n*(Economy Multiplier: ${globalMultiplier}x)*`);
+                    ? `🪙 The coin landed on **${outcome.toUpperCase()}**.\nYour guess was **${side.toUpperCase()}**, but your 🍀 **Lucky Clover** saved you and converted the loss into a win! 🌟`
+                    : `🪙 The coin landed on **${outcome.toUpperCase()}**!\nYou guessed correctly and doubled your bet! 🌟`);
         }
         finalEmbed.addFields(
             { name: '💰 Bet', value: `\`${amount} Baubles\``, inline: true },

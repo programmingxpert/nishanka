@@ -2,7 +2,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 const { checkAndAwardAchievement } = require('../../utils/achievements');
-const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 function getTargetMaxMultiplier(minesCount) {
     if (minesCount <= 8) return null;
@@ -300,7 +299,6 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
             }
 
             // Deduct stake now
-            const globalMultiplier = await getGlobalMultiplier();
             baubleData.baubles -= amount;
             baubleData.dailyGambleLastCompleted = new Date();
             await baubleData.save();
@@ -417,7 +415,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             collector.stop('perfect');
 
                             const winMult = getMultiplier(16, finalMinesCount, revealedCount);
-                            let winnings = Math.floor(winMult * amount * globalMultiplier);
+                            let winnings = Math.floor(winMult * amount);
                             let isCapped = false;
                             if (finalMinesCount > 8 && winnings > 100000) {
                                 winnings = 100000;
@@ -438,7 +436,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                                 .setDescription(`Unbelievable! You cleared the entire grid without hitting a single mine!\n\nYou won **${winnings.toLocaleString()}** Glimmering Baubles!${isCapped ? ' *(Capped to 100K)*' : ''}`)
                                 .addFields(
                                     { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
-                                    { name: '📈 Final Multiplier', value: `\`${winMult.toFixed(2)}x\` *(Economy: ${globalMultiplier}x)*`, inline: true },
+                                    { name: '📈 Final Multiplier', value: `\`${winMult.toFixed(2)}x\``, inline: true },
                                     { name: '💵 Winnings Earned', value: `\`${winnings.toLocaleString()} Baubles\`${isCapped ? ' (Capped)' : ''}`, inline: true },
                                     { name: '👛 New Balance', value: `\`${baubleData.baubles.toLocaleString()} Baubles\``, inline: true }
                                 )
@@ -482,7 +480,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                     collector.stop('cashout');
 
                     const winMult = getMultiplier(16, finalMinesCount, revealedCount);
-                    let winnings = Math.floor(winMult * amount * globalMultiplier);
+                    let winnings = Math.floor(winMult * amount);
                     let isCapped = false;
                     if (finalMinesCount > 8 && winnings > 100000) {
                         winnings = 100000;
@@ -503,7 +501,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         .setDescription(`You cashed out safely after finding **${revealedCount}** diamonds!`)
                         .addFields(
                             { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
-                            { name: '📈 Cashout Multiplier', value: `\`${winMult.toFixed(2)}x\` *(Economy: ${globalMultiplier}x)*`, inline: true },
+                            { name: '📈 Cashout Multiplier', value: `\`${winMult.toFixed(2)}x\``, inline: true },
                             { name: '💵 Winnings Claimed', value: `**${winnings.toLocaleString()}** Baubles${isCapped ? ' (Capped)' : ''}`, inline: true },
                             { name: '👛 New Balance', value: `**${baubleData.baubles.toLocaleString()}** Baubles`, inline: true }
                         )
@@ -537,7 +535,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         await initialMsg.edit({ embeds: [refundEmbed], components: finalRows }).catch(() => {});
                     } else {
                         const winMult = getMultiplier(16, finalMinesCount, revealedCount);
-                        let winnings = Math.floor(winMult * amount * globalMultiplier);
+                        let winnings = Math.floor(winMult * amount);
                         let isCapped = false;
                         if (finalMinesCount > 8 && winnings > 100000) {
                             winnings = 100000;

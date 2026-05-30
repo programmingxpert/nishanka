@@ -69,7 +69,8 @@ module.exports = {
                         name: '🛍️ How Does the Economy Work?', 
                         value: `The central bank automatically balances the money supply every day.\n` +
                                `• **When Inflation is High:** The global multiplier drops to slow down earnings, and **Shop Prices increase** to drain excess money.\n` +
-                               `• **When Deflation happens:** The global multiplier rises to boost earnings, and **Shop Prices decrease** to encourage spending.` 
+                               `• **When Deflation happens:** The global multiplier rises to boost earnings, and **Shop Prices decrease** to encourage spending.\n` +
+                               `• 📉 **Automated Wealth Tax:** To prevent extreme hoarding, users with **150,000+ Baubles** are taxed **2% daily**, and those with **500,000+ Baubles** are taxed **5% daily** at midnight. Collected taxes go into the server's Tax Fund.`
                     }
                 );
 

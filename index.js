@@ -261,12 +261,12 @@ mongoose
         const { calculateEconomy, checkCatchUpEconomy } = require('./utils/economyEngine');
         
         // 1. Initial run: Check if we missed a day while the bot was offline
-        setTimeout(() => checkCatchUpEconomy(), 10000);
+        setTimeout(() => checkCatchUpEconomy(client), 10000);
         
         // 2. Schedule the economy recalculation every day at exactly midnight (server time)
         cron.schedule('0 0 * * *', () => {
             console.log('[Cron] Running scheduled daily economy calculation...');
-            calculateEconomy();
+            calculateEconomy(client);
         });
     })
     .catch(err => {

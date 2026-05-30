@@ -105,9 +105,6 @@ async function handleStreak(userId, isWin) {
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
 async function runBlackjackGame(channel, playerId, playerName, betAmount) {
-    const { getGlobalMultiplier } = require('../../utils/economyEngine');
-    const globalMultiplier = await getGlobalMultiplier();
-
     const deck = createDeck();
     let playerHand1 = [];
     let playerHand2 = [];
@@ -242,14 +239,14 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
         activeGames.delete(channel.id);
         return;
     } else if (player1Total === 21) {
-        const payout = Math.floor(betAmount * 2.5 * globalMultiplier);
+        const payout = Math.floor(betAmount * 2.5);
         const winProfit = payout - betAmount;
         await adjustBaubles(playerId, payout);
         
         const naturalWinEmbed = new EmbedBuilder()
             .setColor(0x2ecc71)
             .setTitle('🎉 Natural Blackjack!')
-            .setDescription(`**${playerName}** got blackjack!\n\nYou won **${winProfit.toLocaleString()}** Baubles! (3:2 payout)\n*(Economy Multiplier: ${globalMultiplier}x)*`)
+            .setDescription(`**${playerName}** got blackjack!\n\nYou won **${winProfit.toLocaleString()}** Baubles! (3:2 payout)`)
             .addFields(
                 { name: 'Your Hand', value: drawCardsANSI(playerHand1), inline: true },
                 { name: "Dealer's Hand", value: drawCardsANSI(dealerHand), inline: true }
@@ -565,11 +562,11 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
             descriptionText += `❌ **${label} (${pTotal})**: Busted. Lost **${bet.toLocaleString()}** Baubles.\n`;
             return 0;
         } else if (dTotal > 21) {
-            const win = Math.floor(bet * 2 * globalMultiplier);
+            const win = Math.floor(bet * 2);
             descriptionText += `🎉 **${label} (${pTotal})**: Dealer busted! Won **${win.toLocaleString()}** Baubles!\n`;
             return win;
         } else if (pTotal > dTotal) {
-            const win = Math.floor(bet * 2 * globalMultiplier);
+            const win = Math.floor(bet * 2);
             descriptionText += `🎉 **${label} (${pTotal})**: Beat Dealer's ${dTotal}! Won **${win.toLocaleString()}** Baubles!\n`;
             return win;
         } else if (pTotal === dTotal) {
@@ -610,7 +607,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
     const finalEmbed = new EmbedBuilder()
         .setColor(embedColor)
         .setTitle(resultTitle)
-        .setDescription(`${descriptionText}\n**Summary:**\nTotal Bet: **${totalBet.toLocaleString()}** Baubles\nTotal Payout: **${totalWinnings.toLocaleString()}** Baubles\nNet Profit: **${netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()}** Baubles\n*(Economy Multiplier: ${globalMultiplier}x)*`)
+        .setDescription(`${descriptionText}\n**Summary:**\nTotal Bet: **${totalBet.toLocaleString()}** Baubles\nTotal Payout: **${totalWinnings.toLocaleString()}** Baubles\nNet Profit: **${netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()}** Baubles`)
         .addFields(
             { name: isSplit ? 'Hand 1' : 'Your Hand', value: drawCardsANSI(playerHand1) + ` (${calculateHand(playerHand1)})`, inline: true }
         );
