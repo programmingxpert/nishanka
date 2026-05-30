@@ -45,11 +45,12 @@ module.exports = {
         let sideArg = (args[0] || '').toLowerCase();
         let amountArg = args[1];
 
+        const { parseAmount } = require('../../utils/economyEngine');
         // Handle both orders: prefix <amount> <side> or prefix <side> <amount>
         if (args.length >= 2) {
-            if (isNaN(parseInt(sideArg)) && !isNaN(parseInt(amountArg))) {
+            if (isNaN(parseAmount(sideArg)) && !isNaN(parseAmount(amountArg))) {
                 // sideArg is first, amountArg is second
-            } else if (!isNaN(parseInt(sideArg)) && isNaN(parseInt(amountArg))) {
+            } else if (!isNaN(parseAmount(sideArg)) && isNaN(parseAmount(amountArg))) {
                 // amountArg is first, sideArg is second
                 amountArg = args[0];
                 sideArg = args[1] || '';
@@ -64,7 +65,7 @@ module.exports = {
             sideArg = '';
         }
 
-        const amount = parseInt(amountArg);
+        const amount = parseAmount(amountArg);
         if (isNaN(amount) || amount < 200) {
             return message.reply('❌ The minimum amount to gamble is **200** Baubles.');
         }

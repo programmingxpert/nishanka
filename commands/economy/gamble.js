@@ -66,7 +66,8 @@ module.exports = {
 
     async executePrefix(message, args) {
         const userId = message.author.id;
-        const amount = parseInt(args[0]);
+        const { parseAmount } = require('../../utils/economyEngine');
+        const amount = parseAmount(args[0]);
         const risk = (args[1] || 'medium').toLowerCase();
 
         if (isNaN(amount) || amount < 500) {

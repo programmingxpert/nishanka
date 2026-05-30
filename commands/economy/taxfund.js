@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const GlobalEconomy = require('../../models/GlobalEconomy');
 const Bauble = require('../../models/baubleSchema');
+const { parseAmount } = require('../../utils/economyEngine');
 
 module.exports = {
     name: 'taxfund',
@@ -36,7 +37,7 @@ module.exports = {
             const amountStr = args[1];
             if (!amountStr) return message.reply("Specify an amount to withdraw (or 'all').");
 
-            let amountToWithdraw = parseInt(amountStr);
+            let amountToWithdraw = parseAmount(amountStr);
             if (amountStr === 'all') amountToWithdraw = fundAmount;
 
             if (isNaN(amountToWithdraw) || amountToWithdraw <= 0) {
@@ -76,7 +77,7 @@ module.exports = {
             const amountStr = args[1];
             if (!amountStr) return message.reply("Specify an amount to permanently burn (or 'all').");
 
-            let amountToBurn = parseInt(amountStr);
+            let amountToBurn = parseAmount(amountStr);
             if (amountStr === 'all') amountToBurn = fundAmount;
 
             if (isNaN(amountToBurn) || amountToBurn <= 0) {

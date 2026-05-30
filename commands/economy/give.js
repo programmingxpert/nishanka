@@ -108,7 +108,8 @@ module.exports = {
         try {
             const giverId = message.author.id;
             const receiver = message.mentions.users.first();
-            const amount = parseInt(args[1]);
+            const { parseAmount } = require('../../utils/economyEngine');
+            const amount = parseAmount(args[1]);
             // REMOVE const guildId = message.guild.id;  // Get the guild ID
 
             if (!receiver) {

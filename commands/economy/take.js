@@ -95,6 +95,7 @@ module.exports = {
         let amount = 1;
         let isItem = false;
 
+        const { parseAmount } = require('../../utils/economyEngine');
         const arg1 = args[1];
         const arg2 = args[2];
 
@@ -112,7 +113,7 @@ module.exports = {
                 }
             }
         } else {
-            const parsedNum = parseInt(arg1);
+            const parsedNum = parseAmount(arg1);
             if (!isNaN(parsedNum)) {
                 if (arg2 && itemIds.includes(arg2.toLowerCase())) {
                     itemId = arg2.toLowerCase();

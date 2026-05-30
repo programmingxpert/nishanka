@@ -140,8 +140,31 @@ async function checkCatchUpEconomy(client) {
     }
 }
 
+/**
+ * Parses an amount string (like "10K", "1.5M", etc.) into a number.
+ * Supports k/K (thousands), m/M (millions), b/B (billions).
+ * Returns NaN if it's invalid.
+ */
+function parseAmount(input) {
+    if (typeof input === 'number') return Math.floor(input);
+    if (typeof input !== 'string') return NaN;
+    
+    const cleaned = input.trim().replace(/,/g, '');
+    const match = cleaned.match(/^(\d+(?:\.\d+)?)\s*([kmbKMB]?)$/);
+    if (!match) return NaN;
+    
+    const num = parseFloat(match[1]);
+    const suffix = match[2].toLowerCase();
+    
+    if (suffix === 'k') return Math.floor(num * 1000);
+    if (suffix === 'm') return Math.floor(num * 1000000);
+    if (suffix === 'b') return Math.floor(num * 1000000000);
+    return Math.floor(num);
+}
+
 module.exports = {
     calculateEconomy,
     getGlobalMultiplier,
-    checkCatchUpEconomy
+    checkCatchUpEconomy,
+    parseAmount
 };

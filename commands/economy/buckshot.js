@@ -18,7 +18,8 @@ const ITEMS = [
     { id: 'beer', name: 'Energy Drink', emoji: '🍺', desc: 'Rack the shotgun, ejecting the current shell.' },
     { id: 'cigar', name: 'Cigar', emoji: '🚬', desc: 'Heals you for 1 HP.' },
     { id: 'saw', name: 'Handsaw', emoji: '🪚', desc: 'Your next shot deals 2 damage.' },
-    { id: 'handcuffs', name: 'Handcuffs', emoji: '🔗', desc: 'Opponent skips their next turn.' }
+    { id: 'handcuffs', name: 'Handcuffs', emoji: '🔗', desc: 'Opponent skips their next turn.' },
+    { id: 'inverter', name: 'Inverter', emoji: '🔄', desc: 'Inverts the current shell in the chamber (live becomes blank, blank becomes live).' }
 ];
 
 function getRandom(arr) {
@@ -35,21 +36,18 @@ function reloadShotgun() {
     const count = Math.floor(Math.random() * 7) + 2;
     let live = 0;
     let blank = 0;
-    const shells = [];
     
-    for (let i = 0; i < count; i++) {
-        if (Math.random() > 0.5) {
-            shells.push('live');
-            live++;
-        } else {
-            shells.push('blank');
-            blank++;
-        }
+    if (count % 2 === 0) {
+        live = count / 2;
+        blank = count / 2;
+    } else {
+        live = Math.random() > 0.5 ? Math.ceil(count / 2) : Math.floor(count / 2);
+        blank = count - live;
     }
     
-    // Ensure at least one of each if possible
-    if (live === 0) { shells[0] = 'live'; live++; blank--; }
-    if (blank === 0) { shells[0] = 'blank'; blank++; live--; }
+    const shells = [];
+    for (let i = 0; i < live; i++) shells.push('live');
+    for (let i = 0; i < blank; i++) shells.push('blank');
     
     // Shuffle
     for (let i = shells.length - 1; i > 0; i--) {
@@ -60,8 +58,7 @@ function reloadShotgun() {
     return { shells, live, blank };
 }
 
-function giveItems(player) {
-    const amount = Math.floor(Math.random() * 3) + 2; // 2 to 4 items
+function giveItems(player, amount) {
     for(let i=0; i<amount; i++) {
         if (player.items.length < 8) {
             player.items.push(getRandom(ITEMS));
@@ -121,7 +118,8 @@ module.exports = {
             return message.reply('❌ Could not find that user in this server.');
         }
 
-        const wager = parseInt(args[1], 10);
+        const { parseAmount } = require('../../utils/economyEngine');
+        const wager = parseAmount(args[1]);
         if (isNaN(wager) || wager < 1000) {
             return message.reply('❌ Minimum wager is **1,000 Baubles**.');
         }
@@ -242,11 +240,15 @@ async function runBuckshot({ isSlash, interaction, message, challenger, opponent
     const p1 = { user: challenger, hp: 4, maxHp: 4, items: [] };
     const p2 = { user: opponent, hp: 4, maxHp: 4, items: [] };
 
-    let turnPlayer = p1;
-    let idlePlayer = p2;
+    const startingPlayer = Math.random() > 0.5 ? p1 : p2;
+    let turnPlayer = startingPlayer;
+    let idlePlayer = startingPlayer === p1 ? p2 : p1;
     let { shells, live, blank } = reloadShotgun();
-    giveItems(p1);
-    giveItems(p2);
+    
+    // Fair item distribution: give both players the same number of items at the start
+    const startItemCount = Math.floor(Math.random() * 3) + 2; // 2 to 4 items
+    giveItems(p1, startItemCount);
+    giveItems(p2, startItemCount);
 
     let lastActionText = `🔄 The shotgun is loaded with **${live} Live** (🔴) and **${blank} Blank** (⚪) shells.\n**${turnPlayer.user.username}** grabs the shotgun first.`;
     let gameEnded = false;
@@ -307,8 +309,10 @@ async function runBuckshot({ isSlash, interaction, message, challenger, opponent
             shells = reload.shells;
             live = reload.live;
             blank = reload.blank;
-            giveItems(p1);
-            giveItems(p2);
+            // Fair item distribution: give both players the same number of items on reload
+            const reloadItemCount = Math.floor(Math.random() * 3) + 2; // 2 to 4 items
+            giveItems(p1, reloadItemCount);
+            giveItems(p2, reloadItemCount);
             lastActionText += `\n\n🔄 **RELOADED:** The shotgun now has **${live} Live** (🔴) and **${blank} Blank** (⚪) shells.`;
         }
 
@@ -366,6 +370,20 @@ async function runBuckshot({ isSlash, interaction, message, challenger, opponent
                     handcuffed = idlePlayer.user.id;
                     await btnInteraction.deferUpdate();
                     lastActionText = `🔗 **${turnPlayer.user.username}** put **Handcuffs** on **${idlePlayer.user.username}**.\nThey will skip their next turn!`;
+                }
+                else if (item.id === 'inverter') {
+                    const currentShell = shells[0];
+                    if (currentShell === 'live') {
+                        shells[0] = 'blank';
+                        live--;
+                        blank++;
+                    } else {
+                        shells[0] = 'live';
+                        blank--;
+                        live++;
+                    }
+                    await btnInteraction.deferUpdate();
+                    lastActionText = `🔄 **${turnPlayer.user.username}** used an **Inverter**.\nThe shell in the chamber has been **INVERTED**!`;
                 }
                 
                 continue; // Redraw UI

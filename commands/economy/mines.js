@@ -173,7 +173,8 @@ module.exports = {
             return message.reply('❌ Correct usage: `-mines <amount> [mines_count]`');
         }
 
-        const amount = parseInt(args[0]);
+        const { parseAmount } = require('../../utils/economyEngine');
+        const amount = parseAmount(args[0]);
         if (isNaN(amount) || amount < 500) {
             return message.reply('❌ The minimum amount to stake is **500** Baubles.');
         }

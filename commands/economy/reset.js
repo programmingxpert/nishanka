@@ -115,7 +115,8 @@ module.exports = {
 
         if (args[1] !== undefined) {
 
-            amount = parseInt(args[1]);
+            const { parseAmount } = require('../../utils/economyEngine');
+            amount = parseAmount(args[1]);
 
             if (isNaN(amount) || amount < 0) {
                 return message.reply(

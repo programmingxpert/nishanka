@@ -117,7 +117,8 @@ module.exports = {
             return message.reply('❌ Could not find that user in this server.');
         }
 
-        const wager = parseInt(args[1], 10);
+        const { parseAmount } = require('../../utils/economyEngine');
+        const wager = parseAmount(args[1]);
         if (isNaN(wager) || wager < 1000) {
             return message.reply('❌ Minimum wager is **1,000 Baubles**.');
         }
