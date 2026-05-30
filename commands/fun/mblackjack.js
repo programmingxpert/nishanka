@@ -281,6 +281,7 @@ async function showResults(session) {
     const dTotal        = calculateHand(session.dealerHand);
     const dealerNatural = session.dealerHand.length === 2 && dTotal === 21;
     const channel       = session.gameMsg.channel;
+    const pot           = session.players.reduce((sum, p) => sum + p.bet, 0);
 
     const lines = [];
 
@@ -291,11 +292,9 @@ async function showResults(session) {
         let result = '', payout = 0;
 
         if (p.naturalBJ && !dealerNatural) {
-            // Natural BJ vs non-natural dealer 21 or lower → 3:2
-            payout = Math.floor(p.bet * 2.5);
-            result = `🌟 **Natural Blackjack!** — Won **${(payout - p.bet).toLocaleString()} Baubles** (3:2 payout)`;
+            payout = Math.floor(pot * 1.5);
+            result = `🌟 **Natural Blackjack!** — Won the full pot of **${pot.toLocaleString()} Baubles** plus bonus, earning **${(payout - p.bet).toLocaleString()}** extra!`;
         } else if (p.naturalBJ && dealerNatural) {
-            // Both player and dealer have Blackjack → push
             payout = p.bet;
             result = `🤝 Both Blackjack — Push, bet returned`;
         } else if (p.busted) {
@@ -303,11 +302,11 @@ async function showResults(session) {
         } else if (dealerNatural) {
             result = `❌ Dealer has Blackjack — lost **${p.bet.toLocaleString()} Baubles**`;
         } else if (dTotal > 21) {
-            payout = p.bet * 2;
-            result = `🎉 Dealer busted! — Won **${(payout - p.bet).toLocaleString()} Baubles**`;
+            payout = pot;
+            result = `🎉 Dealer busted! — Took the full pot of **${pot.toLocaleString()} Baubles**`;
         } else if (pTotal > dTotal) {
-            payout = p.bet * 2;
-            result = `🏆 Won! **(${pTotal} vs ${dTotal})** — Won **${(payout - p.bet).toLocaleString()} Baubles**`;
+            payout = pot;
+            result = `🏆 Won! **(${pTotal} vs ${dTotal})** — Took the full pot of **${pot.toLocaleString()} Baubles**`;
         } else if (pTotal === dTotal) {
             payout = p.bet;
             result = `🤝 Push **(${pTotal})** — bet returned`;
@@ -343,6 +342,7 @@ async function showResults(session) {
         .setTitle('🃏 Multiplayer Blackjack — Results')
         .setDescription(
             `🤖 **Dealer:** ${renderCards(session.dealerHand)} **(${dTotal}${dTotal > 21 ? ' — BUST!' : ''})**\n\n` +
+            `💰 **Pot:** **${pot.toLocaleString()} Baubles**\n\n` +
             lines.join('\n')
         );
 
