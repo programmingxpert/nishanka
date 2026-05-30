@@ -1,7 +1,7 @@
 const Family = require('../models/familySchema');
 
 async function syncFamily(userId, depth = 0) {
-    if (depth > 2) return null; // Prevent infinite loops
+    if (depth > 5) return null; // Prevent infinite loops
 
     let familyData = await Family.findOne({ userId });
     if (!familyData) {
