@@ -62,9 +62,11 @@ module.exports = {
             }
 
             // Determine earnings
+            const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
+            const incomeMultiplier = await getIncomeMultiplier(userId);
             const baseEarnings = Math.floor(Math.random() * 30) + 5; // Random base earnings between 5 and 35
-            const earnings = Math.floor(baseEarnings * globalMultiplier);
+            const earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
             baubleData.baubles += earnings;
             await baubleData.save();
 
@@ -126,9 +128,11 @@ module.exports = {
             }
 
             // Determine earnings
+            const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
+            const incomeMultiplier = await getIncomeMultiplier(userId);
             const baseEarnings = Math.floor(Math.random() * 30) + 5; // Random base earnings between 5 and 35
-            const earnings = Math.floor(baseEarnings * globalMultiplier);
+            const earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
             baubleData.baubles += earnings;
             await baubleData.save();
 

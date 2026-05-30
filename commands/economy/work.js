@@ -220,9 +220,11 @@ async function runMiningGame(initialData, channel, user, baubleData) {
 
     collector.on('end', async () => {
         const { getGlobalMultiplier } = require('../../utils/economyEngine');
+        const { getIncomeMultiplier } = require('../../utils/items');
         const globalMultiplier = await getGlobalMultiplier();
+        const incomeMultiplier = await getIncomeMultiplier(userId);
         const baseEarnings = Math.min(80, clicks * 4);
-        const earnings = Math.floor(baseEarnings * globalMultiplier);
+        const earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
 
         try {
             const currentProfile =
@@ -429,7 +431,9 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
             const ms = Date.now() - startTime;
 
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
+            const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
+            const incomeMultiplier = await getIncomeMultiplier(userId);
             let baseEarnings = 0;
 
             if (ms <= 250) {
@@ -442,7 +446,7 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                 baseEarnings = 25;
             }
             
-            earnings = Math.floor(baseEarnings * globalMultiplier);
+            earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
 
             resultEmbed
                 .setColor(0x2ecc71)
@@ -647,8 +651,10 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
         if (gameResult === 'success') {
 
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
+            const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
-            earnings = Math.floor(65 * globalMultiplier);
+            const incomeMultiplier = await getIncomeMultiplier(userId);
+            earnings = Math.floor(65 * globalMultiplier * incomeMultiplier);
 
             resultEmbed
                 .setColor(0x2ecc71)
@@ -803,8 +809,10 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
 
             if (isMatch) {
                 const { getGlobalMultiplier } = require('../../utils/economyEngine');
+                const { getIncomeMultiplier } = require('../../utils/items');
                 const globalMultiplier = await getGlobalMultiplier();
-                earnings = Math.floor(70 * globalMultiplier);
+                const incomeMultiplier = await getIncomeMultiplier(userId);
+                earnings = Math.floor(70 * globalMultiplier * incomeMultiplier);
                 
                 resultEmbed
                     .setColor(0x2ecc71)

@@ -35,6 +35,14 @@ const baubleSchema = new Schema({
     robLastAttemptedAt: { type: Date, default: null },
     lastTaxPaid: { type: Number, default: 0 },
     lastTaxDate: { type: Date, default: null },
+    activeTitle: { type: String, default: null },
+    titles: { type: [String], default: [] },
+    completedCollections: { type: [String], default: [] },
+    activeExpedition: {
+        startedAt: { type: Date, default: null },
+        endTime: { type: Date, default: null },
+        status: { type: String, default: 'idle' }
+    }
 });
 
 const mongoose = require('mongoose');

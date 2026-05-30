@@ -1,32 +1,48 @@
 const fs = require('fs');
 const path = require('path');
 
-const commandsDir = path.join(__dirname, '..', 'commands');
-let failed = false;
-
-function scanDir(dir) {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-            scanDir(fullPath);
-        } else if (entry.name.endsWith('.js') && !entry.name.endsWith('.example')) {
-            try {
-                require(fullPath);
-            } catch (err) {
-                console.error(`❌ Failed to compile ${entry.name}:`, err);
-                failed = true;
-            }
+function getFilesRecursively(dir) {
+    let results = [];
+    const list = fs.readdirSync(dir);
+    list.forEach(file => {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        if (stat && stat.isDirectory()) {
+            results = results.concat(getFilesRecursively(fullPath));
+        } else if (file.endsWith('.js') && !file.endsWith('.example')) {
+            results.push(fullPath);
         }
-    }
+    });
+    return results;
 }
 
-console.log("Loading all command files to test compile...");
-scanDir(commandsDir);
+console.log('🔍 Locating command files...');
+const commandsDir = path.join(__dirname, '..', 'commands');
+const files = getFilesRecursively(commandsDir);
+console.log(`Found ${files.length} command files to test.`);
 
-if (failed) {
-    console.error("❌ Some command files failed to compile.");
+let successCount = 0;
+let failCount = 0;
+
+files.forEach(file => {
+    try {
+        const command = require(file);
+        successCount++;
+    } catch (err) {
+        console.error(`❌ Compilation FAILED for: ${path.relative(commandsDir, file)}`);
+        console.error(err);
+        failCount++;
+    }
+});
+
+console.log('\n=====================================');
+console.log(`✅ Passed compilation: ${successCount}`);
+console.log(`❌ Failed compilation: ${failCount}`);
+console.log('=====================================');
+
+if (failCount > 0) {
     process.exit(1);
 } else {
-    console.log("✅ All command files compiled successfully!");
+    console.log('🎉 All files compiled successfully!');
+    process.exit(0);
 }

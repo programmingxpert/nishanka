@@ -231,6 +231,14 @@ module.exports = {
             ctx.fillStyle = '#cccccc';
             ctx.fillText(targetUser.tag, 160, 335);
 
+            const activeTitle = baubleData ? baubleData.activeTitle : null;
+            if (activeTitle) {
+                const tagWidth = ctx.measureText(targetUser.tag).width;
+                ctx.font = 'italic bold 20px sans-serif';
+                ctx.fillStyle = '#FFD700';
+                ctx.fillText(`[${activeTitle}]`, 160 + tagWidth + 12, 335);
+            }
+
             // Draw bio text (start below username).
             const bio = profileData.bio || "";
             ctx.font = '20px sans-serif';
@@ -378,6 +386,14 @@ module.exports = {
             ctx.font = '24px sans-serif';
             ctx.fillStyle = '#cccccc';
             ctx.fillText(targetUser.tag, 160, 335);
+
+            const activeTitle = baubleData ? baubleData.activeTitle : null;
+            if (activeTitle) {
+                const tagWidth = ctx.measureText(targetUser.tag).width;
+                ctx.font = 'italic bold 20px sans-serif';
+                ctx.fillStyle = '#FFD700';
+                ctx.fillText(`[${activeTitle}]`, 160 + tagWidth + 12, 335);
+            }
 
             const bio = profileData.bio || "";
             ctx.font = '20px sans-serif';

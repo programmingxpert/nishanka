@@ -118,8 +118,10 @@ module.exports = {
             const streakBonus = Math.min((baubleData.dailyStreak - 1) * 20, 500);
             
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
+            const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
-            const totalReward = Math.floor((baseReward + streakBonus) * globalMultiplier);
+            const incomeMultiplier = await getIncomeMultiplier(userId);
+            const totalReward = Math.floor((baseReward + streakBonus) * globalMultiplier * incomeMultiplier);
 
             // Save to database
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
@@ -216,8 +218,10 @@ module.exports = {
             const streakBonus = Math.min((baubleData.dailyStreak - 1) * 20, 500);
             
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
+            const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
-            const totalReward = Math.floor((baseReward + streakBonus) * globalMultiplier);
+            const incomeMultiplier = await getIncomeMultiplier(userId);
+            const totalReward = Math.floor((baseReward + streakBonus) * globalMultiplier * incomeMultiplier);
 
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
             baubleData.dailyLastClaimed = now;

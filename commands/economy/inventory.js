@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
-const { ITEMS } = require('./shop');
+const { ITEMS, checkCollections } = require('../../utils/items');
 
 module.exports = {
     category: 'economy',
@@ -15,7 +15,15 @@ module.exports = {
             const userId = interaction.user.id;
             let baubleData = await Bauble.findOne({ userId });
 
-            if (!baubleData || (!baubleData.inventory?.length && !baubleData.coffeeExpiresAt && !baubleData.luckExpiresAt)) {
+            if (!baubleData) {
+                baubleData = new Bauble({ userId });
+                await baubleData.save();
+            }
+
+            // Run collection completion check
+            const { unlockedCollections, unlockedTitles } = await checkCollections(baubleData);
+
+            if (!baubleData.inventory?.length && !baubleData.coffeeExpiresAt && !baubleData.luckExpiresAt) {
                 return interaction.reply({ content: '🎒 Your inventory is empty! Use `/shop` to purchase some items.', ephemeral: true });
             }
 
@@ -24,6 +32,12 @@ module.exports = {
                 .setAuthor({ name: `${interaction.user.username}'s Inventory`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                 .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
                 .setTimestamp();
+
+            // Announcement if collection got unlocked during check
+            if (unlockedCollections.length > 0) {
+                embed.setDescription(`🎉 **Collection Completed!**\nYou completed: ${unlockedCollections.map(c => `**${c}**`).join(', ')}` + 
+                    (unlockedTitles.length > 0 ? `\nEquip your new titles using \`-title\`!` : ''));
+            }
 
             // Active Boosters
             const activeBuffs = [];
@@ -41,13 +55,19 @@ module.exports = {
                 embed.addFields({ name: '⚡ Active Boosters', value: activeBuffs.join('\n') });
             }
 
+            // Active Title
+            if (baubleData.activeTitle) {
+                embed.addFields({ name: '🏷️ Active Title', value: `\`[${baubleData.activeTitle}]\`` });
+            }
+
             // Inventory Items
             const itemsList = [];
             if (baubleData.inventory && baubleData.inventory.length > 0) {
                 for (const invItem of baubleData.inventory) {
                     const item = ITEMS[invItem.itemId];
                     if (item && invItem.quantity > 0) {
-                        itemsList.push(`**${item.name}** x\`${invItem.quantity}\` (\`${item.id}\`)\n_${item.description}_`);
+                        const rarityStr = item.rarity ? ` [${item.rarity}]` : '';
+                        itemsList.push(`**${item.name}** x\`${invItem.quantity}\` (\`${item.id}\`)${rarityStr}\n_${item.description}_`);
                     }
                 }
             }
@@ -71,7 +91,15 @@ module.exports = {
             const userId = message.author.id;
             let baubleData = await Bauble.findOne({ userId });
 
-            if (!baubleData || (!baubleData.inventory?.length && !baubleData.coffeeExpiresAt && !baubleData.luckExpiresAt)) {
+            if (!baubleData) {
+                baubleData = new Bauble({ userId });
+                await baubleData.save();
+            }
+
+            // Run collection completion check
+            const { unlockedCollections, unlockedTitles } = await checkCollections(baubleData);
+
+            if (!baubleData.inventory?.length && !baubleData.coffeeExpiresAt && !baubleData.luckExpiresAt) {
                 return message.reply('🎒 Your inventory is empty! Use `-shop` to purchase some items.');
             }
 
@@ -80,6 +108,12 @@ module.exports = {
                 .setAuthor({ name: `${message.author.username}'s Inventory`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
                 .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
                 .setTimestamp();
+
+            // Announcement if collection got unlocked during check
+            if (unlockedCollections.length > 0) {
+                embed.setDescription(`🎉 **Collection Completed!**\nYou completed: ${unlockedCollections.map(c => `**${c}**`).join(', ')}` + 
+                    (unlockedTitles.length > 0 ? `\nEquip your new titles using \`-title\`!` : ''));
+            }
 
             // Active Boosters
             const activeBuffs = [];
@@ -97,13 +131,19 @@ module.exports = {
                 embed.addFields({ name: '⚡ Active Boosters', value: activeBuffs.join('\n') });
             }
 
+            // Active Title
+            if (baubleData.activeTitle) {
+                embed.addFields({ name: '🏷️ Active Title', value: `\`[${baubleData.activeTitle}]\`` });
+            }
+
             // Inventory Items
             const itemsList = [];
             if (baubleData.inventory && baubleData.inventory.length > 0) {
                 for (const invItem of baubleData.inventory) {
                     const item = ITEMS[invItem.itemId];
                     if (item && invItem.quantity > 0) {
-                        itemsList.push(`**${item.name}** x\`${invItem.quantity}\` (\`${item.id}\`)\n_${item.description}_`);
+                        const rarityStr = item.rarity ? ` [${item.rarity}]` : '';
+                        itemsList.push(`**${item.name}** x\`${invItem.quantity}\` (\`${item.id}\`)${rarityStr}\n_${item.description}_`);
                     }
                 }
             }

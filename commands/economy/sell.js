@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
-const { ITEMS } = require('./shop');
+const { ITEMS } = require('../../utils/items');
 
 function removeItem(baubleData, itemId, quantity = 1) {
     if (!baubleData.inventory) return false;

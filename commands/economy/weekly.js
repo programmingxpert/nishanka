@@ -88,8 +88,10 @@ module.exports = {
 
             // Calculate reward (6000-12000)
             const baseReward = Math.floor(Math.random() * 6001) + 6000;
+            const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
-            const reward = Math.floor(baseReward * globalMultiplier);
+            const incomeMultiplier = await getIncomeMultiplier(userId);
+            const reward = Math.floor(baseReward * globalMultiplier * incomeMultiplier);
 
             // Save to database
             baubleData.baubles = (baubleData.baubles || 0) + reward;
@@ -151,8 +153,10 @@ module.exports = {
             }
 
             const baseReward = Math.floor(Math.random() * 6001) + 6000;
+            const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
-            const reward = Math.floor(baseReward * globalMultiplier);
+            const incomeMultiplier = await getIncomeMultiplier(userId);
+            const reward = Math.floor(baseReward * globalMultiplier * incomeMultiplier);
 
             baubleData.baubles = (baubleData.baubles || 0) + reward;
             baubleData.weeklyLastClaimed = now;
