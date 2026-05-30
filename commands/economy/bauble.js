@@ -30,10 +30,19 @@ module.exports = {
                 .setTitle('💰 Bauble Balance')
                 .setDescription(`${user.username} has **${baubleData.baubles}** Glimmering Baubles!`)
                 .addFields(
-                    { name: '🪙 Coinflip Streak', value: `\`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)`, inline: true },
-                    { name: '🎲 Gamble Streak', value: `\`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)`, inline: true },
-                    { name: '🎰 Slots Streak', value: `\`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)`, inline: true },
-                    { name: '📅 Daily Streak', value: `\`${baubleData.dailyStreak || 0}\` (Best: \`${baubleData.dailyMaxStreak || 0}\`)`, inline: true }
+                    { 
+                        name: '🔥 Minigame Streaks', 
+                        value: `**🪙 Coinflip:** \`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)\n` +
+                               `**🎲 Gamble:** \`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)\n` +
+                               `**🎰 Slots:** \`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)\n` +
+                               `**🃏 Blackjack:** \`${baubleData.blackjackStreak || 0}\` (Best: \`${baubleData.blackjackMaxStreak || 0}\`)`,
+                        inline: false
+                    },
+                    { 
+                        name: '📅 Activity Streaks', 
+                        value: `**🎁 Daily:** \`${baubleData.dailyStreak || 0}\` (Best: \`${baubleData.dailyMaxStreak || 0}\`)`, 
+                        inline: false 
+                    }
                 )
                 .setTimestamp();
             
@@ -73,10 +82,19 @@ module.exports = {
                 .setTitle('💰 Bauble Balance')
                 .setDescription(`${user.username} has **${baubleData.baubles}** Glimmering Baubles!`)
                 .addFields(
-                    { name: '🪙 Coinflip Streak', value: `\`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)`, inline: true },
-                    { name: '🎲 Gamble Streak', value: `\`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)`, inline: true },
-                    { name: '🎰 Slots Streak', value: `\`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)`, inline: true },
-                    { name: '📅 Daily Streak', value: `\`${baubleData.dailyStreak || 0}\` (Best: \`${baubleData.dailyMaxStreak || 0}\`)`, inline: true }
+                    { 
+                        name: '🔥 Minigame Streaks', 
+                        value: `**🪙 Coinflip:** \`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)\n` +
+                               `**🎲 Gamble:** \`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)\n` +
+                               `**🎰 Slots:** \`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)\n` +
+                               `**🃏 Blackjack:** \`${baubleData.blackjackStreak || 0}\` (Best: \`${baubleData.blackjackMaxStreak || 0}\`)`,
+                        inline: false
+                    },
+                    { 
+                        name: '📅 Activity Streaks', 
+                        value: `**🎁 Daily:** \`${baubleData.dailyStreak || 0}\` (Best: \`${baubleData.dailyMaxStreak || 0}\`)`, 
+                        inline: false 
+                    }
                 )
                 .setTimestamp();
 

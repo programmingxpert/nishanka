@@ -5,6 +5,7 @@ const { sendAnimeAction } = require('../../utils/sendAnimeAction');
 
 module.exports = {
 	category: 'actions',
+	aliases: ['lol'],
 	data: { name: 'laugh' },
 
 	
