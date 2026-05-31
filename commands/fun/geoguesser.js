@@ -263,7 +263,7 @@ module.exports = {
 
                 const gameEmbed = new EmbedBuilder()
                     .setColor(0x2ecc71)
-                    .setTitle(`🌍 GeoGuessr (Round ${currentRound}/${rounds})`)
+                    .setTitle(`🌍 GeoGuessr${mode === 'solo' && rounds === 1 ? '' : ` (Round ${currentRound}/${rounds})`}`)
                     .setDescription(`Where in the world is this?\nReply with the **Capital City** or **Country** name.\nYou have **60 seconds** to guess!\n\n💡 **Hint:** Type \`hint\` to reveal a clue.`)
                     .setImage(loc.image);
                 
@@ -337,7 +337,11 @@ module.exports = {
                 .filter(p => p[1].score > 0);
 
             if (sortedParticipants.length === 0) {
-                await channel.send("The game has ended! Nobody scored any points.");
+                if (mode === 'solo') {
+                    await channel.send('No one scored in this solo round. Better luck next time!');
+                } else {
+                    await channel.send('The game has ended! Nobody scored any points.');
+                }
             } else {
                 let leaderboardText = "";
                 let place = 1;

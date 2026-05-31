@@ -1,93 +1,114 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const GlobalEconomy = require('../../models/GlobalEconomy');
 const EconomyMetrics = require('../../models/EconomyMetrics');
-const { getGlobalMultiplier } = require('../../utils/economyEngine');
+
+const INFLATION_THRESHOLDS = [
+  [5,   '📈 Rapidly Inflating'],
+  [0,   '↗️ Inflating'],
+  [-5,  '↘️ Deflating'],
+  [-Infinity, '📉 Rapidly Deflating'],
+];
+
+function getInflationLabel(rate) {
+  for (const [threshold, label] of INFLATION_THRESHOLDS) {
+    if (rate > threshold) return label;
+  }
+  return '➡️ Static';
+}
+
+async function getInflationData() {
+  const [current, previous] = await EconomyMetrics.find()
+    .sort({ timestamp: -1 })
+    .limit(2)
+    .lean();
+
+  if (!current || !previous) return { rateText: '0.00%', trend: '➡️ Static' };
+
+  const rate = ((current.totalBaubles - previous.totalBaubles) / previous.totalBaubles) * 100;
+  return {
+    rateText: `${rate > 0 ? '+' : ''}${rate.toFixed(2)}%`,
+    trend: getInflationLabel(rate),
+  };
+}
+
+function buildEmbed(eco, inflation) {
+  const multiplier   = eco.currentMultiplier ?? 1.0;
+  const status       = eco.marketStatus ?? '⚖️ Stable Market';
+  const circulation  = (eco.totalBaublesInCirculation ?? 0).toLocaleString();
+  const activeUsers  = (eco.activeUsersCount ?? 0).toLocaleString();
+
+  return new EmbedBuilder()
+    .setColor(0x00AE86)
+    .setTitle('🌐 Global Economy Status')
+    .setDescription(
+      `The economy reacts dynamically to money in circulation.\n\n` +
+      `**Market Status:** \`${status}\``
+    )
+    .addFields(
+      {
+        name: '📊 Multiplier',
+        value: `**${multiplier.toFixed(2)}x**\n*Affects minigame payouts*`,
+        inline: true,
+      },
+      {
+        name: '📈 Inflation (24h)',
+        value: `**${inflation.rateText}** — ${inflation.trend}`,
+        inline: true,
+      },
+      { name: '\u200b', value: '\u200b', inline: false },
+      {
+        name: '💰 Circulation',
+        value: `${circulation} Baubles`,
+        inline: true,
+      },
+      {
+        name: '👥 Active Accounts',
+        value: `${activeUsers} Users`,
+        inline: true,
+      },
+      { name: '\u200b', value: '\u200b', inline: false },
+      {
+        name: '⚙️ How It Works',
+        value:
+          '**High inflation** → multiplier drops, shop prices rise.\n' +
+          '**Deflation** → multiplier rises, shop prices fall.\n' +
+          '**Wealth tax** → 2% daily at 150k+ Baubles, 5% at 500k+. Tax goes into the server fund.',
+      },
+    )
+    .setFooter({ text: 'Last calculated' })
+    .setTimestamp(eco.lastCalculated ?? new Date());
+}
+
+async function handleEconomyCommand(respondable) {
+  const eco = await GlobalEconomy.findOne().lean();
+
+  if (!eco) {
+    const msg = '❌ Economy engine has not generated its first snapshot yet.';
+    return respondable.editReply ? respondable.editReply(msg) : respondable.reply(msg);
+  }
+
+  const inflation = await getInflationData();
+  const embed = buildEmbed(eco, inflation);
+
+  return respondable.editReply
+    ? respondable.editReply({ embeds: [embed] })
+    : respondable.reply({ embeds: [embed] });
+}
 
 module.exports = {
-    category: 'economy',
-    aliases: ['eco', 'inflation', 'market'],
-    data: new SlashCommandBuilder()
-        .setName('economy')
-        .setDescription('View the live status of the global bot economy and inflation rates.'),
+  category: 'economy',
+  aliases: ['eco', 'inflation', 'market'],
 
-    async execute(interaction) {
-        if (interaction.deferReply) await interaction.deferReply();
-        
-        await this.handleEconomyCommand(interaction.user, interaction);
-    },
+  data: new SlashCommandBuilder()
+    .setName('economy')
+    .setDescription('View the live status of the global bot economy and inflation rates.'),
 
-    async executePrefix(message, args) {
-        await this.handleEconomyCommand(message.author, message);
-    },
+  async execute(interaction) {
+    await interaction.deferReply();
+    await handleEconomyCommand(interaction);
+  },
 
-    async handleEconomyCommand(user, respondable) {
-        try {
-            const globalEco = await GlobalEconomy.findOne();
-            if (!globalEco) {
-                const msg = '❌ The economy engine has not generated its first snapshot yet. Please check back later.';
-                return respondable.editReply ? await respondable.editReply(msg) : await respondable.reply(msg);
-            }
-
-            const multiplier = globalEco.currentMultiplier || 1.0;
-            const status = globalEco.marketStatus || '⚖️ Stable Market';
-            const baublesInCirculation = globalEco.totalBaublesInCirculation || 0;
-            const activeUsers = globalEco.activeUsersCount || 0;
-            const lastUpdated = globalEco.lastCalculated ? Math.floor(globalEco.lastCalculated.getTime() / 1000) : null;
-
-            // Fetch inflation data by comparing to the previous snapshot
-            let inflationRateText = '0.00%';
-            let inflationTrend = '➡️ Static';
-            
-            const snapshots = await EconomyMetrics.find().sort({ timestamp: -1 }).limit(2);
-            if (snapshots.length === 2) {
-                const currentTotal = snapshots[0].totalBaubles;
-                const previousTotal = snapshots[1].totalBaubles;
-                const inflationRate = ((currentTotal - previousTotal) / previousTotal) * 100;
-                inflationRateText = `${inflationRate > 0 ? '+' : ''}${inflationRate.toFixed(2)}%`;
-                
-                if (inflationRate > 5) inflationTrend = '📈 Rapidly Inflating';
-                else if (inflationRate > 0) inflationTrend = '↗️ Inflating';
-                else if (inflationRate < -5) inflationTrend = '📉 Rapidly Deflating';
-                else if (inflationRate < 0) inflationTrend = '↘️ Deflating';
-            }
-
-            const embed = new EmbedBuilder()
-                .setColor(0x00AE86)
-                .setTitle('🌐 Global Economy Status')
-                .setDescription(
-                    `Welcome to the Global Economy Dashboard! The economy is dynamic and reacts to how much money is currently in circulation.\n\n` +
-                    `**Current Market Status:** \`${status}\``
-                )
-                .addFields(
-                    { name: '📊 Economy Multiplier', value: `**${multiplier.toFixed(2)}x**\n*(Affects payouts from mini-games like Geoguesser, Wordbomb, etc.)*`, inline: true },
-                    { name: '📈 Inflation Rate (24h)', value: `**${inflationRateText}** (${inflationTrend})`, inline: true },
-                    { name: '\u200b', value: '\u200b', inline: false },
-                    { name: '💰 Total Circulation', value: `${baublesInCirculation.toLocaleString()} Baubles`, inline: true },
-                    { name: '👥 Active Accounts', value: `${activeUsers.toLocaleString()} Users`, inline: true },
-                    { name: '\u200b', value: '\u200b', inline: false },
-                    { 
-                        name: '🛍️ How Does the Economy Work?', 
-                        value: `The central bank automatically balances the money supply every day.\n` +
-                               `• **When Inflation is High:** The global multiplier drops to slow down earnings, and **Shop Prices increase** to drain excess money.\n` +
-                               `• **When Deflation happens:** The global multiplier rises to boost earnings, and **Shop Prices decrease** to encourage spending.\n` +
-                               `• 📉 **Automated Wealth Tax:** To prevent extreme hoarding, users with **150,000+ Baubles** are taxed **2% daily**, and those with **500,000+ Baubles** are taxed **5% daily** at midnight. Collected taxes go into the server's Tax Fund.`
-                    }
-                );
-
-            if (lastUpdated) {
-                embed.setFooter({ text: 'Last Calculated' }).setTimestamp(globalEco.lastCalculated);
-            }
-
-            if (respondable.editReply) {
-                await respondable.editReply({ embeds: [embed] });
-            } else {
-                await respondable.reply({ embeds: [embed] });
-            }
-        } catch (error) {
-            console.error('Error in economy command:', error);
-            const msg = '❌ An error occurred while fetching economy data.';
-            if (respondable.editReply) await respondable.editReply(msg);
-            else await respondable.reply(msg);
-        }
-    }
+  async executePrefix(message) {
+    await handleEconomyCommand(message);
+  },
 };
