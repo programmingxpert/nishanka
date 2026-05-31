@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 const { ITEMS, checkCollections } = require('../../utils/items');
 
@@ -21,8 +21,15 @@ module.exports = {
             }
 
             const { unlockedCollections, unlockedTitles } = await checkCollections(baubleData);
-            const embed = buildMinimalInventory(baubleData, interaction.user, unlockedCollections, unlockedTitles);
-            return interaction.reply({ embeds: [embed] });
+            const pages = buildInventoryPages(baubleData, interaction.user, unlockedCollections, unlockedTitles);
+            const components = createInventoryControls(userId, pages.length);
+            const reply = await interaction.reply({ embeds: [pages[0]], components, fetchReply: true });
+
+            if (pages.length > 1) {
+                createInventoryCollector(reply, userId, pages);
+            }
+
+            return reply;
         } catch (error) {
             console.error('Error in inventory command:', error);
             await interaction.reply({ content: '❌ An error occurred while retrieving your inventory.', ephemeral: true });
@@ -40,8 +47,15 @@ module.exports = {
             }
 
             const { unlockedCollections, unlockedTitles } = await checkCollections(baubleData);
-            const embed = buildMinimalInventory(baubleData, message.author, unlockedCollections, unlockedTitles);
-            return message.reply({ embeds: [embed] });
+            const pages = buildInventoryPages(baubleData, message.author, unlockedCollections, unlockedTitles);
+            const components = createInventoryControls(userId, pages.length);
+            const reply = await message.reply({ embeds: [pages[0]], components });
+
+            if (pages.length > 1) {
+                createInventoryCollector(reply, userId, pages);
+            }
+
+            return reply;
         } catch (error) {
             console.error('Error in inventory command (prefix):', error);
             await message.reply('❌ An error occurred while retrieving your inventory.');
@@ -49,18 +63,17 @@ module.exports = {
     }
 };
 
-function buildMinimalInventory(baubleData, user, unlockedCollections, unlockedTitles) {
-    const embed = new EmbedBuilder()
-        .setColor(0x2b2d42) // Minimal dark-slate theme
+function buildInventoryPages(baubleData, user, unlockedCollections, unlockedTitles) {
+    const baseEmbed = new EmbedBuilder()
+        .setColor(0x2b2d42)
         .setAuthor({ name: `${user.username}'s Backpack`, iconURL: user.displayAvatarURL({ dynamic: true }) })
         .setTimestamp();
 
     if (unlockedCollections.length > 0) {
-        embed.setDescription(`🎉 **Collection Completed!**\nYou completed: ${unlockedCollections.map(c => `**${c}**`).join(', ')}` + 
+        baseEmbed.setDescription(`🎉 **Collection Completed!**\nYou completed: ${unlockedCollections.map(c => `**${c}**`).join(', ')}` +
             (unlockedTitles.length > 0 ? `\nEquip new titles using \`-title\`!` : ''));
     }
 
-    // Status & Buffs Scanner
     const statusLines = [];
     const now = Date.now();
 
@@ -118,11 +131,6 @@ function buildMinimalInventory(baubleData, user, unlockedCollections, unlockedTi
         statusLines.push(`🚀 **Space Duck Intercept (5%):** active • <t:${ts}:R>`);
     }
 
-    if (statusLines.length > 0) {
-        addLongField(embed, '⚡ Active Stats & Buffs', statusLines);
-    }
-
-    // Inventory items formatting (Minimal bullet lists)
     const itemsList = [];
     if (baubleData.inventory && baubleData.inventory.length > 0) {
         for (const invItem of baubleData.inventory) {
@@ -134,41 +142,113 @@ function buildMinimalInventory(baubleData, user, unlockedCollections, unlockedTi
         }
     }
 
-    if (itemsList.length > 0) {
-        addLongField(embed, '🎒 Backpack Contents', itemsList);
-    } else {
-        embed.addFields({ name: '🎒 Backpack Contents', value: '_Empty. Go buy stuff from the shop!_' });
-    }
+    const pages = [];
+    if (itemsList.length === 0) {
+        const emptyEmbed = EmbedBuilder.from(baseEmbed).setFooter({ text: 'Page 1 of 1' });
 
-    return embed;
-
-    function addLongField(embedBuilder, fieldName, lines) {
-        const MAX_FIELD_LENGTH = 1024;
-        let currentLines = [];
-        let currentLength = 0;
-        let chunkIndex = 0;
-
-        const pushChunk = () => {
-            if (!currentLines.length) return;
-            const value = currentLines.join('\n');
-            embedBuilder.addFields({
-                name: chunkIndex === 0 ? fieldName : `${fieldName} (cont.)`,
-                value
-            });
-            chunkIndex += 1;
-            currentLines = [];
-            currentLength = 0;
-        };
-
-        for (const line of lines) {
-            const lineLength = line.length + 1;
-            if (currentLength + lineLength > MAX_FIELD_LENGTH) {
-                pushChunk();
-            }
-            currentLines.push(line);
-            currentLength += lineLength;
+        if (statusLines.length > 0) {
+            emptyEmbed.addFields({ name: '⚡ Active Stats & Buffs', value: statusLines.join('\n') });
         }
 
-        pushChunk();
+        emptyEmbed.addFields({ name: '🎒 Backpack Contents', value: '_Empty. Go buy stuff from the shop!_' });
+        pages.push(emptyEmbed);
+        return pages;
     }
+
+    const chunkSize = 4;
+    const totalPages = Math.ceil(itemsList.length / chunkSize);
+
+    for (let i = 0; i < itemsList.length; i += chunkSize) {
+        const pageEmbed = EmbedBuilder.from(baseEmbed).setFooter({ text: `Page ${pages.length + 1} of ${totalPages}` });
+
+        if (statusLines.length > 0) {
+            pageEmbed.addFields({ name: '⚡ Active Stats & Buffs', value: statusLines.join('\n') });
+        }
+
+        const pageItems = itemsList.slice(i, i + chunkSize).join('\n\n');
+        pageEmbed.addFields({ name: '🎒 Backpack Contents', value: pageItems });
+        pages.push(pageEmbed);
+    }
+
+    return pages;
+}
+
+function createInventoryControls(userId, pageCount) {
+    const isSinglePage = pageCount <= 1;
+    return [
+        new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`inventory_prev_${userId}`)
+                .setLabel('Previous')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⬅️')
+                .setDisabled(isSinglePage),
+            new ButtonBuilder()
+                .setCustomId(`inventory_next_${userId}`)
+                .setLabel('Next')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('➡️')
+                .setDisabled(isSinglePage),
+            new ButtonBuilder()
+                .setCustomId(`inventory_close_${userId}`)
+                .setLabel('Close')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('❌')
+        )
+    ];
+}
+
+function createInventoryCollector(message, userId, pages) {
+    let currentPage = 0;
+    const collector = message.createMessageComponentCollector({
+        filter: (interaction) => interaction.user.id === userId,
+        componentType: ComponentType.Button,
+        time: 60000
+    });
+
+    collector.on('collect', async (button) => {
+        if (button.user.id !== userId) {
+            return button.reply({ content: 'This inventory is only interactive for the original user.', ephemeral: true });
+        }
+
+        if (button.customId === `inventory_close_${userId}`) {
+            collector.stop('closed');
+            return button.update({ components: [disableInventoryControls(button.message.components[0])] });
+        }
+
+        if (button.customId === `inventory_prev_${userId}`) {
+            currentPage = Math.max(currentPage - 1, 0);
+        }
+        if (button.customId === `inventory_next_${userId}`) {
+            currentPage = Math.min(currentPage + 1, pages.length - 1);
+        }
+
+        await button.update({ embeds: [pages[currentPage]], components: [updateInventoryControls(button.message.components[0], currentPage, pages.length)] });
+    });
+
+    collector.on('end', async (_, reason) => {
+        if (reason !== 'closed') {
+            try {
+                await message.edit({ components: [disableInventoryControls(message.components[0])] });
+            } catch (error) {
+                console.error('Failed to disable inventory controls after timeout:', error);
+            }
+        }
+    });
+}
+
+function updateInventoryControls(actionRow, currentPage, pageCount) {
+    const prev = ButtonBuilder.from(actionRow.components[0]).setDisabled(currentPage === 0);
+    const next = ButtonBuilder.from(actionRow.components[1]).setDisabled(currentPage >= pageCount - 1);
+    const close = ButtonBuilder.from(actionRow.components[2]).setDisabled(false);
+
+    return new ActionRowBuilder().addComponents(prev, next, close);
+}
+
+function disableInventoryControls(actionRow) {
+    const prev = ButtonBuilder.from(actionRow.components[0]).setDisabled(true);
+    const next = ButtonBuilder.from(actionRow.components[1]).setDisabled(true);
+    const close = ButtonBuilder.from(actionRow.components[2]).setDisabled(true);
+
+    return new ActionRowBuilder().addComponents(prev, next, close);
 }
