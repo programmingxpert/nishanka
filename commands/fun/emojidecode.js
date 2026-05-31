@@ -81,9 +81,11 @@ function trackAnswer(answer) {
 }
 
 function buildAvoidList() {
-  const recent    = loadRecent();
-  const fallbacks = QUESTIONS.flatMap(q => q.answers);
-  return [...new Set([...recent, ...fallbacks, ...FRANCHISE_ROOTS])];
+  // Only blocks recently played answers + known franchise roots.
+  // Deliberately excludes fallback QUESTIONS so the AI can freely
+  // regenerate popular titles like "jaws" — only *played* ones are off-limits.
+  const recent = loadRecent();
+  return [...new Set([...recent, ...FRANCHISE_ROOTS])];
 }
 
 // ─── AI question generation ────────────────────────────────────────────────────
@@ -143,11 +145,11 @@ Respond ONLY with a raw JSON object — no markdown, no backticks, no explanatio
 
   parsed.answers = parsed.answers.map(a => a.trim().toLowerCase());
 
-  // Validate: reject if any answer is in the avoid list
-  const avoid = new Set(buildAvoidList());
-  const primaryRoot = parsed.answers[0].split(' ').slice(0, 2).join(' ');
-  if (parsed.answers.some(a => avoid.has(a)) || avoid.has(primaryRoot)) {
-    throw new Error(`Generated a blocked answer: ${parsed.answers[0]}`);
+  // Validate: only reject if recently played (not just "in fallback list")
+  const recentPlayed = new Set(loadRecent());
+  const primaryRoot  = parsed.answers[0].split(' ').slice(0, 2).join(' ');
+  if (parsed.answers.some(a => recentPlayed.has(a)) || recentPlayed.has(primaryRoot)) {
+    throw new Error(`Generated a recently played answer: ${parsed.answers[0]}`);
   }
 
   trackAnswer(parsed.answers[0]);
