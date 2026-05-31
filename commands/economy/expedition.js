@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 const { getIncomeMultiplier, rollItemDrop, addItemToInventory } = require('../../utils/items');
 const { getGlobalMultiplier } = require('../../utils/economyEngine');
@@ -196,9 +196,87 @@ async function claimExpedition(context, baubleData, isSlash) {
         )
         .setTimestamp();
 
+    const controls = createExpeditionControls(user.id);
+    let reply;
+
     if (isSlash) {
-        await context.reply({ embeds: [embed] });
+        reply = await context.reply({ embeds: [embed], components: controls, fetchReply: true });
     } else {
-        await context.reply({ embeds: [embed] });
+        reply = await context.reply({ embeds: [embed], components: controls });
     }
+
+    createExpeditionCollector(reply, user.id, isSlash);
+    return reply;
+}
+
+function createExpeditionControls(userId) {
+    return [
+        new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`expedition_restart_${userId}`)
+                .setLabel('Go on expedition again')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('🚀')
+        )
+    ];
+}
+
+function disableExpeditionControls(actionRow) {
+    return new ActionRowBuilder().addComponents(
+        ButtonBuilder.from(actionRow.components[0]).setDisabled(true)
+    );
+}
+
+function createExpeditionCollector(message, userId, isSlash) {
+    const collector = message.createMessageComponentCollector({
+        filter: (interaction) => interaction.user.id === userId,
+        componentType: ComponentType.Button,
+        time: 60000
+    });
+
+    collector.on('collect', async (button) => {
+        if (button.user.id !== userId) {
+            return button.reply({ content: 'Only the expedition starter can use this button.', ephemeral: true });
+        }
+
+        if (button.customId === `expedition_restart_${userId}`) {
+            collector.stop('restart');
+            await button.update({ components: [disableExpeditionControls(message.components[0])] });
+            await startNewExpedition(button, userId);
+        }
+    });
+
+    collector.on('end', async (_, reason) => {
+        if (reason !== 'restart') {
+            try {
+                await message.edit({ components: [disableExpeditionControls(message.components[0])] });
+            } catch (error) {
+                console.error('Failed to disable expedition controls after timeout:', error);
+            }
+        }
+    });
+}
+
+async function startNewExpedition(button, userId) {
+    const now = Date.now();
+    let baubleData = await Bauble.findOne({ userId });
+    if (!baubleData) {
+        baubleData = new Bauble({ userId });
+    }
+
+    baubleData.activeExpedition = {
+        startedAt: new Date(now),
+        endTime: new Date(now + EXPEDITION_DURATION_MS),
+        status: 'exploring'
+    };
+    await baubleData.save();
+
+    const endTimestamp = Math.floor((now + EXPEDITION_DURATION_MS) / 1000);
+    const embed = new EmbedBuilder()
+        .setColor(0xe67e22)
+        .setTitle('🧭 Expedition Started Again!')
+        .setDescription(`⛵ You have packed your gear and set off on a new dangerous expedition!\n\nYou will return <t:${endTimestamp}:R>. Run the command again then to claim your rewards!`)
+        .setTimestamp();
+
+    await button.followUp({ embeds: [embed] });
 }
