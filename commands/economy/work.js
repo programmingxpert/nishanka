@@ -4,7 +4,8 @@ const {
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle
+    ButtonStyle,
+    Collection
 } = require('discord.js');
 
 const Bauble = require('../../models/baubleSchema');
@@ -363,12 +364,15 @@ async function runMiningGame(initialData, channel, user, baubleData) {
                     .setEmoji('💎')
             );
 
+        const finalEmbed = appendWorkAgainFooter(successEmbed, initialData, baubleData);
         await mainMessage
             .edit({
-                embeds: [successEmbed],
-                components: [disabledRow]
+                embeds: [finalEmbed],
+                components: [buildWorkAgainRow()]
             })
             .catch(() => {});
+
+        attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
     });
 }
 
@@ -580,12 +584,21 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                 );
         }
 
+        const components = reason === 'caught' ? [buildWorkAgainRow()] : [disabledRow];
+        const finalEmbed = reason === 'caught'
+            ? appendWorkAgainFooter(resultEmbed, initialData, baubleData)
+            : resultEmbed;
+
         await mainMessage
             .edit({
-                embeds: [resultEmbed],
-                components: [disabledRow]
+                embeds: [finalEmbed],
+                components
             })
             .catch(() => {});
+
+        if (reason === 'caught') {
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
+        }
     });
 }
 
@@ -942,7 +955,9 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
                 .setTimestamp();
         }
 
-        await mainMessage.edit({ embeds: [resultEmbed], components: [disabledRow] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(resultEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
     });
 }
 
@@ -1087,6 +1102,96 @@ function makeButtonRow(buttons) {
     return new ActionRowBuilder().addComponents(buttons);
 }
 
+function getWorkCooldownInfo(initialData, baubleData) {
+    const client = initialData?.client || initialData?.message?.client || initialData?.channel?.client;
+    const userId = baubleData?.userId || initialData?.user?.id || initialData?.author?.id;
+    const now = Date.now();
+    let cooldownMs = 10000;
+
+    if (baubleData?.coffeeExpiresAt && now < new Date(baubleData.coffeeExpiresAt).getTime()) {
+        cooldownMs /= 2;
+    }
+
+    if (!client || !client.cooldowns || !client.cooldowns.has('work')) {
+        return { timeLeft: 0, cooldownMs };
+    }
+
+    const timestamps = client.cooldowns.get('work');
+    const startedAt = timestamps.get(userId);
+    if (!startedAt) {
+        return { timeLeft: 0, cooldownMs };
+    }
+
+    const expiry = startedAt + cooldownMs;
+    return { timeLeft: Math.max(0, expiry - now), cooldownMs, expiry };
+}
+
+function buildWorkAgainRow() {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('workAgain')
+            .setLabel('Work Again')
+            .setStyle(ButtonStyle.Success)
+    );
+}
+
+function appendWorkAgainFooter(embed, initialData, baubleData) {
+    const cooldown = getWorkCooldownInfo(initialData, baubleData);
+    if (cooldown.timeLeft > 0) {
+        const seconds = Math.ceil(cooldown.timeLeft / 1000);
+        const existingFooter = embed.data?.footer?.text || '';
+        const extra = `Available again in ${seconds}s.`;
+        embed.setFooter({ text: existingFooter ? `${existingFooter} • ${extra}` : extra });
+    }
+    return embed;
+}
+
+async function attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData) {
+    const collector = mainMessage.createMessageComponentCollector({
+        filter: i => i.user.id === user.id && i.customId === 'workAgain',
+        time: 30000
+    });
+
+    collector.on('collect', async i => {
+        try {
+            await i.deferUpdate();
+        } catch (_) {}
+
+        const cooldown = getWorkCooldownInfo(initialData, baubleData);
+        if (cooldown.timeLeft > 0) {
+            const seconds = Math.ceil(cooldown.timeLeft / 1000);
+            await i.followUp({
+                content: `⏳ Please wait **${seconds}s** before pressing Work Again.`,
+                ephemeral: true
+            }).catch(() => {});
+            return;
+        }
+
+        const client = initialData?.client || initialData?.message?.client || initialData?.channel?.client;
+        if (client && client.cooldowns) {
+            if (!client.cooldowns.has('work')) {
+                client.cooldowns.set('work', new Collection());
+            }
+            const timestamps = client.cooldowns.get('work');
+            const now = Date.now();
+            const newCooldownMs = cooldown.cooldownMs || 10000;
+            timestamps.set(user.id, now);
+            setTimeout(() => timestamps.delete(user.id), newCooldownMs);
+        }
+
+        const disabledButtonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('workAgain')
+                .setLabel('Working...')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(true)
+        );
+        await mainMessage.edit({ components: [disabledButtonRow] }).catch(() => {});
+
+        await runWorkGame(initialData, channel, user);
+    });
+}
+
 function buildPaginatedJobList(name, description) {
     return new EmbedBuilder()
         .setColor(0x2ecc71)
@@ -1186,7 +1291,9 @@ async function runPizzaDeliveryGame(initialData, channel, user, baubleData) {
             if (unlockedTitles.length > 0) {
                 successEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
             }
-            await mainMessage.edit({ embeds: [successEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(successEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else if (reason === 'wrong') {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1263,7 +1370,9 @@ async function runBombDisposalGame(initialData, channel, user, baubleData) {
             if (unlockedTitles.length > 0) {
                 winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
             }
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const loseEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1346,7 +1455,9 @@ async function runGhostHunterGame(initialData, channel, user, baubleData) {
                 .setDescription(`You trapped the spirit and sealed the room.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1428,7 +1539,9 @@ async function runAlienTranslatorGame(initialData, channel, user, baubleData) {
                 .setDescription(`You cracked the alien phrase and impressed the ship captain.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const loseEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1494,7 +1607,9 @@ async function runFastFoodGame(initialData, channel, user, baubleData) {
                 .setDescription(`You handed over the perfect tray and avoided a meltdown.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1560,7 +1675,9 @@ async function runDinosaurKeeperGame(initialData, channel, user, baubleData) {
                 .setDescription(`The dinosaur enjoyed the meal and left your paycheck alone.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const loseEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1633,7 +1750,9 @@ async function runScientistAssistantGame(initialData, channel, user, baubleData)
                 .setDescription(`The experiment completed without incident.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1706,7 +1825,9 @@ async function runDetectiveGame(initialData, channel, user, baubleData) {
                 .setDescription(`Your deduction was flawless and the case is closed.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1779,7 +1900,9 @@ async function runArcadeTechnicianGame(initialData, channel, user, baubleData) {
                 .setDescription(`You fixed the cabinet and the arcade crowd cheers.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1857,7 +1980,9 @@ async function runZooKeeperGame(initialData, channel, user, baubleData) {
                 .setDescription(`The animal went to the perfect habitat.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1923,7 +2048,9 @@ async function runTreasureDiverGame(initialData, channel, user, baubleData) {
                 .setDescription(`You surfaced with the sunken vault intact and a glittering haul.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -1989,7 +2116,9 @@ async function runTrainConductorGame(initialData, channel, user, baubleData) {
                 .setDescription(`The express rolled into the right platform and the passengers cheered.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -2055,7 +2184,9 @@ async function runAirportBaggageGame(initialData, channel, user, baubleData) {
                 .setDescription(`The passenger’s luggage made it to the right gate.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
                 .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
             if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         } else {
             const failEmbed = new EmbedBuilder()
                 .setColor(0xe74c3c)
@@ -2137,7 +2268,9 @@ async function runDragonDaycareGame(initialData, channel, user, baubleData) {
                 .setTitle('⏳ Dragon Unhappy')
                 .setDescription('The dragon got bored before you could act. Earned **0** Baubles.')
                 .setFooter({ text: 'Dragon care requires quick choices.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
+            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
+            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
         }
     });
 }
