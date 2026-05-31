@@ -35,22 +35,6 @@ module.exports = {
                 .setColor(0xFFA500) // Gold color
                 .setTitle('💰 Bauble Balance')
                 .setDescription(description)
-                .addFields(
-                    { 
-                        name: '🔥 Minigame Streaks', 
-                        value: `**🪙 Coinflip:** \`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)\n` +
-                               `**🎲 Gamble:** \`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)\n` +
-                               `**🎰 Slots:** \`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)\n` +
-                               `**🃏 Blackjack:** \`${baubleData.blackjackStreak || 0}\` (Best: \`${baubleData.blackjackMaxStreak || 0}\`)\n` +
-                               `**⚔️ Anime Battle:** \`${baubleData.animebattleStreak || 0}\` (Best: \`${baubleData.animebattleMaxStreak || 0}\`)`,
-                        inline: false
-                    },
-                    { 
-                        name: '📅 Activity Streaks', 
-                        value: `**🎁 Daily:** \`${baubleData.dailyStreak || 0}\` (Best: \`${baubleData.dailyMaxStreak || 0}\`)`, 
-                        inline: false 
-                    }
-                )
                 .setTimestamp();
             
             // Add wealth tax notice if applicable today
@@ -94,22 +78,6 @@ module.exports = {
                 .setColor(0xFFA500) // Gold color
                 .setTitle('💰 Bauble Balance')
                 .setDescription(description)
-                .addFields(
-                    { 
-                        name: '🔥 Minigame Streaks', 
-                        value: `**🪙 Coinflip:** \`${baubleData.coinflipStreak || 0}\` (Best: \`${baubleData.coinflipMaxStreak || 0}\`)\n` +
-                               `**🎲 Gamble:** \`${baubleData.gambleStreak || 0}\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)\n` +
-                               `**🎰 Slots:** \`${baubleData.slotsStreak || 0}\` (Best: \`${baubleData.slotsMaxStreak || 0}\`)\n` +
-                               `**🃏 Blackjack:** \`${baubleData.blackjackStreak || 0}\` (Best: \`${baubleData.blackjackMaxStreak || 0}\`)\n` +
-                               `**⚔️ Anime Battle:** \`${baubleData.animebattleStreak || 0}\` (Best: \`${baubleData.animebattleMaxStreak || 0}\`)`,
-                        inline: false
-                    },
-                    { 
-                        name: '📅 Activity Streaks', 
-                        value: `**🎁 Daily:** \`${baubleData.dailyStreak || 0}\` (Best: \`${baubleData.dailyMaxStreak || 0}\`)`, 
-                        inline: false 
-                    }
-                )
                 .setTimestamp();
 
             // Add wealth tax notice if applicable today
