@@ -21,7 +21,7 @@ module.exports = {
                 .addChoices(
                     { name: 'Heads (49.95% win, 2x)', value: 'heads' },
                     { name: 'Tails (49.95% win, 2x)', value: 'tails' },
-                    { name: 'Draw / Sideways (0.1% win, 2x)', value: 'draw' }
+                    { name: 'Draw / Sideways (0.1% win, 100x)', value: 'draw' }
                 )
         ),
 
@@ -141,7 +141,7 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
                 { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                 { name: '👛 Your Balance', value: `\`${baubleData.baubles} Baubles\``, inline: true }
             )
-            .setFooter({ text: 'Payout: 2x | Draw (Sideways): 0.1% chance' })
+            .setFooter({ text: 'Payout: 2x | Draw (Sideways): 0.1% chance, 100x payout' })
             .setTimestamp();
 
         const row = new ActionRowBuilder()
@@ -341,7 +341,7 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
 
     let winnings = 0;
     if (didWin) {
-        winnings = amount * 2;
+        winnings = amount * (outcome === 'draw' ? 100 : 2);
     }
 
     if (didWin) {
