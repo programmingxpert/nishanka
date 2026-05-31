@@ -119,7 +119,7 @@ function buildMinimalInventory(baubleData, user, unlockedCollections, unlockedTi
     }
 
     if (statusLines.length > 0) {
-        embed.addFields({ name: '⚡ Active Stats & Buffs', value: statusLines.join('\n') });
+        addLongField(embed, '⚡ Active Stats & Buffs', statusLines);
     }
 
     // Inventory items formatting (Minimal bullet lists)
@@ -135,10 +135,40 @@ function buildMinimalInventory(baubleData, user, unlockedCollections, unlockedTi
     }
 
     if (itemsList.length > 0) {
-        embed.addFields({ name: '🎒 Backpack Contents', value: itemsList.join('\n') });
+        addLongField(embed, '🎒 Backpack Contents', itemsList);
     } else {
         embed.addFields({ name: '🎒 Backpack Contents', value: '_Empty. Go buy stuff from the shop!_' });
     }
 
     return embed;
+
+    function addLongField(embedBuilder, fieldName, lines) {
+        const MAX_FIELD_LENGTH = 1024;
+        let currentLines = [];
+        let currentLength = 0;
+        let chunkIndex = 0;
+
+        const pushChunk = () => {
+            if (!currentLines.length) return;
+            const value = currentLines.join('\n');
+            embedBuilder.addFields({
+                name: chunkIndex === 0 ? fieldName : `${fieldName} (cont.)`,
+                value
+            });
+            chunkIndex += 1;
+            currentLines = [];
+            currentLength = 0;
+        };
+
+        for (const line of lines) {
+            const lineLength = line.length + 1;
+            if (currentLength + lineLength > MAX_FIELD_LENGTH) {
+                pushChunk();
+            }
+            currentLines.push(line);
+            currentLength += lineLength;
+        }
+
+        pushChunk();
+    }
 }
