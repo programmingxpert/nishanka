@@ -9,6 +9,7 @@ const discordMock = {
         }
         setName(name) { this.name = name; return this; }
         setDescription(desc) { this.description = desc; return this; }
+        setDefaultMemberPermissions() { return this; }
         addStringOption(fn) { this._addOption(fn, 'string'); return this; }
         addIntegerOption(fn) { this._addOption(fn, 'integer'); return this; }
         addBooleanOption(fn) { this._addOption(fn, 'boolean'); return this; }
@@ -58,7 +59,8 @@ const discordMock = {
         setEmoji() { return this; }
     },
     ButtonStyle: { Primary: 1, Secondary: 2, Success: 3, Danger: 4, Link: 5 },
-    ComponentType: {}
+    ComponentType: { StringSelect: 3 },
+    PermissionFlagsBits: new Proxy({}, { get: () => 1n })
 };
 
 // Mock mongoose models

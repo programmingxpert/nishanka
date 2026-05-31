@@ -455,6 +455,28 @@ app.get('/api/me', (req, res) => {
   });
 });
 
+// Item Leaderboard (Public)
+app.get('/api/public/items/:itemId/leaderboard', async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const Bauble = require('./models/baubleSchema');
+    
+    // Find all users who have this item in their inventory, sorted by quantity
+    const owners = await Bauble.aggregate([
+      { $unwind: "$inventory" },
+      { $match: { "inventory.itemId": itemId, "inventory.quantity": { $gt: 0 } } },
+      { $sort: { "inventory.quantity": -1 } },
+      { $limit: 10 },
+      { $project: { _id: 0, userId: 1, quantity: "$inventory.quantity" } }
+    ]);
+    
+    res.json(owners);
+  } catch (err) {
+    console.error('[API] Error fetching item leaderboard:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Logout
 app.post('/auth/logout', (req, res) => {
   req.session.destroy();
