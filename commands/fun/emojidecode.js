@@ -2,318 +2,300 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 const { getGlobalMultiplier } = require('../../utils/economyEngine');
+const fs = require('fs');
+const path = require('path');
+
+// ─── Fallback questions ────────────────────────────────────────────────────────
 
 const QUESTIONS = [
-    { emojis: '🦁👑', answers: ['the lion king', 'lion king'], category: 'Movie' },
-    { emojis: '🕸️👨', answers: ['spider man', 'spiderman', 'spider-man'], category: 'Movie/Hero' },
-    { emojis: '❄️☃️🏰', answers: ['frozen'], category: 'Movie' },
-    { emojis: '🦇👨', answers: ['batman', 'bat man'], category: 'Movie/Hero' },
-    { emojis: '🤡🎈', answers: ['it'], category: 'Movie' },
-    { emojis: '🚀🌌⚔️', answers: ['star wars'], category: 'Movie Franchise' },
-    { emojis: '🚢🧊🥶', answers: ['titanic'], category: 'Movie' },
-    { emojis: '🦖🏝️🦕', answers: ['jurassic park'], category: 'Movie' },
-    { emojis: '⚡👓🧹', answers: ['harry potter'], category: 'Movie/Book Franchise' },
-    { emojis: '🐜👨', answers: ['ant man', 'antman', 'ant-man'], category: 'Movie/Hero' },
-    { emojis: '🍫🏭🧔', answers: ['charlie and the chocolate factory', 'willy wonka'], category: 'Movie' },
-    { emojis: '🐢🥋🐀', answers: ['teenage mutant ninja turtles', 'tmnt'], category: 'Movie/Show' },
-    { emojis: '👽📞👉👈🏠', answers: ['et', 'e.t.', 'e.t. the extra-terrestrial'], category: 'Movie' },
-    { emojis: '🧸🤠🤠', answers: ['toy story'], category: 'Movie' },
-    { emojis: '🏠🎈🎈', answers: ['up'], category: 'Movie' },
-    { emojis: '👑 Kong', answers: ['king kong'], category: 'Movie' },
-    { emojis: '👻🚫🔫', answers: ['ghostbusters', 'ghost busters'], category: 'Movie' },
-    { emojis: '👹👹👹🏢', answers: ['monsters inc', 'monsters inc.', 'monsters incorporated'], category: 'Movie' },
-    { emojis: '🦈🌊🏊', answers: ['jaws'], category: 'Movie' },
-    { emojis: '🐼🥋👊', answers: ['kung fu panda', 'kungfu panda'], category: 'Movie' }
+  { emojis: '🦁👑',          answers: ['the lion king', 'lion king'],                          category: 'Movie' },
+  { emojis: '🕸️👨',          answers: ['spider man', 'spiderman', 'spider-man'],               category: 'Movie' },
+  { emojis: '❄️☃️🏰',        answers: ['frozen'],                                               category: 'Movie' },
+  { emojis: '🦇👨',          answers: ['batman', 'bat man'],                                    category: 'Movie' },
+  { emojis: '🤡🎈',          answers: ['it'],                                                   category: 'Movie' },
+  { emojis: '🚀🌌⚔️',        answers: ['star wars'],                                            category: 'Movie' },
+  { emojis: '🚢🧊🥶',        answers: ['titanic'],                                              category: 'Movie' },
+  { emojis: '🦖🏝️',          answers: ['jurassic park'],                                        category: 'Movie' },
+  { emojis: '⚡👓🧹',        answers: ['harry potter'],                                         category: 'Movie' },
+  { emojis: '🐜👨',          answers: ['ant man', 'antman', 'ant-man'],                         category: 'Movie' },
+  { emojis: '🍫🏭🎩',        answers: ['willy wonka', 'charlie and the chocolate factory'],     category: 'Movie' },
+  { emojis: '🐢🥋🐀',        answers: ['tmnt', 'teenage mutant ninja turtles'],                 category: 'Movie' },
+  { emojis: '👽📞🏠',        answers: ['et', 'e.t.'],                                           category: 'Movie' },
+  { emojis: '🧸🤠',          answers: ['toy story'],                                            category: 'Movie' },
+  { emojis: '🏠🎈',          answers: ['up'],                                                   category: 'Movie' },
+  { emojis: '👑🦍',          answers: ['king kong'],                                            category: 'Movie' },
+  { emojis: '👻🚫',          answers: ['ghostbusters', 'ghost busters'],                        category: 'Movie' },
+  { emojis: '👹🏢',          answers: ['monsters inc', 'monsters inc.'],                        category: 'Movie' },
+  { emojis: '🦈🌊',          answers: ['jaws'],                                                 category: 'Movie' },
+  { emojis: '🐼🥋',          answers: ['kung fu panda'],                                        category: 'Movie' },
 ];
+
+// Root names used to broaden the avoid list — prevents sub-title variants of the same franchise
+const FRANCHISE_ROOTS = [
+  'harry potter', 'star wars', 'spider man', 'spider-man', 'batman',
+  'jurassic park', 'toy story', 'king kong', 'ghostbusters',
+  'monsters inc', 'kung fu panda', 'ant man', 'willy wonka',
+  'frozen', 'titanic', 'jaws', 'tmnt', 'lion king',
+];
+
+// ─── Recent-question persistence ──────────────────────────────────────────────
+
+const RECENT_PATH = path.join(__dirname, '..', '..', 'recent_emojidecode.json');
+const MAX_RECENT  = 150;
+
+function loadRecent() {
+  try {
+    if (fs.existsSync(RECENT_PATH)) {
+      const data = JSON.parse(fs.readFileSync(RECENT_PATH, 'utf8'));
+      if (Array.isArray(data)) return data;
+    }
+  } catch {}
+  return [];
+}
+
+function saveRecent(list) {
+  try { fs.writeFileSync(RECENT_PATH, JSON.stringify(list, null, 2), 'utf8'); } catch {}
+}
+
+/**
+ * Track a newly used answer.
+ * Saves both the exact answer AND any matching franchise root so
+ * the avoid list stays effective across bot restarts.
+ */
+function trackAnswer(answer) {
+  const recent = loadRecent();
+  const toAdd = new Set([answer]);
+
+  // Also add the franchise root if this answer starts with one
+  for (const root of FRANCHISE_ROOTS) {
+    if (answer.startsWith(root)) toAdd.add(root);
+  }
+
+  for (const entry of toAdd) {
+    if (!recent.includes(entry)) recent.push(entry);
+  }
+
+  // Trim oldest entries beyond cap
+  while (recent.length > MAX_RECENT) recent.shift();
+  saveRecent(recent);
+}
+
+function buildAvoidList() {
+  const recent    = loadRecent();
+  const fallbacks = QUESTIONS.flatMap(q => q.answers);
+  return [...new Set([...recent, ...fallbacks, ...FRANCHISE_ROOTS])];
+}
+
+// ─── AI question generation ────────────────────────────────────────────────────
+
+async function generateAIQuestion(apiKey) {
+  const avoidList = buildAvoidList().join(', ');
+
+  const prompt = `Generate ONE emoji trivia question where players guess a well-known title from emojis.
+
+Rules:
+- Use 2–4 emojis only.
+- The answer must be a SHORT, recognizable title — a single movie name, game name, or franchise name. NEVER a full subtitle like "Harry Potter and the Goblet of Fire". Just "Harry Potter".
+- The answer must be something most people could type in one or two words.
+- Choose from: famous movies, video games, books, songs, or pop culture concepts.
+- All answers must be lowercase.
+- The primary answer (first in the array) should be the shortest/most common form.
+- STRICTLY avoid anything related to these titles or franchises: [${avoidList}]
+- Do NOT generate anything that is a sequel, prequel, or spin-off of those titles.
+
+Respond ONLY with a raw JSON object — no markdown, no backticks, no explanation:
+{
+  "emojis": "<2–4 emojis>",
+  "answers": ["<primary short answer>", "<optional alt spelling>"],
+  "category": "<Movie | Video Game | Song | Book | Pop Culture>"
+}`;
+
+  const res = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 1.2,   // higher = more variety
+      max_tokens: 150,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`DeepSeek ${res.status}: ${res.statusText}`);
+
+  let raw = res.json().then ? (await res.json()).choices[0].message.content.trim() : '';
+  // Strip any accidental markdown fences
+  raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+
+  // Extract first JSON object
+  const start = raw.indexOf('{');
+  const end   = raw.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('No JSON object in response');
+  const parsed = JSON.parse(raw.slice(start, end + 1));
+
+  if (!parsed.emojis || !Array.isArray(parsed.answers) || !parsed.answers.length || !parsed.category) {
+    throw new Error('Invalid structure from DeepSeek');
+  }
+
+  parsed.answers = parsed.answers.map(a => a.trim().toLowerCase());
+
+  // Validate: reject if any answer is in the avoid list
+  const avoid = new Set(buildAvoidList());
+  const primaryRoot = parsed.answers[0].split(' ').slice(0, 2).join(' ');
+  if (parsed.answers.some(a => avoid.has(a)) || avoid.has(primaryRoot)) {
+    throw new Error(`Generated a blocked answer: ${parsed.answers[0]}`);
+  }
+
+  trackAnswer(parsed.answers[0]);
+  return parsed;
+}
+
+function pickFallback() {
+  // Fallbacks are always available but avoid recently used ones
+  const recent  = new Set(loadRecent());
+  const fresh   = QUESTIONS.filter(q => !recent.has(q.answers[0]));
+  const pool    = fresh.length > 0 ? fresh : QUESTIONS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ─── Game logic (shared between slash and prefix) ──────────────────────────────
 
 const activeGames = new Set();
 
-function getRecentAIQuestions() {
-    const fs = require('fs');
-    const path = require('path');
-    const recentFilePath = path.join(__dirname, '..', '..', 'recent_emojidecode.json');
-    let recent = [];
+async function startGame(channelId, respondable, replyFn, followUpFn) {
+  if (activeGames.has(channelId)) {
+    return replyFn('⚠️ A game is already running in this channel.', true);
+  }
+
+  activeGames.add(channelId);
+
+  // Resolve question
+  let question   = null;
+  const apiKey   = process.env.DEEPSEEK_API_KEY;
+  const hasKey   = apiKey && apiKey !== 'your_deepseek_api_key_here';
+
+  if (hasKey) {
     try {
-        if (fs.existsSync(recentFilePath)) {
-            recent = JSON.parse(fs.readFileSync(recentFilePath, 'utf8'));
-        }
-    } catch (e) {}
-    if (!Array.isArray(recent)) recent = [];
-    
-    // Include all fallback answers to avoid duplicate generation
-    const fallbackAnswers = QUESTIONS.flatMap(q => q.answers);
-    const combined = [...new Set([...recent, ...fallbackAnswers])];
-    return combined;
-}
+      question = await generateAIQuestion(apiKey);
+    } catch (err) {
+      console.warn('[emojidecode] AI generation failed, using fallback:', err.message);
+    }
+  }
 
-function saveRecentAIQuestion(answer) {
-    const fs = require('fs');
-    const path = require('path');
-    const recentFilePath = path.join(__dirname, '..', '..', 'recent_emojidecode.json');
-    let recent = [];
+  if (!question) question = pickFallback();
+
+  // Reward
+  const multiplier = await getGlobalMultiplier();
+  const reward     = Math.floor((Math.floor(Math.random() * 76) + 25) * multiplier);
+
+  // Send game embed
+  const gameEmbed = new EmbedBuilder()
+    .setColor(0x7c6cf0)
+    .setTitle('🧩 Emoji Decode')
+    .setDescription(
+      `Decode the emojis to guess the title.\n\n` +
+      `# ${question.emojis}\n\n` +
+      `**Category:** ${question.category}\n` +
+      `**Reward:** ${reward.toLocaleString()} Baubles\n\n` +
+      `*Type your answer below. You have 45 seconds.*`
+    )
+    .setFooter({ text: 'First correct answer wins.' })
+    .setTimestamp();
+
+  await replyFn(gameEmbed);
+
+  // Collector
+  const channel   = respondable.channel ?? respondable;
+  const collector = channel.createMessageCollector({
+    filter: m => !m.author.bot && question.answers.includes(m.content.trim().toLowerCase()),
+    max:  1,
+    time: 45_000,
+  });
+
+  collector.on('collect', async m => {
     try {
-        if (fs.existsSync(recentFilePath)) {
-            recent = JSON.parse(fs.readFileSync(recentFilePath, 'utf8'));
-        }
-    } catch (e) {}
-    if (!Array.isArray(recent)) recent = [];
-    
-    if (!recent.includes(answer)) {
-        recent.push(answer);
-        if (recent.length > 100) {
-            recent.shift();
-        }
-        try {
-            fs.writeFileSync(recentFilePath, JSON.stringify(recent, null, 2), 'utf8');
-        } catch (e) {}
+      let record = await Bauble.findOne({ userId: m.author.id });
+      if (!record) record = new Bauble({ userId: m.author.id, baubles: 0 });
+      record.baubles += reward;
+      record.dailyGameLastCompleted = new Date();
+      await record.save();
+
+      await m.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x2ecc71)
+            .setTitle('🎉 Correct!')
+            .setDescription(
+              `**${m.author.username}** got it!\n\n` +
+              `**${question.emojis}** → **${question.answers[0].toUpperCase()}**\n` +
+              `+**${reward.toLocaleString()} Baubles**`
+            )
+            .setThumbnail(m.author.displayAvatarURL({ dynamic: true }))
+            .setTimestamp(),
+        ],
+      });
+    } catch (err) {
+      console.error('[emojidecode] reward error:', err);
     }
+  });
+
+  collector.on('end', async collected => {
+    activeGames.delete(channelId);
+    if (collected.size === 0) {
+      await followUpFn({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xe74c3c)
+            .setTitle('⏰ Time\'s up!')
+            .setDescription(
+              `Nobody guessed in time.\n\n` +
+              `**${question.emojis}** → **${question.answers[0].toUpperCase()}**`
+            )
+            .setTimestamp(),
+        ],
+      });
+    }
+  });
 }
 
-async function generateAIEmojiQuestion(apiKey) {
-    const avoidList = getRecentAIQuestions().join(', ');
-    const prompt = `Generate a single emoji decode trivia question. The user will be shown a set of emojis and must guess the title or name of the thing represented (famous movie, video game, book, pop culture franchise, song, or concept).
-Return the result strictly as a valid JSON object matching exactly this structure (no markdown, no backticks, no other text):
-{
-  "emojis": "<a string of 1-5 emojis representing a famous movie, video game, book, pop culture franchise, song, or concept>",
-  "answers": [
-    "<the primary correct answer in lowercase, e.g., 'minecraft'>",
-    "<alternative acceptable answers/spellings in lowercase, e.g., 'mc' (optional)>"
-  ],
-  "category": "<the category, e.g., Movie, Video Game, Song, Book, Pop Culture, etc.>"
-}
-Ensure the question is fun, guessable, and uses common emojis. Ensure all entries in the "answers" array are in lowercase.
-CRITICAL: Do NOT generate a question for any of the following recently used or built-in topics/answers: [${avoidList}].
-You must choose a completely different, interesting, and recognizable title or concept (e.g. popular video games like Portal, movies like Shrek, books like Hobbit, etc.). Be creative and do not repeat the same topics!`;
-
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-                { role: 'user', content: prompt }
-            ],
-            temperature: 1.0,
-            max_tokens: 200
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    let content = data.choices[0].message.content.trim();
-
-    // Strip markdown if present
-    if (content.startsWith('```json')) {
-        content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-    } else if (content.startsWith('```')) {
-        content = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
-    }
-
-    const firstBrace = content.indexOf('{');
-    const lastBrace = content.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        content = content.slice(firstBrace, lastBrace + 1);
-    }
-
-    const parsed = JSON.parse(content);
-    if (!parsed.emojis || !Array.isArray(parsed.answers) || parsed.answers.length === 0 || !parsed.category) {
-        throw new Error('Invalid JSON structure returned by DeepSeek');
-    }
-    
-    // Clean data
-    parsed.answers = parsed.answers.map(a => a.trim().toLowerCase());
-
-    // Track recently used answers to prevent repetition
-    const primaryAnswer = parsed.answers[0];
-    saveRecentAIQuestion(primaryAnswer);
-
-    return parsed;
-}
+// ─── Export ────────────────────────────────────────────────────────────────────
 
 module.exports = {
-    category: 'fun',
-    cooldown: 10,
-    data: new SlashCommandBuilder()
-        .setName('emojidecode')
-        .setDescription('Decode the emojis to guess the title and win Baubles!'),
+  category: 'fun',
+  cooldown: 10,
 
-    async execute(interaction) {
-        const channelId = interaction.channelId;
-        if (activeGames.has(channelId)) {
-            return interaction.reply({ content: '⚠️ An Emoji Decode game is already running in this channel!', ephemeral: true });
-        }
+  data: new SlashCommandBuilder()
+    .setName('emojidecode')
+    .setDescription('Decode the emojis to guess the title and win Baubles!'),
 
-        await interaction.deferReply();
-        activeGames.add(channelId);
+  async execute(interaction) {
+    await interaction.deferReply();
 
-        let question;
-        const apiKey = process.env.DEEPSEEK_API_KEY;
-        if (apiKey && apiKey !== 'your_deepseek_api_key_here') {
-            try {
-                question = await generateAIEmojiQuestion(apiKey);
-                console.log('Generated emoji question using DeepSeek API:', question);
-            } catch (err) {
-                console.error('Failed to generate emoji question via DeepSeek API, falling back to hardcoded question:', err);
-            }
-        }
+    await startGame(
+      interaction.channelId,
+      interaction,
+      async (payload, ephemeral = false) => {
+        if (typeof payload === 'string') return interaction.editReply({ content: payload, ephemeral });
+        return interaction.editReply({ embeds: [payload] });
+      },
+      payload => interaction.followUp(payload),
+    );
+  },
 
-        if (!question) {
-            question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-        }
+  async executePrefix(message) {
+    message.channel.sendTyping().catch(() => {});
 
-        const globalMultiplier = await getGlobalMultiplier();
-        const baseReward = Math.floor(Math.random() * 76) + 25; // 25-100 Baubles
-        const reward = Math.floor(baseReward * globalMultiplier);
-
-        const gameEmbed = new EmbedBuilder()
-            .setColor(0x7c6cf0)
-            .setTitle('🧩 EMOJI DECODE')
-            .setDescription(`Decode the emojis below to guess the title!\n\n# **${question.emojis}**\n\n**Category:** ${question.category}\n**Reward:** **${reward.toLocaleString()} Baubles**\n\n*Type your answer in this channel! You have 45 seconds.*`)
-            .setFooter({ text: 'First correct guess wins!' })
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [gameEmbed] });
-
-        const filter = m => {
-            if (m.author.bot) return false;
-            const guess = m.content.trim().toLowerCase();
-            return question.answers.includes(guess);
-        };
-
-        const collector = interaction.channel.createMessageCollector({
-            filter,
-            max: 1,
-            time: 45_000
-        });
-
-        collector.on('collect', async m => {
-            // Reward the winner
-            try {
-                let baubleData = await Bauble.findOne({ userId: m.author.id });
-                if (!baubleData) {
-                    baubleData = new Bauble({ userId: m.author.id, baubles: 0 });
-                }
-                baubleData.baubles += reward;
-                baubleData.dailyGameLastCompleted = new Date();
-                await baubleData.save();
-
-                const winEmbed = new EmbedBuilder()
-                    .setColor(0x2ecc71)
-                    .setTitle('🎉 CORRECT ANSWER!')
-                    .setDescription(`Congratulations to **${m.author.username}** for decoding the emojis!\n\n• **Emojis:** ${question.emojis}\n• **Answer:** **${question.answers[0].toUpperCase()}**\n• **Reward:** **${reward.toLocaleString()} Baubles**`)
-                    .setThumbnail(m.author.displayAvatarURL({ dynamic: true }))
-                    .setTimestamp();
-
-                await m.reply({ embeds: [winEmbed] });
-            } catch (err) {
-                console.error(err);
-            }
-        });
-
-        collector.on('end', async (collected) => {
-            activeGames.delete(channelId);
-            if (collected.size === 0) {
-                const timeoutEmbed = new EmbedBuilder()
-                    .setColor(0xe74c3c)
-                    .setTitle('⏰ TIME\'S UP!')
-                    .setDescription(`Nobody was able to decode the emojis in time!\n\n• **Emojis:** ${question.emojis}\n• **Answer was:** **${question.answers[0].toUpperCase()}**`)
-                    .setTimestamp();
-
-                await interaction.followUp({ embeds: [timeoutEmbed] });
-            }
-        });
-    },
-
-    async executePrefix(message, args) {
-        const channelId = message.channel.id;
-        if (activeGames.has(channelId)) {
-            return message.reply('⚠️ An Emoji Decode game is already running in this channel!');
-        }
-
-        activeGames.add(channelId);
-        message.channel.sendTyping().catch(() => {});
-
-        let question;
-        const apiKey = process.env.DEEPSEEK_API_KEY;
-        if (apiKey && apiKey !== 'your_deepseek_api_key_here') {
-            try {
-                question = await generateAIEmojiQuestion(apiKey);
-                console.log('Generated emoji question using DeepSeek API:', question);
-            } catch (err) {
-                console.error('Failed to generate emoji question via DeepSeek API, falling back to hardcoded question:', err);
-            }
-        }
-
-        if (!question) {
-            question = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-        }
-
-        const globalMultiplier = await getGlobalMultiplier();
-        const baseReward = Math.floor(Math.random() * 76) + 25; // 25-100 Baubles
-        const reward = Math.floor(baseReward * globalMultiplier);
-
-        const gameEmbed = new EmbedBuilder()
-            .setColor(0x7c6cf0)
-            .setTitle('🧩 EMOJI DECODE')
-            .setDescription(`Decode the emojis below to guess the title!\n\n# **${question.emojis}**\n\n**Category:** ${question.category}\n**Reward:** **${reward.toLocaleString()} Baubles**\n\n*Type your answer in this channel! You have 45 seconds.*`)
-            .setFooter({ text: 'First correct guess wins!' })
-            .setTimestamp();
-
-        await message.reply({ embeds: [gameEmbed] });
-
-        const filter = m => {
-            if (m.author.bot) return false;
-            const guess = m.content.trim().toLowerCase();
-            return question.answers.includes(guess);
-        };
-
-        const collector = message.channel.createMessageCollector({
-            filter,
-            max: 1,
-            time: 45_000
-        });
-
-        collector.on('collect', async m => {
-            // Reward the winner
-            try {
-                let baubleData = await Bauble.findOne({ userId: m.author.id });
-                if (!baubleData) {
-                    baubleData = new Bauble({ userId: m.author.id, baubles: 0 });
-                }
-                baubleData.baubles += reward;
-                baubleData.dailyGameLastCompleted = new Date();
-                await baubleData.save();
-
-                const winEmbed = new EmbedBuilder()
-                    .setColor(0x2ecc71)
-                    .setTitle('🎉 CORRECT ANSWER!')
-                    .setDescription(`Congratulations to **${m.author.username}** for decoding the emojis!\n\n• **Emojis:** ${question.emojis}\n• **Answer:** **${question.answers[0].toUpperCase()}**\n• **Reward:** **${reward.toLocaleString()} Baubles**`)
-                    .setThumbnail(m.author.displayAvatarURL({ dynamic: true }))
-                    .setTimestamp();
-
-                await m.reply({ embeds: [winEmbed] });
-            } catch (err) {
-                console.error(err);
-            }
-        });
-
-        collector.on('end', async (collected) => {
-            activeGames.delete(channelId);
-            if (collected.size === 0) {
-                const timeoutEmbed = new EmbedBuilder()
-                    .setColor(0xe74c3c)
-                    .setTitle('⏰ TIME\'S UP!')
-                    .setDescription(`Nobody was able to decode the emojis in time!\n\n• **Emojis:** ${question.emojis}\n• **Answer was:** **${question.answers[0].toUpperCase()}**`)
-                    .setTimestamp();
-
-                await message.reply({ embeds: [timeoutEmbed] });
-            }
-        });
-    }
+    await startGame(
+      message.channel.id,
+      message,
+      async (payload, _ephemeral) => {
+        if (typeof payload === 'string') return message.reply(payload);
+        return message.reply({ embeds: [payload] });
+      },
+      payload => message.reply(payload),
+    );
+  },
 };
