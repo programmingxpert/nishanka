@@ -531,19 +531,18 @@ async function createLobby(interactionOrMessage, channel) {
     joinedPlayers.set(hostId, { id: hostId, username: hostName });
 
     const buildLobbyEmbed = () => {
-        const list = Array.from(joinedPlayers.values()).map(p => `> ${p.username}`).join('\n');
+        const list = Array.from(joinedPlayers.values()).map((p, i) => `\`${i + 1}.\` **${p.username}**`).join('\n');
         return new EmbedBuilder()
-            .setColor(0x5865f2)
-            .setTitle('🎮 Multiplayer Hangman — Lobby')
+            .setColor(0x2b2d42)
+            .setTitle('🎮 Hangman — Lobby')
             .setDescription(
                 `**Host:** ${hostName}\n\n` +
                 `**Players (${joinedPlayers.size}):**\n${list}\n\n` +
-                `Click **Join** to enter the game.\nThe host clicks **Start** when everyone's ready.\n\n` +
                 `*Lobby closes in 2 minutes.*`
             );
     };
 
-    const joinBtn  = new ButtonBuilder().setCustomId('hm_join').setLabel('Join').setStyle(ButtonStyle.Success).setEmoji('✋');
+    const joinBtn  = new ButtonBuilder().setCustomId('hm_join').setLabel('Join').setStyle(ButtonStyle.Success).setEmoji('➕');
     const leaveBtn = new ButtonBuilder().setCustomId('hm_leave').setLabel('Leave').setStyle(ButtonStyle.Danger).setEmoji('🚪');
     const startBtn = new ButtonBuilder().setCustomId('hm_start').setLabel('Start Game').setStyle(ButtonStyle.Primary).setEmoji('▶️');
     const row = new ActionRowBuilder().addComponents(joinBtn, leaveBtn, startBtn);
@@ -605,8 +604,9 @@ async function createLobby(interactionOrMessage, channel) {
             await channel.send({
                 embeds: [
                     new EmbedBuilder()
-                        .setColor(0x95a5a6)
-                        .setDescription('⏱️ Hangman lobby timed out. Game cancelled.')
+                        .setColor(0x2b2d42)
+                        .setTitle('❌ Hangman — Cancelled')
+                        .setDescription('Lobby timed out.')
                 ]
             });
         }

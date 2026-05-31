@@ -997,15 +997,20 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
         let battleMsg;
         if (isPvP) {
             const challengeEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('⚔️ ANIME SHOWDOWN CHALLENGE')
-                .setDescription(`🔥 **${user.username}** has challenged **${opponent.username}** to an epic 1v1 anime fight!\n\n💰 **Wager Stakes:** \`${bet.toLocaleString()} Baubles\` from each player!`)
+                .setColor(0x2b2d42)
+                .setTitle('⚔️ Anime Showdown — Lobby')
+                .setDescription(
+                    `**Host:** ${user.username}\n` +
+                    `**Opponent:** ${opponent.username}\n\n` +
+                    `💰 **Wager:** **${bet.toLocaleString()}** Baubles\n\n` +
+                    `*Waiting for opponent to accept...*`
+                )
                 .setFooter({ text: 'Showdown expires in 45 seconds.' });
 
             const challengeRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('ab_accept')
-                    .setLabel('Accept Showdown')
+                    .setLabel('Accept')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('⚔️'),
                 new ButtonBuilder()
@@ -1029,17 +1034,17 @@ async function runAnimeBattle({ context, userId, user, bet, opponent, isSlash })
 
                 if (challengeInteraction.customId === 'ab_decline') {
                     const decEmbed = new EmbedBuilder()
-                        .setColor(0x747f8d)
-                        .setTitle('🏳️ Challenge Declined')
-                        .setDescription(`**${opponent.username}** has declined the battle! 🐔`);
+                        .setColor(0x2b2d42)
+                        .setTitle('❌ Anime Showdown — Cancelled')
+                        .setDescription(`Declined by ${opponent.username}.`);
                     await battleMsg.edit({ content: '', embeds: [decEmbed], components: [] });
                     return;
                 }
             } catch (e) {
                 const expEmbed = new EmbedBuilder()
-                    .setColor(0x747f8d)
-                    .setTitle('⏰ Challenge Expired')
-                    .setDescription(`**${opponent.username}** didn't accept the challenge in time.`);
+                    .setColor(0x2b2d42)
+                    .setTitle('❌ Anime Showdown — Cancelled')
+                    .setDescription('Showdown expired.');
                 await battleMsg.edit({ content: '', embeds: [expEmbed], components: [] });
                 return;
             }

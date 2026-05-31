@@ -68,15 +68,14 @@ function buildLobbyEmbed(session) {
     const need  = Math.max(0, 2 - ready);
 
     return new EmbedBuilder()
-        .setColor(0x3498db)
-        .setTitle('🃏 Multiplayer Blackjack — Lobby')
+        .setColor(0x2b2d42)
+        .setTitle('🃏 Blackjack — Lobby')
         .setDescription(
             `**Host:** ${session.hostName}\n\n` +
             `**Players (${session.players.length}/6):**\n` +
-            (lines.length ? lines.join('\n') : '*No players yet — be the first to join!*') +
-            `\n\n${need === 0 ? '✅ Ready! Host can press **Start**.' : `⏳ Need **${need}** more player${need !== 1 ? 's' : ''} with bets.`}`
-        )
-        .setFooter({ text: 'Click "Join & Bet" to enter • Lobby closes in 60s or when host presses Start' });
+            (lines.length ? lines.join('\n') : '*None*') +
+            `\n\n${need === 0 ? '✅ Ready!' : `⏳ Need **${need}** more player${need !== 1 ? 's' : ''} with bets.`}`
+        );
 }
 
 function buildGameEmbed(session, desc = '') {
@@ -385,15 +384,20 @@ async function startLobby(channel, host) {
     // ── Lobby buttons ──
     const joinBtn = new ButtonBuilder()
         .setCustomId(`mbj_join_${gid}`)
-        .setLabel('Join & Bet')
+        .setLabel('Join')
         .setStyle(ButtonStyle.Success)
-        .setEmoji('🃏');
+        .setEmoji('➕');
+    const leaveBtn = new ButtonBuilder()
+        .setCustomId(`mbj_leave_${gid}`)
+        .setLabel('Leave')
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji('🚪');
     const startBtn = new ButtonBuilder()
         .setCustomId(`mbj_start_${gid}`)
         .setLabel('Start Game')
         .setStyle(ButtonStyle.Primary)
         .setEmoji('▶️');
-    const lobbyRow = new ActionRowBuilder().addComponents(joinBtn, startBtn);
+    const lobbyRow = new ActionRowBuilder().addComponents(joinBtn, leaveBtn, startBtn);
 
     const lobbyMsg = await channel.send({ embeds: [buildLobbyEmbed(session)], components: [lobbyRow] });
     session.lobbyMsg = lobbyMsg;
@@ -518,6 +522,31 @@ async function startLobby(channel, host) {
                     }
                 });
 
+            // ── LEAVE button ──
+            } else if (i.customId === `mbj_leave_${gid}`) {
+                const uid = i.user.id;
+                if (uid === session.hostId) {
+                    return i.reply({ content: '❌ As the host, you cannot leave the lobby. Let the timer run out to cancel.', ephemeral: true });
+                }
+                const pIndex = session.players.findIndex(p => p.userId === uid);
+                if (pIndex === -1) {
+                    return i.reply({ content: '❌ You are not in this lobby!', ephemeral: true });
+                }
+                const player = session.players[pIndex];
+                if (player.bet > 0) {
+                    await Bauble.findOneAndUpdate(
+                        { userId: uid },
+                        { $inc: { baubles: player.bet } },
+                        { upsert: true }
+                    ).catch(() => {});
+                }
+                session.players.splice(pIndex, 1);
+                busyUsers.delete(uid);
+                pendingBet.delete(uid);
+
+                await i.deferUpdate();
+                await lobbyMsg.edit({ embeds: [buildLobbyEmbed(session)], components: [lobbyRow] }).catch(() => {});
+
             // ── START button ──
             } else if (i.customId === `mbj_start_${gid}`) {
                 if (i.user.id !== session.hostId) {
@@ -538,6 +567,7 @@ async function startLobby(channel, host) {
     // ── Post-lobby: disable buttons ──
     const disabledLobbyRow = new ActionRowBuilder().addComponents(
         ButtonBuilder.from(joinBtn).setDisabled(true),
+        ButtonBuilder.from(leaveBtn).setDisabled(true),
         ButtonBuilder.from(startBtn).setDisabled(true)
     );
 
@@ -560,9 +590,9 @@ async function startLobby(channel, host) {
 
         await lobbyMsg.edit({
             embeds: [new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('❌ Game Cancelled')
-                .setDescription('Not enough players with locked-in bets. All bets have been refunded.')
+                .setColor(0x2b2d42)
+                .setTitle('❌ Blackjack — Cancelled')
+                .setDescription('Not enough players. All bets refunded.')
             ],
             components: [disabledLobbyRow]
         }).catch(() => {});

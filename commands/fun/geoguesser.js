@@ -145,13 +145,18 @@ module.exports = {
             // participants: Map of userId -> { score, tag }
             const participants = new Map();
             participants.set(authorId, { score: 0, tag: isSlash ? context.user.username : context.author.username });
-
             if (mode === 'multiplayer') {
                 const joinButton = new ButtonBuilder()
                     .setCustomId('join_geoguesser')
-                    .setLabel('Join Game')
+                    .setLabel('Join')
                     .setStyle(ButtonStyle.Success)
-                    .setEmoji('🌍');
+                    .setEmoji('➕');
+                
+                const leaveButton = new ButtonBuilder()
+                    .setCustomId('leave_geoguesser')
+                    .setLabel('Leave')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🚪');
                 
                 const startButton = new ButtonBuilder()
                     .setCustomId('start_geoguesser')
@@ -159,17 +164,24 @@ module.exports = {
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('▶️');
 
-                const row = new ActionRowBuilder().addComponents(joinButton, startButton);
+                const row = new ActionRowBuilder().addComponents(joinButton, leaveButton, startButton);
 
-                const lobbyEmbed = new EmbedBuilder()
-                    .setColor(0x3498db)
-                    .setTitle('🌍 GeoGuessr Multiplayer Lobby')
-                    .setDescription(`Game hosted by <@${authorId}>!\n\nClick **Join Game** to play.\nThe host can click **Start Game** to begin **${rounds} Rounds**!`)
-                    .setFooter({ text: 'Current Players: 1' });
+                const getLobbyEmbed = () => {
+                    const list = Array.from(participants.values()).map((p, i) => `\`${i + 1}.\` **${p.tag}**`).join('\n');
+                    return new EmbedBuilder()
+                        .setColor(0x2b2d42)
+                        .setTitle('🌍 GeoGuessr — Lobby')
+                        .setDescription(
+                            `**Host:** ${isSlash ? context.user.username : context.author.username}\n` +
+                            `**Rounds:** ${rounds} Rounds\n\n` +
+                            `👥 **Players (${participants.size}):**\n${list}\n\n` +
+                            `*Lobby closes in 5 minutes.*`
+                        );
+                };
 
                 const lobbyMsg = isSlash ? 
-                    await context.reply({ embeds: [lobbyEmbed], components: [row], withResponse: true }) : 
-                    await channel.send({ embeds: [lobbyEmbed], components: [row] });
+                    await context.reply({ embeds: [getLobbyEmbed()], components: [row], withResponse: true }) : 
+                    await channel.send({ embeds: [getLobbyEmbed()], components: [row] });
 
                 const collector = lobbyMsg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 300000 }); // 5 minutes max wait
                 
@@ -177,21 +189,27 @@ module.exports = {
                 collector.on('collect', async i => {
                     if (i.customId === 'join_geoguesser') {
                         if (participants.has(i.user.id)) {
-                            await i.reply({ content: 'You are already in the game!', ephemeral: true });
+                            await i.reply({ content: '❌ You are already in the lobby!', ephemeral: true });
                         } else {
                             participants.set(i.user.id, { score: 0, tag: i.user.username });
-                            const updatedEmbed = EmbedBuilder.from(lobbyEmbed)
-                                .setFooter({ text: `Current Players: ${participants.size}` });
-                            await lobbyMsg.edit({ embeds: [updatedEmbed] });
-                            await i.reply({ content: 'You joined the game!', ephemeral: true });
+                            await i.update({ embeds: [getLobbyEmbed()] });
+                        }
+                    } else if (i.customId === 'leave_geoguesser') {
+                        if (i.user.id === authorId) {
+                            await i.reply({ content: '❌ As the host, you cannot leave the lobby. Let the timer run out to cancel.', ephemeral: true });
+                        } else if (!participants.has(i.user.id)) {
+                            await i.reply({ content: '❌ You are not in the lobby.', ephemeral: true });
+                        } else {
+                            participants.delete(i.user.id);
+                            await i.update({ embeds: [getLobbyEmbed()] });
                         }
                     } else if (i.customId === 'start_geoguesser') {
                         if (i.user.id !== authorId) {
-                            await i.reply({ content: 'Only the host can start the game!', ephemeral: true });
+                            await i.reply({ content: '❌ Only the host can start the game!', ephemeral: true });
                         } else {
                             gameStarted = true;
                             collector.stop('started');
-                            await i.reply({ content: 'Starting game...', ephemeral: true });
+                            await i.deferUpdate();
                         }
                     }
                 });
@@ -202,9 +220,14 @@ module.exports = {
                     // Lobby timed out
                     const disabledRow = new ActionRowBuilder().addComponents(
                         ButtonBuilder.from(joinButton).setDisabled(true),
+                        ButtonBuilder.from(leaveButton).setDisabled(true),
                         ButtonBuilder.from(startButton).setDisabled(true)
                     );
-                    await lobbyMsg.edit({ content: 'Lobby timed out.', components: [disabledRow] });
+                    const cancelEmbed = new EmbedBuilder()
+                        .setColor(0x2b2d42)
+                        .setTitle('❌ GeoGuessr — Cancelled')
+                        .setDescription('Lobby timed out.');
+                    await lobbyMsg.edit({ embeds: [cancelEmbed], components: [disabledRow] });
                     activeGames.delete(channel.id);
                     return;
                 }
@@ -212,6 +235,7 @@ module.exports = {
                 // Remove buttons
                 const disabledRow = new ActionRowBuilder().addComponents(
                     ButtonBuilder.from(joinButton).setDisabled(true),
+                    ButtonBuilder.from(leaveButton).setDisabled(true),
                     ButtonBuilder.from(startButton).setDisabled(true)
                 );
                 await lobbyMsg.edit({ components: [disabledRow] });
@@ -220,8 +244,7 @@ module.exports = {
                     await channel.send(`Nobody else joined! Starting **${rounds}-Round** solo game.`);
                 } else {
                     await channel.send(`Starting game with **${participants.size}** players for **${rounds} Rounds**!`);
-                }
-            } else {
+                }           } else {
                 if (isSlash && context.deferReply) await context.deferReply();
                 rounds = 1; // Forced 1 round for actual "solo" mode backward compatibility, or keep specified rounds. 
                 // Wait, if they want 5 rounds solo, why not let them? Let's allow multi-round solo.

@@ -260,27 +260,33 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
     const lobbyDuration = 60000;
 
     function getLobbyEmbed() {
-        const playerMentions = players.map((p, idx) => `**${idx + 1}.** ${p} (${p.username})`).join('\n');
+        const playerMentions = players.map((p, idx) => `\`${idx + 1}.\` **${p.username}**`).join('\n');
         return new EmbedBuilder()
-            .setColor(0xe74c3c)
-            .setTitle('💣 WORD BOMB: LOBBY')
-            .setDescription(`A Word Bomb game has been initiated by **${host.username}**!\n\n**Players Joined (${players.length}/${maxPlayers}):**\n${playerMentions || '*None*'}\n\n*Click the buttons below to join/leave. The host can start the game manually once there are at least 2 players.*`)
-            .setFooter({ text: `Lobby expires in ${lobbyDuration / 1000} seconds.` });
+            .setColor(0x2b2d42)
+            .setTitle('💣 Word Bomb — Lobby')
+            .setDescription(
+                `**Host:** ${host.username}\n\n` +
+                `**Players (${players.length}/${maxPlayers}):**\n${playerMentions || '*None*'}\n\n` +
+                `*Lobby closes in 60 seconds.*`
+            );
     }
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('wb_lobby_join')
-            .setLabel('➕ Join')
-            .setStyle(ButtonStyle.Success),
+            .setLabel('Join')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('➕'),
         new ButtonBuilder()
             .setCustomId('wb_lobby_leave')
-            .setLabel('➖ Leave')
-            .setStyle(ButtonStyle.Danger),
+            .setLabel('Leave')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🚪'),
         new ButtonBuilder()
             .setCustomId('wb_lobby_start')
-            .setLabel('🎮 Start Game')
+            .setLabel('Start Game')
             .setStyle(ButtonStyle.Primary)
+            .setEmoji('▶️')
     );
 
     let lobbyMsg;
@@ -318,7 +324,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
         } 
         else if (i.customId === 'wb_lobby_leave') {
             if (i.user.id === host.id) {
-                return i.reply({ content: '❌ As the host, you cannot leave the lobby. If you want to cancel the game, let the lobby timer run out.', ephemeral: true });
+                return i.reply({ content: '❌ As the host, you cannot leave the lobby. Let the timer run out to cancel.', ephemeral: true });
             }
             const idx = players.findIndex(p => p.id === i.user.id);
             if (idx === -1) {
@@ -352,9 +358,9 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
     if (!gameStarted) {
         activeGames.delete(channel.id);
         const cancelEmbed = new EmbedBuilder()
-            .setColor(0x747f8d)
-            .setTitle('❌ WORD BOMB LOBBY CANCELLED')
-            .setDescription('The lobby closed because there were not enough players to start.');
+            .setColor(0x2b2d42)
+            .setTitle('❌ Word Bomb — Cancelled')
+            .setDescription('Not enough players.');
         
         await lobbyMsg.edit({ embeds: [cancelEmbed], components: [] }).catch(() => {});
         return;
@@ -363,18 +369,21 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
     const disabledRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('wb_lobby_join')
-            .setLabel('➕ Join')
+            .setLabel('Join')
             .setStyle(ButtonStyle.Success)
+            .setEmoji('➕')
             .setDisabled(true),
         new ButtonBuilder()
             .setCustomId('wb_lobby_leave')
-            .setLabel('➖ Leave')
+            .setLabel('Leave')
             .setStyle(ButtonStyle.Danger)
+            .setEmoji('🚪')
             .setDisabled(true),
         new ButtonBuilder()
             .setCustomId('wb_lobby_start')
-            .setLabel('🎮 Started')
+            .setLabel('Start Game')
             .setStyle(ButtonStyle.Primary)
+            .setEmoji('▶️')
             .setDisabled(true)
     );
     await lobbyMsg.edit({ components: [disabledRow] }).catch(() => {});

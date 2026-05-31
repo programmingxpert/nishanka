@@ -108,20 +108,26 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
     let battleMsg;
     if (!isUser2Bot) {
         const challengeEmbed = new EmbedBuilder()
-            .setColor(0xff1a1a)
-            .setTitle('⚔️ DEATH BATTLE CHALLENGE')
-            .setDescription(`**${user1.username}** has challenged **${user2.username}** to a death battle!\n\nDo you accept this challenge?`)
+            .setColor(0x2b2d42)
+            .setTitle('⚔️ Death Battle — Lobby')
+            .setDescription(
+                `**Host:** ${user1.username}\n` +
+                `**Opponent:** ${user2.username}\n\n` +
+                `*Waiting for opponent to accept...*`
+            )
             .setFooter({ text: 'Expires in 60 seconds.' });
 
         const challengeRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('db_challenge_accept')
-                .setLabel('⚔️ Accept')
-                .setStyle(ButtonStyle.Success),
+                .setLabel('Accept')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('⚔️'),
             new ButtonBuilder()
                 .setCustomId('db_challenge_decline')
-                .setLabel('🏳️ Decline')
+                .setLabel('Decline')
                 .setStyle(ButtonStyle.Danger)
+                .setEmoji('🏳️')
         );
 
         if (isSlash) {
@@ -151,9 +157,9 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
                     content: '',
                     embeds: [
                         new EmbedBuilder()
-                            .setColor(0xff7171)
-                            .setTitle('🏳️ Challenge Declined')
-                            .setDescription(`**${user2.username}** chickened out of the death battle! 🐔`)
+                            .setColor(0x2b2d42)
+                            .setTitle('❌ Death Battle — Cancelled')
+                            .setDescription(`Declined by ${user2.username}.`)
                     ],
                     components: []
                 });
@@ -166,9 +172,9 @@ async function runDeathBattle({ isSlash, context, user1, user2 }) {
                 content: '',
                 embeds: [
                     new EmbedBuilder()
-                        .setColor(0x747f8d)
-                        .setTitle('⏰ Challenge Expired')
-                        .setDescription(`**${user2.username}** didn't respond in time. The death battle challenge has expired.`)
+                        .setColor(0x2b2d42)
+                        .setTitle('❌ Death Battle — Cancelled')
+                        .setDescription('Challenge expired.')
                 ],
                 components: []
             });
