@@ -126,7 +126,8 @@ Respond ONLY with a raw JSON object — no markdown, no backticks, no explanatio
 
   if (!res.ok) throw new Error(`DeepSeek ${res.status}: ${res.statusText}`);
 
-  let raw = res.json().then ? (await res.json()).choices[0].message.content.trim() : '';
+  const data = await res.json();
+  let raw = data.choices[0].message.content.trim();
   // Strip any accidental markdown fences
   raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
 
