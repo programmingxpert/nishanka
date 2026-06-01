@@ -153,19 +153,72 @@ async function sendItemsCatalogPrefix(message) {
         .setColor(0x2b2d42)
         .setTitle('📖 Item Catalog')
         .setDescription(
-            '**Use `-items <category>` to view items.**\n\n' +
+            '**Select a category below to browse items.**\n\n' +
             '🌟 *Popular Categories:*\n' +
             PRIORITY_CATEGORIES.map(key => {
                 const cat = CATEGORIES[key];
                 const count = Object.values(ITEMS).filter(i => i.category === key).length;
                 return `• **${cat.name}** (${count} items)`;
-            }).join('\n') + '\n\n' +
-            '*Available:* Boosters, Cosmetics, Family, Dumpster, Fishing, Digging, Meme Hunt, Ducks, Computers, Mythic, Unique'
+            }).join('\n')
         )
-        .setFooter({ text: 'E.g., -items boosters' })
+        .setFooter({ text: 'Use the dropdown to explore all 11 categories' })
         .setTimestamp();
 
-    await message.reply({ embeds: [embed] });
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId(`items-prefix-${message.author.id}`)
+        .setPlaceholder('📂 Choose an item category')
+        .addOptions(
+            Object.entries(CATEGORIES).map(([key, cat]) => {
+                const count = Object.values(ITEMS).filter(i => i.category === key).length;
+
+                return {
+                    label: cat.name.replace(/[^\w\s]/g, '').trim(),
+                    value: key,
+                    description: `${count} items • ${cat.desc}`.slice(0, 100)
+                };
+            })
+        );
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+    const sentMessage = await message.reply({
+        embeds: [embed],
+        components: [row]
+    });
+
+    const collector = sentMessage.createMessageComponentCollector({
+        componentType: ComponentType.StringSelect,
+        time: 600000
+    });
+
+    collector.on('collect', async interaction => {
+        try {
+            if (interaction.user.id !== message.author.id) {
+                return interaction.reply({
+                    content: '❌ Only the command author can use this menu.',
+                    ephemeral: true
+                });
+            }
+
+            const selected = interaction.values[0];
+            const itemEmbed = buildItemsEmbed(selected);
+
+            await interaction.update({
+                embeds: [itemEmbed],
+                components: [row]
+            });
+        } catch (err) {
+            console.error('Prefix items dropdown error:', err);
+        }
+    });
+
+    collector.on('end', async () => {
+        try {
+            await sentMessage.edit({
+                components: []
+            });
+        } catch {}
+    });
 }
 
 function buildItemsEmbed(filter) {
