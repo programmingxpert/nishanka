@@ -97,7 +97,7 @@ module.exports = {
     cooldown: COOLDOWN_SEC,
     data: new SlashCommandBuilder()
         .setName('dumpster')
-        .setDescription('Go dumpster diving for random trash, baubles, or rare items!'),
+        .setDescription('Dumpster dive'),
 
     async execute(interaction) {
         try {

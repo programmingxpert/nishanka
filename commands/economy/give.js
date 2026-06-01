@@ -6,14 +6,14 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('give')
-        .setDescription('Give Glimmering Baubles to another user.')
+        .setDescription('Give baubles')
         .addUserOption(option =>
             option.setName('user')
-                .setDescription('The user to give Baubles to.')
+                .setDescription('Recipient')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('The amount of Baubles to give.')
+                .setDescription('Amount')
                 .setRequired(true)
                 .setMinValue(1)), // Ensure amount is at least 1
 

@@ -10,10 +10,10 @@ module.exports = {
     cooldown: 30, // 30-second cooldown
     data: new SlashCommandBuilder()
         .setName('slots')
-        .setDescription('Spin the Glimmering Bauble slots!')
+        .setDescription('Spin the slots')
         .addIntegerOption(option =>
             option.setName('bet')
-                .setDescription('The amount of Baubles to bet.')
+                .setDescription('Bet amount')
                 .setRequired(true)
                 .setMinValue(100)),
 

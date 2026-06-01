@@ -6,10 +6,10 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('bauble')
-        .setDescription('Check a user\'s Glimmering Bauble balance.')
+        .setDescription('Check user balance')
         .addUserOption(option =>
             option.setName('user')
-                .setDescription('The user whose balance to check.')
+                .setDescription('User')
                 .setRequired(false)),
 
     async execute(interaction) {

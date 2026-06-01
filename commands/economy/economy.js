@@ -101,7 +101,7 @@ module.exports = {
 
   data: new SlashCommandBuilder()
     .setName('economy')
-    .setDescription('View the live status of the global bot economy and inflation rates.'),
+.setDescription('View economy status'),
 
   async execute(interaction) {
     await interaction.deferReply();

@@ -72,15 +72,15 @@ module.exports = {
 
     data: new SlashCommandBuilder()
         .setName('buckshot')
-        .setDescription('Play Buckshot Showdown with someone!')
+        .setDescription('Play buckshot')
         .addUserOption(o =>
             o.setName('opponent')
-                .setDescription('The user you want to challenge.')
+                .setDescription('Opponent')
                 .setRequired(true)
         )
         .addIntegerOption(o =>
             o.setName('wager')
-                .setDescription('How many Baubles to put on the line.')
+                .setDescription('Wager amount')
                 .setRequired(true)
                 .setMinValue(1000)
         ),

@@ -135,16 +135,16 @@ module.exports = {
     cooldown: 10,
     data: new SlashCommandBuilder()
         .setName('mines')
-        .setDescription('Stake baubles in a minesweeper grid! Find diamonds to multiply your winnings.')
+        .setDescription('Minesweeper game mode')
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('The amount of Baubles to stake.')
+                .setDescription('Bet amount')
                 .setRequired(true)
                 .setMinValue(500)
         )
         .addIntegerOption(option =>
             option.setName('mines')
-                .setDescription('Number of hidden mines (1-15, default is 3).')
+                .setDescription('Mine count (1-15)')
                 .setRequired(false)
                 .setMinValue(1)
                 .setMaxValue(15)

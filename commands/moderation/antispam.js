@@ -18,7 +18,7 @@ module.exports = {
                 .setDescription('Toggle fast or slow spam detection.')
                 .addStringOption(option =>
                     option.setName('type')
-                        .setDescription('Select the spam type to toggle.')
+                        .setDescription('Spam type')
                         .setRequired(true)
                         .addChoices(
                             { name: 'Fast Spam', value: 'fastSpam' },
@@ -33,11 +33,11 @@ module.exports = {
                 .setDescription('Configure fast spam threshold and window.')
                 .addIntegerOption(option =>
                     option.setName('threshold')
-                        .setDescription('Number of messages to trigger fast spam.')
+                        .setDescription('Fast spam msgs')
                         .setRequired(true))
                 .addIntegerOption(option =>
                     option.setName('window')
-                        .setDescription('Window in seconds for fast spam.')
+                        .setDescription('Fast spam window')
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
@@ -45,11 +45,11 @@ module.exports = {
                 .setDescription('Configure slow spam threshold and window.')
                 .addIntegerOption(option =>
                     option.setName('threshold')
-                        .setDescription('Number of messages to trigger slow spam.')
+                        .setDescription('Slow spam msgs')
                         .setRequired(true))
                 .addIntegerOption(option =>
                     option.setName('window')
-                        .setDescription('Window in seconds for slow spam.')
+                        .setDescription('Slow spam window')
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
@@ -57,15 +57,15 @@ module.exports = {
                 .setDescription('Set the default timeout duration for spammers.')
                 .addStringOption(option =>
                     option.setName('duration')
-                        .setDescription('Duration (e.g., 1m, 10m, 1h).')
+                        .setDescription('Mute duration')
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('ignore')
-                .setDescription('Manage users who should ALWAYS be caught by antispam (even if they are Admin).')
+                .setDescription('Manage watchlist')
                 .addStringOption(option =>
                     option.setName('action')
-                        .setDescription('Add or remove from the watchlist.')
+                        .setDescription('Add/remove user')
                         .setRequired(true)
                         .addChoices(
                             { name: 'Add', value: 'add' },
@@ -78,18 +78,18 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('repetition')
-                .setDescription('Toggle repetitive message detection.')
+                .setDescription('Toggle repetition')
                 .addBooleanOption(option =>
                     option.setName('enabled')
-                        .setDescription('Enable or disable repetition detection.')
+                        .setDescription('Enable/disable')
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('setrepetition')
-                .setDescription('Set the threshold for repetitive messages.')
+                .setDescription('Repetition threshold')
                 .addIntegerOption(option =>
                     option.setName('threshold')
-                        .setDescription('Number of same messages to trigger antispam.')
+                        .setDescription('Messages count')
                         .setRequired(true))),
 
     async execute(interaction) {

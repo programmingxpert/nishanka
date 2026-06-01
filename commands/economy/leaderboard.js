@@ -6,7 +6,7 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('leaderboard')
-        .setDescription('View the Glimmering Bauble leaderboard for users in this server.'), //Updated command
+        .setDescription('View server leaderboard'), //Updated command
 
     async execute(interaction) {
         try {

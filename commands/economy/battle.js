@@ -71,15 +71,15 @@ module.exports = {
 
     data: new SlashCommandBuilder()
         .setName('battle')
-        .setDescription('Challenge someone to a Turn-Based Arena Brawl!')
+        .setDescription('Challenge someone')
         .addUserOption(o =>
             o.setName('opponent')
-                .setDescription('The user you want to fight.')
+                .setDescription('Opponent')
                 .setRequired(true)
         )
         .addIntegerOption(o =>
             o.setName('wager')
-                .setDescription('How many Baubles to put on the line.')
+                .setDescription('Wager amount')
                 .setRequired(true)
                 .setMinValue(1000)
         ),

@@ -8,7 +8,7 @@ module.exports = {
     aliases: ['inv'],
     data: new SlashCommandBuilder()
         .setName('inventory')
-        .setDescription('View your items and active status effects.'),
+        .setDescription('View inventory'),
 
     async execute(interaction) {
         try {

@@ -30,10 +30,10 @@ module.exports = {
     aliases: ['iteminfo', 'catalog', 'itemlist'],
     data: new SlashCommandBuilder()
         .setName('items')
-        .setDescription('View the catalog of available items and what they do.')
+        .setDescription('View item catalog')
         .addStringOption(option =>
             option.setName('category')
-                .setDescription('Filter items by category')
+                .setDescription('Item category to browse')
                 .setRequired(false)
                 .addChoices(
                     { name: 'Boosters', value: 'boosters' },
@@ -53,7 +53,7 @@ module.exports = {
         try {
             const filter = interaction.options.getString('category');
             if (filter) {
-                const embed = buildItemsEmbed(filter, interaction.user);
+                const embed = buildItemsEmbed(filter);
                 return interaction.reply({ embeds: [embed] });
             } else {
                 await sendItemsCatalog(interaction);
@@ -68,7 +68,7 @@ module.exports = {
         try {
             const filter = args[0]?.toLowerCase();
             if (filter) {
-                const embed = buildItemsEmbed(filter, message.author);
+                const embed = buildItemsEmbed(filter);
                 return message.reply({ embeds: [embed] });
             } else {
                 await sendItemsCatalogPrefix(message);
