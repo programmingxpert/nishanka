@@ -449,9 +449,10 @@ module.exports = {
 		}
 
 		embed.setDescription(
-			'Welcome to the **Nishanka Help Menu**!\n' +
-			'Please select a category from the dropdown menu below to view its available commands.\n\n' +
-			catLines.join('\n\n')
+			'👋 **Welcome to the Nishanka Help Menu!**\n\n' +
+			'Select a category from the dropdown below to explore commands.\n\n' +
+			'📚 *Featured Categories:*\n' +
+			catLines.slice(0, 5).join('\n')
 		);
 
 		embed.setFooter({ text: 'Use /help or -help | Nishanka ©️' });

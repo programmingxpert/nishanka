@@ -1,5 +1,11 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { 
+    SlashCommandBuilder, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    StringSelectMenuBuilder, 
+    ComponentType 
+} = require('discord.js');
 const { ITEMS, RARITIES } = require('../../utils/items');
 
 const CATEGORIES = {
@@ -15,6 +21,9 @@ const CATEGORIES = {
     mythic: { name: '✨ Mythic', desc: 'High-value dragon eggs and void stars.' },
     unique: { name: '👑 Unique', desc: 'One-of-a-kind items (exactly 1 copy exists globally).' }
 };
+
+// Priority order for categories shown in first embed
+const PRIORITY_CATEGORIES = ['boosters', 'cosmetics', 'computers', 'mythic', 'unique', 'family'];
 
 module.exports = {
     category: 'economy',
@@ -43,8 +52,12 @@ module.exports = {
     async execute(interaction) {
         try {
             const filter = interaction.options.getString('category');
-            const embed = buildItemsEmbed(filter, interaction.user);
-            return interaction.reply({ embeds: [embed] });
+            if (filter) {
+                const embed = buildItemsEmbed(filter, interaction.user);
+                return interaction.reply({ embeds: [embed] });
+            } else {
+                await sendItemsCatalog(interaction);
+            }
         } catch (error) {
             console.error('Error in items command:', error);
             await interaction.reply({ content: '❌ An error occurred while retrieving the catalog.', ephemeral: true });
@@ -54,8 +67,12 @@ module.exports = {
     async executePrefix(message, args) {
         try {
             const filter = args[0]?.toLowerCase();
-            const embed = buildItemsEmbed(filter, message.author);
-            return message.reply({ embeds: [embed] });
+            if (filter) {
+                const embed = buildItemsEmbed(filter, message.author);
+                return message.reply({ embeds: [embed] });
+            } else {
+                await sendItemsCatalogPrefix(message);
+            }
         } catch (error) {
             console.error('Error in items command (prefix):', error);
             await message.reply('❌ An error occurred while retrieving the catalog.');
@@ -63,17 +80,105 @@ module.exports = {
     }
 };
 
-function buildItemsEmbed(filter, user) {
+async function sendItemsCatalog(interaction) {
     const embed = new EmbedBuilder()
-        .setColor(0x2b2d42) // Minimal dark-slate theme
+        .setColor(0x2b2d42)
+        .setTitle('📖 Item Catalog')
+        .setDescription(
+            '**Select a category below to browse items.**\n\n' +
+            '🌟 *Popular Categories:*\n' +
+            PRIORITY_CATEGORIES.map(key => {
+                const cat = CATEGORIES[key];
+                const count = Object.values(ITEMS).filter(i => i.category === key).length;
+                return `• **${cat.name}** (${count} items)`;
+            }).join('\n')
+        )
+        .setFooter({ text: 'Use the dropdown to explore all 11 categories' })
+        .setTimestamp();
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('items-category-select')
+        .setPlaceholder('📂 Choose an item category')
+        .addOptions(
+            Object.entries(CATEGORIES).map(([key, cat]) => {
+                const count = Object.values(ITEMS).filter(i => i.category === key).length;
+                return {
+                    label: cat.name,
+                    value: key,
+                    description: `${count} items • ${cat.desc}`,
+                };
+            })
+        );
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+    const reply = await interaction.reply({
+        embeds: [embed],
+        components: [row],
+        ephemeral: false,
+    });
+
+    const collector = reply.createMessageComponentCollector({
+        componentType: ComponentType.StringSelect,
+        time: 600000, // 10 minutes
+    });
+
+    collector.on('collect', async (selectInteraction) => {
+        try {
+            await selectInteraction.deferUpdate();
+            const selected = selectInteraction.values[0];
+            const itemEmbed = buildItemsEmbed(selected);
+            await selectInteraction.editReply({
+                embeds: [itemEmbed],
+                components: [row],
+            });
+        } catch (error) {
+            console.error('Error in items dropdown:', error);
+            await selectInteraction.followUp({ 
+                content: '❌ An error occurred.', 
+                ephemeral: true 
+            }).catch(() => {});
+        }
+    });
+
+    collector.on('end', (collected, reason) => {
+        if (reason === 'time') {
+            reply.edit({ components: [] }).catch(console.error);
+        }
+    });
+}
+
+async function sendItemsCatalogPrefix(message) {
+    const embed = new EmbedBuilder()
+        .setColor(0x2b2d42)
+        .setTitle('📖 Item Catalog')
+        .setDescription(
+            '**Use `-items <category>` to view items.**\n\n' +
+            '🌟 *Popular Categories:*\n' +
+            PRIORITY_CATEGORIES.map(key => {
+                const cat = CATEGORIES[key];
+                const count = Object.values(ITEMS).filter(i => i.category === key).length;
+                return `• **${cat.name}** (${count} items)`;
+            }).join('\n') + '\n\n' +
+            '*Available:* Boosters, Cosmetics, Family, Dumpster, Fishing, Digging, Meme Hunt, Ducks, Computers, Mythic, Unique'
+        )
+        .setFooter({ text: 'E.g., -items boosters' })
+        .setTimestamp();
+
+    await message.reply({ embeds: [embed] });
+}
+
+function buildItemsEmbed(filter) {
+    const embed = new EmbedBuilder()
+        .setColor(0x2b2d42)
         .setTimestamp();
 
     const normalizedFilter = filter && CATEGORIES[filter.trim().toLowerCase()] ? filter.trim().toLowerCase() : null;
 
     if (normalizedFilter) {
         const catInfo = CATEGORIES[normalizedFilter];
-        embed.setTitle(`📖 Catalog: ${catInfo.name}`)
-             .setDescription(`_${catInfo.desc}_\nUse \`-use <item_id>\` to activate them!\n\n`);
+        embed.setTitle(`${catInfo.name}`)
+             .setDescription(`_${catInfo.desc}_\n\n`);
 
         const matchingItems = Object.values(ITEMS).filter(i => i.category === normalizedFilter);
 
@@ -98,17 +203,6 @@ function buildItemsEmbed(filter, user) {
             }
             embed.setDescription(embed.data.description + lines.join('\n\n'));
         }
-    } else {
-        embed.setTitle('📖 Items Catalog')
-             .setDescription('Use \`-items <category>\` to see specific item details.\n\n');
-
-        const catLines = [];
-        for (const [key, cat] of Object.entries(CATEGORIES)) {
-            const count = Object.values(ITEMS).filter(i => i.category === key).length;
-            catLines.push(`• **${cat.name}** (\`${key}\` • ${count} items)\n  ↳ _${cat.desc}_`);
-        }
-
-        embed.setDescription(embed.data.description + catLines.join('\n\n'));
     }
 
     return embed;
