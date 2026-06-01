@@ -90,7 +90,7 @@ module.exports = {
     cooldown: COOLDOWN_SEC,
     data: new SlashCommandBuilder()
         .setName('dig')
-        .setDescription('Dig for treasure'),
+        .setDescription('Dig up buried treasure, prehistoric fossils, or baubles!'),
 
     async execute(interaction) {
         try {

@@ -18,7 +18,7 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('expedition')
-        .setDescription('1-hour expedition'),
+        .setDescription('Send your character on a 1-hour expedition for high-value rewards!'),
 
     async execute(interaction) {
         try {

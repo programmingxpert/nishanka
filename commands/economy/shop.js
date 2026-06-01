@@ -301,14 +301,14 @@ module.exports = {
     ITEMS,
     data: new SlashCommandBuilder()
         .setName('shop')
-        .setDescription('Buy items')
+        .setDescription('Browse and purchase items using your Glimmering Baubles.')
         .addStringOption(option =>
             option.setName('buy')
-                .setDescription('Item ID to buy')
+                .setDescription('The ID of the item you want to buy')
                 .setRequired(false))
         .addIntegerOption(option =>
             option.setName('quantity')
-                .setDescription('Quantity to buy')
+                .setDescription('How many items you want to buy')
                 .setMinValue(1)
                 .setRequired(false)),
 

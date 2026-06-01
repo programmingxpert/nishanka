@@ -31,14 +31,14 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('gift')
-        .setDescription('Gift items w/ message')
+        .setDescription('Gift items from your inventory to another member with a custom message.')
         .addUserOption(option =>
             option.setName('user')
-                .setDescription('Gift recipient')
+                .setDescription('The user to gift items to')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('item')
-                .setDescription('Item to gift')
+                .setDescription('The ID of the item to gift')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('quantity')
@@ -47,7 +47,7 @@ module.exports = {
                 .setRequired(false))
         .addStringOption(option =>
             option.setName('message')
-                .setDescription('Gift message (optional)')
+                .setDescription('An optional message for the recipient')
                 .setMaxLength(250)
                 .setRequired(false)),
 

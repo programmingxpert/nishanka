@@ -16,7 +16,7 @@ module.exports = {
     cooldown: 600, // 10-minute cooldown
     data: new SlashCommandBuilder()
         .setName('scavenge')
-        .setDescription('Scavenge baubles'),
+        .setDescription('Scavenge for Glimmering Baubles in various locations.'),
 
     async execute(interaction) {
         try {

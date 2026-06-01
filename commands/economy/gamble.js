@@ -31,16 +31,16 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('gamble')
-        .setDescription('Gamble baubles')
+        .setDescription('Gamble your Baubles with different risk and reward tiers!')
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('Bet amount')
+                .setDescription('Amount of Baubles to gamble')
                 .setRequired(true)
                 .setMinValue(500)
         )
         .addStringOption(option =>
             option.setName('risk')
-                .setDescription('Difficulty level')
+                .setDescription('Risk level: low, medium, or high')
                 .setRequired(false)
                 .addChoices(
                     { name: 'Low (80% win, 1.5x)', value: 'low' },

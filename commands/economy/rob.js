@@ -47,10 +47,10 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('rob')
-        .setDescription('Rob another player')
+        .setDescription('Attempt to rob another player using different strategies.')
         .addUserOption(option =>
             option.setName('target')
-                .setDescription('Target player')
+                .setDescription('The player you want to rob.')
                 .setRequired(true)
         ),
 

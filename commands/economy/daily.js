@@ -59,7 +59,7 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('daily')
-        .setDescription('Claim daily reward'),
+        .setDescription('Claim your daily reward of Glimmering Baubles!'),
 
     async execute(interaction) {
         try {

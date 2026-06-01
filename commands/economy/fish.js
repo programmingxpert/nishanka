@@ -93,7 +93,7 @@ module.exports = {
     cooldown: COOLDOWN_SEC,
     data: new SlashCommandBuilder()
         .setName('fish')
-        .setDescription('Fish for rewards'),
+        .setDescription('Cast your fishing line and catch rare items or baubles!'),
 
     async execute(interaction) {
         try {

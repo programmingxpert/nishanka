@@ -7,16 +7,16 @@ module.exports = {
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('coinflip')
-        .setDescription('Flip a coin to gamble')
+        .setDescription('Flip a coin to gamble your baubles (heads, tails, or draw).')
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('Bet amount')
+                .setDescription('The amount of Baubles to gamble.')
                 .setRequired(true)
                 .setMinValue(200)
         )
         .addStringOption(option =>
             option.setName('side')
-                .setDescription('Flip outcome choice')
+                .setDescription('Choose heads, tails, or a sideways draw (optional).')
                 .setRequired(false)
                 .addChoices(
                     { name: 'Heads (49.95% win, 2x)', value: 'heads' },

@@ -6,7 +6,7 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('globalleaderboard')
-        .setDescription('Global leaderboard'),
+        .setDescription('View the global Glimmering Bauble leaderboard.'),
 
     async execute(interaction) {
         try {

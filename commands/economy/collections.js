@@ -8,7 +8,7 @@ module.exports = {
     aliases: ['col', 'collection'],
     data: new SlashCommandBuilder()
         .setName('collections')
-        .setDescription('View collections'),
+        .setDescription('View your items collection progress and completion rewards.'),
 
     async execute(interaction) {
         try {

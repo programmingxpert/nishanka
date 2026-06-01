@@ -13,7 +13,7 @@ module.exports = {
     cooldown: 60, // 1-minute cooldown
     data: new SlashCommandBuilder()
         .setName('grab')
-        .setDescription('React to grab baubles'),
+        .setDescription('React with the Glimmering emoji to grab some Baubles!'),
 
     async execute(interaction) {
         try {

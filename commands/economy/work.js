@@ -17,7 +17,7 @@ module.exports = {
 
     data: new SlashCommandBuilder()
         .setName('work')
-        .setDescription('Do a work job'),
+        .setDescription('Work a random interactive job to earn Glimmering Baubles!'),
 
     async execute(interaction) {
         await runWorkGame(interaction, interaction.channel, interaction.user);

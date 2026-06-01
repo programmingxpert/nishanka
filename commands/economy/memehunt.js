@@ -90,7 +90,7 @@ module.exports = {
     cooldown: COOLDOWN_SEC,
     data: new SlashCommandBuilder()
         .setName('memehunt')
-        .setDescription('Hunt memes for rewards'),
+        .setDescription('Hunt for dank internet memes to earn coins or rare collectibles!'),
 
     async execute(interaction) {
         try {

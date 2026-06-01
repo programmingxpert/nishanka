@@ -119,10 +119,10 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('checklist')
-        .setDescription('Daily tasks')
+        .setDescription('View your daily tasks checklist and claim rewards!')
         .addStringOption(option =>
             option.setName('action')
-                .setDescription('Action to perform')
+                .setDescription('Perform an action (e.g. claim)')
                 .setRequired(false)
                 .addChoices(
                     { name: 'View status', value: 'view' },

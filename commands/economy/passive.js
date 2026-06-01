@@ -6,7 +6,7 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('passive')
-        .setDescription('Toggle Passive Mode on/off'),
+        .setDescription('Toggle Passive Mode. Protects you from robbery/brawls, but prevents you from doing them.'),
 
     async execute(interaction) {
         try {

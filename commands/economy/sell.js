@@ -21,10 +21,10 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('sell')
-        .setDescription('Sell items')
+        .setDescription('Sell items from your inventory back to the shop.')
         .addStringOption(option =>
             option.setName('item')
-                .setDescription('Item ID')
+                .setDescription('The ID of the item to sell')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('quantity')

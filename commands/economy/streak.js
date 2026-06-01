@@ -7,10 +7,10 @@ module.exports = {
     aliases: ['streaks'],
     data: new SlashCommandBuilder()
         .setName('streak')
-        .setDescription('View user streaks')
+        .setDescription('Show streak and win streak information for a user.')
         .addUserOption(option =>
             option.setName('user')
-                .setDescription('User')
+                .setDescription('The user whose streaks to view.')
                 .setRequired(false)),
 
     async execute(interaction) {

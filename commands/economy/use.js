@@ -36,11 +36,11 @@ module.exports = {
         .setDescription('Activate or consume an item from your inventory.')
         .addStringOption(option =>
             option.setName('item')
-                .setDescription('Item to use')
+                .setDescription('The ID of the item to use')
                 .setRequired(true))
         .addUserOption(option =>
             option.setName('target')
-                .setDescription('Target user (optional)')
+                .setDescription('Target user (if the item requires one)')
                 .setRequired(false)),
 
     async execute(interaction) {

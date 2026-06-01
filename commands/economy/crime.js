@@ -138,7 +138,7 @@ module.exports = {
     cooldown: COOLDOWN_SEC,
     data: new SlashCommandBuilder()
         .setName('crime')
-        .setDescription('Commit a crime'),
+        .setDescription('Commit a high-risk crime to steal Glimmering Baubles or rare items!'),
 
     async execute(interaction) {
         try {
