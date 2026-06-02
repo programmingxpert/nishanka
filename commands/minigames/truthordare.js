@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 
 module.exports = {
-    category: 'fun',
+    category: 'minigames',
     aliases: ['tod', 'nhie', 'wyr'],
     data: new SlashCommandBuilder()
         .setName('truthordare')

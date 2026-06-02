@@ -11,22 +11,29 @@ module.exports = {
         // Skip partial messages where data isn't loaded (can't snipe uncached messages)
         if (message.partial) return;
 
-        // Initialize client snipes Map if not present
-        if (!client.snipes) {
-            client.snipes = new Map();
+        // Fetch guild settings
+        let settings = null;
+        try {
+            settings = await GuildSettings.findOne({ guildId: message.guild.id }).lean();
+        } catch (err) {
+            console.error('Error fetching settings in messageDelete:', err);
         }
 
-        // Store the deleted message info keyed by channel ID
-        client.snipes.set(message.channel.id, {
-            content: message.content || '',
-            author: message.author,
-            timestamp: message.createdAt || new Date(),
-            attachment: message.attachments.first()?.url || null
-        });
+        // Store the deleted message info keyed by channel ID (only if snipe is enabled)
+        if (settings?.bot?.snipeEnabled !== false) {
+            if (!client.snipes) {
+                client.snipes = new Map();
+            }
+            client.snipes.set(message.channel.id, {
+                content: message.content || '',
+                author: message.author,
+                timestamp: message.createdAt || new Date(),
+                attachment: message.attachments.first()?.url || null
+            });
+        }
 
         // ─── Logging System ───
         try {
-            const settings = await GuildSettings.findOne({ guildId: message.guild.id }).lean();
             if (settings?.logging?.enabled && settings.logging?.channelId && settings.logging?.messageDelete !== false) {
                 // Avoid logging in the log channel itself to prevent loops
                 if (message.channel.id === settings.logging.channelId) return;

@@ -104,10 +104,10 @@ const commandCategoryMapping = {
     slots: 'casino',
     mines: 'casino',
     buckshot: 'casino',
-    battle: 'casino',
+    battle: 'minigames',
     blackjack: 'casino',
     bj: 'casino',
-    animebattle: 'casino',
+    animebattle: 'minigames',
     mblackjack: 'casino',
 
     // Profile
@@ -125,15 +125,15 @@ const commandCategoryMapping = {
     adopt: 'fun',
     disown: 'fun',
 
-    // Games (Maps to 'fun' in frontend)
-    wordbomb: 'fun',
-    scramble: 'fun',
-    emojidecode: 'fun',
-    guesstheflag: 'fun',
-    deathbattle: 'fun',
-    geoguesser: 'fun',
-    hangman: 'fun',
-    truthordare: 'fun',
+    // Games
+    wordbomb: 'minigames',
+    scramble: 'minigames',
+    emojidecode: 'minigames',
+    guesstheflag: 'minigames',
+    deathbattle: 'minigames',
+    geoguesser: 'minigames',
+    hangman: 'minigames',
+    truthordare: 'minigames',
 
     // Fun
     meme: 'fun',
@@ -268,6 +268,9 @@ function scanDir(dir) {
         } else if (entry.name.endsWith('.js') && !entry.name.endsWith('.example')) {
             try {
                 const cmd = require(fullPath);
+                if (cmd.devOnly === true || cmd.hidden === true) {
+                    continue;
+                }
                 const name = cmd.data?.name || cmd.name || path.basename(entry.name, '.js');
                 
                 // Determine Category
@@ -338,7 +341,7 @@ function scanDir(dir) {
 scanDir(commandsDir);
 
 // Group commands by resolved documentation categories
-const categories = ['actions', 'admin', 'casino', 'economy', 'fun', 'giveaway', 'moderation', 'music', 'profile', 'utility'];
+const categories = ['actions', 'admin', 'casino', 'economy', 'fun', 'giveaway', 'minigames', 'moderation', 'music', 'profile', 'utility'];
 const grouped = {};
 for (const cat of categories) {
     grouped[cat] = [];

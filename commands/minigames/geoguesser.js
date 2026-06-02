@@ -94,7 +94,7 @@ const fallbackLocations = [
 ];
 
 module.exports = {
-	category: 'fun',
+	category: 'minigames',
 	aliases: ['geoguessr'],
 	data: new SlashCommandBuilder()
 		.setName('geoguesser')

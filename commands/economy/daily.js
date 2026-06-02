@@ -3,58 +3,6 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 const { checkAndAwardAchievement } = require('../../utils/achievements');
 
-function getDailyRarity(amount) {
-    if (amount <= 1100) {
-        return {
-            tier: 'Common',
-            name: 'Pocket Lint',
-            desc: 'Found some loose baubles stuck to a candy wrapper. It counts.',
-            color: 0x8B89AC // Greyish blue
-        };
-    } else if (amount <= 1350) {
-        return {
-            tier: 'Uncommon',
-            name: 'Spare Change',
-            desc: 'A respectable handful. Enough to bribe a very small goblin.',
-            color: 0x4ADE80 // Green
-        };
-    } else if (amount <= 1600) {
-        return {
-            tier: 'Rare',
-            name: 'Neon Pebbles',
-            desc: 'These baubles are suspiciously bright. Please do not eat them.',
-            color: 0x7C6CF0 // Purple
-        };
-    } else if (amount <= 1750) {
-        return {
-            tier: 'Epic',
-            name: 'Glitter Bomb',
-            desc: 'A dazzling burst of premium sparkly baubles. Exceptional.',
-            color: 0xF97FA8 // Pink
-        };
-    } else {
-        return {
-            tier: 'Legendary',
-            name: 'Celestial Bounty',
-            desc: 'The heavens parted just to drop this ridiculous pile of wealth on you.',
-            color: 0xFBBF24 // Gold
-        };
-    }
-}
-
-function formatTimeRemaining(ms) {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    const parts = [];
-    if (hours > 0) parts.push(`${hours}h`);
-    if (minutes > 0) parts.push(`${minutes}m`);
-    parts.push(`${seconds}s`);
-    return parts.join(' ');
-}
-
 module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
@@ -80,36 +28,26 @@ module.exports = {
                 const diff = now.getTime() - lastClaimed.getTime();
 
                 if (diff < cooldownMs) {
-                    const timeLeft = cooldownMs - diff;
+                    const nextClaimEpoch = Math.floor((lastClaimed.getTime() + cooldownMs) / 1000);
                     const embed = new EmbedBuilder()
-                        .setColor(0x5865F2)
-                        .setTitle('⏳ Daily Already Claimed')
-                        .setDescription([
-                            `Come back in **${formatTimeRemaining(timeLeft)}**`,
-                            '',
-                            `🔥 Current Streak: **${baubleData.dailyStreak || 0} days**`
-                        ].join('\n'))
-                        .setTimestamp();
+                        .setColor(0x2b2d42)
+                        .setTitle('⏳ Daily Cooldown')
+                        .setDescription(
+                            `Available <t:${nextClaimEpoch}:R>\n\n` +
+                            `🔥 Streak: **${baubleData.dailyStreak || 0} days**`
+                        );
 
                     return interaction.reply({ embeds: [embed] });
                 }
 
-                // Check if streak is broken (more than 48 hours since last claim)
                 if (diff >= breakWindowMs) {
                     const oldStreak = baubleData.dailyStreak || 0;
-                    baubleData.dailyStreak = 0; // Will be incremented to 1 below
+                    baubleData.dailyStreak = 0;
                     
                     const streakBrokenEmbed = new EmbedBuilder()
                         .setColor(0xED4245)
                         .setTitle('💔 Streak Lost')
-                        .setDescription([
-                            `Previous Streak: **${oldStreak} days**`,
-                            '',
-                            'You missed your daily for over 48 hours.',
-                            'Your streak has been reset.',
-                            '',
-                            'Starting fresh today.'
-                        ].join('\n'));
+                        .setDescription(`Your streak of **${oldStreak} days** has reset since you missed your daily for over 48 hours.`);
 
                     await interaction.channel.send({ content: `<@${userId}>`, embeds: [streakBrokenEmbed] }).catch(() => {});
                 }
@@ -123,14 +61,14 @@ module.exports = {
 
             // Calculate reward (900-1800)
             const baseReward = Math.floor(Math.random() * 901) + 900;
-            // Add a funny streak bonus: +20 baubles per streak day, capped at 500 bonus baubles
             const streakBonus = Math.min((baubleData.dailyStreak - 1) * 20, 500);
             
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
             const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
             const incomeMultiplier = await getIncomeMultiplier(userId);
-            const totalReward = Math.floor((baseReward + streakBonus) * globalMultiplier * incomeMultiplier);
+            const multiplier = globalMultiplier * incomeMultiplier;
+            const totalReward = Math.floor((baseReward + streakBonus) * multiplier);
 
             // Save to database
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
@@ -142,25 +80,17 @@ module.exports = {
             if (baubleData.dailyStreak >= 30) await checkAndAwardAchievement(interaction.client, userId, 'streak_30', interaction);
             if (baubleData.dailyStreak >= 100) await checkAndAwardAchievement(interaction.client, userId, 'streak_100', interaction);
 
-            const rarity = getDailyRarity(baseReward);
+            const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
             const embed = new EmbedBuilder()
-                .setColor(rarity.color)
-                .setTitle(`✦ ${rarity.tier} Daily`)
-                .setDescription([
-                    `## ${rarity.name}`,
-                    '',
-                    `+ **${totalReward.toLocaleString()}** 🪙`,
-                    '',
-                    `💰 Balance: **${baubleData.baubles.toLocaleString()}**`,
-                    `🔥 Streak: **${baubleData.dailyStreak}** days`,
-                    '',
-                    `${rarity.desc}`
-                ].join('\n'))
-                .setFooter({
-                    text: `Best Streak • ${baubleData.dailyMaxStreak} days`
-                })
-                .setTimestamp();
+                .setColor(0x2ecc71)
+                .setTitle('✦ Daily Claim')
+                .setDescription(
+                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\`)\n\n` +
+                    `💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n` +
+                    `🔥 Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n` +
+                    `⏱️ Next Claim: <t:${nextClaimEpoch}:R>`
+                );
 
             await interaction.reply({ embeds: [embed] });
 
@@ -189,16 +119,14 @@ module.exports = {
                 const diff = now.getTime() - lastClaimed.getTime();
 
                 if (diff < cooldownMs) {
-                    const timeLeft = cooldownMs - diff;
+                    const nextClaimEpoch = Math.floor((lastClaimed.getTime() + cooldownMs) / 1000);
                     const embed = new EmbedBuilder()
-                        .setColor(0x5865F2)
-                        .setTitle('⏳ Daily Already Claimed')
-                        .setDescription([
-                            `Come back in **${formatTimeRemaining(timeLeft)}**`,
-                            '',
-                            `🔥 Current Streak: **${baubleData.dailyStreak || 0} days**`
-                        ].join('\n'))
-                        .setTimestamp();
+                        .setColor(0x2b2d42)
+                        .setTitle('⏳ Daily Cooldown')
+                        .setDescription(
+                            `Available <t:${nextClaimEpoch}:R>\n\n` +
+                            `🔥 Streak: **${baubleData.dailyStreak || 0} days**`
+                        );
 
                     return message.channel.send({ embeds: [embed] });
                 }
@@ -210,14 +138,7 @@ module.exports = {
                     const streakBrokenEmbed = new EmbedBuilder()
                         .setColor(0xED4245)
                         .setTitle('💔 Streak Lost')
-                        .setDescription([
-                            `Previous Streak: **${oldStreak} days**`,
-                            '',
-                            'You missed your daily for over 48 hours.',
-                            'Your streak has been reset.',
-                            '',
-                            'Starting fresh today.'
-                        ].join('\n'));
+                        .setDescription(`Your streak of **${oldStreak} days** has reset since you missed your daily for over 48 hours.`);
 
                     await message.channel.send({ content: `<@${userId}>`, embeds: [streakBrokenEmbed] }).catch(() => {});
                 }
@@ -235,7 +156,8 @@ module.exports = {
             const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
             const incomeMultiplier = await getIncomeMultiplier(userId);
-            const totalReward = Math.floor((baseReward + streakBonus) * globalMultiplier * incomeMultiplier);
+            const multiplier = globalMultiplier * incomeMultiplier;
+            const totalReward = Math.floor((baseReward + streakBonus) * multiplier);
 
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
             baubleData.dailyLastClaimed = now;
@@ -246,25 +168,17 @@ module.exports = {
             if (baubleData.dailyStreak >= 30) await checkAndAwardAchievement(message.client, userId, 'streak_30', message);
             if (baubleData.dailyStreak >= 100) await checkAndAwardAchievement(message.client, userId, 'streak_100', message);
 
-            const rarity = getDailyRarity(baseReward);
+            const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
             const embed = new EmbedBuilder()
-                .setColor(rarity.color)
-                .setTitle(`✦ ${rarity.tier} Daily`)
-                .setDescription([
-                    `## ${rarity.name}`,
-                    '',
-                    `+ **${totalReward.toLocaleString()}** 🪙`,
-                    '',
-                    `💰 Balance: **${baubleData.baubles.toLocaleString()}**`,
-                    `🔥 Streak: **${baubleData.dailyStreak}** days`,
-                    '',
-                    `${rarity.desc}`
-                ].join('\n'))
-                .setFooter({
-                    text: `Best Streak • ${baubleData.dailyMaxStreak} days`
-                })
-                .setTimestamp();
+                .setColor(0x2ecc71)
+                .setTitle('✦ Daily Claim')
+                .setDescription(
+                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\`)\n\n` +
+                    `💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n` +
+                    `🔥 Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n` +
+                    `⏱️ Next Claim: <t:${nextClaimEpoch}:R>`
+                );
 
             await message.channel.send({ embeds: [embed] });
 

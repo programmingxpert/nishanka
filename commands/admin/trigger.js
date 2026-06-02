@@ -4,6 +4,8 @@ const config = require('../../config.json');
 
 module.exports = {
     category: 'admin',
+    devOnly: true,
+    hidden: true,
     data: {
         name: 'trigger',
         description: 'Manage simple text triggers for the server.',

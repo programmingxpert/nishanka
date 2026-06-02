@@ -41,10 +41,10 @@ const categoryDetails = {
 		emoji: '💍',
 		description: 'Propose, marry, divorce, adopt children, and build family trees.',
 	},
-	games: {
-		label: 'Minigames & Trivia',
+	minigames: {
+		label: 'Minigames',
 		emoji: '🎮',
-		description: 'Challenge others to wordbomb, scramble, hangman, and geoguesser.',
+		description: 'Challenge others to wordbomb, scramble, hangman, and battles.',
 	},
 	fun: {
 		label: 'Humor & Entertainment',
@@ -80,7 +80,7 @@ const categoryColors = {
 	economy: 0xf1c40f,
 	casino: 0xe74c3c,
 	marriage: 0xe84393,
-	games: 0x3498db,
+	minigames: 0x3498db,
 	fun: 0x9b59b6,
 	profile: 0x1abc9c,
 	music: 0x9b59b6,
@@ -95,6 +95,8 @@ const COMMAND_MAPPING = {
 	welcome: 'admin',
 	autorole: 'admin',
 	logging: 'admin',
+	leveling: 'admin',
+	snipetoggle: 'admin',
 
 	// Moderation
 	automod: 'moderation',
@@ -161,10 +163,10 @@ const COMMAND_MAPPING = {
 	slots: 'casino',
 	mines: 'casino',
 	buckshot: 'casino',
-	battle: 'casino',
+	battle: 'minigames',
 	blackjack: 'casino',
 	bj: 'casino',
-	animebattle: 'casino',
+	animebattle: 'minigames',
 	mblackjack: 'casino',
 
 	// Profile
@@ -182,15 +184,15 @@ const COMMAND_MAPPING = {
 	adopt: 'marriage',
 	disown: 'marriage',
 
-	// Games
-	wordbomb: 'games',
-	scramble: 'games',
-	emojidecode: 'games',
-	guesstheflag: 'games',
-	deathbattle: 'games',
-	geoguesser: 'games',
-	hangman: 'games',
-	truthordare: 'games',
+	// Minigames
+	wordbomb: 'minigames',
+	scramble: 'minigames',
+	emojidecode: 'minigames',
+	guesstheflag: 'minigames',
+	deathbattle: 'minigames',
+	geoguesser: 'minigames',
+	hangman: 'minigames',
+	truthordare: 'minigames',
 
 	// Fun
 	meme: 'fun',
@@ -237,7 +239,7 @@ const commandGroups = {
 	admin: [
 		{
 			title: '⚙️ Server Configurations',
-			commands: ['setquoteschannel', 'welcome', 'autorole', 'logging']
+			commands: ['setquoteschannel', 'welcome', 'autorole', 'logging', 'leveling', 'snipetoggle']
 		},
 		{
 			title: '⚡ Custom Triggers',
@@ -298,10 +300,6 @@ const commandGroups = {
 		{
 			title: '💣 Survival & Strategy',
 			commands: ['mines', 'buckshot']
-		},
-		{
-			title: '⚔️ Battles & Duels',
-			commands: ['battle', 'animebattle']
 		}
 	],
 	marriage: [
@@ -314,10 +312,14 @@ const commandGroups = {
 			commands: ['adopt', 'disown', 'family', 'familytree']
 		}
 	],
-	games: [
+	minigames: [
 		{
 			title: '🧠 Word & Vocabulary Games',
 			commands: ['wordbomb', 'scramble', 'hangman']
+		},
+		{
+			title: '⚔️ Battles & Duels',
+			commands: ['battle', 'animebattle', 'deathbattle']
 		},
 		{
 			title: '🌐 Trivia & Logic',
@@ -403,7 +405,7 @@ module.exports = {
 
 		// Group commands by category (collect name -> description map)
 		for (const [, cmd] of commands) {
-			if (cmd.hidden && !isOwner) continue;
+			if (cmd.devOnly || cmd.hidden) continue;
 			if (context.client.disabledCommands && context.client.disabledCommands.has(cmd.data.name)) continue;
 
 			// Permission filtering: Skip if user lacks required permissions
@@ -430,7 +432,7 @@ module.exports = {
 		}
 
 		// Sort categories by predefined order
-		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'casino', 'marriage', 'games', 'fun', 'profile', 'music', 'actions', 'utility'];
+		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'casino', 'marriage', 'minigames', 'fun', 'profile', 'music', 'actions', 'utility'];
 		const categories = Object.keys(grouped).sort((a, b) => {
 			const idxA = categoryOrder.indexOf(a);
 			const idxB = categoryOrder.indexOf(b);

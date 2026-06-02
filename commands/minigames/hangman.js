@@ -615,7 +615,7 @@ async function createLobby(interactionOrMessage, channel) {
 
 // ─── Module export ────────────────────────────────────────────────────────────
 module.exports = {
-    category: 'fun',
+    category: 'minigames',
     cooldown: 15,
     data: new SlashCommandBuilder()
         .setName('hangman')

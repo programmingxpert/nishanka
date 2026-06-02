@@ -1,5 +1,5 @@
-/* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const GuildSettings = require('../../models/guildSettingsSchema');
 
 module.exports = {
     category: 'utility',
@@ -12,6 +12,11 @@ module.exports = {
     async execute(interaction) {
         const client = interaction.client;
         const channelId = interaction.channelId;
+
+        const settings = await GuildSettings.findOne({ guildId: interaction.guildId }).lean();
+        if (settings?.bot?.snipeEnabled === false) {
+            return interaction.reply({ content: '❌ The snipe feature is disabled in this server.', ephemeral: true });
+        }
 
         if (!client.snipes || !client.snipes.has(channelId)) {
             return interaction.reply({ content: '❌ There are no recently deleted messages in this channel.', ephemeral: true });
@@ -39,6 +44,11 @@ module.exports = {
     async executePrefix(message) {
         const client = message.client;
         const channelId = message.channel.id;
+
+        const settings = await GuildSettings.findOne({ guildId: message.guild.id }).lean();
+        if (settings?.bot?.snipeEnabled === false) {
+            return message.reply('❌ The snipe feature is disabled in this server.').catch(() => {});
+        }
 
         if (!client.snipes || !client.snipes.has(channelId)) {
             return message.reply('❌ There are no recently deleted messages in this channel.').catch(() => {});

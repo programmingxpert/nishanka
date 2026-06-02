@@ -227,20 +227,18 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
         mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [row] });
     }
 
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('choice_'),
+    const collector = channel.createMessageComponentCollector({
+        filter: i => i.user.id === userId && i.customId.startsWith('choice_') && i.message.id === mainMessage.id,
         time: config.timeLimit || 30000
     });
 
     let chosenOption = null;
 
-    collector.on('collect', async i => {
-        try {
-            const index = parseInt(i.customId.replace('choice_', ''), 10);
-            chosenOption = scenario.options[index];
-            collector.stop('answered');
-            await i.deferUpdate();
-        } catch (_) {}
+    collector.on('collect', i => {
+        const index = parseInt(i.customId.replace('choice_', ''), 10);
+        chosenOption = scenario.options[index];
+        collector.stop('answered');
+        i.deferUpdate().catch(() => {});
     });
 
     collector.on('end', async (collected, reason) => {

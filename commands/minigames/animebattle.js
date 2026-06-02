@@ -884,7 +884,7 @@ const BOSSES = [
 ];
 
 module.exports = {
-    category: 'fun',
+    category: 'minigames',
     cooldown: 10,
     aliases: ['ab', 'animefight', 'fight'],
     data: new SlashCommandBuilder()

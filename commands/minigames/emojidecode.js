@@ -267,7 +267,7 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
 // ─── Export ────────────────────────────────────────────────────────────────────
 
 module.exports = {
-  category: 'fun',
+  category: 'minigames',
   cooldown: 10,
 
   data: new SlashCommandBuilder()

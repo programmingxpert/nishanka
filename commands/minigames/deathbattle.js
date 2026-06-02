@@ -11,7 +11,7 @@ const Bauble = require('../../models/baubleSchema');
 const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 module.exports = {
-    category: 'fun',
+    category: 'minigames',
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('deathbattle')

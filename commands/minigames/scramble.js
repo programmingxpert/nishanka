@@ -247,7 +247,7 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
 }
 
 module.exports = {
-    category: 'fun',
+    category: 'minigames',
     cooldown: 10,
     data: new SlashCommandBuilder()
         .setName('scramble')

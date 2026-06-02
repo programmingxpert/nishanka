@@ -7,6 +7,8 @@ const ADMIN_ID = '805007574193405952';
 
 module.exports = {
     category: 'economy',
+    devOnly: true,
+    hidden: true,
 
     data: { name: 'reset' },
 

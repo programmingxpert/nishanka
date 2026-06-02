@@ -5,6 +5,8 @@ const config = require('../../config.json');
 
 module.exports = {
     category: 'admin',
+    devOnly: true,
+    hidden: true,
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('setquoteschannel')

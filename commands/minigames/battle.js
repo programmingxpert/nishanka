@@ -66,7 +66,7 @@ function buildActionRow(playerEnergy) {
 }
 
 module.exports = {
-    category: 'economy',
+    category: 'minigames',
     cooldown: 15,
 
     data: new SlashCommandBuilder()

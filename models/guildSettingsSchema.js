@@ -19,7 +19,8 @@ const guildSettingsSchema = new mongoose.Schema({
         deleteInvoke: { type: Boolean, default: false },
         unknownCommandMsg: { type: Boolean, default: false },
         quotesChannelId: { type: String, default: null },
-        defaultPurgeAmount: { type: Number, default: 10 }
+                defaultPurgeAmount: { type: Number, default: 10 },
+        snipeEnabled: { type: Boolean, default: true }
     },
     leveling: {
         enabled: { type: Boolean, default: true },

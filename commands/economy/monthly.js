@@ -2,53 +2,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-function getMonthlyRarity(amount) {
-    if (amount <= 30000) {
-        return {
-            tier: 'Common',
-            name: 'Corporate Monthly Allowance',
-            desc: 'Your standard monthly stipend from the Baubleverse HR department. Spend it wisely.',
-            color: 0x95a5a6
-        };
-    } else if (amount <= 35000) {
-        return {
-            tier: 'Uncommon',
-            name: 'Stock Dividend Payout',
-            desc: 'Dividends from your investments in the bot\'s premium sticker collection.',
-            color: 0x2ecc71
-        };
-    } else if (amount <= 40000) {
-        return {
-            tier: 'Rare',
-            name: 'Offshore Interest Cashout',
-            desc: 'Interest accumulated in a highly suspicious offshore account. The tax fund didn\'t see this.',
-            color: 0x3498db
-        };
-    } else if (amount <= 45000) {
-        return {
-            tier: 'Epic',
-            name: 'Federal Reserve Vault Crack',
-            desc: 'A massive monthly heist! You slipped into the federal vaults and grabbed a stack of gold-pressed baubles.',
-            color: 0x9b59b6
-        };
-    } else {
-        return {
-            tier: 'Legendary',
-            name: 'Divine Stimulus Package',
-            desc: 'The heavens opened and rained down pure, sparkling, legendary baubles directly into your vault!',
-            color: 0xf1c40f
-        };
-    }
-}
-
-function formatTimeRemaining(ms) {
-    const totalSeconds = Math.floor(ms / 1000);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    return `${days}d ${hours}h ${minutes}m`;
-}
-
 module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
@@ -73,11 +26,11 @@ module.exports = {
                 const diff = now.getTime() - lastClaimed.getTime();
 
                 if (diff < cooldownMs) {
-                    const timeLeft = cooldownMs - diff;
+                    const nextClaimEpoch = Math.floor((lastClaimed.getTime() + cooldownMs) / 1000);
                     const embed = new EmbedBuilder()
-                        .setColor(0xFF0000)
-                        .setTitle('⏰ Too Early!')
-                        .setDescription(`You've already claimed your monthly allowance!\nYou can claim again in **${formatTimeRemaining(timeLeft)}**.`);
+                        .setColor(0x2b2d42)
+                        .setTitle('⏳ Monthly Cooldown')
+                        .setDescription(`Available <t:${nextClaimEpoch}:R>`);
 
                     return interaction.reply({ embeds: [embed] });
                 }
@@ -90,28 +43,24 @@ module.exports = {
             const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
             const incomeMultiplier = await getIncomeMultiplier(userId);
-            const totalReward = Math.floor(baseReward * globalMultiplier * incomeMultiplier);
+            const multiplier = globalMultiplier * incomeMultiplier;
+            const totalReward = Math.floor(baseReward * multiplier);
 
             // Save to database
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
             baubleData.monthlyLastClaimed = now;
             await baubleData.save();
 
-            const rarity = getMonthlyRarity(baseReward);
+            const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
             const embed = new EmbedBuilder()
-                .setColor(rarity.color)
-                .setTitle('📅 Monthly Allowance Claimed!')
-                .setDescription(`You successfully claimed your monthly Glimmering Baubles!\n*(Economy Multiplier: ${globalMultiplier}x)*`)
-                .addFields(
-                    { name: '✨ Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
-                    { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
-                    { name: '💰 Base Reward', value: `**${baseReward.toLocaleString()}** Baubles`, inline: true },
-                    { name: '💵 Total Earned', value: `**${totalReward.toLocaleString()}** Baubles`, inline: true },
-                    { name: '💼 New Balance', value: `**${baubleData.baubles.toLocaleString()}** Baubles`, inline: true }
-                )
-                .setTimestamp()
-                .setFooter({ text: 'Claim again next month!' });
+                .setColor(0x9b59b6)
+                .setTitle('✦ Monthly Claim')
+                .setDescription(
+                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward.toLocaleString()}\` • Multiplier: \`${multiplier.toFixed(2)}x\`)\n\n` +
+                    `💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n` +
+                    `⏱️ Next Claim: <t:${nextClaimEpoch}:R>`
+                );
 
             await interaction.reply({ embeds: [embed] });
 
@@ -139,11 +88,11 @@ module.exports = {
                 const diff = now.getTime() - lastClaimed.getTime();
 
                 if (diff < cooldownMs) {
-                    const timeLeft = cooldownMs - diff;
+                    const nextClaimEpoch = Math.floor((lastClaimed.getTime() + cooldownMs) / 1000);
                     const embed = new EmbedBuilder()
-                        .setColor(0xFF0000)
-                        .setTitle('⏰ Too Early!')
-                        .setDescription(`You've already claimed your monthly allowance!\nYou can claim again in **${formatTimeRemaining(timeLeft)}**.`);
+                        .setColor(0x2b2d42)
+                        .setTitle('⏳ Monthly Cooldown')
+                        .setDescription(`Available <t:${nextClaimEpoch}:R>`);
 
                     return message.channel.send({ embeds: [embed] });
                 }
@@ -155,27 +104,23 @@ module.exports = {
             const { getIncomeMultiplier } = require('../../utils/items');
             const globalMultiplier = await getGlobalMultiplier();
             const incomeMultiplier = await getIncomeMultiplier(userId);
-            const totalReward = Math.floor(baseReward * globalMultiplier * incomeMultiplier);
+            const multiplier = globalMultiplier * incomeMultiplier;
+            const totalReward = Math.floor(baseReward * multiplier);
 
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
             baubleData.monthlyLastClaimed = now;
             await baubleData.save();
 
-            const rarity = getMonthlyRarity(baseReward);
+            const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
             const embed = new EmbedBuilder()
-                .setColor(rarity.color)
-                .setTitle('📅 Monthly Allowance Claimed!')
-                .setDescription(`You successfully claimed your monthly Glimmering Baubles!\n*(Economy Multiplier: ${globalMultiplier}x)*`)
-                .addFields(
-                    { name: '✨ Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
-                    { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
-                    { name: '💰 Base Reward', value: `**${baseReward.toLocaleString()}** Baubles`, inline: true },
-                    { name: '💵 Total Earned', value: `**${totalReward.toLocaleString()}** Baubles`, inline: true },
-                    { name: '💼 New Balance', value: `**${baubleData.baubles.toLocaleString()}** Baubles`, inline: true }
-                )
-                .setTimestamp()
-                .setFooter({ text: 'Claim again next month!' });
+                .setColor(0x9b59b6)
+                .setTitle('✦ Monthly Claim')
+                .setDescription(
+                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward.toLocaleString()}\` • Multiplier: \`${multiplier.toFixed(2)}x\`)\n\n` +
+                    `💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n` +
+                    `⏱️ Next Claim: <t:${nextClaimEpoch}:R>`
+                );
 
             await message.channel.send({ embeds: [embed] });
 

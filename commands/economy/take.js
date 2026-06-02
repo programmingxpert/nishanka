@@ -4,6 +4,8 @@ const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
     category: 'economy',
+    devOnly: true,
+    hidden: true,
     data: { name: 'take' },
     async execute(interaction) {
         const adminId = "805007574193405952";
