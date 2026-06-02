@@ -497,7 +497,7 @@ module.exports = {
 					.setStyle(ButtonStyle.Link)
 					.setURL('https://nishanka.zeyuki.app/'),
 				new ButtonBuilder()
-					.setLabel('Docs')
+					.setLabel('🗎 Docs')
 					.setStyle(ButtonStyle.Link)
 					.setURL('https://nishanka.zeyuki.app/docs')
 			);
