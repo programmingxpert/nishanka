@@ -466,7 +466,7 @@ module.exports = {
 					`📚 ${totalCommands} Commands`,
 					'',
 					'Select a category below.'
-				].join('\\n')
+				].join('\n')
 			)
 			.setFooter({
 				text: 'Nishanka • Built with ❤️'
@@ -511,12 +511,6 @@ module.exports = {
 					.setURL('https://nishanka.zeyuki.app/')
 			);
 
-		const reply = await context.reply({
-			embeds: [embed],
-			components: [buttons, row],
-			ephemeral: context.isPrefix ? false : true,
-		});
-
 		// Create a collector to listen to the dropdown selection
 		const collector = reply.createMessageComponentCollector({
 			componentType: ComponentType.StringSelect,
@@ -537,7 +531,7 @@ module.exports = {
 						const activeInGroup = group.commands.filter(name => categoryCmds[name] !== undefined);
 						if (activeInGroup.length > 0) {
 							activeInGroup.forEach(name => formattedNames.add(name));
-							formattedSections.push(`**${group.title}**\\n${activeInGroup.map(name => "`" + name + "`").join(' ')}`);
+							formattedSections.push(`**${group.title}**\n${activeInGroup.map(name => "`" + name + "`").join(' ')}`);
 						}
 					}
 				} else {
@@ -546,7 +540,7 @@ module.exports = {
 						const activeInGroup = group.commands.filter(name => categoryCmds[name] !== undefined);
 						if (activeInGroup.length > 0) {
 							activeInGroup.forEach(name => formattedNames.add(name));
-							formattedSections.push(`**${group.title}**\\n${activeInGroup.map(name => "`" + name + "`").join(' ')}`);
+							formattedSections.push(`**${group.title}**\n${activeInGroup.map(name => "`" + name + "`").join(' ')}`);
 						}
 					}
 				}
@@ -559,7 +553,7 @@ module.exports = {
 					}
 				}
 				if (otherCmds.length > 0) {
-					formattedSections.push(`**❓ Miscellaneous Commands**\\n${otherCmds.map(name => "`" + name + "`").join(' ')}`);
+					formattedSections.push(`**❓ Miscellaneous Commands**\n${otherCmds.map(name => "`" + name + "`").join(' ')}`);
 				}
 
 				const details = categoryDetails[selected] || { label: selected.toUpperCase(), description: "List of commands" };
@@ -573,12 +567,12 @@ module.exports = {
 						embeds.push(
 							new EmbedBuilder()
 								.setTitle(`${details.emoji || '📂'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
-								.setDescription(`${details.description}\\n\\n━━━━━━━━━━━━━━━━━━\\n\\n${currentDescription}`)
+								.setDescription(`${details.description}\n\n━━━━━━━━━━━━━━━━━━\n\n${currentDescription}`)
 								.setColor(embedColor)
 						);
 						currentDescription = section;
 					} else {
-						if (currentDescription.length > 0) currentDescription += '\\n\\n';
+						if (currentDescription.length > 0) currentDescription += '\n\n';
 						currentDescription += section;
 					}
 				}
@@ -587,7 +581,7 @@ module.exports = {
 					embeds.push(
 						new EmbedBuilder()
 							.setTitle(`${details.emoji || '📂'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
-							.setDescription(`${details.description}\\n\\n━━━━━━━━━━━━━━━━━━\\n\\n${currentDescription || 'No commands found.'}`)
+							.setDescription(`${details.description}\n\n━━━━━━━━━━━━━━━━━━\n\n${currentDescription || 'No commands found.'}`)
 							.setColor(embedColor)
 					);
 				}
