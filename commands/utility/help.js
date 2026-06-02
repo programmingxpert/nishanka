@@ -448,24 +448,11 @@ module.exports = {
 			.setTitle('✦ Nishanka')
 			.setDescription(
 				[
-					'The all-in-one Discord experience.',
-					'',
-					'━━━━━━━━━━━━━━━━━━',
-					'',
-					'💵 Economy',
-					'🎰 Casino',
-					'💍 Marriage',
-					'🎮 Games',
-					'🎭 Fun',
-					'🛡️ Moderation',
-					'⚙️ Administration',
-					'🛠️ Utility',
-					'',
-					'━━━━━━━━━━━━━━━━━━',
-					'',
-					`📚 ${totalCommands} Commands`,
-					'',
-					'Select a category below.'
+			'**Economy • Games • Moderation • Utility**',
+			'',
+			'A complete Discord experience built around progression, fun, and community.',
+			'',
+			'> Select a category below to explore commands.'
 				].join('\n')
 			)
 			.setFooter({
@@ -572,9 +559,15 @@ module.exports = {
 					if (currentDescription.length + section.length > 1800) {
 						embeds.push(
 							new EmbedBuilder()
-								.setTitle(`${details.emoji || '📂'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
-								.setDescription(`${details.description}\n\n━━━━━━━━━━━━━━━━━━\n\n${currentDescription}`)
-								.setColor(embedColor)
+								.setColor(0x2B2D31)
+								.setTitle(`${details.emoji || '✦'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
+								.setDescription(
+									[
+										`${details.description}`,
+										'',
+										currentDescription
+									].join('\n')
+								)
 						);
 						currentDescription = section;
 					} else {
@@ -586,8 +579,15 @@ module.exports = {
 				if (currentDescription.length > 0 || embeds.length === 0) {
 					embeds.push(
 						new EmbedBuilder()
-							.setTitle(`${details.emoji || '📂'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
-							.setDescription(`${details.description}\n\n━━━━━━━━━━━━━━━━━━\n\n${currentDescription || 'No commands found.'}`)
+							.setColor(0x2B2D31)
+							.setTitle(`${details.emoji || '✦'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
+							.setDescription(
+								[
+									`${details.description}`,
+									'',
+									currentDescription || 'No commands found.'
+								].join('\n')
+							)
 							.setColor(embedColor)
 					);
 				}
