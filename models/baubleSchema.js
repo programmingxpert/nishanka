@@ -17,6 +17,8 @@ const baubleSchema = new Schema({
     dailyMaxStreak: { type: Number, default: 0 },
     dailyLastClaimed: { type: Date, default: null },
     weeklyLastClaimed: { type: Date, default: null },
+    hourlyLastClaimed: { type: Date, default: null },
+    monthlyLastClaimed: { type: Date, default: null },
     inventory: {
         type: [{
             itemId: { type: String, required: true },

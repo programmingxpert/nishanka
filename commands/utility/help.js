@@ -90,6 +90,9 @@ const COMMAND_MAPPING = {
 	// Admin
 	setquoteschannel: 'admin',
 	trigger: 'admin',
+	welcome: 'admin',
+	autorole: 'admin',
+	logging: 'admin',
 
 	// Moderation
 	automod: 'moderation',
@@ -125,6 +128,8 @@ const COMMAND_MAPPING = {
 	rob: 'economy',
 	daily: 'economy',
 	weekly: 'economy',
+	hourly: 'economy',
+	monthly: 'economy',
 	checklist: 'economy',
 	grab: 'economy',
 	shop: 'economy',
@@ -230,7 +235,7 @@ const commandGroups = {
 	admin: [
 		{
 			title: '⚙️ Server Configurations',
-			commands: ['setquoteschannel']
+			commands: ['setquoteschannel', 'welcome', 'autorole', 'logging']
 		},
 		{
 			title: '⚡ Custom Triggers',
@@ -268,7 +273,7 @@ const commandGroups = {
 		},
 		{
 			title: '💼 Earnings & Work',
-			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'checklist', 'grab', 'taxfund', 'crime', 'dig', 'dumpster', 'expedition', 'fish', 'memehunt']
+			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'hourly', 'monthly', 'checklist', 'grab', 'taxfund', 'crime', 'dig', 'dumpster', 'expedition', 'fish', 'memehunt']
 		},
 		{
 			title: '🛒 Market & Trading',
@@ -445,14 +450,14 @@ module.exports = {
 			if (cat === 'admin' && !isOwner) continue;
 
 			const count = Object.values(grouped[cat] || {}).length;
-			catLines.push(`• **${details.emoji} ${details.label}** (\`${cat}\` • ${count} commands)\n  ↳ _${details.description}_`);
+			catLines.push(`${details.emoji} **${details.label}** (\`${cat}\` • ${count} commands)\n> ${details.description}`);
 		}
 
 		embed.setDescription(
 			'👋 **Welcome to the Nishanka Help Menu!**\n\n' +
 			'Select a category from the dropdown below to explore commands.\n\n' +
 			'📚 *Featured Categories:*\n' +
-			catLines.slice(0, 5).join('\n')
+			catLines.slice(0, 5).join('\n\n')
 		);
 
 		embed.setFooter({ text: 'Use /help or -help | Nishanka ©️' });
@@ -514,7 +519,7 @@ module.exports = {
 						if (activeInGroup.length > 0) {
 							const groupLines = activeInGroup.map(name => {
 								formattedNames.add(name);
-								return `\`${name}\` - ${categoryCmds[name]}`;
+								return `• \`${name}\` — ${categoryCmds[name]}`;
 							});
 							formattedSections.push(`**${group.title}**\n${groupLines.join('\n')}`);
 						}
@@ -532,7 +537,7 @@ module.exports = {
 					if (selected === 'actions') {
 						formattedSections.push(`**❓ Other Actions**\n${otherCmds.map(name => `\`${name}\``).join(' ')}`);
 					} else {
-						const otherLines = otherCmds.map(name => `\`${name}\` - ${categoryCmds[name]}`);
+						const otherLines = otherCmds.map(name => `• \`${name}\` — ${categoryCmds[name]}`);
 						formattedSections.push(`**❓ Miscellaneous Commands**\n${otherLines.join('\n')}`);
 					}
 				}

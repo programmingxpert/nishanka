@@ -245,7 +245,7 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
     collector.on('end', async (collected, reason) => {
         let resultEmbed = new EmbedBuilder();
 
-        if (reason === 'answered' && chosenOption) {
+        if (chosenOption) {
             if (chosenOption.success) {
                 const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, config.baseEarnings || 100, config.statField);
                 

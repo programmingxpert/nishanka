@@ -137,7 +137,7 @@ function buildInventoryPages(baubleData, user, unlockedCollections, unlockedTitl
             const item = ITEMS[invItem.itemId];
             if (item && invItem.quantity > 0) {
                 const displayName = item.name.startsWith(item.emoji) ? item.name : `${item.emoji} ${item.name}`;
-                itemsList.push(`• **${displayName}** × \`${invItem.quantity}\` (\`${item.id}\`)\n  ↳ _${item.description}_`);
+                itemsList.push(`**${displayName}** × \`${invItem.quantity}\` (\`${item.id}\`)\n> ${item.description}`);
             }
         }
     }

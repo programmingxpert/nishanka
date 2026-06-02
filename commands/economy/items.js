@@ -245,14 +245,12 @@ function buildItemsEmbed(filter) {
                 if (item.sellPrice) priceInfo.push(`Sell: **${item.sellPrice.toLocaleString()}**`);
                 
                 const pricesStr = priceInfo.length > 0 
-                    ? `\n  💰 ${priceInfo.join('  •  ')}` 
-                    : '\n  💰 Unbuyable';
-                
-                const useStr = item.useInfo ? `\n  ⚡ *Use:* _${item.useInfo}_` : '';
+                    ? ` • 💰 ${priceInfo.join(' | ')}` 
+                    : ' • 💰 Unbuyable';
                 
                 const displayName = item.name.startsWith(item.emoji) ? item.name : `${item.emoji} ${item.name}`;
                 
-                lines.push(`• **${displayName}** (\`${item.id}\`) [${item.rarity}]${pricesStr}\n  ↳ _${item.description}_${useStr}`);
+                lines.push(`**${displayName}** (\`${item.id}\`) • \`${item.rarity}\`${pricesStr}\n> ${item.description}`);
             }
             embed.setDescription(embed.data.description + lines.join('\n\n'));
         }
