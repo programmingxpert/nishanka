@@ -417,11 +417,6 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
 
                             const winMult = getMultiplier(16, finalMinesCount, revealedCount);
                             let winnings = Math.floor(winMult * amount);
-                            let isCapped = false;
-                            if (finalMinesCount > 8 && winnings > 100000) {
-                                winnings = 100000;
-                                isCapped = true;
-                            }
 
                             baubleData = await Bauble.findOne({ userId });
                             baubleData.baubles += winnings;
@@ -434,11 +429,11 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             const perfectEmbed = new EmbedBuilder()
                                 .setColor(0x4ADE80)
                                 .setTitle('🏆  PERFECT GAME!')
-                                .setDescription(`Unbelievable! You cleared the entire grid without hitting a single mine!\n\nYou won **${winnings.toLocaleString()}** Glimmering Baubles!${isCapped ? ' *(Capped to 100K)*' : ''}`)
+                                .setDescription(`Unbelievable! You cleared the entire grid without hitting a single mine!\n\nYou won **${winnings.toLocaleString()}** Glimmering Baubles!`)
                                 .addFields(
                                     { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                                     { name: '📈 Final Multiplier', value: `\`${winMult.toFixed(2)}x\``, inline: true },
-                                    { name: '💵 Winnings Earned', value: `\`${winnings.toLocaleString()} Baubles\`${isCapped ? ' (Capped)' : ''}`, inline: true },
+                                    { name: '💵 Winnings Earned', value: `\`${winnings.toLocaleString()} Baubles\``, inline: true },
                                     { name: '👛 New Balance', value: `\`${baubleData.baubles.toLocaleString()} Baubles\``, inline: true }
                                 )
                                 .setTimestamp()
@@ -450,11 +445,6 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             const nextMult = getMultiplier(16, finalMinesCount, revealedCount + 1);
                             const currentMult = getMultiplier(16, finalMinesCount, revealedCount);
                             let currentWinnings = Math.floor(currentMult * amount);
-                            let isCapped = false;
-                            if (finalMinesCount > 8 && currentWinnings > 100000) {
-                                currentWinnings = 100000;
-                                isCapped = true;
-                            }
 
                             const updateEmbed = new EmbedBuilder()
                                 .setColor(0x7c6cf0)
@@ -463,7 +453,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                                 .addFields(
                                     { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                                     { name: '📈 Multiplier', value: `\`${currentMult.toFixed(2)}x\` (Next: \`${nextMult.toFixed(2)}x\`)`, inline: true },
-                                    { name: '💵 Winnings', value: `\`${currentWinnings.toLocaleString()} Baubles\`${isCapped ? ' (Capped)' : ''}`, inline: true },
+                                    { name: '💵 Winnings', value: `\`${currentWinnings.toLocaleString()} Baubles\``, inline: true },
                                     { name: '💎 Diamonds Found', value: `\`${revealedCount} / ${totalSafe}\``, inline: true }
                                 )
                                 .setTimestamp()
@@ -482,11 +472,6 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
 
                     const winMult = getMultiplier(16, finalMinesCount, revealedCount);
                     let winnings = Math.floor(winMult * amount);
-                    let isCapped = false;
-                    if (finalMinesCount > 8 && winnings > 100000) {
-                        winnings = 100000;
-                        isCapped = true;
-                    }
 
                     baubleData = await Bauble.findOne({ userId });
                     baubleData.baubles += winnings;
@@ -503,7 +488,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         .addFields(
                             { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                             { name: '📈 Cashout Multiplier', value: `\`${winMult.toFixed(2)}x\``, inline: true },
-                            { name: '💵 Winnings Claimed', value: `**${winnings.toLocaleString()}** Baubles${isCapped ? ' (Capped)' : ''}`, inline: true },
+                            { name: '💵 Winnings Claimed', value: `**${winnings.toLocaleString()}** Baubles`, inline: true },
                             { name: '👛 New Balance', value: `**${baubleData.baubles.toLocaleString()}** Baubles`, inline: true }
                         )
                         .setTimestamp()
@@ -537,11 +522,6 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                     } else {
                         const winMult = getMultiplier(16, finalMinesCount, revealedCount);
                         let winnings = Math.floor(winMult * amount);
-                        let isCapped = false;
-                        if (finalMinesCount > 8 && winnings > 100000) {
-                            winnings = 100000;
-                            isCapped = true;
-                        }
                         
                         baubleData.baubles += winnings;
                         await baubleData.save();
@@ -557,7 +537,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             .addFields(
                                 { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                                 { name: '📈 Multiplier', value: `\`${winMult.toFixed(2)}x\``, inline: true },
-                                { name: '💵 Auto Payout', value: `**${winnings.toLocaleString()}** Baubles${isCapped ? ' (Capped)' : ''}`, inline: true },
+                                { name: '💵 Auto Payout', value: `**${winnings.toLocaleString()}** Baubles`, inline: true },
                                 { name: '👛 New Balance', value: `**${baubleData.baubles.toLocaleString()}** Baubles`, inline: true }
                             )
                             .setTimestamp()
