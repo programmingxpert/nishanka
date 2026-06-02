@@ -498,17 +498,17 @@ module.exports = {
 				new ButtonBuilder()
 					.setLabel('Invite')
 					.setStyle(ButtonStyle.Link)
-					.setURL('YOUR_INVITE_LINK'),
+					.setURL('https://discord.com/api/oauth2/authorize?client_id=1357752347643609198&permissions=8&scope=bot%20applications.commands'),
 
 				new ButtonBuilder()
 					.setLabel('Support')
 					.setStyle(ButtonStyle.Link)
-					.setURL('YOUR_SUPPORT_SERVER'),
+					.setURL('https://discord.gg/tkPfDP4n7D'),
 
 				new ButtonBuilder()
 					.setLabel('Website')
 					.setStyle(ButtonStyle.Link)
-					.setURL('YOUR_WEBSITE')
+					.setURL('https://nishanka.zeyuki.app/')
 			);
 
 		const reply = await context.reply({
