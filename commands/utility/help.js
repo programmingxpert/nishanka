@@ -265,7 +265,7 @@ const commandGroups = {
 	giveaway: [
 		{
 			title: '🎁 Giveaway Control',
-			commands: ['giveaway', 'giveawayend'] // Edit 4 Part
+			commands: ['giveaway', 'giveawayend']
 		}
 	],
 	economy: [
@@ -510,6 +510,12 @@ module.exports = {
 					.setStyle(ButtonStyle.Link)
 					.setURL('https://nishanka.zeyuki.app/')
 			);
+
+		const reply = await context.reply({
+			embeds: [embed],
+			components: [buttons, row],
+			ephemeral: context.isPrefix ? false : true,
+		});
 
 		// Create a collector to listen to the dropdown selection
 		const collector = reply.createMessageComponentCollector({
