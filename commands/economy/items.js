@@ -22,8 +22,6 @@ const CATEGORIES = {
     unique: { name: '👑 Unique', desc: 'One-of-a-kind items (exactly 1 copy exists globally).' }
 };
 
-// Priority order for categories shown in first embed
-const PRIORITY_CATEGORIES = ['boosters', 'cosmetics', 'computers', 'mythic', 'unique', 'family'];
 
 module.exports = {
     category: 'economy',
@@ -80,21 +78,19 @@ module.exports = {
     }
 };
 
-async function sendItemsCatalog(interaction) {
-    const embed = new EmbedBuilder()
-        .setColor(0x2b2d42)
-        .setTitle('📖 Item Catalog')
-        .setDescription(
-            '**Select a category below to browse items.**\n\n' +
-            '🌟 *Popular Categories:*\n' +
-            PRIORITY_CATEGORIES.map(key => {
-                const cat = CATEGORIES[key];
-                const count = Object.values(ITEMS).filter(i => i.category === key).length;
-                return `• **${cat.name}** (${count} items)`;
-            }).join('\n')
-        )
-        .setFooter({ text: 'Use the dropdown to explore all 11 categories' })
-        .setTimestamp();
+const totalItems = Object.keys(ITEMS).length;
+
+const embed = new EmbedBuilder()
+    .setColor(0x2b2d42)
+    .setTitle('📖 Item Catalog')
+    .setDescription(
+       'Browse every obtainable item in the economy.\n\n' +
+        `📂 **Categories:** ${Object.keys(CATEGORIES).length}\n` +
+        `📦 **Items:** ${totalItems}\n\n` +
+        'Select a category from the dropdown below.'
+    )
+    .setFooter({ text: 'Choose a category to begin browsing' })
+    .setTimestamp();
 
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId('items-category-select')
@@ -148,21 +144,19 @@ async function sendItemsCatalog(interaction) {
     });
 }
 
-async function sendItemsCatalogPrefix(message) {
-    const embed = new EmbedBuilder()
-        .setColor(0x2b2d42)
-        .setTitle('📖 Item Catalog')
-        .setDescription(
-            '**Select a category below to browse items.**\n\n' +
-            '🌟 *Popular Categories:*\n' +
-            PRIORITY_CATEGORIES.map(key => {
-                const cat = CATEGORIES[key];
-                const count = Object.values(ITEMS).filter(i => i.category === key).length;
-                return `• **${cat.name}** (${count} items)`;
-            }).join('\n')
-        )
-        .setFooter({ text: 'Use the dropdown to explore all 11 categories' })
-        .setTimestamp();
+const totalItems = Object.keys(ITEMS).length;
+
+const embed = new EmbedBuilder()
+    .setColor(0x2b2d42)
+    .setTitle('📖 Item Catalog')
+    .setDescription(
+        'Browse every obtainable item in the economy.\n\n' +
+        `📂 **Categories:** ${Object.keys(CATEGORIES).length}\n` +
+        `📦 **Items:** ${totalItems}\n\n` +
+        'Select a category from the dropdown below.'
+    )
+    .setFooter({ text: 'Choose a category to begin browsing' })
+    .setTimestamp();
 
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId(`items-prefix-${message.author.id}`)

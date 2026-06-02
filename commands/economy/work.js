@@ -188,6 +188,101 @@ async function runWorkGame(initialData, channel, user) {
 }
 
 /* =========================
+   GENERIC CHOICE GAME DRIVER
+========================= */
+
+async function runSimpleChoiceGame(initialData, channel, user, baubleData, config) {
+    const isSlash = !!initialData.deferReply;
+    const userId = user.id;
+
+    // Pick a random scenario if multiple are provided
+    const scenario = config.scenarios 
+        ? config.scenarios[Math.floor(Math.random() * config.scenarios.length)]
+        : config;
+
+    const embed = new EmbedBuilder()
+        .setColor(config.color || 0x3498db)
+        .setTitle(config.title)
+        .setDescription(scenario.description)
+        .setFooter({ text: config.footerText || 'Choose wisely!' });
+
+    // Build buttons
+    const buttons = scenario.options.map((opt, index) => {
+        return new ButtonBuilder()
+            .setCustomId(`choice_${index}`)
+            .setLabel(opt.label)
+            .setStyle(ButtonStyle.Primary);
+    });
+
+    const row = new ActionRowBuilder().addComponents(buttons);
+
+    let mainMessage;
+    if (isSlash) {
+        if (initialData.replied || initialData.deferred) {
+            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [row], withResponse: true });
+        } else {
+            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [row], withResponse: true });
+        }
+    } else {
+        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [row] });
+    }
+
+    const collector = mainMessage.createMessageComponentCollector({
+        filter: i => i.user.id === userId && i.customId.startsWith('choice_'),
+        max: 1,
+        time: config.timeLimit || 15000
+    });
+
+    let chosenOption = null;
+
+    collector.on('collect', async i => {
+        try { await i.deferUpdate(); } catch (_) {}
+        const index = parseInt(i.customId.replace('choice_', ''), 10);
+        chosenOption = scenario.options[index];
+        collector.stop('answered');
+    });
+
+    collector.on('end', async (collected, reason) => {
+        let resultEmbed = new EmbedBuilder();
+
+        if (reason === 'answered' && chosenOption) {
+            if (chosenOption.success) {
+                const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, config.baseEarnings || 100, config.statField);
+                
+                resultEmbed
+                    .setColor(0x2ecc71)
+                    .setTitle(config.winTitle || '🎉 Success!')
+                    .setDescription(`${chosenOption.msg || 'You did it!'}${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
+                    .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
+
+                if (unlockedTitles.length > 0) {
+                    resultEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
+                }
+            } else {
+                resultEmbed
+                    .setColor(0xe74c3c)
+                    .setTitle(config.loseTitle || '❌ Failure!')
+                    .setDescription(`${chosenOption.msg || 'You failed.'}\n\nEarned **0** Glimmering Baubles.`);
+            }
+        } else {
+            // Timeout
+            resultEmbed
+                .setColor(0x95a5a6)
+                .setTitle('⏰ Too Slow!')
+                .setDescription(`${config.timeoutMsg || 'You hesitated too long and failed.'}\n\nEarned **0** Glimmering Baubles.`);
+        }
+
+        const finalEmbed = appendWorkAgainFooter(resultEmbed, initialData, baubleData);
+        await mainMessage.edit({
+            embeds: [finalEmbed],
+            components: [buildWorkAgainRow()]
+        }).catch(() => {});
+
+        attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
+    });
+}
+
+/* =========================
    MINING GAME
 ========================= */
 
@@ -196,9 +291,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
     const userId = user.id;
 
     const progress = 100;
-
-    const bar =
-        '`' + '█'.repeat(10) + ` ${progress}%\``;
+    const bar = '`' + '█'.repeat(10) + ` ${progress}%\``;
 
     const embed = new EmbedBuilder()
         .setColor(0x9b59b6)
@@ -312,27 +405,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
         const baseEarnings = Math.min(80, clicks * 4);
         const earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
 
-        const { finalEarnings, taxMsg } = await applyParentLaborTax(userId, earnings, baubleData);
-
-        try {
-            const currentProfile =
-                await Bauble.findOne({ userId });
-
-            if (currentProfile) {
-                currentProfile.baubles += finalEarnings;
-                currentProfile.dailyWorkLastCompleted = new Date();
-
-                await currentProfile.save();
-
-                baubleData.baubles =
-                    currentProfile.baubles;
-            }
-        } catch (dbErr) {
-            console.error(
-                'Error saving mining earnings:',
-                dbErr
-            );
-        }
+        const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, null);
 
         const successEmbed = new EmbedBuilder()
             .setColor(0x2ecc71)
@@ -346,7 +419,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
             )
             .addFields({
                 name: '💰 New Balance',
-                value: `${baubleData.baubles} Baubles`,
+                value: `${balance} Baubles`,
                 inline: true
             })
             .setTimestamp()
@@ -354,15 +427,9 @@ async function runMiningGame(initialData, channel, user, baubleData) {
                 text: 'Hard work pays off 💼'
             });
 
-        const disabledRow =
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('work_mine')
-                    .setLabel('Mining Complete')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(true)
-                    .setEmoji('💎')
-            );
+        if (unlockedTitles && unlockedTitles.length > 0) {
+            successEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
+        }
 
         const finalEmbed = appendWorkAgainFooter(successEmbed, initialData, baubleData);
         await mainMessage
@@ -497,28 +564,16 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
         clearTimeout(alertTimeout);
 
         let earnings = 0;
-
         const resultEmbed = new EmbedBuilder();
-
-        const disabledRow =
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('work_security')
-                    .setLabel('Incident Concluded')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(true)
-                    .setEmoji('📹')
-            );
 
         if (reason === 'early') {
             resultEmbed
                 .setColor(0xe74c3c)
                 .setTitle('❌ False Alarm!')
                 .setDescription(
-                    `You got scared by a shadow and embarrassed yourself.\n\nEarned **0** Glimmering Baubles.`
+                    `You got scared by a shadow and tackled a cardboard cutout of the bank manager. Embarrassing.\n\nEarned **0** Glimmering Baubles.`
                 );
         } else if (reason === 'caught') {
-
             const ms = Date.now() - startTime;
 
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
@@ -539,285 +594,43 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
             
             earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
 
-            const { finalEarnings, taxMsg } = await applyParentLaborTax(userId, earnings, baubleData);
+            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, 'inspectionsSurvived');
 
             resultEmbed
                 .setColor(0x2ecc71)
                 .setTitle('👮 Security Job Complete!')
                 .setDescription(
-                    `You caught the intruder in **${ms}ms**!\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
-                );
+                    `You caught the intruder in **${ms}ms**!${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
+                )
+                .addFields({
+                    name: '💰 New Balance',
+                    value: `${balance} Baubles`,
+                    inline: true
+                });
 
-            try {
-                const currentProfile =
-                    await Bauble.findOne({ userId });
-
-                if (currentProfile) {
-                    currentProfile.baubles += finalEarnings;
-                    currentProfile.dailyWorkLastCompleted = new Date();
-
-                    await currentProfile.save();
-
-                    baubleData.baubles =
-                        currentProfile.baubles;
-                }
-            } catch (dbErr) {
-                console.error(
-                    'Error saving security earnings:',
-                    dbErr
-                );
+            if (unlockedTitles && unlockedTitles.length > 0) {
+                resultEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
             }
 
-            resultEmbed.addFields({
-                name: '💰 New Balance',
-                value: `${baubleData.baubles} Baubles`,
-                inline: true
-            });
-
         } else {
-
             resultEmbed
                 .setColor(0x7f8c8d)
                 .setTitle('❌ Thief Escaped!')
                 .setDescription(
-                    `You missed the intruder completely.\n\nEarned **0** Glimmering Baubles.`
+                    `You were playing games on your phone and the thief took the entire vault.\n\nEarned **0** Glimmering Baubles.`
                 );
         }
 
-        const components = reason === 'caught' ? [buildWorkAgainRow()] : [disabledRow];
-        const finalEmbed = reason === 'caught'
-            ? appendWorkAgainFooter(resultEmbed, initialData, baubleData)
-            : resultEmbed;
+        const finalEmbed = appendWorkAgainFooter(resultEmbed, initialData, baubleData);
 
         await mainMessage
             .edit({
                 embeds: [finalEmbed],
-                components
+                components: [buildWorkAgainRow()]
             })
             .catch(() => {});
 
-        if (reason === 'caught') {
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        }
-    });
-}
-
-/* =========================
-   FIXED ELECTRICIAN GAME
-========================= */
-
-async function runElectricianGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-
-    const wireClues = [
-        { clue: "Cut the color of the sky!", answer: "blue" },
-        { clue: "Cut the color of grass!", answer: "green" },
-        { clue: "Cut the color of fire!", answer: "red" },
-        { clue: "Cut the color of bananas!", answer: "yellow" },
-        { clue: "Cut the color with 5 letters!", answer: "green" },
-        { clue: "Cut the color with 6 letters!", answer: "yellow" },
-        { clue: "Cut the primary color that starts with B!", answer: "blue" },
-        { clue: "Cut the primary color that starts with R!", answer: "red" }
-    ];
-
-    const selectedClue =
-        wireClues[Math.floor(Math.random() * wireClues.length)];
-
-    const embed = new EmbedBuilder()
-        .setColor(0xf1c40f)
-        .setTitle('🔌 Emergency Electrician')
-        .setDescription(
-            `A power generator is overloading! Cut the correct wire within **10 seconds** to stabilize it!\n\n💡 **Code Hint:** *${selectedClue.clue}*`
-        )
-        .setFooter({ text: 'Focus!' });
-
-    const btnRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('wire_red')
-            .setLabel('Red')
-            .setStyle(ButtonStyle.Danger)
-            .setEmoji('🔴'),
-
-        new ButtonBuilder()
-            .setCustomId('wire_blue')
-            .setLabel('Blue')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('🔵'),
-
-        new ButtonBuilder()
-            .setCustomId('wire_green')
-            .setLabel('Green')
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('🟢'),
-
-        new ButtonBuilder()
-            .setCustomId('wire_yellow')
-            .setLabel('Yellow')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🟡')
-    );
-
-    let mainMessage;
-
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({
-                content: `<@${userId}>`,
-                embeds: [embed],
-                components: [btnRow],
-                withResponse: true
-            });
-        } else {
-            mainMessage = await initialData.reply({
-                content: `<@${userId}>`,
-                embeds: [embed],
-                components: [btnRow],
-                withResponse: true
-            });
-        }
-    } else {
-        mainMessage = await channel.send({
-            content: `<@${userId}>`,
-            embeds: [embed],
-            components: [btnRow]
-        });
-    }
-
-    let gameResult = null;
-    let clickedColor = null;
-
-    const collector =
-        mainMessage.createMessageComponentCollector({
-            filter:
-                i =>
-                    i.user.id === userId &&
-                    i.customId.startsWith('wire_'),
-            time: 10000
-        });
-
-    collector.on('collect', async i => {
-        try {
-            await i.deferUpdate();
-        } catch (_) {}
-
-        clickedColor =
-            i.customId.replace('wire_', '');
-
-        if (clickedColor === selectedClue.answer) {
-            gameResult = 'success';
-        } else {
-            gameResult = 'wrong';
-        }
-
-        collector.stop();
-    });
-
-    collector.on('end', async () => {
-
-        let earnings = 0;
-
-        const resultEmbed = new EmbedBuilder();
-
-        const disabledRow =
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('wire_red')
-                    .setLabel('Red')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('🔴')
-                    .setDisabled(true),
-
-                new ButtonBuilder()
-                    .setCustomId('wire_blue')
-                    .setLabel('Blue')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('🔵')
-                    .setDisabled(true),
-
-                new ButtonBuilder()
-                    .setCustomId('wire_green')
-                    .setLabel('Green')
-                    .setStyle(ButtonStyle.Success)
-                    .setEmoji('🟢')
-                    .setDisabled(true),
-
-                new ButtonBuilder()
-                    .setCustomId('wire_yellow')
-                    .setLabel('Yellow')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('🟡')
-                    .setDisabled(true)
-            );
-
-        if (gameResult === 'success') {
-
-            const { getGlobalMultiplier } = require('../../utils/economyEngine');
-            const { getIncomeMultiplier } = require('../../utils/items');
-            const globalMultiplier = await getGlobalMultiplier();
-            const incomeMultiplier = await getIncomeMultiplier(userId);
-            earnings = Math.floor(65 * globalMultiplier * incomeMultiplier);
-
-            const { finalEarnings, taxMsg } = await applyParentLaborTax(userId, earnings, baubleData);
-
-            resultEmbed
-                .setColor(0x2ecc71)
-                .setTitle('✅ Generator Stabilized!')
-                .setDescription(
-                    `Excellent work! You cut the **${clickedColor.toUpperCase()}** wire.\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
-                );
-
-            try {
-                const currentProfile =
-                    await Bauble.findOne({ userId });
-
-                if (currentProfile) {
-                    currentProfile.baubles += finalEarnings;
-                    currentProfile.dailyWorkLastCompleted = new Date();
-
-                    await currentProfile.save();
-
-                    baubleData.baubles =
-                        currentProfile.baubles;
-                }
-            } catch (dbErr) {
-                console.error(
-                    'Error saving electrician earnings:',
-                    dbErr
-                );
-            }
-
-            resultEmbed.addFields({
-                name: '💰 New Balance',
-                value: `${baubleData.baubles} Baubles`,
-                inline: true
-            });
-
-        } else if (gameResult === 'wrong') {
-
-            resultEmbed
-                .setColor(0xe74c3c)
-                .setTitle('💥 Short Circuit!')
-                .setDescription(
-                    `ZAP! You cut the **${clickedColor.toUpperCase()}** wire instead of the **${selectedClue.answer.toUpperCase()}** wire!\n\nEarned **0** Glimmering Baubles.`
-                );
-
-        } else {
-
-            resultEmbed
-                .setColor(0xe67e22)
-                .setTitle('💥 Generator Overloaded!')
-                .setDescription(
-                    `You didn't cut a wire in time and the generator exploded!\n\nEarned **0** Glimmering Baubles.`
-                );
-        }
-
-        await mainMessage
-            .edit({
-                embeds: [resultEmbed],
-                components: [disabledRow]
-            })
-            .catch(() => {});
+        attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
     });
 }
 
@@ -899,13 +712,6 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
         let earnings = 0;
         let resultEmbed = new EmbedBuilder();
 
-        const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('barista_coffee').setLabel('Coffee').setStyle(ButtonStyle.Primary).setEmoji('☕').setDisabled(true),
-            new ButtonBuilder().setCustomId('barista_milk').setLabel('Milk').setStyle(ButtonStyle.Secondary).setEmoji('🥛').setDisabled(true),
-            new ButtonBuilder().setCustomId('barista_chocolate').setLabel('Chocolate').setStyle(ButtonStyle.Success).setEmoji('🍫').setDisabled(true),
-            new ButtonBuilder().setCustomId('barista_ice').setLabel('Ice').setStyle(ButtonStyle.Danger).setEmoji('🧊').setDisabled(true)
-        );
-
         if (reason === 'complete') {
             const sortedSelected = [...selectedIngredients].sort();
             const sortedRecipe = [...recipe.ingredients].sort();
@@ -918,32 +724,23 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
                 const incomeMultiplier = await getIncomeMultiplier(userId);
                 earnings = Math.floor(70 * globalMultiplier * incomeMultiplier);
 
-                const { finalEarnings, taxMsg } = await applyParentLaborTax(userId, earnings, baubleData);
+                const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, 'customersServed');
                 
                 resultEmbed
                     .setColor(0x2ecc71)
                     .setTitle('☕ Order Served!')
-                    .setDescription(`Perfect! You brewed a fresh **${recipe.name}**! The customer tipped you generously.\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`)
+                    .setDescription(`Perfect! You brewed a fresh **${recipe.name}**! The customer tipped you generously.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`)
                     .setTimestamp();
 
-                try {
-                    const currentProfile = await Bauble.findOne({ userId });
-                    if (currentProfile) {
-                        currentProfile.baubles += finalEarnings;
-                        currentProfile.dailyWorkLastCompleted = new Date();
-                        await currentProfile.save();
-                        baubleData.baubles = currentProfile.baubles;
-                    }
-                } catch (dbErr) {
-                    console.error('Error saving barista earnings:', dbErr);
+                resultEmbed.addFields({ name: '💰 New Balance', value: `${balance} Baubles`, inline: true });
+                if (unlockedTitles.length > 0) {
+                    resultEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
                 }
-
-                resultEmbed.addFields({ name: '💰 New Balance', value: `${baubleData.baubles} Baubles`, inline: true });
             } else {
                 resultEmbed
                     .setColor(0xe74c3c)
                     .setTitle('🤢 Ruined Drink')
-                    .setDescription(`Yuck! You mixed a weird combo and served it to the customer. They gagged and walked out!\n\nEarned **0** Glimmering Baubles.`)
+                    .setDescription(`Yuck! You mixed a weird combo and served it to the customer. They gagged, called you a monster, and walked out!\n\nEarned **0** Glimmering Baubles.`)
                     .setTimestamp();
             }
         } else {
@@ -951,13 +748,512 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
             resultEmbed
                 .setColor(0x95a5a6)
                 .setTitle('⏰ Customer Walked Out!')
-                .setDescription(`You took too long to make the drink, and the customer got tired of waiting and left!\n\nEarned **0** Glimmering Baubles.`)
+                .setDescription(`You took too long to read the coffee machine manual. The customer got tired and left!\n\nEarned **0** Glimmering Baubles.`)
                 .setTimestamp();
         }
 
-            const finalEmbed = appendWorkAgainFooter(resultEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
+        const finalEmbed = appendWorkAgainFooter(resultEmbed, initialData, baubleData);
+        await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
+        attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
+    });
+}
+
+/* =========================
+   ELECTRICIAN GAME
+========================= */
+async function runElectricianGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🔌 Emergency Electrician',
+        color: 0xf1c40f,
+        baseEarnings: 80,
+        statField: 'inspectionsSurvived',
+        winTitle: '⚡ Saved the Day!',
+        loseTitle: '💥 Shocking Failure!',
+        timeoutMsg: 'You stared at the sparks until the microwave exploded. You have no eyebrows left.',
+        scenarios: [
+            {
+                description: 'The breakroom microwave is shooting green sparks and making dubstep noises! Quick, what do you do?',
+                options: [
+                    { label: 'Throw water on it', success: false, msg: '💦 **BZZZT!** Water conducts electricity, genius. You got shocked and danced the robot involuntarily.' },
+                    { label: 'Pull the plug', success: true, msg: '🔌 **Success!** You unplugged the demon machine safely. The breakroom is saved!' },
+                    { label: 'Smash it with a chair', success: false, msg: '🪑 The chair shattered, the microwave is still sparking, and your boss is now staring at you.' },
+                    { label: 'Warm up a burrito', success: false, msg: '🌯 You threw a burrito inside. It mutated and started crawling. You ran away.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   PIZZA DELIVERY GAME
+========================= */
+async function runPizzaDeliveryGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🍕 Pizza Delivery',
+        color: 0xe67e22,
+        baseEarnings: 90,
+        statField: 'deliveriesCompleted',
+        winTitle: '🚗 Pizza Delivered!',
+        loseTitle: '😭 Delivery Failed!',
+        timeoutMsg: 'You sat in your car eating the pepperoni yourself. The customer cancelled.',
+        scenarios: [
+            {
+                description: 'You arrive at the customer\'s house, but a giant raccoon is guarding the front door like a mini-boss! How do you deliver the pizza?',
+                options: [
+                    { label: 'Bribe it with pepperoni', success: true, msg: '🍖 You distracted the raccoon with pepperoni. It accepted your bribe and let you pass.' },
+                    { label: 'Kickflip over it', success: true, msg: '🛹 You did a sick kickflip over the raccoon, landed on the porch, and delivered the pizza. The customer tipped extra for the style!' },
+                    { label: 'Fight the raccoon', success: false, msg: '🦝 The raccoon turned out to be a black belt in karate. You were beaten up and your pizza was stolen.' },
+                    { label: 'Scream for help', success: false, msg: '🗣️ You screamed. The raccoon laughed at you. Neighbors judged you.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   BOMB DISPOSAL GAME
+========================= */
+async function runBombDisposalGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '💣 Bomb Disposal',
+        color: 0xff4d4f,
+        baseEarnings: 110,
+        statField: 'bombsDefused',
+        winTitle: '✅ Defused!',
+        loseTitle: '💥 Boom!',
+        timeoutMsg: 'The timer ticked to zero. You went out with a bang.',
+        scenarios: [
+            {
+                description: 'A ticking package is sitting on the office toilet! The timer shows 10 seconds! What do you do?',
+                options: [
+                    { label: 'Yeet it out the window', success: true, msg: '🪟 You threw it out the window! It exploded in the empty parking lot, blowing up the CEO\'s empty sports car. You get a raise for saving lives!' },
+                    { label: 'Snip the red wire', success: false, msg: '✂️ You cut the red wire. It was indeed the wrong wire. You have been launched into low-Earth orbit.' },
+                    { label: 'Flush the toilet', success: false, msg: '🚽 You tried to flush a bomb. It clogged the toilet. Now you have a ticking bomb and a plumbing crisis.' },
+                    { label: 'Run away screaming', success: false, msg: '🏃 You ran away! The bomb exploded, destroying the office. You are fired, but alive.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   GHOST HUNTER GAME
+========================= */
+async function runGhostHunterGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '👻 Ghost Hunter',
+        color: 0x8e44ad,
+        baseEarnings: 90,
+        statField: 'ghostsCaptured',
+        winTitle: '👻 Ghost Captured!',
+        loseTitle: '😱 Haunted!',
+        timeoutMsg: 'The ghost possessed you and made you delete your browser history.',
+        scenarios: [
+            {
+                description: 'A spooky Victorian ghost is hovering in the server room, messing with the Wi-Fi! How do you handle it?',
+                options: [
+                    { label: 'Use breakroom vacuum', success: true, msg: '🧹 You grabbed the breakroom vacuum and sucked the ghost in. Who you gonna call? You!' },
+                    { label: 'Ask for its tax records', success: true, msg: '📋 You asked the ghost for its tax returns. Terrified of the IRS, the ghost fled the building instantly.' },
+                    { label: 'Throw a shoe at it', success: false, msg: '👟 The shoe passed right through the ghost and hit the main server. The Wi-Fi is still down and the ghost is laughing.' },
+                    { label: 'Offer it a cup of coffee', success: false, msg: '☕ The ghost drank it, got a caffeine rush, and started haunting the server room at 5x speed.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   ALIEN TRANSLATOR GAME
+========================= */
+async function runAlienTranslatorGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '👽 Alien Translator',
+        color: 0x1abc9c,
+        baseEarnings: 100,
+        statField: 'aliensTranslated',
+        winTitle: '🛸 Communication Established!',
+        loseTitle: '👽 Alien Displeasure!',
+        timeoutMsg: 'You stood silent. The aliens assumed you were a statue and drew a mustache on your face.',
+        scenarios: [
+            {
+                description: 'A green alien stands before you, points a laser gun, and says: "Blorp glorp zzzzt!" What do you do?',
+                options: [
+                    { label: 'Offer a high-five', success: true, msg: '🖐️ The alien loves high-fives! It lowered the gun and handed you some space coupons.' },
+                    { label: 'Challenge to dance-off', success: true, msg: '🕺 You styled on the alien with a flawless breakdance. The alien was so impressed it tipped you generously.' },
+                    { label: 'Try to eat their spaceship', success: false, msg: '🚀 You bit the landing gear. It tasted like metal and sadness. You chipped a tooth.' },
+                    { label: 'Insult its mother', success: false, msg: '😡 You made a crude gesture. The alien vaporized your coffee cup and walked away angry.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   FAST FOOD GAME
+========================= */
+async function runFastFoodGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🍔 Fast Food Shift',
+        color: 0xf39c12,
+        baseEarnings: 85,
+        statField: 'customersServed',
+        winTitle: '🍟 Shift Complete!',
+        loseTitle: '😡 Customer Meltdown!',
+        timeoutMsg: 'You got lost in the ball pit. The shift ended without you.',
+        scenarios: [
+            {
+                description: 'A customer yells that there is a pickle on their burger, but they ordered "NO PICKLES". You see a single pickle staring at you. What do you do?',
+                options: [
+                    { label: 'Eat the pickle yourself', success: true, msg: '🥒 You grabbed the pickle and ate it in one bite. "What pickle?" you asked. The customer was confused but satisfied.' },
+                    { label: 'Flick it at the ceiling', success: true, msg: '🎯 You flicked the pickle. It stuck to the ceiling. The customer didn\'t notice and walked away happy.' },
+                    { label: 'Throw burger at them', success: false, msg: '🍔 You threw the burger. It hit them square in the face. You got fired immediately.' },
+                    { label: 'Argue that pickles are fruit', success: false, msg: '🗣️ You tried to explain botanical definitions. The customer screamed for the manager.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   DINOSAUR KEEPER GAME
+========================= */
+async function runDinosaurKeeperGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🦖 Dinosaur Keeper',
+        color: 0x16a085,
+        baseEarnings: 95,
+        statField: 'dragonsHandled',
+        winTitle: '🦖 Dino Calmed!',
+        loseTitle: '💀 Dino Rampage!',
+        timeoutMsg: 'You stood completely still. T-Rex vision is based on movement, but it still stepped on you by accident.',
+        scenarios: [
+            {
+                description: 'The baby T-Rex is crying and stomping its feet. It looks like it wants to eat your paycheck! What do you feed it?',
+                options: [
+                    { label: 'Give it a raw steak', success: true, msg: '🥩 The T-Rex devoured the steak and happily went to sleep. Your paycheck is safe!' },
+                    { label: 'Play fetch with a car', success: true, msg: '🚗 You threw a toy sports car. The T-Rex chased it, caught it, and wagged its tail like a puppy.' },
+                    { label: 'Tickle its tiny arms', success: false, msg: '🦖 You tried to tickle it. The T-Rex was offended by your jokes about its short arms and bit your leg.' },
+                    { label: 'Read it bedtime stories', success: false, msg: '📚 You started reading. The T-Rex fell asleep, but right on top of you. You are pinned under 2 tons of scaly toddler.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   SCIENTIST ASSISTANT GAME
+========================= */
+async function runScientistAssistantGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🔬 Scientist Assistant',
+        color: 0x2980b9,
+        baseEarnings: 105,
+        statField: 'inspectionsSurvived',
+        winTitle: '🧪 Science Achieved!',
+        loseTitle: '💥 Lab Accident!',
+        timeoutMsg: 'You stared at the glowing beaker until it turned into a sentient goo and ran away.',
+        scenarios: [
+            {
+                description: 'The Professor tells you to mix two chemicals to create "Glow-in-the-dark juice". You see three beakers. What do you do?',
+                options: [
+                    { label: 'Mix Blue and Yellow', success: true, msg: '🧪 You mixed blue and yellow. It glowed bright green! The Professor is thrilled and calls you a genius.' },
+                    { label: 'Drink the glowing liquid', success: false, msg: '🥛 You drank it. You now glow in the dark, but you spent the rest of the shift in the bathroom.' },
+                    { label: 'Sneeze into the beaker', success: false, msg: '🤧 You sneezed. The mixture fizzled and created a sentient slime that stole your wallet.' },
+                    { label: 'Taste-test with your finger', success: false, msg: '☝️ Tastes like burning. A lot of burning. The safety inspector is writing a report.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   DETECTIVE GAME
+========================= */
+async function runDetectiveGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🕵️ Detective Agency',
+        color: 0x34495e,
+        baseEarnings: 100,
+        statField: 'mysteriesSolved',
+        winTitle: '🧠 Case Closed!',
+        loseTitle: '❌ Mystery Unsolved!',
+        timeoutMsg: 'The thief left a thank-you note and escaped while you were thinking.',
+        scenarios: [
+            {
+                description: 'Someone stole the office cookies! The suspect has chocolate crumbs all over their face. How do you solve the mystery?',
+                options: [
+                    { label: 'Accuse chocolate face', success: true, msg: '🍪 You accused the coworker with chocolate crumbs. They confessed immediately. Easiest case ever.' },
+                    { label: 'Arrest the office plant', success: false, msg: '🪴 You handcuffed a fern. It remained silent. The real thief ate another cookie.' },
+                    { label: 'Blame the ghost of HR', success: false, msg: '👻 You blamed ghosts. HR did not appreciate being called ghosts. You got a warning.' },
+                    { label: 'Interrogate the cookie box', success: false, msg: '📦 You stared at the empty box for 3 hours waiting for it to crack. It said nothing.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   ARCADE TECHNICIAN GAME
+========================= */
+async function runArcadeTechnicianGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🕹️ Arcade Technician',
+        color: 0x3498db,
+        baseEarnings: 90,
+        statField: 'arcadeRepairs',
+        winTitle: '🛠️ Arcade Restored!',
+        loseTitle: '⚠️ Game Over!',
+        timeoutMsg: 'You got distracted playing Pac-Man and got fired.',
+        scenarios: [
+            {
+                description: 'The claw machine is rigged and kids are crying because they can\'t win the giant duck plushie. What do you do?',
+                options: [
+                    { label: 'Kick the machine', success: true, msg: '🥾 You kicked it. The claw shook loose and dropped 5 plushies. The kids think you are a god.' },
+                    { label: 'Set claw grip to 100%', success: true, msg: '🔧 You set the claw strength to maximum. Everyone wins! You broke arcade laws but made people happy.' },
+                    { label: 'Rig it even more', success: false, msg: '📉 You set claw grip to 0%. The claw now actively runs away from plushies. The kids started a riot.' },
+                    { label: 'Play it yourself', success: false, msg: '🕹️ You spent $20 trying to win a $2 plushie. You lost. The kids laughed at you.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   ZOOKEEPER GAME
+========================= */
+async function runZooKeeperGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🦓 Zoo Keeper',
+        color: 0x27ae60,
+        baseEarnings: 90,
+        statField: 'customersServed',
+        winTitle: '🦧 Zoo Order Restored!',
+        loseTitle: '🚨 Animal Escape!',
+        timeoutMsg: 'You took too long. The monkey is now driving the zoo golf cart.',
+        scenarios: [
+            {
+                description: 'A sneaky monkey stole the master keys and ran up a tall tree! How do you get them back?',
+                options: [
+                    { label: 'Bribe it with a banana', success: true, msg: '🍌 The monkey accepted the banana, dropped the keys, and gave you a high-five. Transaction complete.' },
+                    { label: 'Climb the tree yourself', success: false, msg: '🌳 You tried to climb. The monkey threw acorns at your head. You fell and landed in a bush.' },
+                    { label: 'Throw a rock at it', success: false, msg: '🪨 You threw a pebble. The monkey caught it and threw it back with 100% accuracy, giving you a black eye.' },
+                    { label: 'File a complaint', success: false, msg: '📝 You filed a complaint with Monkey HR. They shredded it and ate the paper.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   TREASURE DIVER GAME
+========================= */
+async function runTreasureDiverGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🤿 Deep Sea Diver',
+        color: 0x2980b9,
+        baseEarnings: 120,
+        statField: 'treasuresRecovered',
+        winTitle: '🏴‍☠️ Loot Secured!',
+        loseTitle: '🐙 Shark Bait!',
+        timeoutMsg: 'You ran out of oxygen while staring at a pretty jellyfish.',
+        scenarios: [
+            {
+                description: 'You find a chest full of gold, but a giant, sleepy shark is resting right on top of it! What do you do?',
+                options: [
+                    { label: 'Swim quietly past', success: true, msg: '🏊 You swam past. The shark just blew a bubble. You grabbed the chest and surfaced safely!' },
+                    { label: 'Poke it with a stick', success: false, msg: '🥢 You poked the shark. The shark woke up very cranky. You had to escape using your emergency thrusters.' },
+                    { label: 'Sing it a lullaby', success: true, msg: '🎵 You sang a beautiful underwater lullaby. The shark fell into a deeper sleep, snoring bubbles. Easy loot!' },
+                    { label: 'Play Rock-Paper-Scissors', success: false, msg: '✊ The shark chose paper because of its fins. But then it ate your scorecard.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   TRAIN CONDUCTOR GAME
+========================= */
+async function runTrainConductorGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🚆 Train Conductor',
+        color: 0x2c3e50,
+        baseEarnings: 100,
+        statField: 'trainsConducted',
+        winTitle: '🚉 All Aboard!',
+        loseTitle: '🚨 Delay!',
+        timeoutMsg: 'The train left without any passengers because you forgot to open the doors.',
+        scenarios: [
+            {
+                description: 'A passenger is playing loud music on their phone speaker without headphones. The whole train carriage is furious! What do you do?',
+                options: [
+                    { label: 'Politely offer headphones', success: true, msg: '🎧 You gave them free headphones. They took the hint. The passengers cheered!' },
+                    { label: 'Sing along terribly', success: true, msg: '🎤 You sat next to them and sang along at maximum volume, completely off-key. Embarrassed, they turned it off instantly.' },
+                    { label: 'Throw them off train', success: false, msg: '🚂 You tried to yeet them. That is highly illegal. You were fined and given a lecture.' },
+                    { label: 'Stare intensely at them', success: false, msg: '👁️ You stared at them for 10 minutes. It got weird. They started playing the music louder to break the tension.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   AIRPORT BAGGAGE GAME
+========================= */
+async function runAirportBaggageGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🛄 Baggage Handler',
+        color: 0x95a5a6,
+        baseEarnings: 90,
+        statField: 'bagsHandled',
+        winTitle: '🛫 Baggage Sorted!',
+        loseTitle: '🧳 Luggage Lost!',
+        timeoutMsg: 'You fell asleep on the baggage carousel and woke up in Cleveland.',
+        scenarios: [
+            {
+                description: 'A suitcase on the conveyor belt is vibrating loudly and making ticking noises! What do you do?',
+                options: [
+                    { label: 'Call the bomb squad', success: true, msg: '🚨 You called the squad. Turns out it was just a fancy electric massager, but everyone thanked you for safety first!' },
+                    { label: 'Open it up to check', success: false, msg: '🔓 You opened it. The passenger saw you and accused you of stealing. You got suspended.' },
+                    { label: 'Yeet it onto plane', success: false, msg: '✈️ You threw it on the plane. The ticking scared the pilots. The flight was cancelled.' },
+                    { label: 'Slap Fragile sticker on it', success: false, msg: '🏷️ You slapped a sticker on it and walked away. The vibration shook the belt and caused a massive baggage jam.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   DRAGON DAYCARE GAME
+========================= */
+async function runDragonDaycareGame(initialData, channel, user, baubleData) {
+    const config = {
+        title: '🐉 Dragon Daycare',
+        color: 0xe67e22,
+        baseEarnings: 110,
+        statField: 'dragonsHandled',
+        winTitle: '🔥 Dragon Happy!',
+        loseTitle: '🚒 Daycare on Fire!',
+        timeoutMsg: 'You hesitated. The dragon toddler sneezed and turned your pants to ash.',
+        scenarios: [
+            {
+                description: 'A baby dragon sneezed and set the nursery curtains on fire! What do you do?',
+                options: [
+                    { label: 'Throw water on curtains', success: true, msg: '🧯 You threw a bucket of water. Fire out! The baby dragon giggled and blew bubbles.' },
+                    { label: 'Toast marshmallows', success: true, msg: '🍢 You grabbed marshmallows and had a quick toast session. The kids loved it! (You put out the fire right after).' },
+                    { label: 'Scream and run away', success: false, msg: '🏃 You ran. The fire alarms went off. The daycare is now soggy and your boss is furious.' },
+                    { label: 'Blame the baby dragon', success: false, msg: '👈 You tried to blame the baby. The baby cried, which caused it to accidentally spit fire at your supervisor\'s clipboard.' }
+                ]
+            }
+        ]
+    };
+    await runSimpleChoiceGame(initialData, channel, user, baubleData, config);
+}
+
+/* =========================
+   UTILITIES
+========================= */
+
+function getWorkCooldownInfo(initialData, baubleData) {
+    const client = initialData?.client || initialData?.message?.client || initialData?.channel?.client;
+    const userId = baubleData?.userId || initialData?.user?.id || initialData?.author?.id;
+    const now = Date.now();
+    let cooldownMs = 10000;
+
+    if (baubleData?.coffeeExpiresAt && now < new Date(baubleData.coffeeExpiresAt).getTime()) {
+        cooldownMs /= 2;
+    }
+
+    if (!client || !client.cooldowns || !client.cooldowns.has('work')) {
+        return { timeLeft: 0, cooldownMs };
+    }
+
+    const timestamps = client.cooldowns.get('work');
+    const startedAt = timestamps.get(userId);
+    if (!startedAt) {
+        return { timeLeft: 0, cooldownMs };
+    }
+
+    const expiry = startedAt + cooldownMs;
+    return { timeLeft: Math.max(0, expiry - now), cooldownMs, expiry };
+}
+
+function buildWorkAgainRow() {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('workAgain')
+            .setLabel('Work Again')
+            .setStyle(ButtonStyle.Success)
+    );
+}
+
+function appendWorkAgainFooter(embed, initialData, baubleData) {
+    const cooldown = getWorkCooldownInfo(initialData, baubleData);
+    if (cooldown.timeLeft > 0) {
+        const seconds = Math.ceil(cooldown.timeLeft / 1000);
+        const existingFooter = embed.data?.footer?.text || '';
+        const extra = `Available again in ${seconds}s.`;
+        embed.setFooter({ text: existingFooter ? `${existingFooter} • ${extra}` : extra });
+    }
+    return embed;
+}
+
+async function attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData) {
+    const collector = mainMessage.createMessageComponentCollector({
+        filter: i => i.user.id === user.id && i.customId === 'workAgain',
+        time: 30000
+    });
+
+    collector.on('collect', async i => {
+        try {
+            await i.deferUpdate();
+        } catch (_) {}
+
+        const cooldown = getWorkCooldownInfo(initialData, baubleData);
+        if (cooldown.timeLeft > 0) {
+            const seconds = Math.ceil(cooldown.timeLeft / 1000);
+            await i.followUp({
+                content: `⏳ Please wait **${seconds}s** before pressing Work Again.`,
+                ephemeral: true
+            }).catch(() => {});
+            return;
+        }
+
+        const client = initialData?.client || initialData?.message?.client || initialData?.channel?.client;
+        if (client && client.cooldowns) {
+            if (!client.cooldowns.has('work')) {
+                client.cooldowns.set('work', new Collection());
+            }
+            const timestamps = client.cooldowns.get('work');
+            const now = Date.now();
+            const newCooldownMs = cooldown.cooldownMs || 10000;
+            timestamps.set(user.id, now);
+            setTimeout(() => timestamps.delete(user.id), newCooldownMs);
+        }
+
+        const disabledButtonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('workAgain')
+                .setLabel('Working...')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(true)
+        );
+        await mainMessage.edit({ components: [disabledButtonRow] }).catch(() => {});
+
+        await runWorkGame(initialData, channel, user);
     });
 }
 
@@ -1092,1187 +1388,12 @@ async function processWorkReward(baubleData, baseEarnings, statField) {
     }
 
     baubleData.baubles += finalEarnings;
+    baubleData.dailyWorkLastCompleted = new Date(); // Sets the daily completed work date properly!
+    
     const unlockedTitles = unlockWorkTitles(baubleData);
     await baubleData.save();
 
     return { finalEarnings, taxMsg, event, unlockedTitles, balance: baubleData.baubles };
-}
-
-function makeButtonRow(buttons) {
-    return new ActionRowBuilder().addComponents(buttons);
-}
-
-function getWorkCooldownInfo(initialData, baubleData) {
-    const client = initialData?.client || initialData?.message?.client || initialData?.channel?.client;
-    const userId = baubleData?.userId || initialData?.user?.id || initialData?.author?.id;
-    const now = Date.now();
-    let cooldownMs = 10000;
-
-    if (baubleData?.coffeeExpiresAt && now < new Date(baubleData.coffeeExpiresAt).getTime()) {
-        cooldownMs /= 2;
-    }
-
-    if (!client || !client.cooldowns || !client.cooldowns.has('work')) {
-        return { timeLeft: 0, cooldownMs };
-    }
-
-    const timestamps = client.cooldowns.get('work');
-    const startedAt = timestamps.get(userId);
-    if (!startedAt) {
-        return { timeLeft: 0, cooldownMs };
-    }
-
-    const expiry = startedAt + cooldownMs;
-    return { timeLeft: Math.max(0, expiry - now), cooldownMs, expiry };
-}
-
-function buildWorkAgainRow() {
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('workAgain')
-            .setLabel('Work Again')
-            .setStyle(ButtonStyle.Success)
-    );
-}
-
-function appendWorkAgainFooter(embed, initialData, baubleData) {
-    const cooldown = getWorkCooldownInfo(initialData, baubleData);
-    if (cooldown.timeLeft > 0) {
-        const seconds = Math.ceil(cooldown.timeLeft / 1000);
-        const existingFooter = embed.data?.footer?.text || '';
-        const extra = `Available again in ${seconds}s.`;
-        embed.setFooter({ text: existingFooter ? `${existingFooter} • ${extra}` : extra });
-    }
-    return embed;
-}
-
-async function attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData) {
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === user.id && i.customId === 'workAgain',
-        time: 30000
-    });
-
-    collector.on('collect', async i => {
-        try {
-            await i.deferUpdate();
-        } catch (_) {}
-
-        const cooldown = getWorkCooldownInfo(initialData, baubleData);
-        if (cooldown.timeLeft > 0) {
-            const seconds = Math.ceil(cooldown.timeLeft / 1000);
-            await i.followUp({
-                content: `⏳ Please wait **${seconds}s** before pressing Work Again.`,
-                ephemeral: true
-            }).catch(() => {});
-            return;
-        }
-
-        const client = initialData?.client || initialData?.message?.client || initialData?.channel?.client;
-        if (client && client.cooldowns) {
-            if (!client.cooldowns.has('work')) {
-                client.cooldowns.set('work', new Collection());
-            }
-            const timestamps = client.cooldowns.get('work');
-            const now = Date.now();
-            const newCooldownMs = cooldown.cooldownMs || 10000;
-            timestamps.set(user.id, now);
-            setTimeout(() => timestamps.delete(user.id), newCooldownMs);
-        }
-
-        const disabledButtonRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('workAgain')
-                .setLabel('Working...')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(true)
-        );
-        await mainMessage.edit({ components: [disabledButtonRow] }).catch(() => {});
-
-        await runWorkGame(initialData, channel, user);
-    });
-}
-
-function buildPaginatedJobList(name, description) {
-    return new EmbedBuilder()
-        .setColor(0x2ecc71)
-        .setTitle(name)
-        .setDescription(description);
-}
-
-async function runPizzaDeliveryGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const routes = [
-        {
-            stops: ['north', 'east', 'north', 'west'],
-            clue: 'Start at the bakery, then head to the neon arcade, then the cat cafe, and finally the hilltop mansion.'
-        },
-        {
-            stops: ['south', 'south', 'east', 'north'],
-            clue: 'Begin at the dock, pass the market twice, turn to the observatory, then deliver to the skylight tower.'
-        },
-        {
-            stops: ['east', 'north', 'east', 'south'],
-            clue: 'Leave the train station, cross the memorial bridge, head to the glass dome, then back to the waterfall cafe.'
-        }
-    ];
-    const selected = routes[Math.floor(Math.random() * routes.length)];
-    const directions = {
-        north: 'North',
-        east: 'East',
-        south: 'South',
-        west: 'West'
-    };
-    let step = 0;
-    const embed = new EmbedBuilder()
-        .setColor(0xffa500)
-        .setTitle('🍕 Pizza Delivery Shift')
-        .setDescription(
-            `You have a single route with **4 stops**. Remember the order and deliver each pizza correctly.
-
-**Route Clue:** ${selected.clue}
-
-**Current Stop:** 1 of 4`
-        )
-        .setFooter({ text: 'Choose the next direction carefully.' });
-
-    const buttons = Object.entries(directions).map(([key, label]) =>
-        new ButtonBuilder().setCustomId(`pizza_${key}`).setLabel(label).setStyle(ButtonStyle.Primary)
-    );
-
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('pizza_'),
-        time: 20000
-    });
-
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = i.customId.replace('pizza_', '');
-        if (choice !== selected.stops[step]) {
-            collector.stop('wrong');
-            return;
-        }
-        step += 1;
-        if (step === selected.stops.length) {
-            collector.stop('success');
-            return;
-        }
-
-        const updated = EmbedBuilder.from(mainMessage.embeds[0])
-            .setDescription(
-                `You have a single route with **4 stops**. Remember the order and deliver each pizza correctly.
-
-**Route Clue:** ${selected.clue}
-
-**Current Stop:** ${step + 1} of 4`
-            );
-        await mainMessage.edit({ embeds: [updated] }).catch(() => {});
-    });
-
-    collector.on('end', async (_, reason) => {
-        if (reason === 'success') {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 95, 'deliveriesCompleted');
-            const successEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🚗 Pizza Delivered!')
-                .setDescription(`You completed the route and delivered every pizza on time!${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles. *(A delivery job well done.)*${taxMsg}`)
-                .addFields({ name: '💰 New Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) {
-                successEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            }
-            const finalEmbed = appendWorkAgainFooter(successEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else if (reason === 'wrong') {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('🧭 Wrong Turn!')
-                .setDescription('You took the wrong turn and dropped the pizza in a fountain. Karen demanded to speak to your manager.')
-                .setFooter({ text: 'Deliveries are more dangerous than they look.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        } else {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⏱️ Delivery Late!')
-                .setDescription('You got stuck in traffic and the customer refused the order. Earned **0** Baubles.')
-                .setFooter({ text: 'Speed doesn’t help when you can’t choose the right street.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runBombDisposalGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const puzzles = [
-        {
-            clue: 'The red wire is dangerous. The yellow wire is only safe if the blue wire stays intact. Cut the only wire you can trust.',
-            safe: 'green'
-        },
-        {
-            clue: 'The blue wire is safe when the green wire is not cut. If the yellow wire is chosen, the alarm will sound. Pick the safe wire.',
-            safe: 'blue'
-        },
-        {
-            clue: 'The last wire is a decoy, the red wire is full of sparks, and the green wire is always safe unless the yellow one is cut first.',
-            safe: 'green'
-        }
-    ];
-    const selected = puzzles[Math.floor(Math.random() * puzzles.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0xff4d4f)
-        .setTitle('💣 Bomb Disposal')
-        .setDescription(`A timer ticks nearby. ${selected.clue}\n\nSelect the correct wire to cut.`)
-        .setFooter({ text: 'One wrong move and it is over.' });
-    const buttons = ['red', 'blue', 'green', 'yellow'].map(color =>
-        new ButtonBuilder().setCustomId(`bomb_${color}`).setLabel(color.charAt(0).toUpperCase() + color.slice(1)).setStyle(color === 'green' ? ButtonStyle.Success : ButtonStyle.Danger)
-    );
-
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('bomb_'),
-        max: 1,
-        time: 15000
-    });
-
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = i.customId.replace('bomb_', '');
-        const success = choice === selected.safe;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 110, 'bombsDefused');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('✅ Bomb Defused!')
-                .setDescription(`You cut the **${choice.toUpperCase()}** wire and the device goes quiet.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) {
-                winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            }
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const loseEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('💥 Boom!')
-                .setDescription(`You snipped the **${choice.toUpperCase()}** wire and the bomb exploded. The dinosaur ate your paycheck. Earned **0** Baubles.`)
-                .setFooter({ text: 'Maybe bomb disposal requires a little more training.' });
-            await mainMessage.edit({ embeds: [loseEmbed], components: [] }).catch(() => {});
-        }
-    });
-
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⏳ Too Slow!')
-                .setDescription('The timer ran out before you could cut a wire. The bomb exploded on its own. Earned **0** Baubles.')
-                .setFooter({ text: 'You might want to stick to paperwork.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runGhostHunterGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const puzzles = [
-        {
-            clue: 'The EMF reader flashes in a three-two-three pattern. The ghost is hiding behind the door that does not follow the repetition.',
-            options: ['Door A', 'Door B', 'Door C', 'Door D'],
-            answer: 1,
-            detail: 'A B A B C A B A'
-        },
-        {
-            clue: 'The cold spots form a sequence where every third reading is stronger. Find the room with the stronger pulse.',
-            options: ['Room Blue', 'Room Green', 'Room Red', 'Room Yellow'],
-            answer: 2,
-            detail: 'low, low, high, low, low, high'
-        },
-        {
-            clue: 'The ghost repeats two flashes then one pause. Choose the room that matches the pattern.',
-            options: ['North Wing', 'South Wing', 'East Wing', 'West Wing'],
-            answer: 3,
-            detail: '⚡⚡⏸️ ⚡⚡⏸️ ⚡⚡'
-        }
-    ];
-    const selected = puzzles[Math.floor(Math.random() * puzzles.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0x8e44ad)
-        .setTitle('👻 Ghost Hunter')
-        .setDescription(`${selected.clue}\n\n**Signal:** ${selected.detail}`)
-        .setFooter({ text: 'Which room is the ghost in?' });
-    const buttons = selected.options.map((label, index) =>
-        new ButtonBuilder().setCustomId(`ghost_${index}`).setLabel(label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('ghost_'),
-        max: 1,
-        time: 20000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('ghost_', ''));
-        const success = choice === selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 90, 'ghostsCaptured');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('✅ Ghost Captured!')
-                .setDescription(`You trapped the spirit and sealed the room.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('👻 Phantom Flees!')
-                .setDescription('The ghost vanished into the ceiling, leaving ectoplasm everywhere. Earned **0** Baubles.')
-                .setFooter({ text: 'The spirits are not impressed.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('🕒 Lost the Signal')
-                .setDescription('The ghost slipped away before you could act. Earned **0** Baubles.')
-                .setFooter({ text: 'Ghost hunting requires patience.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runAlienTranslatorGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const puzzles = [
-        {
-            cipher: '🔺◼🔺',
-            mapping: '🔺=A ◼=T ☆=R ☾=O',
-            choices: ['CAT', 'ART', 'RAT', 'TOA'],
-            answer: 1
-        },
-        {
-            cipher: '☾☆◼',
-            mapping: '☾=O ☆=R ◼=T 🔺=A',
-            choices: ['ROT', 'TOR', 'ORT', 'TRO'],
-            answer: 0
-        },
-        {
-            cipher: '🔺☾☆',
-            mapping: '🔺=A ☾=O ☆=R ◼=T',
-            choices: ['OAR', 'ART', 'ORA', 'ROA'],
-            answer: 0
-        }
-    ];
-    const selected = puzzles[Math.floor(Math.random() * puzzles.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0x1abc9c)
-        .setTitle('👽 Alien Translator')
-        .setDescription(`Translate the alien symbols using the code below.\n\n**Code:** ${selected.mapping}\n**Phrase:** ${selected.cipher}`)
-        .setFooter({ text: 'Pick the correct Earth equivalent.' });
-    const buttons = selected.choices.map((label, index) =>
-        new ButtonBuilder().setCustomId(`alien_${index}`).setLabel(label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('alien_'),
-        max: 1,
-        time: 18000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('alien_', ''));
-        const success = choice === selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 100, 'aliensTranslated');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🛸 Translation Complete!')
-                .setDescription(`You cracked the alien phrase and impressed the ship captain.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const loseEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('🛸 Lost in Translation')
-                .setDescription('You mistranslated the message and the alien paid you in space coupons that are not worth anything here. Earned **0** Baubles.')
-                .setFooter({ text: 'Maybe try a different dialect.' });
-            await mainMessage.edit({ embeds: [loseEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⌛ Signal Lost')
-                .setDescription('The aliens drifted away before you could finish translating. Earned **0** Baubles.')
-                .setFooter({ text: 'Intergalactic linguistics is not for the faint of heart.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runFastFoodGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const orders = [
-        { order: 'Burger, Fries, and Soda', options: ['Burger Combo', 'Salad Pack', 'Fish Meal', 'Veggie Bowl'], answer: 0 },
-        { order: 'Nuggets, Shake, and Onion Rings', options: ['Snack Pack', 'Kids Meal', 'Burger Combo', 'Pasta Special'], answer: 1 },
-        { order: 'Taco, Milkshake, and Fries', options: ['Taco Feast', 'Burger Combo', 'Drinks Only', 'Hot Dog Set'], answer: 0 }
-    ];
-    const selected = orders[Math.floor(Math.random() * orders.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0xf39c12)
-        .setTitle('🍔 Fast Food Worker')
-        .setDescription(`A customer ordered: **${selected.order}**\n\nChoose the correct prepared combo.`)
-        .setFooter({ text: 'One wrong tray and the customer will complain.' });
-    const buttons = selected.options.map((label, index) =>
-        new ButtonBuilder().setCustomId(`fastFood_${index}`).setLabel(label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('fastFood_'),
-        max: 1,
-        time: 18000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('fastFood_', ''));
-        const success = choice === selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 85, 'customersServed');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🍟 Order Served!')
-                .setDescription(`You handed over the perfect tray and avoided a meltdown.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('😡 Angry Customer!')
-                .setDescription('You served the wrong combo and a customer threw a soda at you. Earned **0** Baubles.')
-                .setFooter({ text: 'Fast food moves fast for a reason.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⏲️ Cold Order')
-                .setDescription('The order went cold while you hesitated. Earned **0** Baubles.')
-                .setFooter({ text: 'Speed matters in fast food.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runDinosaurKeeperGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const moods = [
-        { mood: 'Herbivore and mellow', options: ['Steak', 'Ferns', 'Berries', 'Chalk'], answer: 1 },
-        { mood: 'Hungry for speed', options: ['Meat', 'Ferns', 'Soufflé', 'Nails'], answer: 0 },
-        { mood: 'Likes crunchy snacks', options: ['Pineapple', 'Ferns', 'Sand', 'Mango'], answer: 1 }
-    ];
-    const selected = moods[Math.floor(Math.random() * moods.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0x16a085)
-        .setTitle('🦖 Dinosaur Keeper')
-        .setDescription(`The dinosaur is ${selected.mood}. Choose the safest food for it.`)
-        .setFooter({ text: 'One bite can devour your paycheck.' });
-    const buttons = selected.options.map((label, index) =>
-        new ButtonBuilder().setCustomId(`dinosaur_${index}`).setLabel(label).setStyle(index === selected.answer ? ButtonStyle.Success : ButtonStyle.Secondary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('dinosaur_'),
-        max: 1,
-        time: 16000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('dinosaur_', ''));
-        const success = choice === selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 95, 'dragonsHandled');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🦕 Dinosaur Happy!')
-                .setDescription(`The dinosaur enjoyed the meal and left your paycheck alone.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const loseEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('💸 Paycheck Eaten!')
-                .setDescription('The dinosaur chomped your paycheck and left you with nothing. Earned **0** Baubles.')
-                .setFooter({ text: 'This job is not for the faint-hearted.' });
-            await mainMessage.edit({ embeds: [loseEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('🦖 Sit Still!')
-                .setDescription('The dinosaur got bored and wandered off. Earned **0** Baubles.')
-                .setFooter({ text: 'Animal care is a test of patience.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runScientistAssistantGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const experiments = [
-        {
-            clue: 'Mix the base after the catalyst, but do not combine the glowing reagent with the acid. Which sequence is safe?',
-            choices: ['Catalyst, Base, Acid', 'Base, Catalyst, Acid', 'Acid, Catalyst, Base', 'Base, Acid, Catalyst'],
-            answer: 0
-        },
-        {
-            clue: 'The green solution is only stable when the red one is added last. Choose the correct order.',
-            choices: ['Blue, Green, Red', 'Green, Blue, Red', 'Red, Blue, Green', 'Blue, Red, Green'],
-            answer: 1
-        }
-    ];
-    const selected = experiments[Math.floor(Math.random() * experiments.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0x2980b9)
-        .setTitle('🔬 Scientist Assistant')
-        .setDescription(`${selected.clue}`)
-        .setFooter({ text: 'A wrong mix could cause a lab explosion.' });
-    const buttons = selected.choices.map((label, index) =>
-        new ButtonBuilder().setCustomId(`scientist_${index}`).setLabel(label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('scientist_'),
-        max: 1,
-        time: 20000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('scientist_', ''));
-        const success = choice === selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 105, 'inspectionsSurvived');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🧪 Experiment Successful!')
-                .setDescription(`The experiment completed without incident.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('💥 Lab Accident!')
-                .setDescription('The mixture fizzled violently and the lab went red. Earned **0** Baubles.')
-                .setFooter({ text: 'Science is dangerous at the wrong moment.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('🧬 Experiment Aborted')
-                .setDescription('You hesitated too long and the experiment was shut down. Earned **0** Baubles.')
-                .setFooter({ text: 'Precision is everything in the lab.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runDetectiveGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const cases = [
-        {
-            clue: 'The thief wore shoes with grass stains and was seen near the garden gate, but the accountant always stays indoors.',
-            suspects: ['Accountant', 'Gardener', 'Chef', 'Janitor'],
-            answer: 1
-        },
-        {
-            clue: 'Only one suspect owns a map of the museum and has a key to Room 3.',
-            suspects: ['Curator', 'Guard', 'Chef', 'Cleaner'],
-            answer: 0
-        }
-    ];
-    const selected = cases[Math.floor(Math.random() * cases.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0x34495e)
-        .setTitle('🕵️ Detective')
-        .setDescription(`${selected.clue}`)
-        .setFooter({ text: 'Who solved the mystery?' });
-    const buttons = selected.suspects.map((label, index) =>
-        new ButtonBuilder().setCustomId(`detective_${index}`).setLabel(label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('detective_'),
-        max: 1,
-        time: 20000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('detective_', ''));
-        const success = choice === selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 100, 'mysteriesSolved');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🧠 Mystery Solved!')
-                .setDescription(`Your deduction was flawless and the case is closed.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('❌ Wrong Suspect!')
-                .setDescription('You accused the wrong person and the real culprit escaped. Earned **0** Baubles.')
-                .setFooter({ text: 'Detectives learn from their mistakes.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('🕵️ Time Ran Out')
-                .setDescription('The trail went cold before you could choose a suspect. Earned **0** Baubles.')
-                .setFooter({ text: 'A detective must act before the clues fade.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runArcadeTechnicianGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const machines = [
-        {
-            clue: 'The cabinet with the arcade light flickering is the one with the stuck coin slot.',
-            options: ['Cabinet A', 'Cabinet B', 'Cabinet C', 'Cabinet D'],
-            answer: 2
-        },
-        {
-            clue: 'Only the machine with the flashing red button has a broken joystick. Repair that one.',
-            options: ['Cabinet X', 'Cabinet Y', 'Cabinet Z', 'Cabinet W'],
-            answer: 1
-        }
-    ];
-    const selected = machines[Math.floor(Math.random() * machines.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0x3498db)
-        .setTitle('🕹️ Arcade Technician')
-        .setDescription(`${selected.clue}`)
-        .setFooter({ text: 'Fix the right cabinet before the arcade closes.' });
-    const buttons = selected.options.map((label, index) =>
-        new ButtonBuilder().setCustomId(`arcade_${index}`).setLabel(label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('arcade_'),
-        max: 1,
-        time: 18000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('arcade_', ''));
-        const success = choice === selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 90, 'arcadeRepairs');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🛠️ Repair Complete!')
-                .setDescription(`You fixed the cabinet and the arcade crowd cheers.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('⚠️ Wrong Repair!')
-                .setDescription('You pulled the wrong plug and the machine shorted out. Earned **0** Baubles.')
-                .setFooter({ text: 'Arcade electronics are tricky.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('🕒 Repair Delayed')
-                .setDescription('The arcade closed before you finished fixing it. Earned **0** Baubles.')
-                .setFooter({ text: 'Fast repairs keep the tokens flowing.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runZooKeeperGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const puzzles = [
-        {
-            animal: 'A sleepy penguin',
-            options: ['Tropical Aviary', 'Arctic Pool', 'Savannah Plains', 'Reptile House'],
-            answer: 1
-        },
-        {
-            animal: 'A hopping kangaroo',
-            options: ['Reptile House', 'Desert Dome', 'Outback Exhibit', 'Ocean Tank'],
-            answer: 2
-        },
-        {
-            animal: 'A slithering python',
-            options: ['Bird Cage', 'Reptile House', 'Rainforest Treehouse', 'Savannah Plains'],
-            answer: 1
-        }
-    ];
-    const selected = puzzles[Math.floor(Math.random() * puzzles.length)];
-    const embed = new EmbedBuilder()
-        .setColor(0x27ae60)
-        .setTitle('🦓 Zoo Keeper')
-        .setDescription(`Where should you move ${selected.animal}?`)
-        .setFooter({ text: 'Choose the right habitat.' });
-    const buttons = selected.options.map((label, index) =>
-        new ButtonBuilder().setCustomId(`zookeeper_${index}`).setLabel(label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('zookeeper_'),
-        max: 1,
-        time: 18000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('zookeeper_', ''));
-        const success = choice === selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 90, 'customersServed');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🦜 Animal Safely Moved!')
-                .setDescription(`The animal went to the perfect habitat.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('🐾 Wrong Habitat!')
-                .setDescription('The animal was unhappy and your supervisor was not pleased. Earned **0** Baubles.')
-                .setFooter({ text: 'Habitat match matters.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⏳ Animal Waited Too Long')
-                .setDescription('The animal grew restless before you chose a home. Earned **0** Baubles.')
-                .setFooter({ text: 'Zoo work is always in motion.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runTreasureDiverGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const choices = [
-        { label: 'Coral Chest', clue: 'The coral reef chest is old and carries glittering coins.', answer: false },
-        { label: 'Sunken Vault', clue: 'The vault has shark teeth carved on it but may hold the richest prize.', answer: true },
-        { label: 'Sand Pile', clue: 'The sand pile looks safe but may contain a decoy.', answer: false }
-    ];
-    const embed = new EmbedBuilder()
-        .setColor(0x2980b9)
-        .setTitle('🤿 Treasure Recovery Diver')
-        .setDescription('Three underwater chests lie before you. Only one is worth recovering safely. Choose wisely.')
-        .setFooter({ text: 'The ocean is full of tricks.' });
-    const buttons = choices.map((choice, index) =>
-        new ButtonBuilder().setCustomId(`diver_${index}`).setLabel(choice.label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('diver_'),
-        max: 1,
-        time: 18000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('diver_', ''));
-        const selected = choices[choice];
-        const success = selected.answer;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 120, 'treasuresRecovered');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🏴‍☠️ Treasure Recovered!')
-                .setDescription(`You surfaced with the sunken vault intact and a glittering haul.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('🐙 Trap!')
-                .setDescription('The chest was a hollow decoy full of seaweed and old socks. Earned **0** Baubles.')
-                .setFooter({ text: 'The ocean keeps some secrets.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⏳ Diving Delay')
-                .setDescription('You surfaced empty-handed as the tide changed. Earned **0** Baubles.')
-                .setFooter({ text: 'The sea waits for no one.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runTrainConductorGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const options = [
-        { label: 'Switch to Platform A', correct: true },
-        { label: 'Switch to Engine Yard', correct: false },
-        { label: 'Switch to Freight Track', correct: false },
-        { label: 'Switch to Maintenance Loop', correct: false }
-    ];
-    const embed = new EmbedBuilder()
-        .setColor(0x2c3e50)
-        .setTitle('🚆 Train Conductor')
-        .setDescription('A passenger express is approaching. Send it to the correct platform before the signal changes.')
-        .setFooter({ text: 'One wrong switch and the schedule collapses.' });
-    const buttons = options.map((choice, index) =>
-        new ButtonBuilder().setCustomId(`train_${index}`).setLabel(choice.label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('train_'),
-        max: 1,
-        time: 18000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('train_', ''));
-        const success = options[choice].correct;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 100, 'trainsConducted');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🚉 On Time!')
-                .setDescription(`The express rolled into the right platform and the passengers cheered.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('🚨 Wrong Track!')
-                .setDescription('The train was routed to the wrong line and the station erupted in chaos. Earned **0** Baubles.')
-                .setFooter({ text: 'Conductors must think ahead.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⏳ Missed the Signal')
-                .setDescription('The train left before you could switch the track. Earned **0** Baubles.')
-                .setFooter({ text: 'Timing is everything in rail work.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runAirportBaggageGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const luggage = [
-        { tag: 'Flight 412', destination: 'Gate B', correct: true },
-        { tag: 'Flight 205', destination: 'Gate A', correct: false },
-        { tag: 'Flight 773', destination: 'Gate C', correct: false },
-        { tag: 'Flight 609', destination: 'Gate D', correct: false }
-    ];
-    const embed = new EmbedBuilder()
-        .setColor(0x95a5a6)
-        .setTitle('🛄 Airport Baggage Handler')
-        .setDescription('You need to place Flight 412 baggage on the correct belt. Which is it?')
-        .setFooter({ text: 'One wrong bag and a customer loses a vacation.' });
-    const buttons = luggage.map((item, index) =>
-        new ButtonBuilder().setCustomId(`airport_${index}`).setLabel(item.destination).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('airport_'),
-        max: 1,
-        time: 18000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('airport_', ''));
-        const success = luggage[choice].correct;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 90, 'bagsHandled');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🛫 Bag Routed Correctly!')
-                .setDescription(`The passenger’s luggage made it to the right gate.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('🧳 Lost Bag!')
-                .setDescription('You sent the bag to the wrong gate and the vacation is ruined. Earned **0** Baubles.')
-                .setFooter({ text: 'Airport work is all about the little details.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⏳ On Hold')
-                .setDescription('The belt closed before you could sort the luggage. Earned **0** Baubles.')
-                .setFooter({ text: 'Baggage handling waits for no one.' });
-            await mainMessage.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-        }
-    });
-}
-
-async function runDragonDaycareGame(initialData, channel, user, baubleData) {
-    const isSlash = !!initialData.deferReply;
-    const userId = user.id;
-    const actions = [
-        { label: 'Feed Fruit', success: true },
-        { label: 'Sing a Song', success: false },
-        { label: 'Do a Magic Trick', success: false }
-    ];
-    const embed = new EmbedBuilder()
-        .setColor(0xe67e22)
-        .setTitle('🐉 Dragon Daycare Worker')
-        .setDescription('A dragon toddler is fussy. Choose how to calm it down before the audit begins.')
-        .setFooter({ text: 'Dragons are adorable until they are not.' });
-    const buttons = actions.map((action, index) =>
-        new ButtonBuilder().setCustomId(`dragonDaycare_${index}`).setLabel(action.label).setStyle(ButtonStyle.Primary)
-    );
-    let mainMessage;
-    if (isSlash) {
-        if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)], withResponse: true });
-        }
-    } else {
-        mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [makeButtonRow(buttons)] });
-    }
-    const collector = mainMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId && i.customId.startsWith('dragonDaycare_'),
-        max: 1,
-        time: 18000
-    });
-    collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const choice = Number(i.customId.replace('dragonDaycare_', ''));
-        const success = actions[choice].success;
-        if (success) {
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, 110, 'dragonsHandled');
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setTitle('🔥 Dragon Tamed!')
-                .setDescription(`The little dragon calmed down and the daycare passed inspection.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
-            if (unlockedTitles.length > 0) winEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
-            await mainMessage.edit({ embeds: [winEmbed], components: [] }).catch(() => {});
-        } else {
-            const failEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setTitle('🔥 Dragon Tantrum!')
-                .setDescription('The dragon burned your timesheet and shrieked at the supervisor. Earned **0** Baubles.')
-                .setFooter({ text: 'Dragon daycare is chaos disguised as cuteness.' });
-            await mainMessage.edit({ embeds: [failEmbed], components: [] }).catch(() => {});
-        }
-    });
-    collector.on('end', async (_, reason) => {
-        if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0x95a5a6)
-                .setTitle('⏳ Dragon Unhappy')
-                .setDescription('The dragon got bored before you could act. Earned **0** Baubles.')
-                .setFooter({ text: 'Dragon care requires quick choices.' });
-            const finalEmbed = appendWorkAgainFooter(winEmbed, initialData, baubleData);
-            await mainMessage.edit({ embeds: [finalEmbed], components: [buildWorkAgainRow()] }).catch(() => {});
-            attachWorkAgainCollector(mainMessage, initialData, channel, user, baubleData);
-        }
-    });
 }
 
 async function applyParentLaborTax(userId, earnings, baubleData) {
