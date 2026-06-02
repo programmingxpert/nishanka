@@ -227,9 +227,9 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
             await baubleData.save();
         }
 
-        if (minesCount > 8 && amount > 500) {
+        if (minesCount >= 8 && minesCount <= 10 && amount > 500) {
             client.activeMinesGames.delete(userId);
-            const errorMsg = `⚠️ High-stakes Mines (9+ mines) have a maximum bet limit of **500** Baubles. Please bet exactly 500 Baubles to play.`;
+            const errorMsg = `⚠️ Mines games with 8-10 mines have a maximum wager limit of **500** Baubles. For extreme 11+ mines, you can bet any amount you want! 🚀`;
             if (isSlash) {
                 return interaction.reply({ content: errorMsg, ephemeral: true });
             } else {

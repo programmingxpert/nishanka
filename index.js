@@ -673,6 +673,24 @@ app.get('/api/guilds/:guildId', async (req, res) => {
         roleRewards: [],
         baublesMultiplier: 100
       },
+      welcome: guildConfig?.welcome || {
+        enabled: false,
+        channelId: null,
+        joinMessage: 'Welcome {user.mention} to {server.name}! You are our {server.memberCount}th member! 🎉',
+        leaveMessage: '{user.name} has left the server. 😢'
+      },
+      autoRole: guildConfig?.autoRole || {
+        enabled: false,
+        roleId: null
+      },
+      logging: guildConfig?.logging || {
+        enabled: false,
+        channelId: null,
+        messageDelete: true,
+        messageUpdate: true,
+        memberJoin: true,
+        memberLeave: true
+      },
       dashboardPermissions: dbPerms,
       userPermissions
     });
@@ -687,7 +705,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
-  const { autoMod, censor, economy, music, bot, leveling, dashboardPermissions } = req.body;
+  const { autoMod, censor, economy, music, bot, leveling, welcome, autoRole, logging, dashboardPermissions } = req.body;
 
   try {
     const guild = client.guilds.cache.get(guildId);
@@ -746,6 +764,27 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
           ? leveling.roleRewards.map(r => ({ level: Number(r.level), roleId: String(r.roleId) }))
           : []
       };
+    }
+
+    if (welcome) {
+      if (!canEdit('bot')) {
+        return res.status(403).json({ error: 'You do not have permission to modify Welcome settings.' });
+      }
+      settingsUpdates.welcome = welcome;
+    }
+
+    if (autoRole) {
+      if (!canEdit('bot')) {
+        return res.status(403).json({ error: 'You do not have permission to modify Auto-Role settings.' });
+      }
+      settingsUpdates.autoRole = autoRole;
+    }
+
+    if (logging) {
+      if (!canEdit('bot')) {
+        return res.status(403).json({ error: 'You do not have permission to modify Logging settings.' });
+      }
+      settingsUpdates.logging = logging;
     }
 
     if (music) {

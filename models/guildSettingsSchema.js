@@ -34,6 +34,24 @@ const guildSettingsSchema = new mongoose.Schema({
         },
         baublesMultiplier: { type: Number, default: 100 }
     },
+    welcome: {
+        enabled: { type: Boolean, default: false },
+        channelId: { type: String, default: null },
+        joinMessage: { type: String, default: 'Welcome {user.mention} to {server.name}! You are our {server.memberCount}th member! 🎉' },
+        leaveMessage: { type: String, default: '{user.name} has left the server. 😢' }
+    },
+    autoRole: {
+        enabled: { type: Boolean, default: false },
+        roleId: { type: String, default: null }
+    },
+    logging: {
+        enabled: { type: Boolean, default: false },
+        channelId: { type: String, default: null },
+        messageDelete: { type: Boolean, default: true },
+        messageUpdate: { type: Boolean, default: true },
+        memberJoin: { type: Boolean, default: true },
+        memberLeave: { type: Boolean, default: true }
+    },
     dashboardPermissions: {
         bot: { type: [String], default: [] },
         giveaways: { type: [String], default: [] },
