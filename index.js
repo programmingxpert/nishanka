@@ -588,6 +588,85 @@ app.get('/api/public/items/stats', async (req, res) => {
   }
 });
 
+// Premium Status API
+app.get('/api/premium/status', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const premiumUsers = (process.env.PREMIUM_USERS || "").split(",").map(id => id.trim());
+    const userIsPremium = premiumUsers.includes(req.session.user.id);
+
+    if (userIsPremium) {
+      try {
+        const { checkAndAwardAchievement } = require('./utils/achievements');
+        const newlyUnlocked = await checkAndAwardAchievement(client, req.session.user.id, 'premium_supporter');
+        if (newlyUnlocked) {
+          const Bauble = require('./models/baubleSchema');
+          const baubleData = await Bauble.findOneAndUpdate(
+            { userId: req.session.user.id },
+            { $inc: { baubles: 5000 } },
+            { upsert: true, new: true }
+          );
+          const { addItemToInventory } = require('./utils/items');
+          addItemToInventory(baubleData, 'mystery_box', 3);
+          addItemToInventory(baubleData, 'clover', 2);
+          addItemToInventory(baubleData, 'rubber_duck', 1);
+          await baubleData.save();
+        }
+      } catch (achErr) {
+        console.error('Failed to award premium supporter achievement:', achErr);
+      }
+    }
+    
+    let userGuilds = req.session.guilds;
+    if (!userGuilds) {
+      const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
+        headers: { Authorization: `Bearer ${req.session.accessToken}` },
+      });
+      if (discordRes.ok) {
+        userGuilds = await discordRes.json();
+        req.session.guilds = userGuilds;
+        req.session.save();
+      } else {
+        userGuilds = [];
+      }
+    }
+    
+    const premiumGuildsList = (process.env.PREMIUM_GUILDS || "").split(",").map(id => id.trim());
+    
+    const enrichedGuilds = await Promise.all(userGuilds.map(async (g) => {
+      const isOwner = g.owner === true;
+      const hasAdmin = (BigInt(g.permissions) & 0x20n) === 0x20n;
+      
+      // A guild is premium if it's in the whitelisted guilds list OR if the owner is premium
+      let isPrem = premiumGuildsList.includes(g.id);
+      if (!isPrem && isOwner && userIsPremium) isPrem = true;
+      
+      // Fallback: check database flag
+      if (!isPrem) {
+        const GuildSettings = require('./models/guildSettingsSchema');
+        const guildConfig = await GuildSettings.findOne({ guildId: g.id }).lean();
+        if (guildConfig && guildConfig.isPremium) isPrem = true;
+      }
+
+      return {
+        id: g.id,
+        name: g.name,
+        icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=128` : null,
+        isPremium: isPrem,
+        hasAdmin
+      };
+    }));
+
+    res.json({
+      userIsPremium,
+      guilds: enrichedGuilds
+    });
+  } catch (err) {
+    console.error('Failed to fetch premium status:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Logout
 app.post('/auth/logout', (req, res) => {
   req.session.destroy();
@@ -653,6 +732,26 @@ const checkGuildAccess = async (req, guildId) => {
   } catch (err) {
     return false;
   }
+};
+
+const isPremium = async (guildId) => {
+  // 1. Check if guild ID is directly whitelisted in env
+  const premiumGuilds = (process.env.PREMIUM_GUILDS || "").split(",").map(id => id.trim());
+  if (premiumGuilds.includes(guildId)) return true;
+
+  // 2. Check if guild owner is whitelisted in env
+  const premiumUsers = (process.env.PREMIUM_USERS || "").split(",").map(id => id.trim());
+  try {
+    const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null);
+    if (guild && premiumUsers.includes(guild.ownerId)) return true;
+  } catch (e) {}
+
+  // 3. Or check database premium status
+  const GuildSettings = require('./models/guildSettingsSchema');
+  const guildConfig = await GuildSettings.findOne({ guildId }).lean();
+  if (guildConfig && guildConfig.isPremium) return true;
+
+  return false;
 };
 
 const checkPermission = async (req, guildId, tab) => {
@@ -825,7 +924,8 @@ app.get('/api/guilds/:guildId', async (req, res) => {
       dashboardPermissions: dbPerms,
       userPermissions,
       guildName,
-      guildIcon
+      guildIcon,
+      isPremium: await isPremium(guildId)
     });
   } catch (err) {
     console.error('Fetch settings error:', err);
@@ -888,14 +988,19 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
       if (!canEdit('bot')) {
         return res.status(403).json({ error: 'You do not have permission to modify Leveling settings.' });
       }
+      const isPrem = await isPremium(guildId);
+      const rewards = Array.isArray(leveling.roleRewards)
+        ? leveling.roleRewards.map(r => ({ level: Number(r.level), roleId: String(r.roleId) }))
+        : [];
+      if (!isPrem && rewards.length > 10) {
+        return res.status(403).json({ error: 'Free servers are limited to 10 leveling role rewards. Upgrade to Premium for unlimited!' });
+      }
       settingsUpdates.leveling = {
         enabled: leveling.enabled !== false,
         announceLevelUps: leveling.announceLevelUps !== false,
         levelUpChannelId: leveling.levelUpChannelId || null,
         baublesMultiplier: typeof leveling.baublesMultiplier === 'number' ? leveling.baublesMultiplier : 100,
-        roleRewards: Array.isArray(leveling.roleRewards)
-          ? leveling.roleRewards.map(r => ({ level: Number(r.level), roleId: String(r.roleId) }))
-          : []
+        roleRewards: rewards
       };
     }
 
@@ -923,6 +1028,10 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
     if (music) {
       if (!canEdit('music')) {
         return res.status(403).json({ error: 'You do not have permission to modify Music settings.' });
+      }
+      const isPrem = await isPremium(guildId);
+      if (music.twentyFourSeven === true && !isPrem) {
+        return res.status(403).json({ error: '24/7 Playback requires Nishanka Premium.' });
       }
       settingsUpdates.music = music;
     }
@@ -956,6 +1065,11 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
     if (censor) {
       if (!canEdit('censor')) {
         return res.status(403).json({ error: 'You do not have permission to modify Censor settings.' });
+      }
+      const isPrem = await isPremium(guildId);
+      const totalWords = (censor.hardcoreWords || []).length + (censor.restrictedWords || []).length;
+       if (!isPrem && totalWords > 30) {
+        return res.status(403).json({ error: 'Free servers are limited to 30 censored words in total. Upgrade to Premium for unlimited!' });
       }
       await Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true });
       if (client.censorCache) client.censorCache.delete(guildId);
@@ -1095,6 +1209,13 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
   if (!msValue) return res.status(400).json({ error: 'Invalid duration' });
 
   try {
+    const isPrem = await isPremium(guildId);
+    const Giveaway = require('./models/Giveaway');
+    const activeCount = await Giveaway.countDocuments({ guildId, ended: false });
+    if (activeCount >= 1 && !isPrem) {
+      return res.status(403).json({ error: 'Free servers are limited to 1 active giveaway. Upgrade to Premium for unlimited active giveaways!' });
+    }
+
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return res.status(400).json({ error: 'Guild not found' });
     const channel = guild.channels.cache.get(channelId);
@@ -1284,7 +1405,18 @@ app.post('/api/guilds/:guildId/triggers', express.json(), async (req, res) => {
     const { triggerWord, matchType, response } = req.body;
     if (!triggerWord) return res.status(400).json({ error: 'triggerWord required' });
 
+    const isPrem = await isPremium(guildId);
     const Trigger = require('./models/triggerSchema');
+
+    // Check limit if adding new
+    const existing = await Trigger.findOne({ guildId, triggerWord: triggerWord.toLowerCase() });
+    if (!existing) {
+      const count = await Trigger.countDocuments({ guildId });
+      if (count >= 3 && !isPrem) {
+        return res.status(403).json({ error: 'Free servers are limited to 3 custom triggers. Upgrade to Premium for unlimited!' });
+      }
+    }
+
     const trigger = await Trigger.findOneAndUpdate(
         { guildId, triggerWord: triggerWord.toLowerCase() },
         { matchType, response },
@@ -1423,7 +1555,17 @@ app.post('/api/guilds/:guildId/media-only-channels', express.json(), async (req,
     const { channelId, enabled, customWarning, createThread, applyToEveryone } = req.body;
     if (!channelId) return res.status(400).json({ error: 'channelId required' });
 
+    const isPrem = await isPremium(guildId);
     const MediaOnly = require('./models/mediaOnlySchema');
+    
+    // Check limit if adding new
+    const existing = await MediaOnly.findOne({ guildId, channelId });
+    if (!existing) {
+      const count = await MediaOnly.countDocuments({ guildId });
+      if (count >= 1 && !isPrem) {
+        return res.status(403).json({ error: 'Free servers are limited to 1 media-only channel. Upgrade to Premium for unlimited!' });
+      }
+    }
     
     const updateData = {};
     if (enabled !== undefined) updateData.enabled = (enabled !== false);

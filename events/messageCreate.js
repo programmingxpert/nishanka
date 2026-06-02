@@ -202,7 +202,63 @@ module.exports = {
 
         // Wrap reply to clear cooldown on error response
         const originalMessageReply = message.reply;
-        message.reply = async function (options, ...args) {
+        const originalChannelSend = message.channel.send;
+
+        const { isGuildPremium, getRandomPromoTip, getRandomDashboardTip } = require('../utils/premiumPromo');
+        const isPrem = await isGuildPremium(message.guild.id);
+
+        const injectPromo = (options) => {
+            const rand = Math.random();
+            let promoText = '';
+
+            if (isPrem) {
+                // Premium servers only get dashboard promo tips (6% chance)
+                if (rand < 0.06) {
+                    promoText = getRandomDashboardTip();
+                } else {
+                    return options;
+                }
+            } else {
+                // Non-premium servers get premium promo (6%) or dashboard tips (6%)
+                if (rand < 0.06) {
+                    promoText = getRandomPromoTip();
+                } else if (rand < 0.12) {
+                    promoText = getRandomDashboardTip();
+                } else {
+                    return options;
+                }
+            }
+            
+            if (typeof options === 'string') {
+                if (options.startsWith('❌') || options.startsWith('⚠️')) return options;
+                return options + `\n\n*${promoText}*`;
+            } else if (options && typeof options === 'object') {
+                let content = options.content || '';
+                if (content.startsWith('❌') || content.startsWith('⚠️')) return options;
+                
+                if (options.embeds && options.embeds.length > 0) {
+                    const embed = options.embeds[0];
+                    if (embed && typeof embed.setFooter === 'function') {
+                        try {
+                            const currentFooter = embed.data?.footer?.text;
+                            const footerText = currentFooter ? `${currentFooter} | ${promoText}` : promoText;
+                            embed.setFooter({ text: footerText, iconURL: embed.data?.footer?.icon_url });
+                        } catch (e) {}
+                    } else if (embed && typeof embed === 'object') {
+                        const currentFooter = embed.footer?.text;
+                        embed.footer = {
+                            text: currentFooter ? `${currentFooter} | ${promoText}` : promoText,
+                            icon_url: embed.footer?.icon_url
+                        };
+                    }
+                } else {
+                    options.content = content + `\n\n*${promoText}*`;
+                }
+            }
+            return options;
+        };
+
+        const checkAndClearCooldown = (options) => {
             let content = '';
             let embedDesc = '';
             if (typeof options === 'string') {
@@ -220,7 +276,17 @@ module.exports = {
             ) {
                 timestamps.delete(message.author.id);
             }
+        };
+
+        message.reply = async function (options, ...args) {
+            checkAndClearCooldown(options);
+            options = injectPromo(options);
             return originalMessageReply.apply(this, [options, ...args]);
+        };
+
+        message.channel.send = async function (options, ...args) {
+            options = injectPromo(options);
+            return originalChannelSend.apply(this, [options, ...args]);
         };
 
         // --- Prioritize text mentions over reply mentions ---

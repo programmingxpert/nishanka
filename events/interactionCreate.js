@@ -92,6 +92,61 @@ module.exports = {
         // Wrap reply and followUp to clear cooldown on error response
         const originalReply = interaction.reply;
         const originalFollowUp = interaction.followUp;
+        const originalEditReply = interaction.editReply;
+
+        const { isGuildPremium, getRandomPromoTip, getRandomDashboardTip } = require('../utils/premiumPromo');
+        const isPrem = await isGuildPremium(interaction.guildId);
+
+        const injectPromo = (options) => {
+            const rand = Math.random();
+            let promoText = '';
+
+            if (isPrem) {
+                // Premium servers only get dashboard promo tips (6% chance)
+                if (rand < 0.06) {
+                    promoText = getRandomDashboardTip();
+                } else {
+                    return options;
+                }
+            } else {
+                // Non-premium servers get premium promo (6%) or dashboard tips (6%)
+                if (rand < 0.06) {
+                    promoText = getRandomPromoTip();
+                } else if (rand < 0.12) {
+                    promoText = getRandomDashboardTip();
+                } else {
+                    return options;
+                }
+            }
+            
+            if (typeof options === 'string') {
+                if (options.startsWith('❌') || options.startsWith('⚠️')) return options;
+                return options + `\n\n*${promoText}*`;
+            } else if (options && typeof options === 'object') {
+                let content = options.content || '';
+                if (content.startsWith('❌') || content.startsWith('⚠️')) return options;
+                
+                if (options.embeds && options.embeds.length > 0) {
+                    const embed = options.embeds[0];
+                    if (embed && typeof embed.setFooter === 'function') {
+                        try {
+                            const currentFooter = embed.data?.footer?.text;
+                            const footerText = currentFooter ? `${currentFooter} | ${promoText}` : promoText;
+                            embed.setFooter({ text: footerText, iconURL: embed.data?.footer?.icon_url });
+                        } catch (e) {}
+                    } else if (embed && typeof embed === 'object') {
+                        const currentFooter = embed.footer?.text;
+                        embed.footer = {
+                            text: currentFooter ? `${currentFooter} | ${promoText}` : promoText,
+                            icon_url: embed.footer?.icon_url
+                        };
+                    }
+                } else {
+                    options.content = content + `\n\n*${promoText}*`;
+                }
+            }
+            return options;
+        };
 
         const checkAndClearCooldown = (options) => {
             let content = '';
@@ -115,12 +170,19 @@ module.exports = {
 
         interaction.reply = async function (options, ...args) {
             checkAndClearCooldown(options);
+            options = injectPromo(options);
             return originalReply.apply(this, [options, ...args]);
         };
 
         interaction.followUp = async function (options, ...args) {
             checkAndClearCooldown(options);
+            options = injectPromo(options);
             return originalFollowUp.apply(this, [options, ...args]);
+        };
+
+        interaction.editReply = async function (options, ...args) {
+            options = injectPromo(options);
+            return originalEditReply.apply(this, [options, ...args]);
         };
 
         // --- Execute command ---

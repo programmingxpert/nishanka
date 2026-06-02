@@ -13,7 +13,8 @@ const ACHIEVEMENTS = [
     { id: 'streak_30', name: 'Monthly Regular', emoji: '📅', description: 'Reach a 30-day daily streak.', rarity: 5 },
     { id: 'streak_100', name: 'Unstoppable Dedication', emoji: '💯', description: 'Reach a 100-day daily streak.', rarity: 0.5 },
     { id: 'slots_win_50', name: 'Slots Enthusiast', emoji: '🎰', description: 'Win 50 games of Slots.', rarity: 15 },
-    { id: 'gamble_win_100', name: 'High Roller', emoji: '🎲', description: 'Win 100 gamble games.', rarity: 5 }
+    { id: 'gamble_win_100', name: 'High Roller', emoji: '🎲', description: 'Win 100 gamble games.', rarity: 5 },
+    { id: 'premium_supporter', name: 'Premium Supporter', emoji: '💎', description: 'Support Nishanka by purchasing Premium. Unlocks the exclusive profile trophy, 5,000 Baubles, and a rare item gift package!', rarity: 0.1 }
 ];
 
 async function checkAndAwardAchievement(client, userId, achievementId, interactionOrMessage = null) {

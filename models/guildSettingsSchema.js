@@ -62,7 +62,8 @@ const guildSettingsSchema = new mongoose.Schema({
         automod: { type: [String], default: [] },
         censor: { type: [String], default: [] },
         music: { type: [String], default: [] }
-    }
+    },
+    isPremium: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.models.GuildSettings || mongoose.model('GuildSettings', guildSettingsSchema);

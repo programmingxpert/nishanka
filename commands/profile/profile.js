@@ -4,7 +4,8 @@ const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discor
 //const Canvas = require('canvas');
 const Canvas = require('@napi-rs/canvas');
 const Profile = require('../../models/profileSchema');
-const Bauble = require('../../models/baubleSchema'); // Assumes your bauble schema stores "baubles" for each user
+const Bauble = require('../../models/baubleSchema');
+const Achievement = require('../../models/achievementSchema'); // Assumes your bauble schema stores "baubles" for each user
 
 function drawCrown(ctx, x, y, width, height) {
     ctx.save();
@@ -164,6 +165,7 @@ module.exports = {
                 baubleBalance = baubleData.baubles;
             }
             const hasCrown = baubleData && baubleData.inventory && baubleData.inventory.some(item => item.itemId === 'crown' && item.quantity > 0);
+            const hasPremiumSupporter = await Achievement.findOne({ userId: targetUser.id, achievementId: 'premium_supporter' });
 
             // If the profile is private and the requester isn’t the owner, refuse to show.
             if (profileData.private && interaction.user.id !== targetUser.id) {
@@ -222,9 +224,16 @@ module.exports = {
             ctx.fillStyle = '#ffffff';
             ctx.fillText(displayName, 160, 300);
 
+            let crownOffset = 0;
             if (hasCrown) {
                 const nameWidth = ctx.measureText(displayName).width;
                 drawCrown(ctx, 160 + nameWidth + 12, 300 - 24, 28, 20);
+                crownOffset = 36;
+            }
+            if (hasPremiumSupporter) {
+                const nameWidth = ctx.measureText(displayName).width;
+                ctx.font = '22px sans-serif';
+                ctx.fillText('💎', 160 + nameWidth + 12 + crownOffset, 298);
             }
 
             ctx.font = '24px sans-serif';
@@ -323,6 +332,7 @@ module.exports = {
                 baubleBalance = baubleData.baubles;
             }
             const hasCrown = baubleData && baubleData.inventory && baubleData.inventory.some(item => item.itemId === 'crown' && item.quantity > 0);
+            const hasPremiumSupporter = await Achievement.findOne({ userId: targetUser.id, achievementId: 'premium_supporter' });
 
             // Canvas dimensions updated.
             const canvasWidth = 800, canvasHeight = 450;
@@ -378,9 +388,16 @@ module.exports = {
             ctx.fillStyle = '#ffffff';
             ctx.fillText(displayName, 160, 300);
 
+            let crownOffset = 0;
             if (hasCrown) {
                 const nameWidth = ctx.measureText(displayName).width;
                 drawCrown(ctx, 160 + nameWidth + 12, 300 - 24, 28, 20);
+                crownOffset = 36;
+            }
+            if (hasPremiumSupporter) {
+                const nameWidth = ctx.measureText(displayName).width;
+                ctx.font = '22px sans-serif';
+                ctx.fillText('💎', 160 + nameWidth + 12 + crownOffset, 298);
             }
 
             ctx.font = '24px sans-serif';
