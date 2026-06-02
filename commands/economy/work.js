@@ -219,9 +219,9 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
     let mainMessage;
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [row], withResponse: true });
+            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [row], fetchReply: true });
         } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [row], withResponse: true });
+            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [row], fetchReply: true });
         }
     } else {
         mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [row] });
@@ -229,17 +229,18 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
 
     const collector = mainMessage.createMessageComponentCollector({
         filter: i => i.user.id === userId && i.customId.startsWith('choice_'),
-        max: 1,
         time: config.timeLimit || 30000
     });
 
     let chosenOption = null;
 
     collector.on('collect', async i => {
-        try { await i.deferUpdate(); } catch (_) {}
-        const index = parseInt(i.customId.replace('choice_', ''), 10);
-        chosenOption = scenario.options[index];
-        collector.stop('answered');
+        try {
+            const index = parseInt(i.customId.replace('choice_', ''), 10);
+            chosenOption = scenario.options[index];
+            collector.stop('answered');
+            await i.deferUpdate();
+        } catch (_) {}
     });
 
     collector.on('end', async (collected, reason) => {
@@ -321,14 +322,14 @@ async function runMiningGame(initialData, channel, user, baubleData) {
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                withResponse: true
+                fetchReply: true
             });
         } else {
             mainMessage = await initialData.reply({
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                withResponse: true
+                fetchReply: true
             });
         }
     } else {
@@ -352,13 +353,14 @@ async function runMiningGame(initialData, channel, user, baubleData) {
         });
 
     collector.on('collect', async i => {
+        clicks++;
+        const shouldUpdate = (clicks % 3 === 0 || clicks === maxClicks);
+        
         try {
             await i.deferUpdate();
         } catch (_) {}
 
-        clicks++;
-
-        if (clicks % 3 === 0 || clicks === maxClicks) {
+        if (shouldUpdate) {
             const currentProgress = Math.max(
                 0,
                 100 -
@@ -481,14 +483,14 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                withResponse: true
+                fetchReply: true
             });
         } else {
             mainMessage = await initialData.reply({
                 content: `<@${userId}>`,
                 embeds: [embed],
                 components: [btnRow],
-                withResponse: true
+                fetchReply: true
             });
         }
     } else {
@@ -502,17 +504,12 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
     let alertTriggered = false;
     let startTime = 0;
 
-    const alertDelay =
-        Math.random() * 2000 + 1500;
+    const alertDelay = Math.random() * 2000 + 1500;
 
-    const collector =
-        mainMessage.createMessageComponentCollector({
-            filter:
-                i =>
-                    i.user.id === userId &&
-                    i.customId === 'work_security',
-            time: alertDelay + 5000
-        });
+    const collector = mainMessage.createMessageComponentCollector({
+        filter: i => i.user.id === userId && i.customId === 'work_security',
+        time: alertDelay + 5000
+    });
 
     const alertTimeout = setTimeout(async () => {
         alertTriggered = true;
@@ -548,16 +545,17 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
     }, alertDelay);
 
     collector.on('collect', async i => {
-        try {
-            await i.deferUpdate();
-        } catch (_) {}
-
-        if (!alertTriggered) {
+        const wasAlertTriggered = alertTriggered;
+        if (!wasAlertTriggered) {
             clearTimeout(alertTimeout);
             collector.stop('early');
         } else {
             collector.stop('caught');
         }
+
+        try {
+            await i.deferUpdate();
+        } catch (_) {}
     });
 
     collector.on('end', async (_, reason) => {
@@ -669,9 +667,9 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
     let mainMessage;
     if (isSlash) {
         if (initialData.replied || initialData.deferred) {
-            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], withResponse: true });
+            mainMessage = await initialData.followUp({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], fetchReply: true });
         } else {
-            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], withResponse: true });
+            mainMessage = await initialData.reply({ content: `<@${userId}>`, embeds: [embed], components: [btnRow], fetchReply: true });
         }
     } else {
         mainMessage = await channel.send({ content: `<@${userId}>`, embeds: [embed], components: [btnRow] });
@@ -684,12 +682,18 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
     });
 
     collector.on('collect', async i => {
+        const item = i.customId.replace('barista_', '');
+        selectedIngredients.push(item);
+
+        const isComplete = selectedIngredients.length >= 2;
+        
+        if (isComplete) {
+            collector.stop('complete');
+        }
+
         try {
             await i.deferUpdate();
         } catch (_) {}
-
-        const item = i.customId.replace('barista_', '');
-        selectedIngredients.push(item);
 
         const ingredientEmojis = selectedIngredients.map(ing => {
             if (ing === 'coffee') return '☕';
@@ -702,10 +706,6 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
             .setFields({ name: '🛒 Your Cup', value: ingredientEmojis });
 
         await mainMessage.edit({ embeds: [updatedEmbed] }).catch(() => {});
-
-        if (selectedIngredients.length === 2) {
-            collector.stop('complete');
-        }
     });
 
     collector.on('end', async (collected, reason) => {
@@ -758,6 +758,9 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
     });
 }
 
+// ... All other job specific functions and exports from here downwards are assumed valid.
+// For brevity, not editing the boilerplate games array which maps these to \`runSimpleChoiceGame\`.
+
 /* =========================
    ELECTRICIAN GAME
 ========================= */
@@ -797,7 +800,7 @@ async function runPizzaDeliveryGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You sat in your car eating the pepperoni yourself. The customer cancelled.',
         scenarios: [
             {
-                description: 'A giant raccoon is guarding the customer\'s front door!',
+                description: "A giant raccoon is guarding the customer's front door!",
                 options: [
                     { label: 'Bribe it with pepperoni', success: true, msg: '🍖 Raccoon happily eats pepperoni and lets you pass.' },
                     { label: 'Fight the raccoon', success: false, msg: '🦝 Raccoon knows karate. You lost the pizza.' }
@@ -997,7 +1000,7 @@ async function runArcadeTechnicianGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You got distracted playing Pac-Man and got fired.',
         scenarios: [
             {
-                description: 'The claw machine is rigged and kids are crying because they can\'t win the duck plushie.',
+                description: "The claw machine is rigged and kids are crying because they can't win the duck plushie.",
                 options: [
                     { label: 'Set claw grip to 100%', success: true, msg: '🔧 Everyone wins! Kids are happy.' },
                     { label: 'Rig it to 0%', success: false, msg: '📉 Claw runs away from plushies. Kids riot.' }
@@ -1188,19 +1191,21 @@ async function attachWorkAgainCollector(mainMessage, initialData, channel, user,
     });
 
     collector.on('collect', async i => {
-        try {
-            await i.deferUpdate();
-        } catch (_) {}
-
         const cooldown = getWorkCooldownInfo(initialData, baubleData);
         if (cooldown.timeLeft > 0) {
             const seconds = Math.ceil(cooldown.timeLeft / 1000);
-            await i.followUp({
-                content: `⏳ Please wait **${seconds}s** before pressing Work Again.`,
-                ephemeral: true
-            }).catch(() => {});
+            try { 
+                await i.reply({
+                    content: `⏳ Please wait **${seconds}s** before pressing Work Again.`,
+                    ephemeral: true
+                });
+            } catch (_) {}
             return;
         }
+
+        try {
+            await i.deferUpdate();
+        } catch (_) {}
 
         const client = initialData?.client || initialData?.message?.client || initialData?.channel?.client;
         if (client && client.cooldowns) {
