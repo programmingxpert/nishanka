@@ -51,7 +51,7 @@ function formatWeeklyTimeRemaining(ms) {
     return parts.join(' ');
 }
 
-// Core business logic handler to avoid code duplication
+// Single pipeline handling both slash and prefix logic safely
 async function handleWeeklyClaim(userId) {
     let baubleData = await Bauble.findOne({ userId });
 
@@ -76,38 +76,46 @@ async function handleWeeklyClaim(userId) {
                     [
                         `Next claim in **${formatWeeklyTimeRemaining(timeLeft)}**`,
                         '',
-                        `> Your cache is still recharging.`
+                        `> Your cache is still recharging. Keep grinding daily in the meantime!`
                     ].join('\n')
                 );
             return { status: 'cooldown', embed: cooldownEmbed };
         }
     }
 
-    // Calculate reward (6000-12000)
+    // Calculate rewards
     const baseReward = Math.floor(Math.random() * 6001) + 6000;
     const globalMultiplier = await getGlobalMultiplier();
     const incomeMultiplier = await getIncomeMultiplier(userId);
     const reward = Math.floor(baseReward * globalMultiplier * incomeMultiplier);
 
-    // Save to database
+    // Save state
     baubleData.baubles = (baubleData.baubles || 0) + reward;
     baubleData.weeklyLastClaimed = now;
     await baubleData.save();
 
     const rarity = getWeeklyRarity(baseReward);
+    const effectiveMultiplier = globalMultiplier * incomeMultiplier;
 
-    // Premium Minimalist Embed Design
+    // Premium UI containing all required metrics without field box clutter
     const successEmbed = new EmbedBuilder()
         .setColor(rarity.color)
+        .setTitle(`✦ ${rarity.tier} Weekly Cache`)
         .setDescription(
             [
                 `# +${reward.toLocaleString()} ✨`,
                 '',
                 `**${rarity.name}**`,
+                `*${rarity.desc}*`,
                 '',
-                `Balance: **${baubleData.baubles.toLocaleString()}**`
-            ].join('\n')
-        );
+                `> Balance: **${baubleData.baubles.toLocaleString()}**`,
+                `> Base Reward: **${baseReward.toLocaleString()}**`,
+                effectiveMultiplier > 1 
+                    ? `> Multiplier: **${effectiveMultiplier.toFixed(2)}x**` 
+                    : ''
+            ].filter(Boolean).join('\n')
+        )
+        .setFooter({ text: 'Come back next week for another epic haul!' });
 
     return { status: 'success', embed: successEmbed };
 }
