@@ -230,7 +230,7 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
     const collector = mainMessage.createMessageComponentCollector({
         filter: i => i.user.id === userId && i.customId.startsWith('choice_'),
         max: 1,
-        time: config.timeLimit || 15000
+        time: config.timeLimit || 30000
     });
 
     let chosenOption = null;
@@ -297,7 +297,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
         .setColor(0x9b59b6)
         .setTitle('⛏️ Deep Rock Mining')
         .setDescription(
-            `Mash the **MINE** button as fast as you can to shatter the crystal! You have **6 seconds**!`
+            `Mash the **MINE** button as fast as you can to shatter the crystal! You have **12 seconds**!`
         )
         .setFields({
             name: '💎 Crystal Integrity',
@@ -348,7 +348,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
                 i =>
                     i.user.id === userId &&
                     i.customId === 'work_mine',
-            time: 6000
+            time: 12000
         });
 
     collector.on('collect', async i => {
@@ -511,7 +511,7 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                 i =>
                     i.user.id === userId &&
                     i.customId === 'work_security',
-            time: alertDelay + 2500
+            time: alertDelay + 5000
         });
 
     const alertTimeout = setTimeout(async () => {
@@ -655,7 +655,7 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
     const embed = new EmbedBuilder()
         .setColor(0x8B4513)
         .setTitle('☕ Espresso Barista')
-        .setDescription(`The morning rush is here! Craft a **${recipe.name}** within **12 seconds**!\n\n📜 **Recipe:** ${recipe.display}`)
+        .setDescription(`The morning rush is here! Craft a **${recipe.name}** within **20 seconds**!\n\n📜 **Recipe:** ${recipe.display}`)
         .setFields({ name: '🛒 Your Cup', value: '[ Empty ]' })
         .setFooter({ text: 'Combine the ingredients!' });
 
@@ -680,7 +680,7 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
     const selectedIngredients = [];
     const collector = mainMessage.createMessageComponentCollector({
         filter: i => i.user.id === userId && i.customId.startsWith('barista_'),
-        time: 12000
+        time: 20000
     });
 
     collector.on('collect', async i => {
