@@ -5,6 +5,8 @@ const {
 	EmbedBuilder,
 	SlashCommandBuilder,
 	ComponentType,
+	ButtonBuilder,
+	ButtonStyle,
 } = require('discord.js');
 const config = require('../../config.json');
 
@@ -263,7 +265,7 @@ const commandGroups = {
 	giveaway: [
 		{
 			title: '🎁 Giveaway Control',
-			commands: ['giveaway', 'giveawayend']
+			commands: ['giveaway', 'giveawayend'] // Edit 4 Part
 		}
 	],
 	economy: [
@@ -438,29 +440,37 @@ module.exports = {
 			return idxA - idxB;
 		});
 
+		// Calculate total commands dynamically
+		const totalCommands = Object.values(grouped).reduce((acc, cat) => acc + Object.keys(cat).length, 0);
+
 		const embed = new EmbedBuilder()
-			.setColor(0x2b2d42) // Minimal dark-slate theme
-			.setTitle('📘 Help Menu')
-			.setTimestamp();
-
-		const catLines = [];
-		for (const cat of categories) {
-			const details = categoryDetails[cat];
-			if (!details) continue;
-			if (cat === 'admin' && !isOwner) continue;
-
-			const count = Object.values(grouped[cat] || {}).length;
-			catLines.push(`${details.emoji} **${details.label}** (\`${cat}\` • ${count} commands)\n> ${details.description}`);
-		}
-
-		embed.setDescription(
-			'👋 **Welcome to the Nishanka Help Menu!**\n\n' +
-			'Select a category from the dropdown below to explore commands.\n\n' +
-			'📚 *Featured Categories:*\n' +
-			catLines.slice(0, 5).join('\n\n')
-		);
-
-		embed.setFooter({ text: 'Use /help or -help | Nishanka ©️' });
+			.setColor(0x2B2D31)
+			.setTitle('✦ Nishanka')
+			.setDescription(
+				[
+					'The all-in-one Discord experience.',
+					'',
+					'━━━━━━━━━━━━━━━━━━',
+					'',
+					'💵 Economy',
+					'🎰 Casino',
+					'💍 Marriage',
+					'🎮 Games',
+					'🎭 Fun',
+					'🛡️ Moderation',
+					'⚙️ Administration',
+					'🛠️ Utility',
+					'',
+					'━━━━━━━━━━━━━━━━━━',
+					'',
+					`📚 ${totalCommands} Commands`,
+					'',
+					'Select a category below.'
+				].join('\\n')
+			)
+			.setFooter({
+				text: 'Nishanka • Built with ❤️'
+			});
 
 		const selectMenu = new StringSelectMenuBuilder()
 			.setCustomId('help-category-select')
@@ -483,9 +493,27 @@ module.exports = {
 
 		const row = new ActionRowBuilder().addComponents(selectMenu);
 
+		const buttons = new ActionRowBuilder()
+			.addComponents(
+				new ButtonBuilder()
+					.setLabel('Invite')
+					.setStyle(ButtonStyle.Link)
+					.setURL('YOUR_INVITE_LINK'),
+
+				new ButtonBuilder()
+					.setLabel('Support')
+					.setStyle(ButtonStyle.Link)
+					.setURL('YOUR_SUPPORT_SERVER'),
+
+				new ButtonBuilder()
+					.setLabel('Website')
+					.setStyle(ButtonStyle.Link)
+					.setURL('YOUR_WEBSITE')
+			);
+
 		const reply = await context.reply({
 			embeds: [embed],
-			components: [row],
+			components: [buttons, row],
 			ephemeral: context.isPrefix ? false : true,
 		});
 
@@ -509,7 +537,7 @@ module.exports = {
 						const activeInGroup = group.commands.filter(name => categoryCmds[name] !== undefined);
 						if (activeInGroup.length > 0) {
 							activeInGroup.forEach(name => formattedNames.add(name));
-							formattedSections.push(`**${group.title}**\n${activeInGroup.map(name => `\`${name}\``).join(' ')}`);
+							formattedSections.push(`**${group.title}**\\n${activeInGroup.map(name => "`" + name + "`").join(' ')}`);
 						}
 					}
 				} else {
@@ -517,11 +545,8 @@ module.exports = {
 					for (const group of groups) {
 						const activeInGroup = group.commands.filter(name => categoryCmds[name] !== undefined);
 						if (activeInGroup.length > 0) {
-							const groupLines = activeInGroup.map(name => {
-								formattedNames.add(name);
-								return `• \`${name}\` — ${categoryCmds[name]}`;
-							});
-							formattedSections.push(`**${group.title}**\n${groupLines.join('\n')}`);
+							activeInGroup.forEach(name => formattedNames.add(name));
+							formattedSections.push(`**${group.title}**\\n${activeInGroup.map(name => "`" + name + "`").join(' ')}`);
 						}
 					}
 				}
@@ -534,15 +559,10 @@ module.exports = {
 					}
 				}
 				if (otherCmds.length > 0) {
-					if (selected === 'actions') {
-						formattedSections.push(`**❓ Other Actions**\n${otherCmds.map(name => `\`${name}\``).join(' ')}`);
-					} else {
-						const otherLines = otherCmds.map(name => `• \`${name}\` — ${categoryCmds[name]}`);
-						formattedSections.push(`**❓ Miscellaneous Commands**\n${otherLines.join('\n')}`);
-					}
+					formattedSections.push(`**❓ Miscellaneous Commands**\\n${otherCmds.map(name => "`" + name + "`").join(' ')}`);
 				}
 
-				const details = categoryDetails[selected] || { label: selected.toUpperCase() };
+				const details = categoryDetails[selected] || { label: selected.toUpperCase(), description: "List of commands" };
 				const embedColor = categoryColors[selected] || 0x3498db;
 
 				const embeds = [];
@@ -553,12 +573,12 @@ module.exports = {
 						embeds.push(
 							new EmbedBuilder()
 								.setTitle(`${details.emoji || '📂'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
-								.setDescription(currentDescription)
+								.setDescription(`${details.description}\\n\\n━━━━━━━━━━━━━━━━━━\\n\\n${currentDescription}`)
 								.setColor(embedColor)
 						);
 						currentDescription = section;
 					} else {
-						if (currentDescription.length > 0) currentDescription += '\n\n';
+						if (currentDescription.length > 0) currentDescription += '\\n\\n';
 						currentDescription += section;
 					}
 				}
@@ -567,18 +587,18 @@ module.exports = {
 					embeds.push(
 						new EmbedBuilder()
 							.setTitle(`${details.emoji || '📂'} ${details.label} Commands ${embeds.length > 0 ? '(Cont.)' : ''}`)
-							.setDescription(currentDescription || 'No commands found.')
+							.setDescription(`${details.description}\\n\\n━━━━━━━━━━━━━━━━━━\\n\\n${currentDescription || 'No commands found.'}`)
 							.setColor(embedColor)
 					);
 				}
 				
-				embeds[embeds.length - 1].setFooter({ text: 'Use /help or -help | Nishanka ©️' });
+				embeds[embeds.length - 1].setFooter({ text: 'Nishanka • Built with ❤️' });
 				
 				const finalEmbeds = embeds.slice(0, 10);
 
 				await interaction.editReply({
 					embeds: finalEmbeds,
-					components: [row],
+					components: [buttons, row],
 				});
 
 			} catch (error) {
@@ -597,7 +617,7 @@ module.exports = {
 						.setTitle('📘 Help Menu')
 						.setDescription('This help menu has expired due to inactivity. Run the command again to use it.')
 						.setColor(0x95a5a6)
-						.setFooter({ text: 'Use /help or -help | Nishanka ©️' });
+						.setFooter({ text: 'Nishanka • Built with ❤️' });
 
 					reply.edit({ embeds: [expiredEmbed], components: [] }).catch(console.error);
 				} else {
