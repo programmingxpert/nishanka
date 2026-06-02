@@ -1244,7 +1244,6 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
     const m = await channel.send({ embeds: [embed] });
     await m.react('🎉');
 
-    const Giveaway = require('./models/Giveaway');
     const giveaway = new Giveaway({
         messageId: m.id,
         channelId: channel.id,
