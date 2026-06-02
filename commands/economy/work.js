@@ -772,12 +772,10 @@ async function runElectricianGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You stared at the sparks until the microwave exploded. You have no eyebrows left.',
         scenarios: [
             {
-                description: 'The breakroom microwave is shooting green sparks and making dubstep noises! Quick, what do you do?',
+                description: 'The breakroom microwave is shooting sparks!',
                 options: [
-                    { label: 'Throw water on it', success: false, msg: '💦 **BZZZT!** Water conducts electricity, genius. You got shocked and danced the robot involuntarily.' },
-                    { label: 'Pull the plug', success: true, msg: '🔌 **Success!** You unplugged the demon machine safely. The breakroom is saved!' },
-                    { label: 'Smash it with a chair', success: false, msg: '🪑 The chair shattered, the microwave is still sparking, and your boss is now staring at you.' },
-                    { label: 'Warm up a burrito', success: false, msg: '🌯 You threw a burrito inside. It mutated and started crawling. You ran away.' }
+                    { label: 'Pull the plug', success: true, msg: '🔌 Safe! You unplugged the machine.' },
+                    { label: 'Throw water on it', success: false, msg: '💥 Shocking! Water conducts electricity.' }
                 ]
             }
         ]
@@ -799,12 +797,10 @@ async function runPizzaDeliveryGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You sat in your car eating the pepperoni yourself. The customer cancelled.',
         scenarios: [
             {
-                description: 'You arrive at the customer\'s house, but a giant raccoon is guarding the front door like a mini-boss! How do you deliver the pizza?',
+                description: 'A giant raccoon is guarding the customer\'s front door!',
                 options: [
-                    { label: 'Bribe it with pepperoni', success: true, msg: '🍖 You distracted the raccoon with pepperoni. It accepted your bribe and let you pass.' },
-                    { label: 'Kickflip over it', success: true, msg: '🛹 You did a sick kickflip over the raccoon, landed on the porch, and delivered the pizza. The customer tipped extra for the style!' },
-                    { label: 'Fight the raccoon', success: false, msg: '🦝 The raccoon turned out to be a black belt in karate. You were beaten up and your pizza was stolen.' },
-                    { label: 'Scream for help', success: false, msg: '🗣️ You screamed. The raccoon laughed at you. Neighbors judged you.' }
+                    { label: 'Bribe it with pepperoni', success: true, msg: '🍖 Raccoon happily eats pepperoni and lets you pass.' },
+                    { label: 'Fight the raccoon', success: false, msg: '🦝 Raccoon knows karate. You lost the pizza.' }
                 ]
             }
         ]
@@ -826,12 +822,10 @@ async function runBombDisposalGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'The timer ticked to zero. You went out with a bang.',
         scenarios: [
             {
-                description: 'A ticking package is sitting on the office toilet! The timer shows 10 seconds! What do you do?',
+                description: 'A ticking package is sitting on the office toilet!',
                 options: [
-                    { label: 'Yeet it out the window', success: true, msg: '🪟 You threw it out the window! It exploded in the empty parking lot, blowing up the CEO\'s empty sports car. You get a raise for saving lives!' },
-                    { label: 'Snip the red wire', success: false, msg: '✂️ You cut the red wire. It was indeed the wrong wire. You have been launched into low-Earth orbit.' },
-                    { label: 'Flush the toilet', success: false, msg: '🚽 You tried to flush a bomb. It clogged the toilet. Now you have a ticking bomb and a plumbing crisis.' },
-                    { label: 'Run away screaming', success: false, msg: '🏃 You ran away! The bomb exploded, destroying the office. You are fired, but alive.' }
+                    { label: 'Yeet it out the window', success: true, msg: '🪟 Bomb explodes safely in the empty parking lot.' },
+                    { label: 'Snip the red wire', success: false, msg: '💥 Boom! Wrong wire.' }
                 ]
             }
         ]
@@ -853,12 +847,10 @@ async function runGhostHunterGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'The ghost possessed you and made you delete your browser history.',
         scenarios: [
             {
-                description: 'A spooky Victorian ghost is hovering in the server room, messing with the Wi-Fi! How do you handle it?',
+                description: 'A spooky Victorian ghost is messing with the server room Wi-Fi!',
                 options: [
-                    { label: 'Use breakroom vacuum', success: true, msg: '🧹 You grabbed the breakroom vacuum and sucked the ghost in. Who you gonna call? You!' },
-                    { label: 'Ask for its tax records', success: true, msg: '📋 You asked the ghost for its tax returns. Terrified of the IRS, the ghost fled the building instantly.' },
-                    { label: 'Throw a shoe at it', success: false, msg: '👟 The shoe passed right through the ghost and hit the main server. The Wi-Fi is still down and the ghost is laughing.' },
-                    { label: 'Offer it a cup of coffee', success: false, msg: '☕ The ghost drank it, got a caffeine rush, and started haunting the server room at 5x speed.' }
+                    { label: 'Vacuum it up', success: true, msg: '🧹 Sucked the ghost into the breakroom vacuum!' },
+                    { label: 'Throw a shoe at it', success: false, msg: '👟 Shoe went right through it and broke the server.' }
                 ]
             }
         ]
@@ -880,12 +872,10 @@ async function runAlienTranslatorGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You stood silent. The aliens assumed you were a statue and drew a mustache on your face.',
         scenarios: [
             {
-                description: 'A green alien stands before you, points a laser gun, and says: "Blorp glorp zzzzt!" What do you do?',
+                description: 'A green alien points a laser gun and blorps at you!',
                 options: [
-                    { label: 'Offer a high-five', success: true, msg: '🖐️ The alien loves high-fives! It lowered the gun and handed you some space coupons.' },
-                    { label: 'Challenge to dance-off', success: true, msg: '🕺 You styled on the alien with a flawless breakdance. The alien was so impressed it tipped you generously.' },
-                    { label: 'Try to eat their spaceship', success: false, msg: '🚀 You bit the landing gear. It tasted like metal and sadness. You chipped a tooth.' },
-                    { label: 'Insult its mother', success: false, msg: '😡 You made a crude gesture. The alien vaporized your coffee cup and walked away angry.' }
+                    { label: 'Give high-five', success: true, msg: '🖐️ Alien loves high-fives and lowers the gun.' },
+                    { label: 'Try to eat spaceship', success: false, msg: '🚀 Tastes like metal and regret.' }
                 ]
             }
         ]
@@ -907,12 +897,10 @@ async function runFastFoodGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You got lost in the ball pit. The shift ended without you.',
         scenarios: [
             {
-                description: 'A customer yells that there is a pickle on their burger, but they ordered "NO PICKLES". You see a single pickle staring at you. What do you do?',
+                description: 'A customer yells that there is a pickle on their burger, but they ordered "NO PICKLES"!',
                 options: [
-                    { label: 'Eat the pickle yourself', success: true, msg: '🥒 You grabbed the pickle and ate it in one bite. "What pickle?" you asked. The customer was confused but satisfied.' },
-                    { label: 'Flick it at the ceiling', success: true, msg: '🎯 You flicked the pickle. It stuck to the ceiling. The customer didn\'t notice and walked away happy.' },
-                    { label: 'Throw burger at them', success: false, msg: '🍔 You threw the burger. It hit them square in the face. You got fired immediately.' },
-                    { label: 'Argue that pickles are fruit', success: false, msg: '🗣️ You tried to explain botanical definitions. The customer screamed for the manager.' }
+                    { label: 'Eat the pickle', success: true, msg: '🍔 You ate it. No pickle, no problem!' },
+                    { label: 'Throw burger at them', success: false, msg: '🍔 Bullseye! You got fired immediately.' }
                 ]
             }
         ]
@@ -934,12 +922,10 @@ async function runDinosaurKeeperGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You stood completely still. T-Rex vision is based on movement, but it still stepped on you by accident.',
         scenarios: [
             {
-                description: 'The baby T-Rex is crying and stomping its feet. It looks like it wants to eat your paycheck! What do you feed it?',
+                description: 'A baby T-Rex wants to eat your paycheck!',
                 options: [
-                    { label: 'Give it a raw steak', success: true, msg: '🥩 The T-Rex devoured the steak and happily went to sleep. Your paycheck is safe!' },
-                    { label: 'Play fetch with a car', success: true, msg: '🚗 You threw a toy sports car. The T-Rex chased it, caught it, and wagged its tail like a puppy.' },
-                    { label: 'Tickle its tiny arms', success: false, msg: '🦖 You tried to tickle it. The T-Rex was offended by your jokes about its short arms and bit your leg.' },
-                    { label: 'Read it bedtime stories', success: false, msg: '📚 You started reading. The T-Rex fell asleep, but right on top of you. You are pinned under 2 tons of scaly toddler.' }
+                    { label: 'Feed it steak', success: true, msg: '🥩 Dino eats steak and falls asleep.' },
+                    { label: 'Tickle its tiny arms', success: false, msg: '🦖 Baby T-Rex was offended and bit you.' }
                 ]
             }
         ]
@@ -961,12 +947,10 @@ async function runScientistAssistantGame(initialData, channel, user, baubleData)
         timeoutMsg: 'You stared at the glowing beaker until it turned into a sentient goo and ran away.',
         scenarios: [
             {
-                description: 'The Professor tells you to mix two chemicals to create "Glow-in-the-dark juice". You see three beakers. What do you do?',
+                description: 'The Professor tells you to mix yellow and blue chemicals to create glow-in-the-dark juice.',
                 options: [
-                    { label: 'Mix Blue and Yellow', success: true, msg: '🧪 You mixed blue and yellow. It glowed bright green! The Professor is thrilled and calls you a genius.' },
-                    { label: 'Drink the glowing liquid', success: false, msg: '🥛 You drank it. You now glow in the dark, but you spent the rest of the shift in the bathroom.' },
-                    { label: 'Sneeze into the beaker', success: false, msg: '🤧 You sneezed. The mixture fizzled and created a sentient slime that stole your wallet.' },
-                    { label: 'Taste-test with your finger', success: false, msg: '☝️ Tastes like burning. A lot of burning. The safety inspector is writing a report.' }
+                    { label: 'Mix blue and yellow', success: true, msg: '🧪 It glows! The Professor is thrilled.' },
+                    { label: 'Drink the chemicals', success: false, msg: '🤢 Spent the rest of the shift in the bathroom.' }
                 ]
             }
         ]
@@ -988,12 +972,10 @@ async function runDetectiveGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'The thief left a thank-you note and escaped while you were thinking.',
         scenarios: [
             {
-                description: 'Someone stole the office cookies! The suspect has chocolate crumbs all over their face. How do you solve the mystery?',
+                description: 'Someone stole the office cookies, and a coworker has chocolate crumbs on their face!',
                 options: [
-                    { label: 'Accuse chocolate face', success: true, msg: '🍪 You accused the coworker with chocolate crumbs. They confessed immediately. Easiest case ever.' },
-                    { label: 'Arrest the office plant', success: false, msg: '🪴 You handcuffed a fern. It remained silent. The real thief ate another cookie.' },
-                    { label: 'Blame the ghost of HR', success: false, msg: '👻 You blamed ghosts. HR did not appreciate being called ghosts. You got a warning.' },
-                    { label: 'Interrogate the cookie box', success: false, msg: '📦 You stared at the empty box for 3 hours waiting for it to crack. It said nothing.' }
+                    { label: 'Accuse chocolate face', success: true, msg: '🍪 Coworker confesses instantly.' },
+                    { label: 'Arrest the office plant', success: false, msg: '🪴 Fern remains silent. Case cold.' }
                 ]
             }
         ]
@@ -1015,12 +997,10 @@ async function runArcadeTechnicianGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You got distracted playing Pac-Man and got fired.',
         scenarios: [
             {
-                description: 'The claw machine is rigged and kids are crying because they can\'t win the giant duck plushie. What do you do?',
+                description: 'The claw machine is rigged and kids are crying because they can\'t win the duck plushie.',
                 options: [
-                    { label: 'Kick the machine', success: true, msg: '🥾 You kicked it. The claw shook loose and dropped 5 plushies. The kids think you are a god.' },
-                    { label: 'Set claw grip to 100%', success: true, msg: '🔧 You set the claw strength to maximum. Everyone wins! You broke arcade laws but made people happy.' },
-                    { label: 'Rig it even more', success: false, msg: '📉 You set claw grip to 0%. The claw now actively runs away from plushies. The kids started a riot.' },
-                    { label: 'Play it yourself', success: false, msg: '🕹️ You spent $20 trying to win a $2 plushie. You lost. The kids laughed at you.' }
+                    { label: 'Set claw grip to 100%', success: true, msg: '🔧 Everyone wins! Kids are happy.' },
+                    { label: 'Rig it to 0%', success: false, msg: '📉 Claw runs away from plushies. Kids riot.' }
                 ]
             }
         ]
@@ -1042,12 +1022,10 @@ async function runZooKeeperGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You took too long. The monkey is now driving the zoo golf cart.',
         scenarios: [
             {
-                description: 'A sneaky monkey stole the master keys and ran up a tall tree! How do you get them back?',
+                description: 'A sneaky monkey stole the master keys and ran up a tree!',
                 options: [
-                    { label: 'Bribe it with a banana', success: true, msg: '🍌 The monkey accepted the banana, dropped the keys, and gave you a high-five. Transaction complete.' },
-                    { label: 'Climb the tree yourself', success: false, msg: '🌳 You tried to climb. The monkey threw acorns at your head. You fell and landed in a bush.' },
-                    { label: 'Throw a rock at it', success: false, msg: '🪨 You threw a pebble. The monkey caught it and threw it back with 100% accuracy, giving you a black eye.' },
-                    { label: 'File a complaint', success: false, msg: '📝 You filed a complaint with Monkey HR. They shredded it and ate the paper.' }
+                    { label: 'Bribe with banana', success: true, msg: '🍌 Monkey drops keys and takes banana.' },
+                    { label: 'Climb the tree', success: false, msg: '🌳 Monkey threw acorns at you until you fell.' }
                 ]
             }
         ]
@@ -1069,12 +1047,10 @@ async function runTreasureDiverGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You ran out of oxygen while staring at a pretty jellyfish.',
         scenarios: [
             {
-                description: 'You find a chest full of gold, but a giant, sleepy shark is resting right on top of it! What do you do?',
+                description: 'A giant shark is sleeping on the treasure chest!',
                 options: [
-                    { label: 'Swim quietly past', success: true, msg: '🏊 You swam past. The shark just blew a bubble. You grabbed the chest and surfaced safely!' },
-                    { label: 'Poke it with a stick', success: false, msg: '🥢 You poked the shark. The shark woke up very cranky. You had to escape using your emergency thrusters.' },
-                    { label: 'Sing it a lullaby', success: true, msg: '🎵 You sang a beautiful underwater lullaby. The shark fell into a deeper sleep, snoring bubbles. Easy loot!' },
-                    { label: 'Play Rock-Paper-Scissors', success: false, msg: '✊ The shark chose paper because of its fins. But then it ate your scorecard.' }
+                    { label: 'Swim quietly past', success: true, msg: '🏊 Shark snored. Loot secured!' },
+                    { label: 'Poke it with a stick', success: false, msg: '🥢 Shark woke up very cranky.' }
                 ]
             }
         ]
@@ -1096,12 +1072,10 @@ async function runTrainConductorGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'The train left without any passengers because you forgot to open the doors.',
         scenarios: [
             {
-                description: 'A passenger is playing loud music on their phone speaker without headphones. The whole train carriage is furious! What do you do?',
+                description: 'A passenger plays music loudly on their phone speaker without headphones.',
                 options: [
-                    { label: 'Politely offer headphones', success: true, msg: '🎧 You gave them free headphones. They took the hint. The passengers cheered!' },
-                    { label: 'Sing along terribly', success: true, msg: '🎤 You sat next to them and sang along at maximum volume, completely off-key. Embarrassed, they turned it off instantly.' },
-                    { label: 'Throw them off train', success: false, msg: '🚂 You tried to yeet them. That is highly illegal. You were fined and given a lecture.' },
-                    { label: 'Stare intensely at them', success: false, msg: '👁️ You stared at them for 10 minutes. It got weird. They started playing the music louder to break the tension.' }
+                    { label: 'Politely offer headphones', success: true, msg: '🎧 Passenger takes the hint.' },
+                    { label: 'Stare intensely at them', success: false, msg: '👁️ Stare gets weird. Music gets louder.' }
                 ]
             }
         ]
@@ -1123,12 +1097,10 @@ async function runAirportBaggageGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You fell asleep on the baggage carousel and woke up in Cleveland.',
         scenarios: [
             {
-                description: 'A suitcase on the conveyor belt is vibrating loudly and making ticking noises! What do you do?',
+                description: 'A suitcase is vibrating and ticking on the conveyor belt!',
                 options: [
-                    { label: 'Call the bomb squad', success: true, msg: '🚨 You called the squad. Turns out it was just a fancy electric massager, but everyone thanked you for safety first!' },
-                    { label: 'Open it up to check', success: false, msg: '🔓 You opened it. The passenger saw you and accused you of stealing. You got suspended.' },
-                    { label: 'Yeet it onto plane', success: false, msg: '✈️ You threw it on the plane. The ticking scared the pilots. The flight was cancelled.' },
-                    { label: 'Slap Fragile sticker on it', success: false, msg: '🏷️ You slapped a sticker on it and walked away. The vibration shook the belt and caused a massive baggage jam.' }
+                    { label: 'Call bomb squad', success: true, msg: '🚨 Just a massager, but safety first!' },
+                    { label: 'Open it up to check', success: false, msg: '🔓 Accused of stealing. Suspended.' }
                 ]
             }
         ]
@@ -1150,12 +1122,10 @@ async function runDragonDaycareGame(initialData, channel, user, baubleData) {
         timeoutMsg: 'You hesitated. The dragon toddler sneezed and turned your pants to ash.',
         scenarios: [
             {
-                description: 'A baby dragon sneezed and set the nursery curtains on fire! What do you do?',
+                description: 'A baby dragon sneezed and set nursery curtains on fire!',
                 options: [
-                    { label: 'Throw water on curtains', success: true, msg: '🧯 You threw a bucket of water. Fire out! The baby dragon giggled and blew bubbles.' },
-                    { label: 'Toast marshmallows', success: true, msg: '🍢 You grabbed marshmallows and had a quick toast session. The kids loved it! (You put out the fire right after).' },
-                    { label: 'Scream and run away', success: false, msg: '🏃 You ran. The fire alarms went off. The daycare is now soggy and your boss is furious.' },
-                    { label: 'Blame the baby dragon', success: false, msg: '👈 You tried to blame the baby. The baby cried, which caused it to accidentally spit fire at your supervisor\'s clipboard.' }
+                    { label: 'Throw water on it', success: true, msg: '🧯 Fire out! Baby dragon giggles.' },
+                    { label: 'Scream and run away', success: false, msg: '🏃 Alarms went off. Boss is furious.' }
                 ]
             }
         ]
