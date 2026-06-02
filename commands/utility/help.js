@@ -495,7 +495,11 @@ module.exports = {
 				new ButtonBuilder()
 					.setLabel('Dashboard / Server Config')
 					.setStyle(ButtonStyle.Link)
-					.setURL('https://nishanka.zeyuki.app/')
+					.setURL('https://nishanka.zeyuki.app/'),
+				new ButtonBuilder()
+					.setLabel('Docs')
+					.setStyle(ButtonStyle.Link)
+					.setURL('https://nishanka.zeyuki.app/docs')
 			);
 
 		const reply = await context.reply({
