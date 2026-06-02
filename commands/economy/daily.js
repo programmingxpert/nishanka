@@ -7,36 +7,36 @@ function getDailyRarity(amount) {
     if (amount <= 1100) {
         return {
             tier: 'Common',
-            name: 'Mildly Disappointing Pocket Lint',
-            desc: 'You found some baubles stuck to a half-eaten lollipop in the bot\'s coin pouch. Still counts!',
+            name: 'Pocket Lint',
+            desc: 'Found some loose baubles stuck to a candy wrapper. It counts.',
             color: 0x8B89AC // Greyish blue
         };
     } else if (amount <= 1350) {
         return {
             tier: 'Uncommon',
-            name: 'Slightly Spicy Loose Change',
-            desc: 'A respectable amount. Enough to buy a virtual coffee or bribe a small goblin.',
+            name: 'Spare Change',
+            desc: 'A respectable handful. Enough to bribe a very small goblin.',
             color: 0x4ADE80 // Green
         };
     } else if (amount <= 1600) {
         return {
             tier: 'Rare',
-            name: 'Glow-in-the-Dark Jackpot',
-            desc: 'Wow! These baubles are so shiny they might actually be radioactive. Please don\'t eat them.',
+            name: 'Neon Pebbles',
+            desc: 'These baubles are suspiciously bright. Please do not eat them.',
             color: 0x7C6CF0 // Purple
         };
     } else if (amount <= 1750) {
         return {
             tier: 'Epic',
-            name: 'Hypnotic Glitter Explosion',
-            desc: 'The bot sneezed and accidentally dropped a handful of premium sparkling baubles. Score!',
+            name: 'Glitter Bomb',
+            desc: 'A dazzling burst of premium sparkly baubles. Exceptional.',
             color: 0xF97FA8 // Pink
         };
     } else {
         return {
             tier: 'Legendary',
-            name: 'Deity-Tier Shiny Sparkler',
-            desc: 'A legendary bounty! The heavens parted, a choir of digital angels sang, and this divine pile of baubles fell directly into your pockets!',
+            name: 'Celestial Bounty',
+            desc: 'The heavens parted just to drop this ridiculous pile of wealth on you.',
             color: 0xFBBF24 // Gold
         };
     }
@@ -82,11 +82,14 @@ module.exports = {
                 if (diff < cooldownMs) {
                     const timeLeft = cooldownMs - diff;
                     const embed = new EmbedBuilder()
-                        .setColor(0xFF0000)
-                        .setTitle('⏰ Too Early!')
-                        .setDescription(`You've already claimed your daily reward today!\nYou can claim again in **${formatTimeRemaining(timeLeft)}**.\n\n🔥 Current Streak: **${baubleData.dailyStreak || 0}** days`)
-                        .setTimestamp()
-                        .setFooter({ text: 'Consistency is key!' });
+                        .setColor(0x5865F2)
+                        .setTitle('⏳ Daily Already Claimed')
+                        .setDescription([
+                            `Come back in **${formatTimeRemaining(timeLeft)}**`,
+                            '',
+                            `🔥 Current Streak: **${baubleData.dailyStreak || 0} days**`
+                        ].join('\n'))
+                        .setTimestamp();
 
                     return interaction.reply({ embeds: [embed] });
                 }
@@ -97,10 +100,16 @@ module.exports = {
                     baubleData.dailyStreak = 0; // Will be incremented to 1 below
                     
                     const streakBrokenEmbed = new EmbedBuilder()
-                        .setColor(0xFF7171)
-                        .setTitle('💔 Streak Broken!')
-                        .setDescription(`Oh no! You went over 48 hours without claiming your daily. Your streak of **${oldStreak}** days has turned to dust. 😭\nStarting a new streak today!`)
-                        .setFooter({ text: 'Don\'t forget tomorrow!' });
+                        .setColor(0xED4245)
+                        .setTitle('💔 Streak Lost')
+                        .setDescription([
+                            `Previous Streak: **${oldStreak} days**`,
+                            '',
+                            'You missed your daily for over 48 hours.',
+                            'Your streak has been reset.',
+                            '',
+                            'Starting fresh today.'
+                        ].join('\n'));
 
                     await interaction.channel.send({ content: `<@${userId}>`, embeds: [streakBrokenEmbed] }).catch(() => {});
                 }
@@ -137,25 +146,21 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setColor(rarity.color)
-                .setTitle('🎁 Daily Reward Claimed!')
-                .setDescription(`You successfully claimed your daily Glimmering Baubles!\n*(Economy Multiplier: ${globalMultiplier}x)*`)
-                .addFields(
-                    { name: '✨ Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
-                    { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
-                    { name: '💰 Base Reward', value: `**${baseReward}** Baubles`, inline: true }
-                );
-
-            if (streakBonus > 0) {
-                embed.addFields({ name: '🔥 Streak Bonus', value: `+**${streakBonus}** Baubles`, inline: true });
-            }
-
-            embed.addFields(
-                { name: '💵 Total Earned', value: `**${totalReward}** Baubles`, inline: true },
-                { name: '💼 New Balance', value: `**${baubleData.baubles}** Baubles`, inline: true },
-                { name: '🔥 Current Streak', value: `**${baubleData.dailyStreak}** Days (Best: **${baubleData.dailyMaxStreak}** days)`, inline: true }
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Claim again tomorrow to keep your streak alive!' });
+                .setTitle(`✦ ${rarity.tier} Daily`)
+                .setDescription([
+                    `## ${rarity.name}`,
+                    '',
+                    `+ **${totalReward.toLocaleString()}** 🪙`,
+                    '',
+                    `💰 Balance: **${baubleData.baubles.toLocaleString()}**`,
+                    `🔥 Streak: **${baubleData.dailyStreak}** days`,
+                    '',
+                    `${rarity.desc}`
+                ].join('\n'))
+                .setFooter({
+                    text: `Best Streak • ${baubleData.dailyMaxStreak} days`
+                })
+                .setTimestamp();
 
             await interaction.reply({ embeds: [embed] });
 
@@ -186,11 +191,14 @@ module.exports = {
                 if (diff < cooldownMs) {
                     const timeLeft = cooldownMs - diff;
                     const embed = new EmbedBuilder()
-                        .setColor(0xFF0000)
-                        .setTitle('⏰ Too Early!')
-                        .setDescription(`You've already claimed your daily reward today!\nYou can claim again in **${formatTimeRemaining(timeLeft)}**.\n\n🔥 Current Streak: **${baubleData.dailyStreak || 0}** days`)
-                        .setTimestamp()
-                        .setFooter({ text: 'Consistency is key!' });
+                        .setColor(0x5865F2)
+                        .setTitle('⏳ Daily Already Claimed')
+                        .setDescription([
+                            `Come back in **${formatTimeRemaining(timeLeft)}**`,
+                            '',
+                            `🔥 Current Streak: **${baubleData.dailyStreak || 0} days**`
+                        ].join('\n'))
+                        .setTimestamp();
 
                     return message.channel.send({ embeds: [embed] });
                 }
@@ -200,10 +208,16 @@ module.exports = {
                     baubleData.dailyStreak = 0;
                     
                     const streakBrokenEmbed = new EmbedBuilder()
-                        .setColor(0xFF7171)
-                        .setTitle('💔 Streak Broken!')
-                        .setDescription(`Oh no! You went over 48 hours without claiming your daily. Your streak of **${oldStreak}** days has turned to dust. 😭\nStarting a new streak today!`)
-                        .setFooter({ text: 'Don\'t forget tomorrow!' });
+                        .setColor(0xED4245)
+                        .setTitle('💔 Streak Lost')
+                        .setDescription([
+                            `Previous Streak: **${oldStreak} days**`,
+                            '',
+                            'You missed your daily for over 48 hours.',
+                            'Your streak has been reset.',
+                            '',
+                            'Starting fresh today.'
+                        ].join('\n'));
 
                     await message.channel.send({ content: `<@${userId}>`, embeds: [streakBrokenEmbed] }).catch(() => {});
                 }
@@ -236,25 +250,21 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setColor(rarity.color)
-                .setTitle('🎁 Daily Reward Claimed!')
-                .setDescription(`You successfully claimed your daily Glimmering Baubles!\n*(Economy Multiplier: ${globalMultiplier}x)*`)
-                .addFields(
-                    { name: '✨ Rarity', value: `**[${rarity.tier}]** ${rarity.name}`, inline: false },
-                    { name: '📝 Description', value: `*${rarity.desc}*`, inline: false },
-                    { name: '💰 Base Reward', value: `**${baseReward}** Baubles`, inline: true }
-                );
-
-            if (streakBonus > 0) {
-                embed.addFields({ name: '🔥 Streak Bonus', value: `+**${streakBonus}** Baubles`, inline: true });
-            }
-
-            embed.addFields(
-                { name: '💵 Total Earned', value: `**${totalReward}** Baubles`, inline: true },
-                { name: '💼 New Balance', value: `**${baubleData.baubles}** Baubles`, inline: true },
-                { name: '🔥 Current Streak', value: `**${baubleData.dailyStreak}** Days (Best: **${baubleData.dailyMaxStreak}** days)`, inline: true }
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Claim again tomorrow to keep your streak alive!' });
+                .setTitle(`✦ ${rarity.tier} Daily`)
+                .setDescription([
+                    `## ${rarity.name}`,
+                    '',
+                    `+ **${totalReward.toLocaleString()}** 🪙`,
+                    '',
+                    `💰 Balance: **${baubleData.baubles.toLocaleString()}**`,
+                    `🔥 Streak: **${baubleData.dailyStreak}** days`,
+                    '',
+                    `${rarity.desc}`
+                ].join('\n'))
+                .setFooter({
+                    text: `Best Streak • ${baubleData.dailyMaxStreak} days`
+                })
+                .setTimestamp();
 
             await message.channel.send({ embeds: [embed] });
 

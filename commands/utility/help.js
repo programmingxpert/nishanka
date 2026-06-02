@@ -493,7 +493,7 @@ module.exports = {
 					.setURL('https://discord.gg/tkPfDP4n7D'),
 
 				new ButtonBuilder()
-					.setLabel('Website')
+					.setLabel('Dashboard / Server Config')
 					.setStyle(ButtonStyle.Link)
 					.setURL('https://nishanka.zeyuki.app/')
 			);
