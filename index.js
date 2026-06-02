@@ -470,9 +470,120 @@ app.get('/api/public/items/:itemId/leaderboard', async (req, res) => {
       { $project: { _id: 0, userId: 1, quantity: "$inventory.quantity" } }
     ]);
     
-    res.json(owners);
+    const enriched = await Promise.all(owners.map(async (entry, index) => {
+      let username = 'Unknown User';
+      let displayName = entry.userId;
+      let avatarUrl = '';
+      try {
+        const user = await client.users.fetch(entry.userId);
+        username = user.username;
+        displayName = user.displayName || user.globalName || user.username;
+        avatarUrl = user.displayAvatarURL({ dynamic: true, size: 128 });
+      } catch (e) {
+        // ignore
+      }
+      return {
+        rank: index + 1,
+        userId: entry.userId,
+        username,
+        displayName,
+        avatarUrl,
+        quantity: entry.quantity
+      };
+    }));
+
+    res.json(enriched);
   } catch (err) {
     console.error('[API] Error fetching item leaderboard:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Achievements List with global counts (Public)
+app.get('/api/public/achievements', async (req, res) => {
+  try {
+    const { ACHIEVEMENTS } = require('./utils/achievements');
+    const Achievement = require('./models/achievementSchema');
+    
+    // Group achievements to count global unlocks
+    const counts = await Achievement.aggregate([
+      { $group: { _id: "$achievementId", count: { $sum: 1 } } }
+    ]);
+    
+    const countMap = {};
+    counts.forEach(c => {
+      countMap[c._id] = c.count;
+    });
+
+    const enriched = ACHIEVEMENTS.map(ach => ({
+      ...ach,
+      collectedCount: countMap[ach.id] || 0
+    }));
+
+    res.json(enriched);
+  } catch (err) {
+    console.error('[API] Error fetching achievements list:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Achievement Leaderboard (Public)
+app.get('/api/public/achievements/:achievementId/leaderboard', async (req, res) => {
+  try {
+    const { achievementId } = req.params;
+    const Achievement = require('./models/achievementSchema');
+    
+    // Find unlocks for this achievement, sort by unlockedAt ascending (earliest first)
+    const unlocks = await Achievement.find({ achievementId })
+      .sort({ unlockedAt: 1 })
+      .limit(10)
+      .exec();
+      
+    const enriched = await Promise.all(unlocks.map(async (entry, index) => {
+      let username = 'Unknown User';
+      let displayName = entry.userId;
+      let avatarUrl = '';
+      try {
+        const user = await client.users.fetch(entry.userId);
+        username = user.username;
+        displayName = user.displayName || user.globalName || user.username;
+        avatarUrl = user.displayAvatarURL({ dynamic: true, size: 128 });
+      } catch (e) {
+        // ignore
+      }
+      return {
+        rank: index + 1,
+        userId: entry.userId,
+        username,
+        displayName,
+        avatarUrl,
+        unlockedAt: entry.unlockedAt
+      };
+    }));
+    
+    res.json(enriched);
+  } catch (err) {
+    console.error('[API] Error fetching achievement leaderboard:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Items stats (Public)
+app.get('/api/public/items/stats', async (req, res) => {
+  try {
+    const Bauble = require('./models/baubleSchema');
+    const stats = await Bauble.aggregate([
+      { $unwind: "$inventory" },
+      { $group: {
+          _id: "$inventory.itemId",
+          totalCollected: { $sum: "$inventory.quantity" },
+          uniqueOwners: { $sum: 1 }
+        }
+      }
+    ]);
+    res.json(stats);
+  } catch (err) {
+    console.error('[API] Error fetching items stats:', err.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1812,8 +1923,33 @@ app.post('/api/user/use-item', express.json(), async (req, res) => {
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const Bauble = require('./models/baubleSchema');
+    const { type } = req.query;
+
+    let sortQuery = { baubles: -1 };
+    let field = 'baubles';
+
+    if (type === 'daily') {
+      sortQuery = { dailyMaxStreak: -1 };
+      field = 'dailyMaxStreak';
+    } else if (type === 'coinflip') {
+      sortQuery = { coinflipMaxStreak: -1 };
+      field = 'coinflipMaxStreak';
+    } else if (type === 'gamble') {
+      sortQuery = { gambleMaxStreak: -1 };
+      field = 'gambleMaxStreak';
+    } else if (type === 'slots') {
+      sortQuery = { slotsMaxStreak: -1 };
+      field = 'slotsMaxStreak';
+    } else if (type === 'blackjack') {
+      sortQuery = { blackjackMaxStreak: -1 };
+      field = 'blackjackMaxStreak';
+    } else if (type === 'animebattle') {
+      sortQuery = { animebattleMaxStreak: -1 };
+      field = 'animebattleMaxStreak';
+    }
+
     const leaderboardData = await Bauble.find()
-      .sort({ baubles: -1 })
+      .sort(sortQuery)
       .limit(10)
       .exec();
 
@@ -1835,7 +1971,7 @@ app.get('/api/leaderboard', async (req, res) => {
         username,
         displayName,
         avatarUrl,
-        baubles: entry.baubles
+        value: entry[field] || 0
       };
     }));
 
