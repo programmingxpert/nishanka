@@ -613,15 +613,35 @@ app.get('/api/guilds/:guildId', async (req, res) => {
     let isOwner = false;
     let isAdmin = false;
     let userRoles = [];
+    let guildName = 'Unknown Server';
+    let guildIcon = null;
 
     if (guild) {
       isOwner = guild.ownerId === req.session.user.id;
+      guildName = guild.name;
+      guildIcon = guild.iconURL({ extension: 'png', size: 128 });
       try {
         const member = await guild.members.fetch(req.session.user.id);
         isAdmin = member.permissions.has('Administrator') || isOwner;
         userRoles = member.roles.cache.map(r => r.id);
       } catch (err) {
         console.error(`[Dashboard] Failed to fetch member info for ${req.session.user.id}:`, err.message);
+      }
+    }
+
+    if (req.session.guilds) {
+      const sessionGuild = req.session.guilds.find(g => g.id === guildId);
+      if (sessionGuild) {
+        if (!guild) {
+          isOwner = sessionGuild.owner === true;
+          isAdmin = (BigInt(sessionGuild.permissions) & 8n) === 8n || isOwner;
+        }
+        if (guildName === 'Unknown Server') {
+          guildName = sessionGuild.name;
+          if (sessionGuild.icon) {
+            guildIcon = `https://cdn.discordapp.com/icons/${guildId}/${sessionGuild.icon}.png?size=128`;
+          }
+        }
       }
     }
 
@@ -692,7 +712,9 @@ app.get('/api/guilds/:guildId', async (req, res) => {
         memberLeave: true
       },
       dashboardPermissions: dbPerms,
-      userPermissions
+      userPermissions,
+      guildName,
+      guildIcon
     });
   } catch (err) {
     console.error('Fetch settings error:', err);
