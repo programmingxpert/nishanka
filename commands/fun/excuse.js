@@ -37,12 +37,29 @@ module.exports = {
     }
 };
 
+const { consumeAPU } = require('../../utils/aiManager');
+const { isGuildPremium } = require('../../utils/premiumPromo');
+
 async function runExcuseGame(initialData, channel, user, mode) {
     const isSlash = !!initialData.deferReply;
     const apiKey = process.env.DEEPSEEK_API_KEY;
 
     if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
         const msg = '⚠️ The AI features are currently unavailable. Please check back later!';
+        if (isSlash) {
+            return initialData.reply({ content: msg, ephemeral: true });
+        } else {
+            return channel.send(msg);
+        }
+    }
+
+    const guildId = initialData.guildId;
+    const isPrem = await isGuildPremium(guildId);
+    const cost = mode === 'multiplayer' ? 35 : 20;
+
+    const apuResult = await consumeAPU(user.id, cost, isPrem);
+    if (!apuResult.success) {
+        const msg = `❌ **Insufficient AI Power Units (APU)!**\nHosting an **Excuse game (${mode})** costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles.`;
         if (isSlash) {
             return initialData.reply({ content: msg, ephemeral: true });
         } else {

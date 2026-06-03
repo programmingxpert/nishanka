@@ -10,7 +10,7 @@ const PROMO_TIPS = [
 
 const DASHBOARD_TIPS = [
     "Configure auto-roles, server logging, and welcome cards visually on our clean Web Dashboard! ⚙️ https://nishanka.zeyuki.app/",
-    "Tired of typing? Check item leaderboards, trophies, and player stats in real-time on our Codex! 📖 https://nishanka.zeyuki.app/",
+    "Tired of typing? Check item leaderboards, trophies, and player stats in real-time on our Web App! 📖 https://nishanka.zeyuki.app/",
     "Customize your profile backgrounds, bio, and showcase titles directly on the Web Dashboard! 🎨 https://nishanka.zeyuki.app/",
     "Manage auto-triggers, active giveaways, and server settings in a beautiful visual interface! 🖥️ https://nishanka.zeyuki.app/"
 ];
