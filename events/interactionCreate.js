@@ -98,21 +98,24 @@ module.exports = {
         const isPrem = await isGuildPremium(interaction.guildId);
 
         const injectPromo = (options) => {
+            if (interaction.promoInjected) return options;
+            interaction.promoInjected = true;
+
             const rand = Math.random();
             let promoText = '';
 
             if (isPrem) {
-                // Premium servers only get dashboard promo tips (6% chance)
-                if (rand < 0.06) {
+                // Premium servers only get dashboard promo tips (1.5% chance)
+                if (rand < 0.015) {
                     promoText = getRandomDashboardTip();
                 } else {
                     return options;
                 }
             } else {
-                // Non-premium servers get premium promo (6%) or dashboard tips (6%)
-                if (rand < 0.06) {
+                // Non-premium servers get premium promo (1%) or dashboard tips (1.5%)
+                if (rand < 0.01) {
                     promoText = getRandomPromoTip();
-                } else if (rand < 0.12) {
+                } else if (rand < 0.025) {
                     promoText = getRandomDashboardTip();
                 } else {
                     return options;
@@ -131,15 +134,19 @@ module.exports = {
                     if (embed && typeof embed.setFooter === 'function') {
                         try {
                             const currentFooter = embed.data?.footer?.text;
-                            const footerText = currentFooter ? `${currentFooter} | ${promoText}` : promoText;
-                            embed.setFooter({ text: footerText, iconURL: embed.data?.footer?.icon_url });
+                            if (!currentFooter || !currentFooter.includes(promoText)) {
+                                const footerText = currentFooter ? `${currentFooter} | ${promoText}` : promoText;
+                                embed.setFooter({ text: footerText, iconURL: embed.data?.footer?.icon_url });
+                            }
                         } catch (e) {}
                     } else if (embed && typeof embed === 'object') {
                         const currentFooter = embed.footer?.text;
-                        embed.footer = {
-                            text: currentFooter ? `${currentFooter} | ${promoText}` : promoText,
-                            icon_url: embed.footer?.icon_url
-                        };
+                        if (!currentFooter || !currentFooter.includes(promoText)) {
+                            embed.footer = {
+                                text: currentFooter ? `${currentFooter} | ${promoText}` : promoText,
+                                icon_url: embed.footer?.icon_url
+                            };
+                        }
                     }
                 } else {
                     options.content = content + `\n\n*${promoText}*`;
