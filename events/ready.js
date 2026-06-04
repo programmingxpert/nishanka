@@ -1,12 +1,15 @@
 /* eslint-disable */
 const { EmbedBuilder, ActivityType } = require('discord.js');
 const Reminder = require('../models/Reminder');
+const { loadPremiumUsers } = require('../utils/premiumPromo');
 
 module.exports = {
     name: 'clientReady',
     once: true,
 
     async execute(client) {
+        // Load premium users into cache
+        await loadPremiumUsers();
         console.log(`✅ Bot is online as ${client.user.tag} [v2.triggers+embeds]`);
         console.log(`📦 Loaded ${client.commands.size} command(s)`);
         console.log(`🌐 Serving ${client.guilds.cache.size} guild(s)`);

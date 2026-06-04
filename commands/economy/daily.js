@@ -65,10 +65,15 @@ module.exports = {
             
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
             const { getIncomeMultiplier } = require('../../utils/items');
+            const { getUserPremiumTier } = require('../../utils/premiumPromo');
             const globalMultiplier = await getGlobalMultiplier();
             const incomeMultiplier = await getIncomeMultiplier(userId);
             const multiplier = globalMultiplier * incomeMultiplier;
-            const totalReward = Math.floor((baseReward + streakBonus) * multiplier);
+            
+            const userTier = getUserPremiumTier(userId);
+            const TIER_DAILY_BONUS = { free: 0, lite: 1000, pro: 2500, network: 5000, lifetime: 10000 };
+            const premiumBonus = TIER_DAILY_BONUS[userTier] || 0;
+            const totalReward = Math.floor((baseReward + streakBonus) * multiplier) + premiumBonus;
 
             // Save to database
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
@@ -82,15 +87,16 @@ module.exports = {
 
             const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
+            let descriptionText = `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\``;
+            if (premiumBonus > 0) {
+                descriptionText += ` • Premium Bonus: \`+${premiumBonus.toLocaleString()} (${userTier.toUpperCase()})\``;
+            }
+            descriptionText += `)\n\n💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n🔥 Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n⏱️ Next Claim: <t:${nextClaimEpoch}:R>`;
+
             const embed = new EmbedBuilder()
                 .setColor(0x2ecc71)
                 .setTitle('✦ Daily Claim')
-                .setDescription(
-                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\`)\n\n` +
-                    `💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n` +
-                    `🔥 Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n` +
-                    `⏱️ Next Claim: <t:${nextClaimEpoch}:R>`
-                );
+                .setDescription(descriptionText);
 
             await interaction.reply({ embeds: [embed] });
 
@@ -154,10 +160,15 @@ module.exports = {
             
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
             const { getIncomeMultiplier } = require('../../utils/items');
+            const { getUserPremiumTier } = require('../../utils/premiumPromo');
             const globalMultiplier = await getGlobalMultiplier();
             const incomeMultiplier = await getIncomeMultiplier(userId);
             const multiplier = globalMultiplier * incomeMultiplier;
-            const totalReward = Math.floor((baseReward + streakBonus) * multiplier);
+            
+            const userTier = getUserPremiumTier(userId);
+            const TIER_DAILY_BONUS = { free: 0, lite: 1000, pro: 2500, network: 5000, lifetime: 10000 };
+            const premiumBonus = TIER_DAILY_BONUS[userTier] || 0;
+            const totalReward = Math.floor((baseReward + streakBonus) * multiplier) + premiumBonus;
 
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
             baubleData.dailyLastClaimed = now;
@@ -170,15 +181,16 @@ module.exports = {
 
             const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
+            let descriptionText = `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\``;
+            if (premiumBonus > 0) {
+                descriptionText += ` • Premium Bonus: \`+${premiumBonus.toLocaleString()} (${userTier.toUpperCase()})\``;
+            }
+            descriptionText += `)\n\n💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n🔥 Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n⏱️ Next Claim: <t:${nextClaimEpoch}:R>`;
+
             const embed = new EmbedBuilder()
                 .setColor(0x2ecc71)
                 .setTitle('✦ Daily Claim')
-                .setDescription(
-                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\`)\n\n` +
-                    `💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n` +
-                    `🔥 Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n` +
-                    `⏱️ Next Claim: <t:${nextClaimEpoch}:R>`
-                );
+                .setDescription(descriptionText);
 
             await message.channel.send({ embeds: [embed] });
 

@@ -6,6 +6,78 @@ module.exports = {
     name: 'interactionCreate',
 
     async execute(interaction, client) {
+        // Handle button interactions for adventure choices
+        if (interaction.isButton()) {
+            const customId = interaction.customId;
+            if (customId.startsWith('adv_choice_') || customId.startsWith('adv_custom_')) {
+                const parts = customId.split('_');
+                let actionType, targetUserId, choiceVal;
+
+                if (parts[1] === 'custom') {
+                    actionType = 'custom';
+                    targetUserId = parts[2];
+                } else if (parts[1] === 'choice') {
+                    actionType = 'choice';
+                    choiceVal = parts[2]; // 'A', 'B', 'C', or 'D'
+                    targetUserId = parts[3];
+                }
+
+                if (interaction.user.id !== targetUserId) {
+                    return interaction.reply({ content: '❌ This is not your adventure!', flags: MessageFlags.Ephemeral });
+                }
+
+                if (actionType === 'custom') {
+                    const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+                    const modal = new ModalBuilder()
+                        .setCustomId(`adv_modal_${interaction.user.id}`)
+                        .setTitle('Adventure Custom Action');
+
+                    const actionInput = new TextInputBuilder()
+                        .setCustomId('adv_action_input')
+                        .setLabel('What do you want to do next?')
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setPlaceholder('Describe your action (e.g. cast a fireball, run...)')
+                        .setRequired(true);
+
+                    const row = new ActionRowBuilder().addComponents(actionInput);
+                    modal.addComponents(row);
+
+                    await interaction.showModal(modal);
+                } else if (actionType === 'choice') {
+                    await interaction.deferUpdate();
+                    try {
+                        const { handleAdventureChoose } = require('../commands/utility/ai.js');
+                        await handleAdventureChoose(interaction, interaction.user, choiceVal);
+                    } catch (err) {
+                        console.error('Persistent adventure button error:', err);
+                    }
+                }
+                return;
+            }
+        }
+
+        // Handle modal submissions for custom adventure actions
+        if (interaction.isModalSubmit()) {
+            const customId = interaction.customId;
+            if (customId.startsWith('adv_modal_')) {
+                const targetUserId = customId.split('_')[2];
+                if (interaction.user.id !== targetUserId) {
+                    return interaction.reply({ content: '❌ This is not your adventure!', flags: MessageFlags.Ephemeral });
+                }
+
+                const actionText = interaction.fields.getTextInputValue('adv_action_input');
+                await interaction.deferUpdate();
+
+                try {
+                    const { handleAdventureChoose } = require('../commands/utility/ai.js');
+                    await handleAdventureChoose(interaction, interaction.user, actionText);
+                } catch (err) {
+                    console.error('Persistent adventure modal error:', err);
+                }
+                return;
+            }
+        }
+
         // Handle autocomplete interactions
         if (interaction.isAutocomplete()) {
             const { resolveGroupedCommand } = require('../utils/slashCommandsBundler');

@@ -36,6 +36,26 @@ function getRandomDashboardTip() {
     return DASHBOARD_TIPS[Math.floor(Math.random() * DASHBOARD_TIPS.length)];
 }
 
+const dbPremiumUsersCache = new Map();
+
+async function loadPremiumUsers() {
+    try {
+        const PremiumUser = require('../models/premiumUserSchema');
+        const users = await PremiumUser.find({});
+        dbPremiumUsersCache.clear();
+        const now = new Date();
+        for (const u of users) {
+            if (u.expiresAt && now > new Date(u.expiresAt)) {
+                continue;
+            }
+            dbPremiumUsersCache.set(u.userId, { tier: u.tier, expiresAt: u.expiresAt });
+        }
+        console.log(`[Premium Cache] Loaded ${dbPremiumUsersCache.size} premium users from database.`);
+    } catch (err) {
+        console.error('[Premium Cache] Failed to load premium users:', err);
+    }
+}
+
 function isUserPremium(userId) {
     if (!userId) return false;
     return getUserPremiumTier(userId) !== 'free';
@@ -45,6 +65,14 @@ function getUserPremiumTier(userId) {
     if (!userId) return 'free';
     const config = require('../config.json');
     if (userId === config.devId) return 'lifetime';
+
+    // Check DB cache first
+    const cachedUser = dbPremiumUsersCache.get(userId);
+    if (cachedUser) {
+        if (!cachedUser.expiresAt || new Date() < new Date(cachedUser.expiresAt)) {
+            return cachedUser.tier;
+        }
+    }
 
     const lite = (process.env.PREMIUM_USERS_LITE || "").split(",").map(id => id.trim());
     const pro = (process.env.PREMIUM_USERS_PRO || "").split(",").map(id => id.trim());
@@ -106,5 +134,7 @@ module.exports = {
     getUserPremiumTier,
     getGuildPremiumTier,
     getRandomPromoTip,
-    getRandomDashboardTip
+    getRandomDashboardTip,
+    loadPremiumUsers,
+    dbPremiumUsersCache
 };

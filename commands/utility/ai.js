@@ -300,7 +300,9 @@ async function handleAdventureStart(interactionOrMessage, user, scenario, charNa
     }
 
     if (isSlash) {
-        await interactionOrMessage.deferReply();
+        if (!interactionOrMessage.deferred && !interactionOrMessage.replied) {
+            await interactionOrMessage.deferReply();
+        }
     } else {
         await interactionOrMessage.channel.sendTyping().catch(() => {});
     }
@@ -346,17 +348,25 @@ async function handleAdventureStart(interactionOrMessage, user, scenario, charNa
         });
         await newAdventure.save();
 
+        const buttons = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`adv_choice_A_${user.id}`).setLabel('A').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`adv_choice_B_${user.id}`).setLabel('B').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`adv_choice_C_${user.id}`).setLabel('C').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`adv_choice_D_${user.id}`).setLabel('D').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`adv_custom_${user.id}`).setLabel('Custom Action ✍️').setStyle(ButtonStyle.Success)
+        );
+
         const embed = new EmbedBuilder()
             .setColor(0x7c6cf0)
             .setTitle(`⚔️ Adventure Started: ${scenario.toUpperCase()}`)
             .setDescription(`**Hero:** ${charName} (${charClass})\n\n${storyText}`)
-            .setFooter({ text: `Deducted ${cost} APU | Use '/ai adventure choose <A/B/C/D/Action>' to play!` })
+            .setFooter({ text: `Deducted ${cost} APU | Choose an option below to continue!` })
             .setTimestamp();
 
         if (isSlash) {
-            await interactionOrMessage.editReply({ embeds: [embed] });
+            await interactionOrMessage.editReply({ embeds: [embed], components: [buttons] });
         } else {
-            await interactionOrMessage.reply({ embeds: [embed] });
+            await interactionOrMessage.reply({ embeds: [embed], components: [buttons] });
         }
     } catch (err) {
         console.error('Adventure start error:', err);
@@ -392,7 +402,9 @@ async function handleAdventureChoose(interactionOrMessage, user, choice) {
     }
 
     if (isSlash) {
-        await interactionOrMessage.deferReply();
+        if (!interactionOrMessage.deferred && !interactionOrMessage.replied) {
+            await interactionOrMessage.deferReply();
+        }
     } else {
         await interactionOrMessage.channel.sendTyping().catch(() => {});
     }
@@ -440,17 +452,25 @@ async function handleAdventureChoose(interactionOrMessage, user, choice) {
         adventure.updatedAt = new Date();
         await adventure.save();
 
+        const buttons = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`adv_choice_A_${user.id}`).setLabel('A').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`adv_choice_B_${user.id}`).setLabel('B').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`adv_choice_C_${user.id}`).setLabel('C').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`adv_choice_D_${user.id}`).setLabel('D').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`adv_custom_${user.id}`).setLabel('Custom Action ✍️').setStyle(ButtonStyle.Success)
+        );
+
         const embed = new EmbedBuilder()
             .setColor(0x7c6cf0)
             .setTitle(`⚔️ Adventure: ${adventure.characterName} (${adventure.characterClass})`)
             .setDescription(`**Action:** ${choice}\n\n${storyText}`)
-            .setFooter({ text: `Deducted ${cost} APU | Use '/ai adventure choose' to make your next move!` })
+            .setFooter({ text: `Deducted ${cost} APU | Choose an option below to continue!` })
             .setTimestamp();
 
         if (isSlash) {
-            await interactionOrMessage.editReply({ embeds: [embed] });
+            await interactionOrMessage.editReply({ embeds: [embed], components: [buttons] });
         } else {
-            await interactionOrMessage.reply({ embeds: [embed] });
+            await interactionOrMessage.reply({ embeds: [embed], components: [buttons] });
         }
     } catch (err) {
         console.error('Adventure choose error:', err);
@@ -700,10 +720,35 @@ module.exports = {
                 }
                 await handleAdventureChoose(message, message.author, actText);
             } else {
-                return message.reply('❌ Usage: `ai adventure start <scenario> <name> <class>` or `ai adventure choose <action>`');
+                const adventure = await AIAdventure.findOne({ userId: message.author.id });
+                if (adventure) {
+                    const lastAssistant = adventure.history.slice().reverse().find(h => h.role === 'assistant');
+                    if (lastAssistant) {
+                        const buttons = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId(`adv_choice_A_${message.author.id}`).setLabel('A').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder().setCustomId(`adv_choice_B_${message.author.id}`).setLabel('B').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder().setCustomId(`adv_choice_C_${message.author.id}`).setLabel('C').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder().setCustomId(`adv_choice_D_${message.author.id}`).setLabel('D').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder().setCustomId(`adv_custom_${message.author.id}`).setLabel('Custom Action ✍️').setStyle(ButtonStyle.Success)
+                        );
+                        const embed = new EmbedBuilder()
+                            .setColor(0x7c6cf0)
+                            .setTitle(`⚔️ Resuming Adventure: ${adventure.scenario.toUpperCase()}`)
+                            .setDescription(`**Hero:** ${adventure.characterName} (${adventure.characterClass})\n\n${lastAssistant.content}`)
+                            .setFooter({ text: `Choose an option below to continue!` })
+                            .setTimestamp();
+                        return message.reply({ embeds: [embed], components: [buttons] });
+                    }
+                }
+                const scenario = 'Fantasy';
+                const name = message.member?.displayName || message.author.username;
+                const charClass = 'Warrior';
+                await handleAdventureStart(message, message.author, scenario, name, charClass);
             }
         } else {
             return message.reply('❌ Unknown AI command. Use `ai status`, `ai ask <prompt>`, `ai roast <user>`, `ai tarot <question>`, or `ai adventure`.');
         }
-    }
+    },
+    handleAdventureStart,
+    handleAdventureChoose
 };

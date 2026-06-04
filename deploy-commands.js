@@ -19,11 +19,21 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
     try {
+        const route = process.env.GUILD_ID
+            ? Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID)
+            : Routes.applicationCommands(process.env.CLIENT_ID);
+
+        if (process.env.GUILD_ID) {
+            console.log(`📡 Registering commands instantly to guild: ${process.env.GUILD_ID}`);
+        } else {
+            console.log(`🌎 Registering commands globally (may take up to an hour)`);
+        }
+
         await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID),
+            route,
             { body: commands },
         );
-        console.log(`✅ Successfully registered ${commands.length} top-level command(s) globally`);
+        console.log(`✅ Successfully registered ${commands.length} top-level command(s)`);
     } catch (error) {
         console.error('❌ Failed to register commands:', error);
     }

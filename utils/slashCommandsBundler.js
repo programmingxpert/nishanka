@@ -15,7 +15,7 @@ const GROUP_CONFIGS = {
 
 // Helpers to identify relationship and game commands for the /fun category grouping
 const RELATIONSHIP_CMDS = ['adopt', 'divorce', 'family', 'familytree', 'marry', 'proposals', 'ship'];
-const GAME_CMDS = ['blackjack', 'geoguesser', 'hangman', 'scramble', 'wordbomb', 'emojidecode', 'guesstheflag', 'truthordare'];
+const GAME_CMDS = ['blackjack', 'geoguesser', 'hangman', 'scramble', 'wordbomb', 'emojidecode', 'guesstheflag', 'truthordare', 'animebattle', 'battle', 'deathbattle'];
 
 function scanDir(dir, commandList = []) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -68,7 +68,14 @@ function bundleSlashCommands() {
     const finalJSON = [];
 
     for (const [category, config] of Object.entries(GROUP_CONFIGS)) {
-        const cmds = categoryCommands[category] || [];
+        let cmds = categoryCommands[category] || [];
+        if (category === 'fun') {
+            cmds = [
+                ...cmds,
+                ...(categoryCommands['minigames'] || []),
+                ...(categoryCommands['casino'] || [])
+            ];
+        }
         if (cmds.length === 0) continue;
 
         const topLevelCmd = {
@@ -199,6 +206,14 @@ function bundleSlashCommands() {
         const actionJson = actionCmd.data.toJSON();
         actionJson.name = 'actions';
         finalJSON.push(actionJson);
+    }
+
+    // Add standalone top-level commands from category 'ai'
+    const aiCmds = categoryCommands['ai'] || [];
+    for (const cmd of aiCmds) {
+        if (cmd.data && typeof cmd.data.toJSON === 'function') {
+            finalJSON.push(cmd.data.toJSON());
+        }
     }
 
     return finalJSON;

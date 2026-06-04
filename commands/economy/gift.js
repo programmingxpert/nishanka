@@ -2,6 +2,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 const { ITEMS } = require('../../utils/items');
+const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
 function addItem(baubleData, itemId, quantity = 1) {
     if (!baubleData.inventory) baubleData.inventory = [];
@@ -87,23 +88,49 @@ module.exports = {
                 return interaction.reply({ content: `❌ You do not have **${quantity}x ${item.name}** to gift. You only have **${count}**.`, ephemeral: true });
             }
 
+            const RARITY_VALUES = {
+                Common: 5000,
+                Uncommon: 15000,
+                Rare: 50000,
+                Epic: 100000,
+                Legendary: 250000,
+                Mythic: 500000,
+                Unique: 1000000
+            };
+            const itemValue = item.basePrice || item.sellPrice || RARITY_VALUES[item.rarity] || 5000;
+            const globalMultiplier = await getGlobalMultiplier();
+            const giftFee = Math.max(500, Math.floor((itemValue * quantity * 0.05) / globalMultiplier));
+
+            if ((senderData.baubles || 0) < giftFee) {
+                return interaction.reply({ content: `❌ You do not have enough Baubles to pay the gifting shipping fee & tax!\nThis gift requires a fee of **${giftFee.toLocaleString()} Baubles** (5% of item value), but you only have **${(senderData.baubles || 0).toLocaleString()} Baubles** in your wallet.`, ephemeral: true });
+            }
+
             // Fetch or create recipient data
             let targetData = await Bauble.findOne({ userId: targetUser.id });
             if (!targetData) {
                 targetData = new Bauble({ userId: targetUser.id, baubles: 0 });
             }
 
-            // Transfer items
+            // Transfer items and deduct fee
             removeItem(senderData, itemId, quantity);
             addItem(targetData, itemId, quantity);
+            senderData.baubles = (senderData.baubles || 0) - giftFee;
 
             await senderData.save();
             await targetData.save();
 
+            // Increment tax fund in global economy
+            const GlobalEconomy = require('../../models/GlobalEconomy');
+            await GlobalEconomy.findOneAndUpdate(
+                {},
+                { $inc: { taxFund: giftFee } },
+                { upsert: true }
+            );
+
             const successEmbed = new EmbedBuilder()
                 .setColor(0x9B59B6)
                 .setTitle('🎁 Gift Sent!')
-                .setDescription(`You successfully gifted **${quantity}x ${item.name}** to **${targetUser.username}**!`)
+                .setDescription(`You successfully gifted **${quantity}x ${item.name}** to **${targetUser.username}**!\n\n💸 **Gifting Fee & Tax:** \`${giftFee.toLocaleString()} Baubles\` (added to the Tax Fund)`)
                 .setTimestamp()
                 .setFooter({ text: 'Glimmering Gifting System' });
 
@@ -185,6 +212,23 @@ module.exports = {
                 return message.reply(`❌ You do not have **${quantity}x ${item.name}** to gift. You only have **${count}**.`);
             }
 
+            const RARITY_VALUES = {
+                Common: 5000,
+                Uncommon: 15000,
+                Rare: 50000,
+                Epic: 100000,
+                Legendary: 250000,
+                Mythic: 500000,
+                Unique: 1000000
+            };
+            const itemValue = item.basePrice || item.sellPrice || RARITY_VALUES[item.rarity] || 5000;
+            const globalMultiplier = await getGlobalMultiplier();
+            const giftFee = Math.max(500, Math.floor((itemValue * quantity * 0.05) / globalMultiplier));
+
+            if ((senderData.baubles || 0) < giftFee) {
+                return message.reply(`❌ You do not have enough Baubles to pay the gifting shipping fee & tax!\nThis gift requires a fee of **${giftFee.toLocaleString()} Baubles** (5% of item value), but you only have **${(senderData.baubles || 0).toLocaleString()} Baubles** in your wallet.`);
+            }
+
             let targetData = await Bauble.findOne({ userId: targetUser.id });
             if (!targetData) {
                 targetData = new Bauble({ userId: targetUser.id, baubles: 0 });
@@ -192,14 +236,22 @@ module.exports = {
 
             removeItem(senderData, itemId, quantity);
             addItem(targetData, itemId, quantity);
+            senderData.baubles = (senderData.baubles || 0) - giftFee;
 
             await senderData.save();
             await targetData.save();
 
+            const GlobalEconomy = require('../../models/GlobalEconomy');
+            await GlobalEconomy.findOneAndUpdate(
+                {},
+                { $inc: { taxFund: giftFee } },
+                { upsert: true }
+            );
+
             const successEmbed = new EmbedBuilder()
                 .setColor(0x9B59B6)
                 .setTitle('🎁 Gift Sent!')
-                .setDescription(`You successfully gifted **${quantity}x ${item.name}** to **${targetUser.username}**!`)
+                .setDescription(`You successfully gifted **${quantity}x ${item.name}** to **${targetUser.username}**!\n\n💸 **Gifting Fee & Tax:** \`${giftFee.toLocaleString()} Baubles\` (added to the Tax Fund)`)
                 .setTimestamp()
                 .setFooter({ text: 'Glimmering Gifting System' });
 

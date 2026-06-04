@@ -10,6 +10,32 @@ process.on('uncaughtException', (err) => {
 });
 
 const { Client, GatewayIntentBits, Partials, Collection, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+
+// Minimal & aesthetic bot branding across all embeds
+const originalToJSON = EmbedBuilder.prototype.toJSON;
+EmbedBuilder.prototype.toJSON = function() {
+    const json = originalToJSON.call(this);
+    if (!json.color) {
+        json.color = 0x7c6cf0; // brand purple
+    }
+    const avatarURL = global.client?.user?.displayAvatarURL({ extension: 'png', size: 128 }) || null;
+    if (json.footer) {
+        if (json.footer.text && !json.footer.text.includes('Nishanka')) {
+            json.footer.text = `Nishanka • ${json.footer.text}`;
+        }
+        if (!json.footer.icon_url && avatarURL) {
+            json.footer.icon_url = avatarURL;
+        }
+    } else {
+        json.footer = {
+            text: 'Nishanka • by Zeyuki'
+        };
+        if (avatarURL) {
+            json.footer.icon_url = avatarURL;
+        }
+    }
+    return json;
+};
 const { Riffy } = require('riffy');
 const { Bloom, initializeFonts } = require('musicard');
 
@@ -594,8 +620,8 @@ app.get('/api/public/items/stats', async (req, res) => {
 app.get('/api/premium/status', async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
   try {
-    const premiumUsers = (process.env.PREMIUM_USERS || "").split(",").map(id => id.trim());
-    const userIsPremium = premiumUsers.includes(req.session.user.id);
+    const { isUserPremium, getUserPremiumTier } = require('./utils/premiumPromo');
+    const userIsPremium = isUserPremium(req.session.user.id);
 
     if (userIsPremium) {
       try {
@@ -660,7 +686,6 @@ app.get('/api/premium/status', async (req, res) => {
     }));
 
     const { getUserAPU, TIER_APU_LIMITS } = require('./utils/aiManager');
-    const { getUserPremiumTier } = require('./utils/premiumPromo');
     const apuBalance = await getUserAPU(req.session.user.id);
     const tier = getUserPremiumTier(req.session.user.id);
     const maxApu = TIER_APU_LIMITS[tier] || TIER_APU_LIMITS.free;
@@ -677,6 +702,160 @@ app.get('/api/premium/status', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Razorpay Order Creation API
+app.post('/api/premium/create-order', express.json(), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  
+  const { tier, currency } = req.body;
+  if (!tier || !currency) {
+    return res.status(400).json({ error: 'Tier and currency are required' });
+  }
+
+  // Tier pricing rules matching dashboard-v2 UI
+  const PRICES = {
+    USD: { lite: 1.99, pro: 3.99, network: 8.99, lifetime: 99.99 },
+    INR: { lite: 99, pro: 199, network: 499, lifetime: 4999 },
+    EUR: { lite: 1.89, pro: 3.69, network: 8.49, lifetime: 89.99 }
+  };
+
+  const selectedCurrency = PRICES[currency] ? currency : 'USD';
+  const tierPrice = PRICES[selectedCurrency][tier.toLowerCase()];
+  if (!tierPrice) {
+    return res.status(400).json({ error: 'Invalid tier specified' });
+  }
+
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const isSecretConfigured = keySecret && keySecret !== 'your_razorpay_key_secret_here';
+
+  if (!keyId) {
+    return res.status(500).json({ error: 'Razorpay billing credentials (RAZORPAY_KEY_ID) not configured on server.' });
+  }
+
+  const amountInPaise = Math.round(tierPrice * 100);
+
+  // If secret key is not configured, fall back to direct checkout parameters
+  if (!isSecretConfigured) {
+    console.log(`[Razorpay] Key Secret is not configured. Returning direct checkout parameters.`);
+    return res.json({
+      orderId: null,
+      amount: amountInPaise,
+      currency: selectedCurrency,
+      keyId: keyId
+    });
+  }
+
+  try {
+    const orderResponse = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64')
+      },
+      body: JSON.stringify({
+        amount: amountInPaise,
+        currency: selectedCurrency,
+        receipt: `receipt_${req.session.user.id}_${Date.now()}`
+      })
+    });
+
+    if (!orderResponse.ok) {
+      const errText = await orderResponse.text();
+      console.error('[Razorpay Order Error] Raw response:', errText);
+      return res.status(500).json({ error: 'Failed to create order with Razorpay.' });
+    }
+
+    const orderData = await orderResponse.json();
+    res.json({
+      orderId: orderData.id,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      keyId: keyId
+    });
+  } catch (err) {
+    console.error('Failed to create Razorpay order:', err);
+    res.status(500).json({ error: 'Internal server error during order creation.' });
+  }
+});
+
+// Razorpay Payment Verification API
+app.post('/api/premium/verify-payment', express.json(), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { razorpay_payment_id, razorpay_order_id, razorpay_signature, tier } = req.body;
+  if (!razorpay_payment_id || !tier) {
+    return res.status(400).json({ error: 'Missing payment details for verification' });
+  }
+
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const isSecretConfigured = keySecret && keySecret !== 'your_razorpay_key_secret_here';
+
+  try {
+    if (isSecretConfigured && razorpay_order_id && razorpay_signature) {
+      const crypto = require('crypto');
+      const generated_signature = crypto
+        .createHmac('sha256', keySecret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
+
+      if (generated_signature !== razorpay_signature) {
+        return res.status(400).json({ error: 'Invalid payment signature. Verification failed.' });
+      }
+    } else {
+      console.warn(`[Razorpay] Bypassing payment signature verification (Secret key missing or direct checkout used).`);
+    }
+
+    // Purchase is verified! Save to MongoDB
+    const PremiumUser = require('./models/premiumUserSchema');
+    const expiresAt = tier.toLowerCase() === 'lifetime'
+      ? null
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 Days expiry
+
+    await PremiumUser.findOneAndUpdate(
+      { userId: req.session.user.id },
+      {
+        tier: tier.toLowerCase(),
+        expiresAt: expiresAt,
+        activatedAt: new Date(),
+        orderId: razorpay_order_id || '',
+        paymentId: razorpay_payment_id
+      },
+      { upsert: true, new: true }
+    );
+
+    // Update in-memory cache immediately
+    const { dbPremiumUsersCache } = require('./utils/premiumPromo');
+    dbPremiumUsersCache.set(req.session.user.id, { tier: tier.toLowerCase(), expiresAt });
+
+    // Grant premium achievements and starter rewards if first time
+    try {
+      const { checkAndAwardAchievement } = require('./utils/achievements');
+      const newlyUnlocked = await checkAndAwardAchievement(client, req.session.user.id, 'premium_supporter');
+      if (newlyUnlocked) {
+        const Bauble = require('./models/baubleSchema');
+        const baubleData = await Bauble.findOneAndUpdate(
+          { userId: req.session.user.id },
+          { $inc: { baubles: 5000 } },
+          { upsert: true, new: true }
+        );
+        const { addItemToInventory } = require('./utils/items');
+        addItemToInventory(baubleData, 'mystery_box', 3);
+        addItemToInventory(baubleData, 'clover', 2);
+        addItemToInventory(baubleData, 'rubber_duck', 1);
+        await baubleData.save();
+      }
+    } catch (achErr) {
+      console.error('Failed to process post-payment rewards:', achErr);
+    }
+
+    res.json({ success: true, tier: tier.toLowerCase() });
+  } catch (err) {
+    console.error('Failed to verify Razorpay payment:', err);
+    res.status(500).json({ error: 'Internal server error during verification.' });
+  }
+});
+
 
 // Logout
 app.post('/auth/logout', (req, res) => {
