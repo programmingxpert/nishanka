@@ -563,8 +563,8 @@ Interpret these cards and give me a mystical, insightful reading in under 120 wo
             await interactionOrMessage.reply({ embeds: [embed] });
         }
     } catch (err) {
-        console.error('DeepSeek tarot error:', err);
-        const msg = '⚠️ An error occurred while communicating with DeepSeek. Your APU has been consumed but the request failed.';
+        console.error('Nish AI tarot error:', err);
+        const msg = '⚠️ An error occurred while communicating with Nish AI. Your APU has been consumed but the request failed.';
         if (isSlash) {
             await interactionOrMessage.editReply({ content: msg });
         } else {
@@ -580,7 +580,7 @@ module.exports = {
     premiumCooldown: 5,
     data: new SlashCommandBuilder()
         .setName('ai')
-        .setDescription('AI commands powered by DeepSeek')
+        .setDescription('Nish AI commands')
         .addSubcommand(subcommand =>
             subcommand
                 .setName('status')
@@ -622,7 +622,7 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('adventure-start')
-                .setDescription('Start a new DeepSeek-powered interactive text adventure game!')
+                .setDescription('Start a new Nish AI-powered interactive text adventure game!')
                 .addStringOption(option =>
                     option
                         .setName('scenario')

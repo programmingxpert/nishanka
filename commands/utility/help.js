@@ -69,7 +69,7 @@ const categoryDetails = {
 	ai: {
 		label: 'Artificial Intelligence',
 		emoji: '🤖',
-		description: 'DeepSeek-powered AI assistants, games, and utilities.',
+		description: 'Nish AI-powered assistants, games, and utilities.',
 	},
 	utility: {
 		label: 'Utility Tools',

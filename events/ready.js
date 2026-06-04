@@ -152,5 +152,36 @@ module.exports = {
                 console.error('Error checking for expired temp roles:', error);
             }
         }, 30 * 1000); // Check every 30 seconds
+
+        // --- Premium Subscription Expiry Checker ---
+        // Runs every 6 hours; evicts expired premium users from cache immediately
+        const checkExpiredPremium = async () => {
+            try {
+                const PremiumUser = require('../models/premiumUserSchema');
+                const { dbPremiumUsersCache } = require('../utils/premiumPromo');
+                const now = new Date();
+
+                // Find all non-lifetime plans that have expired
+                const expired = await PremiumUser.find({
+                    expiresAt: { $ne: null, $lte: now }
+                }).lean();
+
+                if (expired.length > 0) {
+                    for (const u of expired) {
+                        // Remove from in-memory cache so bot stops granting perks
+                        dbPremiumUsersCache.delete(u.userId);
+                        // Remove from database
+                        await PremiumUser.deleteOne({ userId: u.userId });
+                        console.log(`[Premium] Expired subscription removed for user ${u.userId} (tier: ${u.tier})`);
+                    }
+                    console.log(`[Premium] Cleaned up ${expired.length} expired subscription(s)`);
+                }
+            } catch (err) {
+                console.error('[Premium] Failed to check expired subscriptions:', err);
+            }
+        };
+        // Run once on startup, then every 6 hours
+        checkExpiredPremium();
+        setInterval(checkExpiredPremium, 6 * 60 * 60 * 1000);
     },
 };
