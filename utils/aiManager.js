@@ -12,7 +12,7 @@ const TIER_APU_LIMITS = {
 };
 
 const APU_RECHARGE_AMOUNT = 100;
-const APU_RECHARGE_COST = 100; // 100 Baubles for 100 APU
+const APU_RECHARGE_COST = 500000; // 500k Baubles for 100 APU
 
 /**
  * Checks if the usage needs a reset and returns the current APU record.

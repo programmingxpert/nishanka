@@ -39,7 +39,7 @@ async function handleStatus(interactionOrMessage, user) {
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`ai_recharge_${user.id}`)
-            .setLabel(`Recharge 100 APU (-${APU_RECHARGE_COST} Baubles)`)
+            .setLabel(`Recharge 100 APU (-${APU_RECHARGE_COST.toLocaleString()} Baubles)`)
             .setStyle(ButtonStyle.Success)
     );
 
@@ -266,7 +266,7 @@ async function handleRoast(interactionOrMessage, user, targetUser) {
 }
 
 module.exports = {
-    category: 'utility',
+    category: 'ai',
     isAI: true,
     cooldown: 60,
     premiumCooldown: 5,

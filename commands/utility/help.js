@@ -66,6 +66,11 @@ const categoryDetails = {
 		emoji: '🌸',
 		description: 'Anime-style social action animations (hug, slap, pat).',
 	},
+	ai: {
+		label: 'Artificial Intelligence',
+		emoji: '🤖',
+		description: 'DeepSeek-powered AI assistants, games, and utilities.',
+	},
 	utility: {
 		label: 'Utility Tools',
 		emoji: '🛠️',
@@ -85,6 +90,7 @@ const categoryColors = {
 	profile: 0x1abc9c,
 	music: 0x9b59b6,
 	actions: 0xe84393,
+	ai: 0x7c6cf0,
 	utility: 0x95a5a6
 };
 
@@ -197,7 +203,6 @@ const COMMAND_MAPPING = {
 	// Fun
 	meme: 'fun',
 	wanted: 'fun',
-	excuse: 'fun',
 	hack: 'fun',
 	iq: 'fun',
 	vibecheck: 'fun',
@@ -208,6 +213,10 @@ const COMMAND_MAPPING = {
 	furry: 'fun',
 	quote: 'fun',
 	gta6: 'fun',
+
+	// AI
+	excuse: 'ai',
+	ai: 'ai',
 
 	// Music
 	play: 'music',
@@ -335,11 +344,17 @@ const commandGroups = {
 	fun: [
 		{
 			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'excuse', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry', 'gta6', 'mblackjack']
+			commands: ['meme', 'wanted', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry', 'gta6', 'mblackjack']
 		},
 		{
 			title: '💬 Attributions',
 			commands: ['quote']
+		}
+	],
+	ai: [
+		{
+			title: '🤖 Artificial Intelligence',
+			commands: ['ai', 'excuse']
 		}
 	],
 	music: [
@@ -432,7 +447,7 @@ module.exports = {
 		}
 
 		// Sort categories by predefined order
-		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'casino', 'marriage', 'minigames', 'fun', 'profile', 'music', 'actions', 'utility'];
+		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'casino', 'marriage', 'minigames', 'fun', 'profile', 'music', 'actions', 'ai', 'utility'];
 		const categories = Object.keys(grouped).sort((a, b) => {
 			const idxA = categoryOrder.indexOf(a);
 			const idxB = categoryOrder.indexOf(b);

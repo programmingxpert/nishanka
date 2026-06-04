@@ -11,7 +11,8 @@ const {
 const Bauble = require('../../models/baubleSchema');
 const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
-    category: 'fun',
+module.exports = {
+    category: 'ai',
     isAI: true,
     cooldown: 60,
     premiumCooldown: 10,
