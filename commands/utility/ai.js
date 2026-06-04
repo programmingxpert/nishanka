@@ -191,8 +191,8 @@ async function handleAsk(interactionOrMessage, user, prompt) {
             await interactionOrMessage.reply({ embeds: [embed] });
         }
     } catch (err) {
-        console.error('DeepSeek ask error:', err);
-        const msg = '⚠️ An error occurred while communicating with DeepSeek. Your APU has been consumed but the request failed.';
+        console.error('Nish AI ask error:', err);
+        const msg = '⚠️ An error occurred while communicating with Nish AI. Your APU has been consumed but the request failed.';
         if (isSlash) {
             await interactionOrMessage.editReply({ content: msg });
         } else {
@@ -273,8 +273,8 @@ async function handleRoast(interactionOrMessage, user, targetUser) {
             await interactionOrMessage.reply({ content: `<@${targetUser.id}>`, embeds: [embed] });
         }
     } catch (err) {
-        console.error('DeepSeek roast error:', err);
-        const msg = '⚠️ An error occurred while communicating with DeepSeek. Your APU has been consumed but the request failed.';
+        console.error('Nish AI roast error:', err);
+        const msg = '⚠️ An error occurred while communicating with Nish AI. Your APU has been consumed but the request failed.';
         if (isSlash) {
             await interactionOrMessage.editReply({ content: msg });
         } else {

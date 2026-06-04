@@ -690,11 +690,29 @@ app.get('/api/premium/status', async (req, res) => {
     const tier = getUserPremiumTier(req.session.user.id);
     const maxApu = TIER_APU_LIMITS[tier] || TIER_APU_LIMITS.free;
 
+    // Fetch plan dates from DB for "Your Plan" card
+    const DAILY_BAUBLES_BY_TIER = { lite: 1000, pro: 2500, network: 5000, lifetime: 10000, free: 0 };
+    let planActivatedAt = null;
+    let planExpiresAt = null;
+    if (userIsPremium && tier !== 'free') {
+      try {
+        const PremiumUser = require('./models/premiumUserSchema');
+        const premUser = await PremiumUser.findOne({ userId: req.session.user.id }).lean();
+        if (premUser) {
+          planActivatedAt = premUser.activatedAt || null;
+          planExpiresAt = premUser.expiresAt || null;
+        }
+      } catch (e) {}
+    }
+
     res.json({
       userIsPremium,
       apuBalance,
       apuMax: maxApu,
       apuTier: tier,
+      planActivatedAt,
+      planExpiresAt,
+      planDailyBaubles: DAILY_BAUBLES_BY_TIER[tier] || 0,
       guilds: enrichedGuilds
     });
   } catch (err) {
