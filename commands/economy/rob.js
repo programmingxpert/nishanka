@@ -464,6 +464,52 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
                 await message.reply({ embeds: [successEmbed] }).catch(() => {});
             }
         }
+
+        // Asynchronously notify target via DM or mention
+        (async () => {
+            try {
+                const Profile = require('../../models/profileSchema');
+                const targetProfile = await Profile.findOne({ userId: targetId }).lean();
+                const dmEnabled = targetProfile ? targetProfile.dmOnRobbed !== false : true;
+
+                if (dmEnabled) {
+                    const client = (interaction || message).client;
+                    const targetDM = await client.users.fetch(targetId).catch(() => null);
+                    if (targetDM) {
+                        const guild = (interaction || message).guild;
+                        const serverName = guild ? guild.name : 'a server';
+                        
+                        const dmEmbed = new EmbedBuilder()
+                            .setColor(0xE74C3C)
+                            .setTitle('⚠️ You Got Robbed!')
+                            .setDescription(`Oh no! **${robberUser.username}** successfully robbed **${stolen.toLocaleString()} Baubles** from your wallet in **${serverName}**!\n\n` +
+                                `🛡️ **Protect Yourself:** Consider enabling **Passive Mode** using the \`/passive\` command or on the web dashboard to prevent future robberies.\n` +
+                                `*You can toggle these DM notifications in \`/profile-edit\` or on the dashboard.*`)
+                            .setTimestamp();
+
+                        let dmSuccess = false;
+                        try {
+                            await targetDM.send({ embeds: [dmEmbed] });
+                            dmSuccess = true;
+                        } catch (e) {
+                            // DM failed
+                        }
+
+                        if (!dmSuccess) {
+                            // DM failed, mention in channel instead!
+                            const channel = (interaction || message).channel;
+                            if (channel) {
+                                await channel.send({
+                                    content: `⚠️ <@${targetId}>, you just got robbed of **${stolen.toLocaleString()} Baubles** by <@${robberId}>! Consider enabling Passive Mode (\`/passive\`) to protect your balance. (We tried to DM you, but your DMs are closed.)`
+                                }).catch(() => {});
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[RobAlert] Error alerting target:', err);
+            }
+        })();
     }
 
     // Helper for editing current message safely

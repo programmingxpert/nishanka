@@ -102,7 +102,7 @@ function bundleSlashCommands() {
                 }
             }
         } else if (category === 'economy') {
-            const ECONOMY_GAMES = ['slots', 'coinflip', 'gamble', 'buckshot', 'mines'];
+            const ECONOMY_GAMES = ['slots', 'coinflip', 'gamble', 'buckshot', 'mines', 'duckrace'];
             const ECONOMY_EARN = ['crime', 'daily', 'dig', 'dumpster', 'expedition', 'fish', 'grab', 'hourly', 'memehunt', 'monthly', 'scavenge', 'weekly', 'work'];
 
             const gamesGroup = {

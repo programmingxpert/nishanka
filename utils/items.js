@@ -709,13 +709,30 @@ async function rollItemDrop(allowedCategories = []) {
     return Object.values(ITEMS).find(item => item.id === 'rotten_banana');
 }
 
-function addItemToInventory(baubleData, itemId, quantity = 1) {
+function addItemToInventory(baubleData, itemId, quantity = 1, client = null, interactionOrMessage = null) {
     if (!baubleData.inventory) baubleData.inventory = [];
     const existing = baubleData.inventory.find(i => i.itemId === itemId);
     if (existing) {
         existing.quantity += quantity;
     } else {
         baubleData.inventory.push({ itemId, quantity });
+    }
+
+    if (client && interactionOrMessage) {
+        const item = ITEMS[itemId];
+        if (item && (item.rarity === 'Mythic' || item.rarity === 'Unique')) {
+            const { checkAndAwardAchievement } = require('./achievements');
+            checkAndAwardAchievement(client, baubleData.userId, 'scavenge_legend', interactionOrMessage).catch(err => {
+                console.error('[Achievements] Failed to award scavenge_legend:', err);
+            });
+        }
+        const uniqueItems = (baubleData.inventory || []).filter(i => i.quantity > 0).length;
+        if (uniqueItems >= 10) {
+            const { checkAndAwardAchievement } = require('./achievements');
+            checkAndAwardAchievement(client, baubleData.userId, 'relic_collector', interactionOrMessage).catch(err => {
+                console.error('[Achievements] Failed to award relic_collector:', err);
+            });
+        }
     }
 }
 

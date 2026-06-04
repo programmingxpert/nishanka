@@ -30,6 +30,9 @@ module.exports = {
                 const taxPercent = baubleData.baubles >= 500000 ? 0.05 : 0.02;
                 description += `\n\n⚠️ **Wealth Transaction Tax Notice:** Because this balance is over **150,000 Baubles**, your transfers (-give) and shop purchases are subject to a **${(taxPercent * 100).toFixed(0)}%** transaction tax. *No daily wallet decay applies!*`;
             }
+            if (userId === interaction.user.id && baubleData.baubles >= 100000 && !baubleData.passiveMode) {
+                description += `\n\n💡 **Tip:** Your wallet is looking heavy! Consider enabling **Passive Mode** (\`/passive\`) to protect your wealth from thieves!`;
+            }
 
             const embed = new EmbedBuilder()
                 .setColor(0xFFA500) // Gold color
@@ -72,6 +75,9 @@ module.exports = {
             if (baubleData.baubles >= 150000) {
                 const taxPercent = baubleData.baubles >= 500000 ? 0.05 : 0.02;
                 description += `\n\n⚠️ **Wealth Transaction Tax Notice:** Because this balance is over **150,000 Baubles**, your transfers (-give) and shop purchases are subject to a **${(taxPercent * 100).toFixed(0)}%** transaction tax. *No daily wallet decay applies!*`;
+            }
+            if (userId === message.author.id && baubleData.baubles >= 100000 && !baubleData.passiveMode) {
+                description += `\n\n💡 **Tip:** Your wallet is looking heavy! Consider enabling **Passive Mode** (\`/passive\`) to protect your wealth from thieves!`;
             }
 
             const embed = new EmbedBuilder()

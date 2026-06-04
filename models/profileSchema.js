@@ -11,6 +11,7 @@ const profileSchema = new Schema({
     private: { type: Boolean, default: false },
     showBaubles: { type: Boolean, default: true },
     preReleasePrompted: { type: Boolean, default: false },
+    dmOnRobbed: { type: Boolean, default: true },
 });
 
 const mongoose = require('mongoose');

@@ -104,6 +104,9 @@ module.exports = {
                 descriptionText += ` • Premium Bonus: \`+${premiumBonus.toLocaleString()} (${userTier.toUpperCase()})\``;
             }
             descriptionText += `)\n\n${EMOJI.balance} Balance: **${baubleData.baubles.toLocaleString()}** ${EMOJI.bauble}\n${EMOJI.streak} Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n${EMOJI.nextClaim} Next Claim: <t:${nextClaimEpoch}:R>`;
+            if (baubleData.baubles >= 100000 && !baubleData.passiveMode) {
+                descriptionText += `\n\n💡 **Tip:** You have a heavy wallet balance! Consider enabling **Passive Mode** (\`/passive\`) to protect your wealth from thieves!`;
+            }
 
             const embed = new EmbedBuilder()
                 .setColor(0x2ecc71)
@@ -198,6 +201,9 @@ module.exports = {
                 descriptionText += ` • Premium Bonus: \`+${premiumBonus.toLocaleString()} (${userTier.toUpperCase()})\``;
             }
             descriptionText += `)\n\n${EMOJI.balance} Balance: **${baubleData.baubles.toLocaleString()}** ${EMOJI.bauble}\n${EMOJI.streak} Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n${EMOJI.nextClaim} Next Claim: <t:${nextClaimEpoch}:R>`;
+            if (baubleData.baubles >= 100000 && !baubleData.passiveMode) {
+                descriptionText += `\n\n💡 **Tip:** You have a heavy wallet balance! Consider enabling **Passive Mode** (\`/passive\`) to protect your wealth from thieves!`;
+            }
 
             const embed = new EmbedBuilder()
                 .setColor(0x2ecc71)

@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { checkAndAwardAchievement } = require('../../utils/achievements');
 
 const slotEmojis = ['💎', '💰', '🍀', '🔔', '🍒']; // Slot machine emojis
 
@@ -101,9 +102,15 @@ module.exports = {
             let isWin = false;
 
             // Check for win conditions
+            let isJackpot = false;
+            let isPremiumJackpot = false;
             if (slotResults[0] === slotResults[1] && slotResults[1] === slotResults[2]) {
                 winnings = bet * 5; // Three in a row: 5x payout
                 isWin = true;
+                isJackpot = true;
+                if (slotResults[0] === '💎') {
+                    isPremiumJackpot = true;
+                }
                 finalEmbed.setColor(0x00FF00).setDescription('🎉 Jackpot! Three in a row!');
             } else if (slotResults[0] === slotResults[1] || slotResults[1] === slotResults[2] || slotResults[0] === slotResults[2]) {
                 winnings = bet * 2; // Two in a row: 2x payout
@@ -114,6 +121,10 @@ module.exports = {
             }
 
             if (isWin) {
+                baubleData.slotsWins = (baubleData.slotsWins || 0) + 1;
+                if (isJackpot) {
+                    baubleData.slotsJackpots = (baubleData.slotsJackpots || 0) + 1;
+                }
                 baubleData.slotsStreak = (baubleData.slotsStreak || 0) + 1;
                 if (baubleData.slotsStreak > (baubleData.slotsMaxStreak || 0)) {
                     baubleData.slotsMaxStreak = baubleData.slotsStreak;
@@ -125,6 +136,26 @@ module.exports = {
             baubleData.baubles += winnings;
             baubleData.dailyGambleLastCompleted = new Date();
             await baubleData.save();
+
+            // Check achievements
+            const client = interaction.client;
+            if (client) {
+                if (isPremiumJackpot) {
+                    await checkAndAwardAchievement(client, userId, 'slots_jackpot', interaction);
+                }
+                if (baubleData.slotsJackpots >= 3) {
+                    await checkAndAwardAchievement(client, userId, 'slots_jackpot_triple', interaction);
+                }
+                if (baubleData.slotsWins >= 50) {
+                    await checkAndAwardAchievement(client, userId, 'slots_win_50', interaction);
+                }
+                if (baubleData.baubles >= 1000000) {
+                    await checkAndAwardAchievement(client, userId, 'economy_millionaire', interaction);
+                }
+                if (baubleData.baubles >= 5000000) {
+                    await checkAndAwardAchievement(client, userId, 'economy_billionaire', interaction);
+                }
+            }
 
             let streakLossDesc = '';
             if (!isWin && previousStreak > 0) {

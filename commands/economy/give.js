@@ -73,6 +73,9 @@ module.exports = {
             // Perform the transfer with tax and space duck interception
             giverBaubleData.baubles -= (amount + taxAmount);
             receiverBaubleData.baubles += (amount - interceptAmount);
+            if (taxAmount > 0) {
+                giverBaubleData.cumulativeTaxPaid = (giverBaubleData.cumulativeTaxPaid || 0) + taxAmount;
+            }
 
             await giverBaubleData.save();
             await receiverBaubleData.save();
@@ -80,6 +83,26 @@ module.exports = {
             if (spaceDuckUser && interceptAmount > 0) {
                 spaceDuckUser.baubles += interceptAmount;
                 await spaceDuckUser.save();
+            }
+
+            // Check achievements
+            const client = interaction.client || (interaction.channel && interaction.channel.client);
+            if (client) {
+                const { checkAndAwardAchievement } = require('../../utils/achievements');
+                if (taxAmount > 0) {
+                    if (giverBaubleData.cumulativeTaxPaid >= 50000) {
+                        await checkAndAwardAchievement(client, giverId, 'tax_evader', interaction);
+                    }
+                    if (giverBaubleData.cumulativeTaxPaid >= 250000) {
+                        await checkAndAwardAchievement(client, giverId, 'tax_tycoon', interaction);
+                    }
+                }
+                if (receiverBaubleData.baubles >= 1000000) {
+                    await checkAndAwardAchievement(client, receiverId, 'economy_millionaire', interaction);
+                }
+                if (receiverBaubleData.baubles >= 5000000) {
+                    await checkAndAwardAchievement(client, receiverId, 'economy_billionaire', interaction);
+                }
             }
 
             // Add tax to the GlobalEconomy federal tax fund
@@ -191,6 +214,9 @@ module.exports = {
             // Perform the transfer with tax and space duck interception
             giverBaubleData.baubles -= (amount + taxAmount);
             receiverBaubleData.baubles += (amount - interceptAmount);
+            if (taxAmount > 0) {
+                giverBaubleData.cumulativeTaxPaid = (giverBaubleData.cumulativeTaxPaid || 0) + taxAmount;
+            }
 
             await giverBaubleData.save();
             await receiverBaubleData.save();
@@ -198,6 +224,26 @@ module.exports = {
             if (spaceDuckUser && interceptAmount > 0) {
                 spaceDuckUser.baubles += interceptAmount;
                 await spaceDuckUser.save();
+            }
+
+            // Check achievements
+            const client = message.client || (message.channel && message.channel.client);
+            if (client) {
+                const { checkAndAwardAchievement } = require('../../utils/achievements');
+                if (taxAmount > 0) {
+                    if (giverBaubleData.cumulativeTaxPaid >= 50000) {
+                        await checkAndAwardAchievement(client, giverId, 'tax_evader', message);
+                    }
+                    if (giverBaubleData.cumulativeTaxPaid >= 250000) {
+                        await checkAndAwardAchievement(client, giverId, 'tax_tycoon', message);
+                    }
+                }
+                if (receiverBaubleData.baubles >= 1000000) {
+                    await checkAndAwardAchievement(client, receiverId, 'economy_millionaire', message);
+                }
+                if (receiverBaubleData.baubles >= 5000000) {
+                    await checkAndAwardAchievement(client, receiverId, 'economy_billionaire', message);
+                }
             }
 
             // Add tax to the GlobalEconomy federal tax fund

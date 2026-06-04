@@ -1,6 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
+const { checkAndAwardAchievement } = require('../../utils/achievements');
 
 module.exports = {
     category: 'economy',
@@ -349,6 +350,25 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         baubleData.coinflipStreak = (baubleData.coinflipStreak || 0) + 1;
         if (baubleData.coinflipStreak > (baubleData.coinflipMaxStreak || 0)) {
             baubleData.coinflipMaxStreak = baubleData.coinflipStreak;
+        }
+        
+        const client = initialMsg.client || (initialMsg.channel && initialMsg.channel.client);
+        if (client) {
+            if (baubleData.coinflipStreak >= 10) {
+                await checkAndAwardAchievement(client, userId, 'coinflip_streak_10', initialMsg);
+            }
+            if (baubleData.coinflipStreak >= 15) {
+                await checkAndAwardAchievement(client, userId, 'coinflip_streak_15', initialMsg);
+            }
+            if (baubleData.coinflipStreak >= 20) {
+                await checkAndAwardAchievement(client, userId, 'coinflip_streak_20', initialMsg);
+            }
+            if (baubleData.baubles >= 1000000) {
+                await checkAndAwardAchievement(client, userId, 'economy_millionaire', initialMsg);
+            }
+            if (baubleData.baubles >= 5000000) {
+                await checkAndAwardAchievement(client, userId, 'economy_billionaire', initialMsg);
+            }
         }
     } else {
         baubleData.coinflipStreak = 0;

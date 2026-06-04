@@ -16,7 +16,7 @@ const { getGlobalMultiplier } = require('../../utils/economyEngine');
 // Define our shop items catalog with categories and premium pricing
 const { ITEMS } = require('../../utils/items');
 
-async function executePurchase(userId, itemId, quantity, baubleData, globalMultiplier) {
+async function executePurchase(userId, itemId, quantity, baubleData, globalMultiplier, client = null, interactionOrMessage = null) {
     const item = ITEMS[itemId];
     if (!item) return { error: '❌ Invalid item ID.' };
 
@@ -40,6 +40,9 @@ async function executePurchase(userId, itemId, quantity, baubleData, globalMulti
     }
 
     baubleData.baubles -= (totalPrice + taxAmount);
+    if (taxAmount > 0) {
+        baubleData.cumulativeTaxPaid = (baubleData.cumulativeTaxPaid || 0) + taxAmount;
+    }
 
     if (!baubleData.inventory) baubleData.inventory = [];
     const invItem = baubleData.inventory.find(i => i.itemId === itemId);
@@ -49,6 +52,29 @@ async function executePurchase(userId, itemId, quantity, baubleData, globalMulti
         baubleData.inventory.push({ itemId, quantity });
     }
     await baubleData.save();
+
+    // Check achievements
+    if (client && interactionOrMessage) {
+        const { checkAndAwardAchievement } = require('../../utils/achievements');
+        if (taxAmount > 0) {
+            if (baubleData.cumulativeTaxPaid >= 50000) {
+                await checkAndAwardAchievement(client, userId, 'tax_evader', interactionOrMessage);
+            }
+            if (baubleData.cumulativeTaxPaid >= 250000) {
+                await checkAndAwardAchievement(client, userId, 'tax_tycoon', interactionOrMessage);
+            }
+        }
+        const uniqueItems = (baubleData.inventory || []).filter(i => i.quantity > 0).length;
+        if (uniqueItems >= 10) {
+            await checkAndAwardAchievement(client, userId, 'relic_collector', interactionOrMessage);
+        }
+        if (baubleData.baubles >= 1000000) {
+            await checkAndAwardAchievement(client, userId, 'economy_millionaire', interactionOrMessage);
+        }
+        if (baubleData.baubles >= 5000000) {
+            await checkAndAwardAchievement(client, userId, 'economy_billionaire', interactionOrMessage);
+        }
+    }
 
     // Add tax to the GlobalEconomy federal tax fund
     if (taxAmount > 0) {
@@ -328,7 +354,7 @@ module.exports = {
             // Direct purchase via command options
             if (buyOption) {
                 const cleanId = buyOption.trim().toLowerCase();
-                const result = await executePurchase(userId, cleanId, quantityOption, baubleData, globalMultiplier);
+                const result = await executePurchase(userId, cleanId, quantityOption, baubleData, globalMultiplier, interaction.client, interaction);
                 if (result.error) {
                     return interaction.reply({ content: result.error, ephemeral: true });
                 }
@@ -402,7 +428,7 @@ module.exports = {
                     const selectedId = i.values[0];
                     const freshMultiplier = await getGlobalMultiplier();
                     const freshData = await Bauble.findOne({ userId });
-                    const result = await executePurchase(userId, selectedId, 1, freshData, freshMultiplier);
+                    const result = await executePurchase(userId, selectedId, 1, freshData, freshMultiplier, i.client, i);
                     
                     if (result.error) {
                         return i.reply({ content: result.error, ephemeral: true });
@@ -452,7 +478,7 @@ module.exports = {
                 if (!itemId) return message.reply('⚠️ Please specify an item to buy. Example: `-shop buy coffee 2`');
                 if (!ITEMS[itemId]) return message.reply(`⚠️ Invalid item. Choose from: ${Object.keys(ITEMS).join(', ')}`);
 
-                const result = await executePurchase(userId, itemId, quantity, baubleData, globalMultiplier);
+                const result = await executePurchase(userId, itemId, quantity, baubleData, globalMultiplier, message.client, message);
                 if (result.error) return message.reply(result.error);
 
                 let description = `You successfully purchased **${quantity}x ${result.itemName}** for **${result.totalPrice.toLocaleString()}** Baubles!`;
@@ -519,7 +545,7 @@ module.exports = {
                     const selectedId = i.values[0];
                     const freshMultiplier = await getGlobalMultiplier();
                     const freshData = await Bauble.findOne({ userId });
-                    const result = await executePurchase(userId, selectedId, 1, freshData, freshMultiplier);
+                    const result = await executePurchase(userId, selectedId, 1, freshData, freshMultiplier, i.client, i);
                     
                     if (result.error) {
                         return i.reply({ content: result.error, ephemeral: true });

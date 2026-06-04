@@ -175,6 +175,7 @@ const COMMAND_MAPPING = {
 	bj: 'casino',
 	animebattle: 'minigames',
 	mblackjack: 'casino',
+	duckrace: 'casino',
 
 	// Profile
 	profile: 'profile',
@@ -308,7 +309,7 @@ const commandGroups = {
 	casino: [
 		{
 			title: '🎰 Classic Casino Games',
-			commands: ['gamble', 'coinflip', 'slots', 'blackjack', 'mblackjack']
+			commands: ['gamble', 'coinflip', 'slots', 'blackjack', 'mblackjack', 'duckrace']
 		},
 		{
 			title: '💣 Survival & Strategy',

@@ -18,6 +18,33 @@ const manifest = readJson(manifestPath, { assets: [] });
 const localOverrides = readJson(localOverridePath, {});
 const assetsByKey = new Map((manifest.assets || []).map(asset => [asset.key, asset]));
 
+const dynamicEmojis = new Map();
+
+async function initDynamicEmojis(client) {
+    try {
+        dynamicEmojis.clear();
+        
+        // 1. Fetch application emojis
+        if (client.application) {
+            const appEmojis = await client.application.emojis.fetch().catch(() => null);
+            if (appEmojis) {
+                for (const emojiObj of appEmojis.values()) {
+                    dynamicEmojis.set(emojiObj.name.toLowerCase(), `<${emojiObj.animated ? 'a' : ''}:${emojiObj.name}:${emojiObj.id}>`);
+                }
+            }
+        }
+        
+        // 2. Fetch guild emojis from client cache
+        for (const emojiObj of client.emojis.cache.values()) {
+            dynamicEmojis.set(emojiObj.name.toLowerCase(), `<${emojiObj.animated ? 'a' : ''}:${emojiObj.name}:${emojiObj.id}>`);
+        }
+        
+        console.log(`[CustomEmojis] Dynamically mapped ${dynamicEmojis.size} emoji(s) from application/guilds.`);
+    } catch (err) {
+        console.error('[CustomEmojis] Failed to initialize dynamic emojis:', err);
+    }
+}
+
 function envNameForKey(key) {
     return `NISHANKA_EMOJI_${key.replace(/[^a-z0-9]+/gi, '_').toUpperCase()}`;
 }
@@ -26,9 +53,26 @@ function emoji(key, fallback = '') {
     const envValue = process.env[envNameForKey(key)];
     if (envValue) return envValue;
 
+    // Check dynamic mapped emojis by various name styles
+    const normKey = key.replace(/[^a-z0-9]/gi, '').toLowerCase(); // e.g. currencybauble
+    const nkKey = `nk_${key.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase()}`; // e.g. nk_currency_bauble
+    const asset = assetsByKey.get(key);
+    
+    const namesToCheck = [
+        asset?.discordName,
+        normKey,
+        nkKey,
+        key
+    ].filter(Boolean).map(n => n.toLowerCase());
+
+    for (const name of namesToCheck) {
+        if (dynamicEmojis.has(name)) {
+            return dynamicEmojis.get(name);
+        }
+    }
+
     if (localOverrides[key]) return localOverrides[key];
 
-    const asset = assetsByKey.get(key);
     if (asset?.discord) return asset.discord;
     if (asset?.fallback) return asset.fallback;
 
@@ -81,5 +125,6 @@ module.exports = {
     emojiName,
     stripLeadingEmoji,
     formatEmojiName,
-    decorateEmojiDefinition
+    decorateEmojiDefinition,
+    initDynamicEmojis
 };

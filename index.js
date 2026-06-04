@@ -11,8 +11,21 @@ process.on('uncaughtException', (err) => {
 
 const { Client, GatewayIntentBits, Partials, Collection, AttachmentBuilder, EmbedBuilder } = require('discord.js');
 
-// Minimal & aesthetic bot branding across all embeds
+// Minimal & aesthetic bot branding and custom emojis across all embeds
 const originalToJSON = EmbedBuilder.prototype.toJSON;
+const { emoji: getCustomEmoji } = require('./utils/customEmojis');
+
+const emojiMapping = {
+    '🪙': 'currency.bauble',
+    '❌': 'ui.error',
+    '✅': 'ui.success',
+    '⚠️': 'ui.warning',
+    '☕': 'item.coffee',
+    '💎': 'currency.premium_gem',
+    '💣': 'game.mines_bomb',
+    '🦆': 'item.rubber_duck'
+};
+
 EmbedBuilder.prototype.toJSON = function() {
     const json = originalToJSON.call(this);
     if (!json.color) {
@@ -34,7 +47,17 @@ EmbedBuilder.prototype.toJSON = function() {
             json.footer.icon_url = avatarURL;
         }
     }
-    return json;
+
+    // Globally replace standard emojis with custom configured emojis in embeds
+    let str = JSON.stringify(json);
+    for (const [standardEmoji, key] of Object.entries(emojiMapping)) {
+        const customEmoji = getCustomEmoji(key);
+        if (customEmoji && customEmoji !== standardEmoji) {
+            const regex = new RegExp(standardEmoji, 'g');
+            str = str.replace(regex, customEmoji);
+        }
+    }
+    return JSON.parse(str);
 };
 const { Riffy } = require('riffy');
 const { Bloom, initializeFonts } = require('musicard');
@@ -64,6 +87,27 @@ const client = new Client({
 });
 
 global.client = client;
+
+// Globally patch REST requests to replace standard emojis in outgoing message payloads
+const originalRequest = client.rest.request.bind(client.rest);
+client.rest.request = function(options) {
+    if (options && options.body) {
+        try {
+            let str = JSON.stringify(options.body);
+            for (const [standardEmoji, key] of Object.entries(emojiMapping)) {
+                const customEmoji = getCustomEmoji(key);
+                if (customEmoji && customEmoji !== standardEmoji) {
+                    const regex = new RegExp(standardEmoji, 'g');
+                    str = str.replace(regex, customEmoji);
+                }
+            }
+            options.body = JSON.parse(str);
+        } catch (e) {
+            // Ignore parse errors or binary payloads
+        }
+    }
+    return originalRequest(options);
+};
 
 // ─── Bot collections ─────────────────────────────────────────────────────────
 client.commands      = new Collection();
@@ -1997,7 +2041,8 @@ app.get('/api/user/profile', async (req, res) => {
         pfpUrl: '',
         bannerUrl: '',
         private: false,
-        showBaubles: true
+        showBaubles: true,
+        dmOnRobbed: true
       };
     }
 
@@ -2060,7 +2105,7 @@ app.get('/api/user/profile', async (req, res) => {
 app.post('/api/user/profile', express.json(), async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
   const userId = req.session.user.id;
-  const { bio, bannerColor, customDisplayName, bannerUrl, private: isPrivate, showBaubles } = req.body;
+  const { bio, bannerColor, customDisplayName, bannerUrl, private: isPrivate, showBaubles, dmOnRobbed } = req.body;
 
   try {
     const Profile = require('./models/profileSchema');
@@ -2086,6 +2131,7 @@ app.post('/api/user/profile', express.json(), async (req, res) => {
     if (bannerUrl !== undefined) updateData.bannerUrl = bannerUrl;
     if (isPrivate !== undefined) updateData.private = isPrivate;
     if (showBaubles !== undefined) updateData.showBaubles = showBaubles;
+    if (dmOnRobbed !== undefined) updateData.dmOnRobbed = dmOnRobbed;
 
     const profile = await Profile.findOneAndUpdate(
       { userId },

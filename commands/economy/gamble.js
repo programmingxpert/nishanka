@@ -61,6 +61,7 @@ module.exports = {
             sendWin: embed => interaction.reply({ embeds: [embed] }),
             sendLose: embed => interaction.reply({ embeds: [embed] }),
             sendError: msg => interaction.reply({ content: msg, ephemeral: true }),
+            interactionOrMessage: interaction
         });
     },
 
@@ -81,11 +82,12 @@ module.exports = {
             sendWin: embed => message.channel.send({ embeds: [embed] }),
             sendLose: embed => message.channel.send({ embeds: [embed] }),
             sendError: msg => message.reply({ content: msg }),
+            interactionOrMessage: message
         });
     }
 };
 
-async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError }) {
+async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError, interactionOrMessage }) {
     try {
         const baubleData = await retryDatabaseOperation(() => Bauble.findOne({ userId }));
         if (!baubleData) return sendError("❌ You don't have any Baubles yet! Use `/work` to earn some.");
@@ -125,6 +127,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
         if (didWin) {
             const earnings = Math.floor(amount * multiplier);
             baubleData.baubles += earnings;
+            baubleData.gambleWins = (baubleData.gambleWins || 0) + 1;
             baubleData.gambleStreak = (baubleData.gambleStreak || 0) + 1;
             if (baubleData.gambleStreak > (baubleData.gambleMaxStreak || 0)) {
                 baubleData.gambleMaxStreak = baubleData.gambleStreak;
@@ -133,6 +136,29 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             await retryDatabaseOperation(() => baubleData.save());
 
             LOSS_TRACKER.set(userId, 0); // reset loss streak
+
+            // Check achievements
+            if (interactionOrMessage) {
+                const client = interactionOrMessage.client || (interactionOrMessage.channel && interactionOrMessage.channel.client);
+                if (client) {
+                    const { checkAndAwardAchievement } = require('../../utils/achievements');
+                    if (baubleData.gambleWins >= 100) {
+                        await checkAndAwardAchievement(client, userId, 'gamble_win_100', interactionOrMessage);
+                    }
+                    if (risk === 'high' && cloverUsed) {
+                        await checkAndAwardAchievement(client, userId, 'lucky_clover_max', interactionOrMessage);
+                    }
+                    if (amount >= 250000) {
+                        await checkAndAwardAchievement(client, userId, 'high_stakes_hero', interactionOrMessage);
+                    }
+                    if (baubleData.baubles >= 1000000) {
+                        await checkAndAwardAchievement(client, userId, 'economy_millionaire', interactionOrMessage);
+                    }
+                    if (baubleData.baubles >= 5000000) {
+                        await checkAndAwardAchievement(client, userId, 'economy_billionaire', interactionOrMessage);
+                    }
+                }
+            }
 
             let luckText = '';
             if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot luck boost (+15%) was active!*';

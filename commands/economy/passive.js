@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
@@ -49,17 +49,77 @@ module.exports = {
                     }
                 }
 
-                baubleData.passiveMode = true;
-                baubleData.passiveModeToggledAt = now;
-                await baubleData.save();
+                // Show confirmation warning first
+                const confirmEmbed = new EmbedBuilder()
+                    .setColor(0xF1C40F)
+                    .setTitle('⚠️ Enable Passive Mode?')
+                    .setDescription(
+                        'Passive Mode protects you from being robbed and challenged to brawls, but:\n\n' +
+                        '🚫 **RESTRICTIONS:**\n' +
+                        '- You cannot rob other players.\n' +
+                        '- You cannot challenge others to brawls/battles.\n' +
+                        '- If you disable it later, you must wait **24 hours** before you can enable it again.\n\n' +
+                        'Are you sure you want to enable Passive Mode?'
+                    );
 
-                const embed = new EmbedBuilder()
-                    .setColor(0x2ECC71) // Green / safe color
-                    .setTitle('🛡️ Passive Mode Enabled')
-                    .setDescription('You have enabled Passive Mode! You are now completely safe from being robbed and challenged to battles.\n\n🚫 **Note:** You cannot rob other players or initiate battles while in Passive Mode.')
-                    .setTimestamp();
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`passive_confirm_${userId}`)
+                        .setLabel('Yes, Enable')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`passive_cancel_${userId}`)
+                        .setLabel('No, Cancel')
+                        .setStyle(ButtonStyle.Danger)
+                );
 
-                return interaction.reply({ embeds: [embed] });
+                const response = await interaction.reply({ embeds: [confirmEmbed], components: [row], fetchReply: true });
+
+                const collector = response.createMessageComponentCollector({
+                    filter: i => i.user.id === userId && i.customId.startsWith('passive_'),
+                    componentType: ComponentType.Button,
+                    time: 30000,
+                    max: 1
+                });
+
+                collector.on('collect', async i => {
+                    await i.deferUpdate();
+                    if (i.customId === `passive_confirm_${userId}`) {
+                        baubleData = await Bauble.findOne({ userId });
+                        if (!baubleData) {
+                            baubleData = new Bauble({ userId });
+                        }
+                        baubleData.passiveMode = true;
+                        baubleData.passiveModeToggledAt = new Date();
+                        await baubleData.save();
+
+                        const successEmbed = new EmbedBuilder()
+                            .setColor(0x2ECC71)
+                            .setTitle('🛡️ Passive Mode Enabled')
+                            .setDescription('You have enabled Passive Mode! You are now completely safe from being robbed and challenged to battles.\n\n🚫 **Note:** You cannot rob other players or initiate battles while in Passive Mode.')
+                            .setTimestamp();
+
+                        await interaction.editReply({ embeds: [successEmbed], components: [] });
+                    } else {
+                        const cancelEmbed = new EmbedBuilder()
+                            .setColor(0x747F8D)
+                            .setTitle('❌ Activation Cancelled')
+                            .setDescription('Passive Mode activation was cancelled. You remain vulnerable to robberies.');
+
+                        await interaction.editReply({ embeds: [cancelEmbed], components: [] });
+                    }
+                });
+
+                collector.on('end', async (collected, reason) => {
+                    if (reason === 'time' && collected.size === 0) {
+                        const timeoutEmbed = new EmbedBuilder()
+                            .setColor(0x747F8D)
+                            .setTitle('⏰ Action Timed Out')
+                            .setDescription('Passive Mode activation timed out. You remain vulnerable to robberies.');
+
+                        await interaction.editReply({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
+                    }
+                });
             }
 
         } catch (error) {
@@ -104,17 +164,77 @@ module.exports = {
                     }
                 }
 
-                baubleData.passiveMode = true;
-                baubleData.passiveModeToggledAt = now;
-                await baubleData.save();
+                // Show confirmation warning first
+                const confirmEmbed = new EmbedBuilder()
+                    .setColor(0xF1C40F)
+                    .setTitle('⚠️ Enable Passive Mode?')
+                    .setDescription(
+                        'Passive Mode protects you from being robbed and challenged to brawls, but:\n\n' +
+                        '🚫 **RESTRICTIONS:**\n' +
+                        '- You cannot rob other players.\n' +
+                        '- You cannot challenge others to brawls/battles.\n' +
+                        '- If you disable it later, you must wait **24 hours** before you can enable it again.\n\n' +
+                        'Are you sure you want to enable Passive Mode?'
+                    );
 
-                const embed = new EmbedBuilder()
-                    .setColor(0x2ECC71)
-                    .setTitle('🛡️ Passive Mode Enabled')
-                    .setDescription('You have enabled Passive Mode! You are now completely safe from being robbed and challenged to battles.\n\n🚫 **Note:** You cannot rob other players or initiate battles while in Passive Mode.')
-                    .setTimestamp();
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`passive_confirm_${userId}`)
+                        .setLabel('Yes, Enable')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`passive_cancel_${userId}`)
+                        .setLabel('No, Cancel')
+                        .setStyle(ButtonStyle.Danger)
+                );
 
-                return message.reply({ embeds: [embed] });
+                const response = await message.reply({ embeds: [confirmEmbed], components: [row] });
+
+                const collector = response.createMessageComponentCollector({
+                    filter: i => i.user.id === userId && i.customId.startsWith('passive_'),
+                    componentType: ComponentType.Button,
+                    time: 30000,
+                    max: 1
+                });
+
+                collector.on('collect', async i => {
+                    await i.deferUpdate();
+                    if (i.customId === `passive_confirm_${userId}`) {
+                        baubleData = await Bauble.findOne({ userId });
+                        if (!baubleData) {
+                            baubleData = new Bauble({ userId });
+                        }
+                        baubleData.passiveMode = true;
+                        baubleData.passiveModeToggledAt = new Date();
+                        await baubleData.save();
+
+                        const successEmbed = new EmbedBuilder()
+                            .setColor(0x2ECC71)
+                            .setTitle('🛡️ Passive Mode Enabled')
+                            .setDescription('You have enabled Passive Mode! You are now completely safe from being robbed and challenged to battles.\n\n🚫 **Note:** You cannot rob other players or initiate battles while in Passive Mode.')
+                            .setTimestamp();
+
+                        await response.edit({ embeds: [successEmbed], components: [] });
+                    } else {
+                        const cancelEmbed = new EmbedBuilder()
+                            .setColor(0x747F8D)
+                            .setTitle('❌ Activation Cancelled')
+                            .setDescription('Passive Mode activation was cancelled. You remain vulnerable to robberies.');
+
+                        await response.edit({ embeds: [cancelEmbed], components: [] });
+                    }
+                });
+
+                collector.on('end', async (collected, reason) => {
+                    if (reason === 'time' && collected.size === 0) {
+                        const timeoutEmbed = new EmbedBuilder()
+                            .setColor(0x747F8D)
+                            .setTitle('⏰ Action Timed Out')
+                            .setDescription('Passive Mode activation timed out. You remain vulnerable to robberies.');
+
+                        await response.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
+                    }
+                });
             }
 
         } catch (error) {

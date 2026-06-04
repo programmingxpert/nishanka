@@ -7,6 +7,56 @@ const Profile = require('../../models/profileSchema');
 const Bauble = require('../../models/baubleSchema');
 const Achievement = require('../../models/achievementSchema'); // Assumes your bauble schema stores "baubles" for each user
 const { ACHIEVEMENTS } = require('../../utils/achievements');
+const path = require('path');
+
+function getBadgeImageSource(emojiChar) {
+    if (emojiChar === '💎') {
+        return path.join(__dirname, '..', '..', 'assets', 'emojis', 'png', 'currency-premium-gem.png');
+    }
+    if (emojiChar === '🚀') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f680.png';
+    }
+    if (emojiChar === '🌟') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2b50.png';
+    }
+    if (emojiChar === '🥇') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f947.png';
+    }
+    if (emojiChar === '🥷') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f977.png';
+    }
+    if (emojiChar === '🏰') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3f0.png';
+    }
+    if (emojiChar === '🏺') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3fa.png';
+    }
+    if (emojiChar === '👑') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f451.png';
+    }
+    if (emojiChar === '⚡') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/26a1.png';
+    }
+    if (emojiChar === '📅') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f4c5.png';
+    }
+    if (emojiChar === '🔱') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f531.png';
+    }
+    if (emojiChar === '🔮') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f52e.png';
+    }
+    if (emojiChar === '🧪') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f9ea.png';
+    }
+    if (emojiChar === '🏛️') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3db.png';
+    }
+    if (emojiChar === '🎩') {
+        return 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3a9.png';
+    }
+    return null;
+}
 
 function drawCrown(ctx, x, y, width, height) {
     ctx.save();
@@ -234,12 +284,34 @@ module.exports = {
             }
             let badgeOffset = 0;
             const nameWidth = ctx.measureText(displayName).width;
-            ctx.font = '22px sans-serif';
-            for (const ach of ACHIEVEMENTS) {
+            
+            const badgePromises = ACHIEVEMENTS.map(async (ach) => {
                 if (ach.isBadge && unlockedIds.has(ach.id)) {
-                    ctx.fillText(ach.emoji, 160 + nameWidth + 12 + crownOffset + badgeOffset, 298);
-                    badgeOffset += 30;
+                    const src = getBadgeImageSource(ach.emoji);
+                    if (src) {
+                        try {
+                            const img = await Canvas.loadImage(src);
+                            return { ach, img };
+                        } catch (err) {
+                            console.error(`Failed to load badge image for ${ach.emoji}:`, err);
+                        }
+                    }
+                    return { ach, img: null };
                 }
+                return null;
+            });
+            
+            const badgesToDraw = (await Promise.all(badgePromises)).filter(Boolean);
+            
+            for (const item of badgesToDraw) {
+                if (item.img) {
+                    ctx.drawImage(item.img, 160 + nameWidth + 12 + crownOffset + badgeOffset, 298 - 20, 22, 22);
+                } else {
+                    ctx.font = '22px sans-serif';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(item.ach.emoji, 160 + nameWidth + 12 + crownOffset + badgeOffset, 298);
+                }
+                badgeOffset += 30;
             }
 
             ctx.font = '24px sans-serif';
@@ -403,12 +475,34 @@ module.exports = {
             }
             let badgeOffset = 0;
             const nameWidth = ctx.measureText(displayName).width;
-            ctx.font = '22px sans-serif';
-            for (const ach of ACHIEVEMENTS) {
+            
+            const badgePromisesPrefix = ACHIEVEMENTS.map(async (ach) => {
                 if (ach.isBadge && unlockedIds.has(ach.id)) {
-                    ctx.fillText(ach.emoji, 160 + nameWidth + 12 + crownOffset + badgeOffset, 298);
-                    badgeOffset += 30;
+                    const src = getBadgeImageSource(ach.emoji);
+                    if (src) {
+                        try {
+                            const img = await Canvas.loadImage(src);
+                            return { ach, img };
+                        } catch (err) {
+                            console.error(`Failed to load badge image for ${ach.emoji}:`, err);
+                        }
+                    }
+                    return { ach, img: null };
                 }
+                return null;
+            });
+            
+            const badgesToDrawPrefix = (await Promise.all(badgePromisesPrefix)).filter(Boolean);
+            
+            for (const item of badgesToDrawPrefix) {
+                if (item.img) {
+                    ctx.drawImage(item.img, 160 + nameWidth + 12 + crownOffset + badgeOffset, 298 - 20, 22, 22);
+                } else {
+                    ctx.font = '22px sans-serif';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(item.ach.emoji, 160 + nameWidth + 12 + crownOffset + badgeOffset, 298);
+                }
+                badgeOffset += 30;
             }
 
             ctx.font = '24px sans-serif';

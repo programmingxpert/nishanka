@@ -10,6 +10,11 @@ module.exports = {
     async execute(client) {
         // Load premium users into cache
         await loadPremiumUsers();
+
+        // Dynamically map custom emojis from client cache / application emojis
+        const { initDynamicEmojis } = require('../utils/customEmojis');
+        await initDynamicEmojis(client);
+
         console.log(`✅ Bot is online as ${client.user.tag} [v2.triggers+embeds]`);
         console.log(`📦 Loaded ${client.commands.size} command(s)`);
         console.log(`🌐 Serving ${client.guilds.cache.size} guild(s)`);

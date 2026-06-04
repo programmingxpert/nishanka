@@ -48,7 +48,8 @@ module.exports = {
                   { name: 'Profile Picture', value: profileData.pfpUrl || "Default avatar", inline: true },
                   { name: 'Banner', value: profileData.bannerUrl ? profileData.bannerUrl : `Color: ${profileData.bannerColor}`, inline: true },
                   { name: 'Profile Privacy', value: profileData.private ? '🔒 Private' : '🔓 Public', inline: true },
-                  { name: 'Show Baubles', value: profileData.showBaubles ? 'Enabled ✅' : 'Disabled ❌', inline: true }
+                  { name: 'Show Baubles', value: profileData.showBaubles ? 'Enabled ✅' : 'Disabled ❌', inline: true },
+                  { name: 'DM on Robbed', value: profileData.dmOnRobbed !== false ? 'Enabled ✅' : 'Disabled ❌', inline: true }
               )
               .setTimestamp();
 
@@ -85,6 +86,11 @@ module.exports = {
                       label: 'Toggle Show Baubles',
                       description: 'Show or hide your bauble balance on your profile',
                       value: 'toggle_baubles'
+                  },
+                  {
+                      label: 'Toggle DM on Robbed',
+                      description: 'Toggle DM alerts when you get robbed',
+                      value: 'toggle_dm_robbed'
                   }
               ]);
 
@@ -261,6 +267,15 @@ module.exports = {
                       .setDescription(`Showing baubles on your profile is now ${profileData.showBaubles ? 'Enabled ✅' : 'Disabled ❌'}.`)
                       .setTimestamp();
                   await i.update({ embeds: [replyEmbed], components: [] });
+              } else if (selection === 'toggle_dm_robbed') {
+                  profileData.dmOnRobbed = profileData.dmOnRobbed === false ? true : false;
+                  await profileData.save();
+                  const replyEmbed = new EmbedBuilder()
+                      .setColor(0x00AE86)
+                      .setTitle('DM on Robbed Toggled')
+                      .setDescription(`DM alerts when you get robbed are now ${profileData.dmOnRobbed ? 'Enabled ✅' : 'Disabled ❌'}.`)
+                      .setTimestamp();
+                  await i.update({ embeds: [replyEmbed], components: [] });
               }
           });
 
@@ -303,7 +318,8 @@ module.exports = {
 3. pfp (profile picture)
 4. banner (banner URL or color)
 5. toggleprivate (toggle profile privacy)
-6. togglebaubles (toggle show baubles)`);
+6. togglebaubles (toggle show baubles)
+7. toggledmrobbed (toggle DM when robbed)`);
 
           const collected = await message.channel.awaitMessages({ filter, time: 30000, max: 1 });
           if (!collected.size) return message.channel.send(`<@${userId}>, you took too long.`);
@@ -323,6 +339,8 @@ module.exports = {
               selection = 'toggleprivate';
           } else if (['6', 'togglebaubles'].includes(choice)) {
               selection = 'togglebaubles';
+          } else if (['7', 'toggledmrobbed', 'dm'].includes(choice)) {
+              selection = 'toggledmrobbed';
           } else {
               return message.channel.send(`<@${userId}>, invalid choice.`);
           }
@@ -387,6 +405,9 @@ module.exports = {
           } else if (selection === 'togglebaubles') {
               profileData.showBaubles = !profileData.showBaubles;
               message.channel.send(`<@${userId}>, showing baubles on your profile is now ${profileData.showBaubles ? 'Enabled ✅' : 'Disabled ❌'}.`);
+          } else if (selection === 'toggledmrobbed') {
+              profileData.dmOnRobbed = profileData.dmOnRobbed === false ? true : false;
+              message.channel.send(`<@${userId}>, DM alerts when you get robbed are now ${profileData.dmOnRobbed ? 'Enabled ✅' : 'Disabled ❌'}.`);
           }
 
           await profileData.save();
@@ -401,7 +422,8 @@ module.exports = {
                   { name: 'Profile Picture', value: profileData.pfpUrl || 'Default avatar', inline: true },
                   { name: 'Banner', value: profileData.bannerUrl ? profileData.bannerUrl : `Color: ${profileData.bannerColor}`, inline: true },
                   { name: 'Profile Privacy', value: profileData.private ? '🔒 Private' : '🔓 Public', inline: true },
-                  { name: 'Show Baubles', value: profileData.showBaubles ? 'Enabled ✅' : 'Disabled ❌', inline: true }
+                  { name: 'Show Baubles', value: profileData.showBaubles ? 'Enabled ✅' : 'Disabled ❌', inline: true },
+                  { name: 'DM on Robbed', value: profileData.dmOnRobbed !== false ? 'Enabled ✅' : 'Disabled ❌', inline: true }
               )
               .setTimestamp();
           message.channel.send({ content: `<@${userId}>`, embeds: [embed] });

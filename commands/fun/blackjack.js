@@ -84,14 +84,29 @@ async function adjustBaubles(userId, amount) {
     return baubleData.baubles;
 }
 
-async function handleStreak(userId, isWin) {
+async function handleStreak(userId, isWin, channel = null) {
     let baubleData = await Bauble.findOne({ userId });
     if (!baubleData) return 0;
     
     if (isWin === true) {
         baubleData.blackjackStreak = (baubleData.blackjackStreak || 0) + 1;
+        baubleData.blackjackWins = (baubleData.blackjackWins || 0) + 1;
         if (baubleData.blackjackStreak > (baubleData.blackjackMaxStreak || 0)) {
             baubleData.blackjackMaxStreak = baubleData.blackjackStreak;
+        }
+        
+        if (channel && channel.client) {
+            const { checkAndAwardAchievement } = require('../../utils/achievements');
+            const targetMsg = { channel };
+            if (baubleData.blackjackWins >= 100) {
+                await checkAndAwardAchievement(channel.client, userId, 'blackjack_pro', targetMsg);
+            }
+            if (baubleData.baubles >= 1000000) {
+                await checkAndAwardAchievement(channel.client, userId, 'economy_millionaire', targetMsg);
+            }
+            if (baubleData.baubles >= 5000000) {
+                await checkAndAwardAchievement(channel.client, userId, 'economy_billionaire', targetMsg);
+            }
         }
     } else if (isWin === false) {
         baubleData.blackjackStreak = 0;
@@ -252,7 +267,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
                 { name: "Dealer's Hand", value: drawCardsANSI(dealerHand), inline: true }
             );
         
-        const currentStreak = await handleStreak(playerId, true);
+        const currentStreak = await handleStreak(playerId, true, channel);
         if (currentStreak >= 3) naturalWinEmbed.setDescription(naturalWinEmbed.data.description + `\n🔥 **Streak:** ${currentStreak}`);
         
         await channel.send({ embeds: [naturalWinEmbed] });
@@ -267,7 +282,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
                 { name: 'Your Hand', value: drawCardsANSI(playerHand1), inline: true },
                 { name: "Dealer's Hand", value: drawCardsANSI(dealerHand), inline: true }
             );
-        await handleStreak(playerId, false);
+        await handleStreak(playerId, false, channel);
         await channel.send({ embeds: [naturalLossEmbed] });
         activeGames.delete(playerId);
         return;
@@ -620,10 +635,10 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
 
     let streakDisplay = '';
     if (netProfit > 0) {
-        const streak = await handleStreak(playerId, true);
+        const streak = await handleStreak(playerId, true, channel);
         if (streak >= 3) streakDisplay = `\n🔥 **Winning Streak:** ${streak}`;
     } else if (netProfit < 0) {
-        await handleStreak(playerId, false);
+        await handleStreak(playerId, false, channel);
     }
     
     if (streakDisplay) {
