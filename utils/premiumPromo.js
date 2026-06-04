@@ -36,8 +36,35 @@ function getRandomDashboardTip() {
     return DASHBOARD_TIPS[Math.floor(Math.random() * DASHBOARD_TIPS.length)];
 }
 
+function isUserPremium(userId) {
+    if (!userId) return false;
+    return getUserPremiumTier(userId) !== 'free';
+}
+
+function getUserPremiumTier(userId) {
+    if (!userId) return 'free';
+    const config = require('../config.json');
+    if (userId === config.devId) return 'lifetime';
+
+    const lite = (process.env.PREMIUM_USERS_LITE || "").split(",").map(id => id.trim());
+    const pro = (process.env.PREMIUM_USERS_PRO || "").split(",").map(id => id.trim());
+    const network = (process.env.PREMIUM_USERS_NETWORK || "").split(",").map(id => id.trim());
+    const lifetime = (process.env.PREMIUM_USERS_LIFETIME || "").split(",").map(id => id.trim());
+    const generalPremium = (process.env.PREMIUM_USERS || "").split(",").map(id => id.trim());
+
+    if (lifetime.includes(userId)) return 'lifetime';
+    if (network.includes(userId)) return 'network';
+    if (pro.includes(userId)) return 'pro';
+    if (lite.includes(userId)) return 'lite';
+    if (generalPremium.includes(userId)) return 'pro'; // default general premium to pro
+
+    return 'free';
+}
+
 module.exports = {
     isGuildPremium,
+    isUserPremium,
+    getUserPremiumTier,
     getRandomPromoTip,
     getRandomDashboardTip
 };

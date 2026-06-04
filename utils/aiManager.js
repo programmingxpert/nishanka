@@ -1,18 +1,26 @@
 const AIUsage = require('../models/aiUsageSchema');
 const Bauble = require('../models/baubleSchema');
 const config = require('../config.json');
+const { getUserPremiumTier } = require('./premiumPromo');
 
-const FREE_DAILY_APU = 100;
-const PREMIUM_DAILY_APU = 1000;
+const TIER_APU_LIMITS = {
+    free: 100,
+    lite: 500,
+    pro: 1500,
+    network: 5000,
+    lifetime: 10000
+};
+
 const APU_RECHARGE_AMOUNT = 100;
 const APU_RECHARGE_COST = 100; // 100 Baubles for 100 APU
 
 /**
  * Checks if the usage needs a reset and returns the current APU record.
  */
-async function getOrCreateUsage(userId, isPremium) {
+async function getOrCreateUsage(userId) {
     const isDev = userId === config.devId;
-    const maxApu = (isPremium || isDev) ? PREMIUM_DAILY_APU : FREE_DAILY_APU;
+    const tier = isDev ? 'lifetime' : getUserPremiumTier(userId);
+    const maxApu = TIER_APU_LIMITS[tier] || TIER_APU_LIMITS.free;
     
     let usage = await AIUsage.findOne({ userId });
     
@@ -44,8 +52,8 @@ async function getOrCreateUsage(userId, isPremium) {
 /**
  * Gets user's current APU balance.
  */
-async function getUserAPU(userId, isPremium) {
-    const usage = await getOrCreateUsage(userId, isPremium);
+async function getUserAPU(userId) {
+    const usage = await getOrCreateUsage(userId);
     return usage.apuBalance;
 }
 
@@ -53,10 +61,11 @@ async function getUserAPU(userId, isPremium) {
  * Consumes APU for a command.
  * Returns { success: boolean, remaining: number, max: number }
  */
-async function consumeAPU(userId, amount, isPremium) {
-    const usage = await getOrCreateUsage(userId, isPremium);
+async function consumeAPU(userId, amount) {
+    const usage = await getOrCreateUsage(userId);
     const isDev = userId === config.devId;
-    const maxApu = (isPremium || isDev) ? PREMIUM_DAILY_APU : FREE_DAILY_APU;
+    const tier = isDev ? 'lifetime' : getUserPremiumTier(userId);
+    const maxApu = TIER_APU_LIMITS[tier] || TIER_APU_LIMITS.free;
     
     if (usage.apuBalance < amount) {
         return { success: false, remaining: usage.apuBalance, max: maxApu };
@@ -71,8 +80,8 @@ async function consumeAPU(userId, amount, isPremium) {
 /**
  * Recharges user APU by 100 using Baubles.
  */
-async function rechargeAPU(userId, isPremium) {
-    const usage = await getOrCreateUsage(userId, isPremium);
+async function rechargeAPU(userId) {
+    const usage = await getOrCreateUsage(userId);
     
     let baubleData = await Bauble.findOne({ userId });
     if (!baubleData || baubleData.baubles < APU_RECHARGE_COST) {
@@ -98,8 +107,9 @@ module.exports = {
     getUserAPU,
     consumeAPU,
     rechargeAPU,
-    FREE_DAILY_APU,
-    PREMIUM_DAILY_APU,
+    TIER_APU_LIMITS,
+    FREE_DAILY_APU: TIER_APU_LIMITS.free,
+    PREMIUM_DAILY_APU: TIER_APU_LIMITS.pro, // compatibility
     APU_RECHARGE_AMOUNT,
     APU_RECHARGE_COST
 };

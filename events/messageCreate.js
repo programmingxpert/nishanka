@@ -177,9 +177,17 @@ module.exports = {
             cooldowns.set(cmdName, new Collection());
         }
 
+        const { isGuildPremium, isUserPremium, getRandomPromoTip, getRandomDashboardTip } = require('../utils/premiumPromo');
+        const isGuildPrem = await isGuildPremium(message.guild.id);
+        const isPrem = isGuildPrem || isUserPremium(message.author.id);
+
         const now        = Date.now();
         const timestamps = cooldowns.get(cmdName);
         let cooldownMs = (command.cooldown ?? 3) * 1000;
+
+        if (command.isAI) {
+            cooldownMs = (isPrem ? (command.premiumCooldown ?? 5) : (command.cooldown ?? 60)) * 1000;
+        }
 
         if (cmdName === 'work' || cmdName === 'scavenge') {
             const Bauble = require('../models/baubleSchema');
@@ -204,9 +212,6 @@ module.exports = {
         const originalMessageReply = message.reply;
         const originalChannelSend = message.channel.send;
 
-        const { isGuildPremium, getRandomPromoTip, getRandomDashboardTip } = require('../utils/premiumPromo');
-        const isPrem = await isGuildPremium(message.guild.id);
-
         const injectPromo = (options) => {
             if (message.promoInjected) return options;
             message.promoInjected = true;
@@ -214,7 +219,7 @@ module.exports = {
             const rand = Math.random();
             let promoText = '';
 
-            if (isPrem) {
+            if (isGuildPrem) {
                 // Premium servers only get dashboard promo tips (1.5% chance)
                 if (rand < 0.015) {
                     promoText = getRandomDashboardTip();

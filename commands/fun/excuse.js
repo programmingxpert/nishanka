@@ -11,9 +11,10 @@ const {
 const Bauble = require('../../models/baubleSchema');
 const { getGlobalMultiplier } = require('../../utils/economyEngine');
 
-module.exports = {
     category: 'fun',
-    cooldown: 15,
+    isAI: true,
+    cooldown: 60,
+    premiumCooldown: 10,
     data: new SlashCommandBuilder()
         .setName('excuse')
         .setDescription('Give your best excuse for a sticky situation and let the AI judge you!')
@@ -38,7 +39,7 @@ module.exports = {
 };
 
 const { consumeAPU } = require('../../utils/aiManager');
-const { isGuildPremium } = require('../../utils/premiumPromo');
+const { isGuildPremium, isUserPremium } = require('../../utils/premiumPromo');
 
 async function runExcuseGame(initialData, channel, user, mode) {
     const isSlash = !!initialData.deferReply;
@@ -54,7 +55,7 @@ async function runExcuseGame(initialData, channel, user, mode) {
     }
 
     const guildId = initialData.guildId;
-    const isPrem = await isGuildPremium(guildId);
+    const isPrem = (await isGuildPremium(guildId)) || isUserPremium(user.id);
     const cost = mode === 'multiplayer' ? 35 : 20;
 
     const apuResult = await consumeAPU(user.id, cost, isPrem);

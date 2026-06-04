@@ -268,7 +268,9 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
 
 module.exports = {
   category: 'minigames',
-  cooldown: 10,
+  isAI: true,
+  cooldown: 45,
+  premiumCooldown: 5,
 
   data: new SlashCommandBuilder()
     .setName('emojidecode')
