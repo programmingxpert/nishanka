@@ -88,22 +88,58 @@ const client = new Client({
 
 global.client = client;
 
+function replaceEmojisRecursive(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+
+    if (Array.isArray(obj)) {
+        return obj.map(item => replaceEmojisRecursive(item));
+    }
+
+    const newObj = {};
+    for (const [key, value] of Object.entries(obj)) {
+        if (key === 'emoji' && value && typeof value === 'object' && value.name) {
+            let resolvedEmoji = value;
+            for (const [standardEmoji, emojiKey] of Object.entries(emojiMapping)) {
+                if (value.name === standardEmoji) {
+                    const customEmoji = getCustomEmoji(emojiKey);
+                    if (customEmoji && customEmoji !== standardEmoji) {
+                        const match = customEmoji.match(/<(a?):([a-zA-Z0-9_~]+):(\d+)>/);
+                        if (match) {
+                            resolvedEmoji = {
+                                id: match[3],
+                                name: match[2],
+                                animated: match[1] === 'a'
+                            };
+                        }
+                    }
+                }
+            }
+            newObj[key] = resolvedEmoji;
+        } else if (typeof value === 'string') {
+            let valStr = value;
+            for (const [standardEmoji, emojiKey] of Object.entries(emojiMapping)) {
+                const customEmoji = getCustomEmoji(emojiKey);
+                if (customEmoji && customEmoji !== standardEmoji) {
+                    const regex = new RegExp(standardEmoji, 'g');
+                    valStr = valStr.replace(regex, customEmoji);
+                }
+            }
+            newObj[key] = valStr;
+        } else {
+            newObj[key] = replaceEmojisRecursive(value);
+        }
+    }
+    return newObj;
+}
+
 // Globally patch REST requests to replace standard emojis in outgoing message payloads
 const originalRequest = client.rest.request.bind(client.rest);
 client.rest.request = function(options) {
     if (options && options.body) {
         try {
-            let str = JSON.stringify(options.body);
-            for (const [standardEmoji, key] of Object.entries(emojiMapping)) {
-                const customEmoji = getCustomEmoji(key);
-                if (customEmoji && customEmoji !== standardEmoji) {
-                    const regex = new RegExp(standardEmoji, 'g');
-                    str = str.replace(regex, customEmoji);
-                }
-            }
-            options.body = JSON.parse(str);
+            options.body = replaceEmojisRecursive(options.body);
         } catch (e) {
-            // Ignore parse errors or binary payloads
+            // Ignore parse errors
         }
     }
     return originalRequest(options);

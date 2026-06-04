@@ -60,35 +60,51 @@ function buildCategoryEmbed(user, currentCategory, unlockedIds) {
     const totalPct = totalCount > 0 ? ((unlockedCount / totalCount) * 100).toFixed(1) : '0.0';
 
     const categoryInfo = CATEGORIES[currentCategory];
-    const filteredAchievements = currentCategory === 'all' 
-        ? ACHIEVEMENTS 
-        : ACHIEVEMENTS.filter(ach => ach.category === currentCategory);
-
-    const categoryTotal = filteredAchievements.length;
-    const categoryUnlocked = filteredAchievements.filter(a => unlockedIds.has(a.id)).length;
-    const categoryPct = categoryTotal > 0 ? ((categoryUnlocked / categoryTotal) * 100).toFixed(0) : '0';
-
     const embed = new EmbedBuilder()
         .setColor(0x1abc9c)
         .setTitle(`${categoryInfo.emoji} ${categoryInfo.label}`)
-        .setDescription(`*${categoryInfo.desc}*\n\n` + 
-            `Global Progress: **${unlockedCount} / ${totalCount}** unlocked (${totalPct}%)\n` +
-            `Category Progress: **${categoryUnlocked} / ${categoryTotal}** unlocked (${categoryPct}%)\n\n` +
-            `Owned achievements are ~~struck out~~.\n\n`)
-        .setFooter({ text: 'Use the select menu below to switch categories!' })
+        .setFooter({ text: 'Use the buttons below to switch categories!' })
         .setTimestamp();
 
-    const listLines = filteredAchievements.map(ach => {
-        const isOwned = unlockedIds.has(ach.id);
-        const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
-        if (isOwned) {
-            return `✅ ~~${ach.emoji} **${ach.name}**: ${ach.description}~~ *(Owned | ${typeLabel})*`;
-        } else {
-            return `🔒 ${ach.emoji} **${ach.name}**: ${ach.description} *(Rarity: ${ach.rarity}% | ${typeLabel})*`;
-        }
-    });
+    if (currentCategory === 'all') {
+        let desc = `*${categoryInfo.desc}*\n\n` +
+            `Global Progress: **${unlockedCount} / ${totalCount}** unlocked (${totalPct}%)\n\n` +
+            `**Category Overview:**\n`;
 
-    embed.setDescription(embed.data.description + (listLines.join('\n\n') || '_No achievements in this category._'));
+        for (const [catKey, catVal] of Object.entries(CATEGORIES)) {
+            if (catKey === 'all') continue;
+            const catAchievements = ACHIEVEMENTS.filter(ach => ach.category === catKey);
+            const catTotal = catAchievements.length;
+            const catUnlocked = catAchievements.filter(a => unlockedIds.has(a.id)).length;
+            const catPct = catTotal > 0 ? ((catUnlocked / catTotal) * 100).toFixed(0) : '0';
+            desc += `${catVal.emoji} **${catVal.label}**: **${catUnlocked} / ${catTotal}** (${catPct}%)\n`;
+        }
+
+        desc += `\n*Click any button below to see the specific achievements for that category!*`;
+        embed.setDescription(desc);
+    } else {
+        const filteredAchievements = ACHIEVEMENTS.filter(ach => ach.category === currentCategory);
+        const categoryTotal = filteredAchievements.length;
+        const categoryUnlocked = filteredAchievements.filter(a => unlockedIds.has(a.id)).length;
+        const categoryPct = categoryTotal > 0 ? ((categoryUnlocked / categoryTotal) * 100).toFixed(0) : '0';
+
+        const descHeader = `*${categoryInfo.desc}*\n\n` +
+            `Global Progress: **${unlockedCount} / ${totalCount}** unlocked (${totalPct}%)\n` +
+            `Category Progress: **${categoryUnlocked} / ${categoryTotal}** unlocked (${categoryPct}%)\n\n` +
+            `Owned achievements are ~~struck out~~.\n\n`;
+
+        const listLines = filteredAchievements.map(ach => {
+            const isOwned = unlockedIds.has(ach.id);
+            const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
+            if (isOwned) {
+                return `✅ ~~${ach.emoji} **${ach.name}**: ${ach.description}~~ *(Owned | ${typeLabel})*`;
+            } else {
+                return `🔒 ${ach.emoji} **${ach.name}**: ${ach.description} *(Rarity: ${ach.rarity}% | ${typeLabel})*`;
+            }
+        });
+
+        embed.setDescription(descHeader + (listLines.join('\n\n') || '_No achievements in this category._'));
+    }
     return embed;
 }
 

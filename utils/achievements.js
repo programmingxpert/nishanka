@@ -50,7 +50,10 @@ const ACHIEVEMENTS = [
 ];
 
 for (const achievement of ACHIEVEMENTS) {
-    decorateEmojiDefinition(achievement, `achievement.${achievement.id}`);
+    const fallbackEmoji = achievement.emoji || '';
+    achievement.baseEmoji = fallbackEmoji;
+    achievement.emojiKey = `achievement.${achievement.id}`;
+    achievement.emoji = emoji(achievement.emojiKey, fallbackEmoji);
 }
 
 async function checkAndAwardAchievement(client, userId, achievementId, interactionOrMessage = null) {

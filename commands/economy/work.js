@@ -251,8 +251,8 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
                 resultEmbed
                     .setColor(0x2ecc71)
                     .setTitle(config.winTitle || '🎉 Success!')
-                    .setDescription(`${chosenOption.msg || 'You did it!'}${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles.${taxMsg}`)
-                    .addFields({ name: '💰 Balance', value: `${balance} Baubles`, inline: true });
+                    .setDescription(`${chosenOption.msg || 'You did it!'}${getEventNote(event)}\n\nEarned **${finalEarnings}** 🪙 Glimmering Baubles.${taxMsg}`)
+                    .addFields({ name: '💰 Balance', value: `${balance} 🪙`, inline: true });
 
                 if (unlockedTitles.length > 0) {
                     resultEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
@@ -261,14 +261,14 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
                 resultEmbed
                     .setColor(0xe74c3c)
                     .setTitle(config.loseTitle || '❌ Failure!')
-                    .setDescription(`${chosenOption.msg || 'You failed.'}\n\nEarned **0** Glimmering Baubles.`);
+                    .setDescription(`${chosenOption.msg || 'You failed.'}\n\nEarned **0** 🪙 Glimmering Baubles.`);
             }
         } else {
             // Timeout
             resultEmbed
                 .setColor(0x95a5a6)
                 .setTitle('⏰ Too Slow!')
-                .setDescription(`${config.timeoutMsg || 'You hesitated too long and failed.'}\n\nEarned **0** Glimmering Baubles.`);
+                .setDescription(`${config.timeoutMsg || 'You hesitated too long and failed.'}\n\nEarned **0** 🪙 Glimmering Baubles.`);
         }
 
         const finalEmbed = appendWorkAgainFooter(resultEmbed, initialData, baubleData);
@@ -415,11 +415,11 @@ async function runMiningGame(initialData, channel, user, baubleData) {
                     : '💎 Mining Complete!'
             )
             .setDescription(
-                `You swung your pickaxe **${clicks}** times and extracted **${finalEarnings}** Glimmering Baubles! *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
+                `You swung your pickaxe **${clicks}** times and extracted **${finalEarnings}** 🪙 Glimmering Baubles! *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
             )
             .addFields({
                 name: '💰 New Balance',
-                value: `${balance} Baubles`,
+                value: `${balance} 🪙`,
                 inline: true
             })
             .setTimestamp()
@@ -596,11 +596,11 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                 .setColor(0x2ecc71)
                 .setTitle('👮 Security Job Complete!')
                 .setDescription(
-                    `You caught the intruder in **${ms}ms**!${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
+                    `You caught the intruder in **${ms}ms**!${getEventNote(event)}\n\nEarned **${finalEarnings}** 🪙 Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`
                 )
                 .addFields({
                     name: '💰 New Balance',
-                    value: `${balance} Baubles`,
+                    value: `${balance} 🪙`,
                     inline: true
                 });
 
@@ -613,7 +613,7 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                 .setColor(0x7f8c8d)
                 .setTitle('❌ Thief Escaped!')
                 .setDescription(
-                    `You were playing games on your phone and the thief took the entire vault.\n\nEarned **0** Glimmering Baubles.`
+                    `You were playing games on your phone and the thief took the entire vault.\n\nEarned **0** 🪙 Glimmering Baubles.`
                 );
         }
 
@@ -727,10 +727,10 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
                 resultEmbed
                     .setColor(0x2ecc71)
                     .setTitle('☕ Order Served!')
-                    .setDescription(`Perfect! You brewed a fresh **${recipe.name}**! The customer tipped you generously.${getEventNote(event)}\n\nEarned **${finalEarnings}** Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`)
+                    .setDescription(`Perfect! You brewed a fresh **${recipe.name}**! The customer tipped you generously.${getEventNote(event)}\n\nEarned **${finalEarnings}** 🪙 Glimmering Baubles. *(Economy Multiplier: ${globalMultiplier}x)*${taxMsg}`)
                     .setTimestamp();
 
-                resultEmbed.addFields({ name: '💰 New Balance', value: `${balance} Baubles`, inline: true });
+                resultEmbed.addFields({ name: '💰 New Balance', value: `${balance} 🪙`, inline: true });
                 if (unlockedTitles.length > 0) {
                     resultEmbed.addFields({ name: '🏷️ Title Unlocked', value: unlockedTitles.join(', ') });
                 }
@@ -738,7 +738,7 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
                 resultEmbed
                     .setColor(0xe74c3c)
                     .setTitle('🤢 Ruined Drink')
-                    .setDescription(`Yuck! You mixed a weird combo and served it to the customer. They gagged, called you a monster, and walked out!\n\nEarned **0** Glimmering Baubles.`)
+                    .setDescription(`Yuck! You mixed a weird combo and served it to the customer. They gagged, called you a monster, and walked out!\n\nEarned **0** 🪙 Glimmering Baubles.`)
                     .setTimestamp();
             }
         } else {
@@ -746,7 +746,7 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
             resultEmbed
                 .setColor(0x95a5a6)
                 .setTitle('⏰ Customer Walked Out!')
-                .setDescription(`You took too long to read the coffee machine manual. The customer got tired and left!\n\nEarned **0** Glimmering Baubles.`)
+                .setDescription(`You took too long to read the coffee machine manual. The customer got tired and left!\n\nEarned **0** 🪙 Glimmering Baubles.`)
                 .setTimestamp();
         }
 

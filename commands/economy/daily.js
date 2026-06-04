@@ -94,8 +94,13 @@ module.exports = {
 
             // Check Streak Achievements
             if (baubleData.dailyStreak >= 7) await checkAndAwardAchievement(interaction.client, userId, 'streak_7', interaction);
-            if (baubleData.dailyStreak >= 30) await checkAndAwardAchievement(interaction.client, userId, 'streak_30', interaction);
+            if (baubleData.dailyStreak >= 30) {
+                await checkAndAwardAchievement(interaction.client, userId, 'streak_30', interaction);
+                await checkAndAwardAchievement(interaction.client, userId, 'streak_perfectionist', interaction);
+            }
             if (baubleData.dailyStreak >= 100) await checkAndAwardAchievement(interaction.client, userId, 'streak_100', interaction);
+            if (baubleData.dailyStreak >= 180) await checkAndAwardAchievement(interaction.client, userId, 'active_180', interaction);
+            if (baubleData.dailyStreak >= 365) await checkAndAwardAchievement(interaction.client, userId, 'active_year', interaction);
 
             const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
@@ -191,8 +196,13 @@ module.exports = {
 
             // Check Streak Achievements
             if (baubleData.dailyStreak >= 7) await checkAndAwardAchievement(message.client, userId, 'streak_7', message);
-            if (baubleData.dailyStreak >= 30) await checkAndAwardAchievement(message.client, userId, 'streak_30', message);
+            if (baubleData.dailyStreak >= 30) {
+                await checkAndAwardAchievement(message.client, userId, 'streak_30', message);
+                await checkAndAwardAchievement(message.client, userId, 'streak_perfectionist', message);
+            }
             if (baubleData.dailyStreak >= 100) await checkAndAwardAchievement(message.client, userId, 'streak_100', message);
+            if (baubleData.dailyStreak >= 180) await checkAndAwardAchievement(message.client, userId, 'active_180', message);
+            if (baubleData.dailyStreak >= 365) await checkAndAwardAchievement(message.client, userId, 'active_year', message);
 
             const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 

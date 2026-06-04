@@ -408,6 +408,10 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         await initialMsg.edit({ embeds: [kaboomEmbed], components: finalRows }).catch(() => {});
                     } else {
                         revealedCount++;
+                        if (revealedCount >= 10) {
+                            await checkAndAwardAchievement(client, userId, 'mines_all_gems', initialMsg);
+                        }
+
                         const totalSafe = 16 - finalMinesCount;
 
                         if (revealedCount === totalSafe) {
@@ -424,6 +428,12 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
 
                             if (finalMinesCount >= 9) {
                                 await checkAndAwardAchievement(client, userId, `mines_${finalMinesCount}`, initialMsg);
+                            }
+
+                            if (finalMinesCount === 14) {
+                                await checkAndAwardAchievement(client, userId, 'minesweeper_deity', initialMsg);
+                            } else if (finalMinesCount === 13) {
+                                await checkAndAwardAchievement(client, userId, 'minesweeper_demigod', initialMsg);
                             }
 
                             const perfectEmbed = new EmbedBuilder()
