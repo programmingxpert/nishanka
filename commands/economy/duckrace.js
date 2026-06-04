@@ -99,11 +99,6 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
             return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
         }
 
-        if (baubleData.passiveMode) {
-            const msg = `❌ You are in Passive Mode! Disable it first with \`/passive\` to gamble.`;
-            return isSlash ? interaction.reply({ content: msg, ephemeral: true }) : message.reply(msg);
-        }
-
         // Subtract bet initially to prevent exit exploits
         baubleData.baubles -= bet;
         await baubleData.save();
@@ -202,7 +197,11 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
                 .setDescription(
                     `🏆 **${winningDuck.emoji} ${winningDuck.name}** crossed the finish line first!\n\n` +
                     `You predicted correctly and won **+${payout.toLocaleString()}** ${baubleEmoji}!\n\n` +
-                    `👛 **New Balance:** **${baubleData.baubles.toLocaleString()}** ${baubleEmoji}`
+                    `👛 **New Balance:** **${baubleData.baubles.toLocaleString()}** ${baubleEmoji}\n\n` +
+                    `${drawTrack('Red Duck', '🔴', positions.red)}\n` +
+                    `${drawTrack('Blue Duck', '🔵', positions.blue)}\n` +
+                    `${drawTrack('Green Duck', '🟢', positions.green)}\n` +
+                    `${drawTrack('Yellow Duck', '🟡', positions.yellow)}`
                 )
                 .setTimestamp();
 
@@ -216,7 +215,11 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
                 .setDescription(
                     `😭 **${winningDuck.emoji} ${winningDuck.name}** won the race!\n\n` +
                     `Your duck (**${selectedDuck.name}**) fell behind. You lost **-${bet.toLocaleString()}** ${baubleEmoji}!\n\n` +
-                    `👛 **New Balance:** **${baubleData.baubles.toLocaleString()}** ${baubleEmoji}`
+                    `👛 **New Balance:** **${baubleData.baubles.toLocaleString()}** ${baubleEmoji}\n\n` +
+                    `${drawTrack('Red Duck', '🔴', positions.red)}\n` +
+                    `${drawTrack('Blue Duck', '🔵', positions.blue)}\n` +
+                    `${drawTrack('Green Duck', '🟢', positions.green)}\n` +
+                    `${drawTrack('Yellow Duck', '🟡', positions.yellow)}`
                 )
                 .setTimestamp();
 
