@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const Achievement = require('../../models/achievementSchema');
-const { ACHIEVEMENTS } = require('../../utils/achievements');
+const { ACHIEVEMENTS, syncUserAchievements } = require('../../utils/achievements');
 
 const CATEGORIES = {
     all: { label: 'All Achievements', emoji: '🏆', desc: 'Complete list of all global accolades.' },
@@ -22,6 +22,7 @@ module.exports = {
     async execute(interaction) {
         try {
             const userId = interaction.user.id;
+            await syncUserAchievements(interaction.client, userId);
             const userUnlocked = await Achievement.find({ userId }).lean();
             const unlockedIds = new Set(userUnlocked.map(a => a.achievementId));
 
@@ -39,6 +40,7 @@ module.exports = {
     async executePrefix(message, args) {
         try {
             const userId = message.author.id;
+            await syncUserAchievements(message.client, userId);
             const userUnlocked = await Achievement.find({ userId }).lean();
             const unlockedIds = new Set(userUnlocked.map(a => a.achievementId));
 

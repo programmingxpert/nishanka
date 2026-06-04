@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Achievement = require('../../models/achievementSchema');
-const { ACHIEVEMENTS } = require('../../utils/achievements');
+const { ACHIEVEMENTS, syncUserAchievements } = require('../../utils/achievements');
 
 module.exports = {
     category: 'profile',
@@ -18,6 +18,7 @@ module.exports = {
     async execute(interaction) {
         try {
             const targetUser = interaction.options.getUser('target') || interaction.user;
+            await syncUserAchievements(interaction.client, targetUser.id);
             const embed = await buildAchievementsEmbed(targetUser);
             await interaction.reply({ embeds: [embed] });
         } catch (error) {
@@ -41,6 +42,7 @@ module.exports = {
                 targetUser = message.author;
             }
 
+            await syncUserAchievements(message.client, targetUser.id);
             const embed = await buildAchievementsEmbed(targetUser);
             await message.reply({ embeds: [embed] });
         } catch (error) {

@@ -6,7 +6,7 @@ const Canvas = require('@napi-rs/canvas');
 const Profile = require('../../models/profileSchema');
 const Bauble = require('../../models/baubleSchema');
 const Achievement = require('../../models/achievementSchema'); // Assumes your bauble schema stores "baubles" for each user
-const { ACHIEVEMENTS } = require('../../utils/achievements');
+const { ACHIEVEMENTS, syncUserAchievements } = require('../../utils/achievements');
 const path = require('path');
 
 function getBadgeImageSource(emojiChar) {
@@ -191,6 +191,9 @@ module.exports = {
         try {
             // Use the provided target or default to the command user.
             const targetUser = interaction.options.getUser('target') || interaction.user;
+
+            // Sync user achievements first
+            await syncUserAchievements(interaction.client, targetUser.id);
 
             // Get profile data (create one if it doesn't exist).
             let profileData = await Profile.findOne({ userId: targetUser.id });
@@ -381,6 +384,9 @@ module.exports = {
             } else {
                 targetUser = message.author;
             }
+
+            // Sync user achievements first
+            await syncUserAchievements(message.client, targetUser.id);
 
             let profileData = await Profile.findOne({ userId: targetUser.id });
             if (!profileData) {

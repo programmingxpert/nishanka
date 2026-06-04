@@ -90,8 +90,62 @@ async function getUserAchievements(userId) {
     return await Achievement.find({ userId });
 }
 
+async function syncUserAchievements(client, userId) {
+    try {
+        const Bauble = require('../models/baubleSchema');
+        const baubleData = await Bauble.findOne({ userId });
+        if (!baubleData) return;
+
+        // Coinflip streak achievements
+        const maxCf = Math.max(baubleData.coinflipMaxStreak || 0, baubleData.coinflipStreak || 0);
+        if (maxCf >= 10) await checkAndAwardAchievement(client, userId, 'coinflip_streak_10');
+        if (maxCf >= 15) await checkAndAwardAchievement(client, userId, 'coinflip_streak_15');
+        if (maxCf >= 20) await checkAndAwardAchievement(client, userId, 'coinflip_streak_20');
+
+        // Streaks achievements
+        const maxDaily = Math.max(baubleData.dailyMaxStreak || 0, baubleData.dailyStreak || 0);
+        if (maxDaily >= 7) await checkAndAwardAchievement(client, userId, 'streak_7');
+        if (maxDaily >= 30) {
+            await checkAndAwardAchievement(client, userId, 'streak_30');
+            await checkAndAwardAchievement(client, userId, 'streak_perfectionist');
+        }
+        if (maxDaily >= 100) await checkAndAwardAchievement(client, userId, 'streak_100');
+        if (maxDaily >= 180) await checkAndAwardAchievement(client, userId, 'active_180');
+        if (maxDaily >= 365) await checkAndAwardAchievement(client, userId, 'active_year');
+
+        // Balance achievements
+        if (baubleData.baubles >= 1000000) await checkAndAwardAchievement(client, userId, 'economy_millionaire');
+        if (baubleData.baubles >= 5000000) await checkAndAwardAchievement(client, userId, 'economy_billionaire');
+
+        // Casino totals
+        if (baubleData.slotsWins >= 50) await checkAndAwardAchievement(client, userId, 'slots_win_50');
+        if (baubleData.gambleWins >= 100) await checkAndAwardAchievement(client, userId, 'gamble_win_100');
+        if (baubleData.blackjackWins >= 100) await checkAndAwardAchievement(client, userId, 'blackjack_pro');
+
+        const slotsJacks = baubleData.slotsJackpots || 0;
+        if (slotsJacks >= 1) await checkAndAwardAchievement(client, userId, 'slots_jackpot');
+        if (slotsJacks >= 3) await checkAndAwardAchievement(client, userId, 'slots_jackpot_triple');
+
+        // Taxes paid
+        const taxes = baubleData.cumulativeTaxPaid || 0;
+        if (taxes >= 50000) await checkAndAwardAchievement(client, userId, 'tax_evader');
+        if (taxes >= 250000) await checkAndAwardAchievement(client, userId, 'tax_tycoon');
+
+        // Relics/Inventory
+        if (baubleData.inventory && baubleData.inventory.length > 0) {
+            const uniqueItems = new Set(baubleData.inventory.filter(i => i.quantity > 0).map(i => i.itemId)).size;
+            if (uniqueItems >= 10) {
+                await checkAndAwardAchievement(client, userId, 'relic_collector');
+            }
+        }
+    } catch (err) {
+        console.error(`[Achievements] Error syncing achievements for ${userId}:`, err);
+    }
+}
+
 module.exports = {
     ACHIEVEMENTS,
     checkAndAwardAchievement,
-    getUserAchievements
+    getUserAchievements,
+    syncUserAchievements
 };
