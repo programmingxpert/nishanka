@@ -9,6 +9,27 @@ module.exports = {
         // Handle button interactions for adventure choices
         if (interaction.isButton()) {
             const customId = interaction.customId;
+            if (customId.startsWith('claim_pre_release_')) {
+                const targetUserId = customId.split('_')[3];
+                if (interaction.user.id !== targetUserId) {
+                    return interaction.reply({ content: '❌ This badge is not for you!', flags: MessageFlags.Ephemeral });
+                }
+
+                await interaction.deferUpdate();
+
+                const { checkAndAwardAchievement } = require('../utils/achievements');
+                await checkAndAwardAchievement(client, interaction.user.id, 'pre_release_badge');
+
+                const { EmbedBuilder } = require('discord.js');
+                const embed = EmbedBuilder.from(interaction.message.embeds[0])
+                    .setTitle('🚀 Pre-Release Badge Claimed!')
+                    .setDescription(`🎉 **Congratulations!** You have successfully claimed the exclusive **Pre-Release Supporter** badge!\n\nCheck it out on your profile with \`/profile view\` or \`-profile\`.`)
+                    .setColor('#10b981');
+
+                await interaction.message.edit({ embeds: [embed], components: [] }).catch(() => {});
+                return;
+            }
+
             if (customId.startsWith('adv_choice_') || customId.startsWith('adv_custom_')) {
                 const parts = customId.split('_');
                 let actionType, targetUserId, choiceVal;
@@ -276,6 +297,8 @@ module.exports = {
         // --- Execute command ---
         try {
             await command.execute(interaction);
+            const { checkAndPromptPreReleaseBadge } = require('../utils/preReleaseBadge');
+            await checkAndPromptPreReleaseBadge(client, interaction.user, interaction);
         } catch (error) {
             timestamps.delete(interaction.user.id); // Clear cooldown on command error
             console.error(`[interactionCreate] Error in ${fullCommandPath}:`, error);

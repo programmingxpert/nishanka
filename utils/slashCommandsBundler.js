@@ -271,6 +271,12 @@ function resolveGroupedCommand(interaction, client) {
             resolvedName = 'profile-edit';
         } else if (subCmd === 'reset') {
             resolvedName = 'profile-reset';
+        } else if (subCmd === 'title') {
+            resolvedName = 'title';
+        } else if (subCmd === 'achievements') {
+            resolvedName = 'achievements';
+        } else if (subCmd === 'achievements-list') {
+            resolvedName = 'achievements-list';
         }
     } else if (topLevel === 'utility') {
         const subCmd = interaction.options.getSubcommand(false);

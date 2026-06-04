@@ -2,6 +2,18 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 const { checkAndAwardAchievement } = require('../../utils/achievements');
+const { emoji } = require('../../utils/customEmojis');
+
+const EMOJI = {
+    bauble: emoji('currency.bauble', '🪙'),
+    balance: emoji('ui.balance', '💰'),
+    cooldown: emoji('ui.cooldown', '⏳'),
+    daily: emoji('ui.daily', '✦'),
+    error: emoji('ui.error', '❌'),
+    nextClaim: emoji('ui.next_claim', '⏱️'),
+    streak: emoji('ui.streak', '🔥'),
+    streakLost: emoji('ui.streak_lost', '💔')
+};
 
 module.exports = {
     category: 'economy',
@@ -31,10 +43,10 @@ module.exports = {
                     const nextClaimEpoch = Math.floor((lastClaimed.getTime() + cooldownMs) / 1000);
                     const embed = new EmbedBuilder()
                         .setColor(0x2b2d42)
-                        .setTitle('⏳ Daily Cooldown')
+                        .setTitle(`${EMOJI.cooldown} Daily Cooldown`)
                         .setDescription(
                             `Available <t:${nextClaimEpoch}:R>\n\n` +
-                            `🔥 Streak: **${baubleData.dailyStreak || 0} days**`
+                            `${EMOJI.streak} Streak: **${baubleData.dailyStreak || 0} days**`
                         );
 
                     return interaction.reply({ embeds: [embed] });
@@ -46,7 +58,7 @@ module.exports = {
                     
                     const streakBrokenEmbed = new EmbedBuilder()
                         .setColor(0xED4245)
-                        .setTitle('💔 Streak Lost')
+                        .setTitle(`${EMOJI.streakLost} Streak Lost`)
                         .setDescription(`Your streak of **${oldStreak} days** has reset since you missed your daily for over 48 hours.`);
 
                     await interaction.channel.send({ content: `<@${userId}>`, embeds: [streakBrokenEmbed] }).catch(() => {});
@@ -87,22 +99,22 @@ module.exports = {
 
             const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
-            let descriptionText = `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\``;
+            let descriptionText = `Received **+${totalReward.toLocaleString()}** ${EMOJI.bauble} (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\``;
             if (premiumBonus > 0) {
                 descriptionText += ` • Premium Bonus: \`+${premiumBonus.toLocaleString()} (${userTier.toUpperCase()})\``;
             }
-            descriptionText += `)\n\n💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n🔥 Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n⏱️ Next Claim: <t:${nextClaimEpoch}:R>`;
+            descriptionText += `)\n\n${EMOJI.balance} Balance: **${baubleData.baubles.toLocaleString()}** ${EMOJI.bauble}\n${EMOJI.streak} Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n${EMOJI.nextClaim} Next Claim: <t:${nextClaimEpoch}:R>`;
 
             const embed = new EmbedBuilder()
                 .setColor(0x2ecc71)
-                .setTitle('✦ Daily Claim')
+                .setTitle(`${EMOJI.daily} Daily Claim`)
                 .setDescription(descriptionText);
 
             await interaction.reply({ embeds: [embed] });
 
         } catch (error) {
             console.error('Error in daily slash command:', error);
-            await interaction.reply({ content: '❌ Something went wrong while claiming daily.', ephemeral: true });
+            await interaction.reply({ content: `${EMOJI.error} Something went wrong while claiming daily.`, ephemeral: true });
         }
     },
 
@@ -128,10 +140,10 @@ module.exports = {
                     const nextClaimEpoch = Math.floor((lastClaimed.getTime() + cooldownMs) / 1000);
                     const embed = new EmbedBuilder()
                         .setColor(0x2b2d42)
-                        .setTitle('⏳ Daily Cooldown')
+                        .setTitle(`${EMOJI.cooldown} Daily Cooldown`)
                         .setDescription(
                             `Available <t:${nextClaimEpoch}:R>\n\n` +
-                            `🔥 Streak: **${baubleData.dailyStreak || 0} days**`
+                            `${EMOJI.streak} Streak: **${baubleData.dailyStreak || 0} days**`
                         );
 
                     return message.channel.send({ embeds: [embed] });
@@ -143,7 +155,7 @@ module.exports = {
                     
                     const streakBrokenEmbed = new EmbedBuilder()
                         .setColor(0xED4245)
-                        .setTitle('💔 Streak Lost')
+                        .setTitle(`${EMOJI.streakLost} Streak Lost`)
                         .setDescription(`Your streak of **${oldStreak} days** has reset since you missed your daily for over 48 hours.`);
 
                     await message.channel.send({ content: `<@${userId}>`, embeds: [streakBrokenEmbed] }).catch(() => {});
@@ -181,22 +193,22 @@ module.exports = {
 
             const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
-            let descriptionText = `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\``;
+            let descriptionText = `Received **+${totalReward.toLocaleString()}** ${EMOJI.bauble} (Base: \`${baseReward}\` • Streak Bonus: \`+${streakBonus}\` • Multiplier: \`${multiplier.toFixed(2)}x\``;
             if (premiumBonus > 0) {
                 descriptionText += ` • Premium Bonus: \`+${premiumBonus.toLocaleString()} (${userTier.toUpperCase()})\``;
             }
-            descriptionText += `)\n\n💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n🔥 Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n⏱️ Next Claim: <t:${nextClaimEpoch}:R>`;
+            descriptionText += `)\n\n${EMOJI.balance} Balance: **${baubleData.baubles.toLocaleString()}** ${EMOJI.bauble}\n${EMOJI.streak} Streak: **${baubleData.dailyStreak}** days (Best: \`${baubleData.dailyMaxStreak}\`)\n${EMOJI.nextClaim} Next Claim: <t:${nextClaimEpoch}:R>`;
 
             const embed = new EmbedBuilder()
                 .setColor(0x2ecc71)
-                .setTitle('✦ Daily Claim')
+                .setTitle(`${EMOJI.daily} Daily Claim`)
                 .setDescription(descriptionText);
 
             await message.channel.send({ embeds: [embed] });
 
         } catch (error) {
             console.error('Error in daily prefix command:', error);
-            await message.reply({ content: '❌ Something went wrong while claiming daily.' });
+            await message.reply({ content: `${EMOJI.error} Something went wrong while claiming daily.` });
         }
     }
 };

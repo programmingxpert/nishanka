@@ -1,4 +1,5 @@
 const Bauble = require('../models/baubleSchema');
+const { decorateEmojiDefinition, formatEmojiName } = require('./customEmojis');
 
 const RARITIES = {
     Common: { name: 'Common', color: 0x95a5a6, weight: 500 },     // Gray
@@ -565,6 +566,16 @@ const COLLECTIONS = {
         }
     }
 };
+
+for (const item of Object.values(ITEMS)) {
+    decorateEmojiDefinition(item, `item.${item.id}`);
+}
+
+for (const collection of Object.values(COLLECTIONS)) {
+    const fallbackEmoji = collection.id === 'rubber_duck' ? '🦆' : '💻';
+    collection.emojiKey = `collection.${collection.id}`;
+    collection.name = formatEmojiName(collection.emojiKey, fallbackEmoji, collection.name);
+}
 
 async function checkCollections(baubleData) {
     if (!baubleData.completedCollections) baubleData.completedCollections = [];

@@ -10,6 +10,7 @@ const profileSchema = new Schema({
     bannerUrl: { type: String, default: '' },
     private: { type: Boolean, default: false },
     showBaubles: { type: Boolean, default: true },
+    preReleasePrompted: { type: Boolean, default: false },
 });
 
 const mongoose = require('mongoose');

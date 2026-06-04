@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "deploy": "node deploy-commands.js"
+    "deploy": "node deploy-commands.js",
+    "emoji:dry-run": "node scripts/uploadApplicationEmojis.js",
+    "emoji:upload": "node scripts/uploadApplicationEmojis.js --apply"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.96",

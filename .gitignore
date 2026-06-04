@@ -3,4 +3,4 @@ node_modules/
 dashboard/
 dashboard-v2/
 *.log
-
+assets/emojis/discord-emojis.local.json

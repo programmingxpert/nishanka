@@ -9,71 +9,72 @@ const {
 	ButtonStyle,
 } = require('discord.js');
 const config = require('../../config.json');
+const { emoji } = require('../../utils/customEmojis');
 
 const categoryDetails = {
 	admin: {
 		label: 'Administration',
-		emoji: '⚙️',
+		emoji: emoji('category.admin', '⚙️'),
 		description: 'Configure server settings, prefix, quotes, and triggers.',
 	},
 	moderation: {
 		label: 'Moderation Tools',
-		emoji: '🛡️',
+		emoji: emoji('category.moderation', '🛡️'),
 		description: 'Manage members, warnings, mutes, bans, and auto-mod.',
 	},
 	giveaway: {
 		label: 'Giveaway Controls',
-		emoji: '🎁',
+		emoji: emoji('category.giveaway', '🎁'),
 		description: 'Schedule, run, draw, and end server giveaways.',
 	},
 	economy: {
 		label: 'Economy & Shop',
-		emoji: '💵',
+		emoji: emoji('category.economy', '💵'),
 		description: 'Earn baubles, check shop/inventory, and view leaderboards.',
 	},
 	casino: {
 		label: 'Casino & Betting',
-		emoji: '🎰',
+		emoji: emoji('category.casino', '🎰'),
 		description: 'Play risk-reward games like gamble, blackjack, slots, and mines.',
 	},
 	marriage: {
 		label: 'Marriage & Family',
-		emoji: '💍',
+		emoji: emoji('category.marriage', '💍'),
 		description: 'Propose, marry, divorce, adopt children, and build family trees.',
 	},
 	minigames: {
 		label: 'Minigames',
-		emoji: '🎮',
+		emoji: emoji('category.minigames', '🎮'),
 		description: 'Challenge others to wordbomb, scramble, hangman, and battles.',
 	},
 	fun: {
 		label: 'Humor & Entertainment',
-		emoji: '🎭',
+		emoji: emoji('category.fun', '🎭'),
 		description: 'Check your iq, get random excuses, vibecheck, and post memes.',
 	},
 	profile: {
 		label: 'Profiles & Banners',
-		emoji: '👤',
+		emoji: emoji('category.profile', '👤'),
 		description: 'Customize and show off your premium user profile cards.',
 	},
 	music: {
 		label: 'Music Player',
-		emoji: '🎵',
+		emoji: emoji('category.music', '🎵'),
 		description: 'Music commands to stream audio tracks in voice channels.',
 	},
 	actions: {
 		label: 'Social Actions',
-		emoji: '🌸',
+		emoji: emoji('category.actions', '🌸'),
 		description: 'Anime-style social action animations (hug, slap, pat).',
 	},
 	ai: {
 		label: 'Artificial Intelligence',
-		emoji: '🤖',
+		emoji: emoji('category.ai', '🤖'),
 		description: 'Nish AI-powered assistants, games, and utilities.',
 	},
 	utility: {
 		label: 'Utility Tools',
-		emoji: '🛠️',
+		emoji: emoji('category.utility', '🛠️'),
 		description: 'General utilities, reminders, AFK status, and server info.',
 	}
 };
@@ -180,6 +181,8 @@ const COMMAND_MAPPING = {
 	'profile-edit': 'profile',
 	'profile-reset': 'profile',
 	title: 'profile',
+	achievements: 'profile',
+	'achievements-list': 'profile',
 
 	// Marriage
 	family: 'marriage',
@@ -339,7 +342,7 @@ const commandGroups = {
 	profile: [
 		{
 			title: '👤 User Profile Customization',
-			commands: ['profile', 'profile-edit', 'profile-reset', 'title']
+			commands: ['profile', 'profile-edit', 'profile-reset', 'title', 'achievements', 'achievements-list']
 		}
 	],
 	fun: [

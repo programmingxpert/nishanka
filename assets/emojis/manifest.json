@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-04",
+  "style": {
+    "summary": "Unified Nishanka-themed Discord emoji pack based on the bot profile picture.",
+    "sourceImages": [
+      "nishanka.png",
+      "nishanka_nobg.png"
+    ],
+    "rules": [
+      "transparent background",
+      "readable at 32x32",
+      "thick midnight navy outline",
+      "chunky chibi/anime silhouette",
+      "powder-blue primary forms",
+      "hot pink glow/highlights",
+      "violet purple accents",
+      "soft white glossy shine",
+      "star motifs where useful",
+      "no text",
+      "no watermark"
+    ],
+    "palette": {
+      "midnightNavy": "#101538",
+      "deepNavy": "#20235a",
+      "powderBlue": "#8fb2ee",
+      "hotPink": "#f36ac4",
+      "violet": "#7c4ce0",
+      "softWhite": "#fff7ff"
+    }
+  },
+  "assets": [
+    {
+      "key": "currency.bauble",
+      "discordName": "nk_bauble",
+      "fallback": "🪙",
+      "status": "generated",
+      "source": "assets/emojis/source/currency-bauble-chroma.png",
+      "png": "assets/emojis/png/currency-bauble.png",
+      "prompt": "Nishanka-themed Glimmering Bauble currency icon: powder-blue glassy coin, midnight navy rim, hot pink star glint, violet sparkle accents, no text."
+    },
+    {
+      "key": "currency.premium_gem",
+      "discordName": "nk_premium_gem",
+      "fallback": "💎",
+      "status": "generated",
+      "source": "assets/emojis/source/currency-premium-gem-chroma.png",
+      "png": "assets/emojis/png/currency-premium-gem.png",
+      "prompt": "Nishanka-themed premium gem: faceted rounded heart-star crystal, powder-blue/violet body, hot pink inner glow, navy outline, no text."
+    },
+    {
+      "key": "ui.success",
+      "discordName": "nk_success",
+      "fallback": "✅",
+      "status": "generated",
+      "source": "assets/emojis/source/ui-success-chroma.png",
+      "png": "assets/emojis/png/ui-success.png",
+      "prompt": "Nishanka-themed success check: rounded check inside a magical star badge, powder blue, hot pink glow, violet accents, no text."
+    },
+    {
+      "key": "ui.error",
+      "discordName": "nk_error",
+      "fallback": "❌",
+      "status": "generated",
+      "source": "assets/emojis/source/ui-error-chroma.png",
+      "png": "assets/emojis/png/ui-error.png",
+      "prompt": "Nishanka-themed error X: bold rounded cross in a dark navy magical badge, pink glow, powder-blue edge, no text."
+    },
+    {
+      "key": "ui.warning",
+      "discordName": "nk_warning",
+      "fallback": "⚠️",
+      "status": "generated",
+      "source": "assets/emojis/source/ui-warning-chroma.png",
+      "png": "assets/emojis/png/ui-warning.png",
+      "prompt": "Nishanka-themed warning triangle: rounded glassy triangle, hot pink exclamation, navy outline, violet star charms."
+    },
+    {
+      "key": "item.coffee",
+      "discordName": "nk_item_coffee",
+      "fallback": "☕",
+      "status": "generated",
+      "source": "assets/emojis/source/item-coffee-chroma.png",
+      "png": "assets/emojis/png/item-coffee.png",
+      "prompt": "Nishanka-themed Depresso Espresso: cute powder-blue coffee cup, sleepy face, pink star steam, navy rim, violet accents."
+    },
+    {
+      "key": "item.rubber_duck",
+      "discordName": "nk_item_rubber_duck",
+      "fallback": "🦆",
+      "status": "generated",
+      "source": "assets/emojis/source/item-rubber-duck-chroma.png",
+      "png": "assets/emojis/png/item-rubber-duck.png",
+      "prompt": "Nishanka-themed rubber duck: powder-blue duck body, star eye, navy shadow, violet charm, pink sparkle accents."
+    },
+    {
+      "key": "game.mines_bomb",
+      "discordName": "nk_game_mines_bomb",
+      "fallback": "💣",
+      "status": "generated",
+      "source": "assets/emojis/source/game-mines-bomb-chroma.png",
+      "png": "assets/emojis/png/game-mines-bomb.png",
+      "prompt": "Nishanka-themed mines bomb: round midnight navy bomb, powder-blue gloss, hot pink star fuse spark, violet accents."
+    }
+  ],
+  "plannedGroups": [
+    {
+      "name": "core",
+      "priority": 1,
+      "keys": [
+        "currency.bauble",
+        "currency.premium_gem",
+        "ui.success",
+        "ui.error",
+        "ui.warning",
+        "ui.cooldown",
+        "ui.balance",
+        "ui.streak",
+        "ui.daily",
+        "ui.hourly",
+        "ui.weekly",
+        "ui.monthly"
+      ]
+    },
+    {
+      "name": "items",
+      "priority": 2,
+      "sourceFile": "utils/items.js",
+      "count": 42,
+      "keyPattern": "item.<item_id>"
+    },
+    {
+      "name": "achievements",
+      "priority": 3,
+      "sourceFile": "utils/achievements.js",
+      "count": 13,
+      "keyPattern": "achievement.<achievement_id>"
+    },
+    {
+      "name": "games-and-controls",
+      "priority": 4,
+      "keys": [
+        "game.mines_bomb",
+        "game.mines_gem",
+        "control.join",
+        "control.leave",
+        "control.start",
+        "control.refresh",
+        "control.previous",
+        "control.next",
+        "control.cancel"
+      ]
+    },
+    {
+      "name": "command-categories",
+      "priority": 5,
+      "keyPattern": "category.<category_name>"
+    }
+  ]
+}

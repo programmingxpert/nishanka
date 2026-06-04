@@ -342,6 +342,8 @@ module.exports = {
         // --- Execute command ---
         try {
             await command.executePrefix(message, args);
+            const { checkAndPromptPreReleaseBadge } = require('../utils/preReleaseBadge');
+            await checkAndPromptPreReleaseBadge(client, message.author, message);
         } catch (error) {
             timestamps.delete(message.author.id); // Clear cooldown on command error
             console.error(`[messageCreate] Error in prefix command "${commandName}":`, error);

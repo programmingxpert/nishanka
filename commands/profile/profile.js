@@ -6,6 +6,7 @@ const Canvas = require('@napi-rs/canvas');
 const Profile = require('../../models/profileSchema');
 const Bauble = require('../../models/baubleSchema');
 const Achievement = require('../../models/achievementSchema'); // Assumes your bauble schema stores "baubles" for each user
+const { ACHIEVEMENTS } = require('../../utils/achievements');
 
 function drawCrown(ctx, x, y, width, height) {
     ctx.save();
@@ -165,7 +166,8 @@ module.exports = {
                 baubleBalance = baubleData.baubles;
             }
             const hasCrown = baubleData && baubleData.inventory && baubleData.inventory.some(item => item.itemId === 'crown' && item.quantity > 0);
-            const hasPremiumSupporter = await Achievement.findOne({ userId: targetUser.id, achievementId: 'premium_supporter' });
+            const userUnlocked = await Achievement.find({ userId: targetUser.id }).lean();
+            const unlockedIds = new Set(userUnlocked.map(a => a.achievementId));
 
             // If the profile is private and the requester isn’t the owner, refuse to show.
             if (profileData.private && interaction.user.id !== targetUser.id) {
@@ -230,10 +232,14 @@ module.exports = {
                 drawCrown(ctx, 160 + nameWidth + 12, 300 - 24, 28, 20);
                 crownOffset = 36;
             }
-            if (hasPremiumSupporter) {
-                const nameWidth = ctx.measureText(displayName).width;
-                ctx.font = '22px sans-serif';
-                ctx.fillText('💎', 160 + nameWidth + 12 + crownOffset, 298);
+            let badgeOffset = 0;
+            const nameWidth = ctx.measureText(displayName).width;
+            ctx.font = '22px sans-serif';
+            for (const ach of ACHIEVEMENTS) {
+                if (ach.isBadge && unlockedIds.has(ach.id)) {
+                    ctx.fillText(ach.emoji, 160 + nameWidth + 12 + crownOffset + badgeOffset, 298);
+                    badgeOffset += 30;
+                }
             }
 
             ctx.font = '24px sans-serif';
@@ -332,7 +338,8 @@ module.exports = {
                 baubleBalance = baubleData.baubles;
             }
             const hasCrown = baubleData && baubleData.inventory && baubleData.inventory.some(item => item.itemId === 'crown' && item.quantity > 0);
-            const hasPremiumSupporter = await Achievement.findOne({ userId: targetUser.id, achievementId: 'premium_supporter' });
+            const userUnlocked = await Achievement.find({ userId: targetUser.id }).lean();
+            const unlockedIds = new Set(userUnlocked.map(a => a.achievementId));
 
             // Canvas dimensions updated.
             const canvasWidth = 800, canvasHeight = 450;
@@ -394,10 +401,14 @@ module.exports = {
                 drawCrown(ctx, 160 + nameWidth + 12, 300 - 24, 28, 20);
                 crownOffset = 36;
             }
-            if (hasPremiumSupporter) {
-                const nameWidth = ctx.measureText(displayName).width;
-                ctx.font = '22px sans-serif';
-                ctx.fillText('💎', 160 + nameWidth + 12 + crownOffset, 298);
+            let badgeOffset = 0;
+            const nameWidth = ctx.measureText(displayName).width;
+            ctx.font = '22px sans-serif';
+            for (const ach of ACHIEVEMENTS) {
+                if (ach.isBadge && unlockedIds.has(ach.id)) {
+                    ctx.fillText(ach.emoji, 160 + nameWidth + 12 + crownOffset + badgeOffset, 298);
+                    badgeOffset += 30;
+                }
             }
 
             ctx.font = '24px sans-serif';
