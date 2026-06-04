@@ -345,15 +345,30 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         winnings = amount * (outcome === 'draw' ? 100 : 2);
     }
 
+    const previousLossStreak = baubleData.coinflipLossStreak || 0;
+
     if (didWin) {
         baubleData.baubles += winnings;
         baubleData.coinflipStreak = (baubleData.coinflipStreak || 0) + 1;
         if (baubleData.coinflipStreak > (baubleData.coinflipMaxStreak || 0)) {
             baubleData.coinflipMaxStreak = baubleData.coinflipStreak;
         }
+        baubleData.coinflipLossStreak = 0; // reset loss streak on win
+
+        // Jack of All Trades: track today's wins across games
+        const todayStr = new Date().toISOString().slice(0, 10);
+        if (baubleData.jackOfAllTradesDate !== todayStr) {
+            baubleData.jackOfAllTradesDate = todayStr;
+            baubleData.jackOfAllTradesWins = [];
+        }
+        if (!baubleData.jackOfAllTradesWins.includes('coinflip')) {
+            baubleData.jackOfAllTradesWins.push('coinflip');
+        }
         
         const client = initialMsg.client || (initialMsg.channel && initialMsg.channel.client);
         if (client) {
+            const balanceBefore = baubleData.baubles - winnings + amount; // balance before bet was placed
+
             if (baubleData.coinflipStreak >= 10) {
                 await checkAndAwardAchievement(client, userId, 'coinflip_streak_10', initialMsg);
             }
@@ -363,15 +378,48 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
             if (baubleData.coinflipStreak >= 20) {
                 await checkAndAwardAchievement(client, userId, 'coinflip_streak_20', initialMsg);
             }
+            if (baubleData.coinflipStreak >= 25) {
+                await checkAndAwardAchievement(client, userId, 'coinflip_streak_25', initialMsg);
+            }
             if (baubleData.baubles >= 1000000) {
                 await checkAndAwardAchievement(client, userId, 'economy_millionaire', initialMsg);
             }
             if (baubleData.baubles >= 5000000) {
                 await checkAndAwardAchievement(client, userId, 'economy_billionaire', initialMsg);
             }
+            if (baubleData.baubles >= 10000000) {
+                await checkAndAwardAchievement(client, userId, 'economy_emperor', initialMsg);
+            }
+            if (baubleData.baubles >= 50000000) {
+                await checkAndAwardAchievement(client, userId, 'economy_god', initialMsg);
+            }
+            // comeback_kid: won when balance was below 1,000 before betting
+            if (balanceBefore < 1000) {
+                await checkAndAwardAchievement(client, userId, 'comeback_kid', initialMsg);
+            }
+            // draw_winner: won the 0.1% sideways outcome
+            if (side === 'draw' && outcome === 'draw') {
+                await checkAndAwardAchievement(client, userId, 'draw_winner', initialMsg);
+            }
+            // midnight_gambler: won between 00:00 and 00:10 UTC
+            const utcHour = new Date().getUTCHours();
+            const utcMin = new Date().getUTCMinutes();
+            if (utcHour === 0 && utcMin < 10) {
+                await checkAndAwardAchievement(client, userId, 'midnight_gambler', initialMsg);
+            }
+            // loss_streak_survivor: won after losing 15+ in a row
+            if (previousLossStreak >= 15) {
+                await checkAndAwardAchievement(client, userId, 'loss_streak_survivor', initialMsg);
+            }
+            // jack_of_all_trades: won all 5 game types today
+            const needed = ['coinflip', 'slots', 'blackjack', 'gamble', 'mines'];
+            if (needed.every(g => baubleData.jackOfAllTradesWins.includes(g))) {
+                await checkAndAwardAchievement(client, userId, 'jack_of_all_trades', initialMsg);
+            }
         }
     } else {
         baubleData.coinflipStreak = 0;
+        baubleData.coinflipLossStreak = (baubleData.coinflipLossStreak || 0) + 1;
     }
     baubleData.dailyGambleLastCompleted = new Date();
     await baubleData.save();

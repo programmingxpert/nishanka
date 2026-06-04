@@ -67,6 +67,7 @@ async function doCrime(userId, client, isButton = false) {
         const scenario = SUCCESS_SCENARIOS[Math.floor(Math.random() * SUCCESS_SCENARIOS.length)];
         resultMsg = scenario.text.replace('{coins}', coins.toLocaleString());
         baubleData.baubles += coins;
+        baubleData.crimeSuccessStreak = (baubleData.crimeSuccessStreak || 0) + 1;
 
         // Crime success can drop ANY rare/epic/unique item (5% chance)
         const itemRoll = Math.random();
@@ -98,6 +99,7 @@ async function doCrime(userId, client, isButton = false) {
         isArrested = true;
         const fine = Math.floor((Math.random() * 200 + 150) * globalMult); // 150-350 fine
         baubleData.baubles = Math.max(0, baubleData.baubles - fine);
+        baubleData.crimeSuccessStreak = 0; // Reset consecutive crime success streak on arrest
 
         const scenario = ARREST_SCENARIOS[Math.floor(Math.random() * ARREST_SCENARIOS.length)];
         resultMsg = scenario.text.replace('{coins}', fine.toLocaleString());
@@ -113,6 +115,15 @@ async function doCrime(userId, client, isButton = false) {
     }
 
     await baubleData.save();
+
+    // Achievement checks
+    if (rng < 0.60 && client) {
+        const { checkAndAwardAchievement } = require('../../utils/achievements');
+        if ((baubleData.crimeSuccessStreak || 0) >= 300) {
+            // Notify via a dummy message ref if possible — pass null for no notification
+            await checkAndAwardAchievement(client, userId, 'crime_lord', null);
+        }
+    }
 
     return {
         error: false,

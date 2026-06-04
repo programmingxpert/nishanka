@@ -74,7 +74,17 @@ const baubleSchema = new Schema({
     padlockedExpiresAt: { type: Date, default: null },
     beamedExpiresAt: { type: Date, default: null },
     spaceDuckExpiresAt: { type: Date, default: null },
-    itemLockoutExpiresAt: { type: Date, default: null }
+    itemLockoutExpiresAt: { type: Date, default: null },
+    // Achievement tracking fields
+    uniqueUsersGiftedTo: { type: [String], default: [] },
+    totalBaublesGiven: { type: Number, default: 0 },
+    heistRobsSuccessful: { type: Number, default: 0 },
+    crimeSuccessStreak: { type: Number, default: 0 },
+    coinflipLossStreak: { type: Number, default: 0 },
+    dailyWorkDate: { type: String, default: null },
+    dailyWorkCount: { type: Number, default: 0 },
+    jackOfAllTradesDate: { type: String, default: null },
+    jackOfAllTradesWins: { type: [String], default: [] }
 });
 
 const mongoose = require('mongoose');

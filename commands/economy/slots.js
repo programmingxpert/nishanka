@@ -146,6 +146,9 @@ module.exports = {
                 if (baubleData.slotsJackpots >= 3) {
                     await checkAndAwardAchievement(client, userId, 'slots_jackpot_triple', interaction);
                 }
+                if (baubleData.slotsJackpots >= 10) {
+                    await checkAndAwardAchievement(client, userId, 'slots_jackpot_10', interaction);
+                }
                 if (baubleData.slotsWins >= 50) {
                     await checkAndAwardAchievement(client, userId, 'slots_win_50', interaction);
                 }
@@ -154,6 +157,28 @@ module.exports = {
                 }
                 if (baubleData.baubles >= 5000000) {
                     await checkAndAwardAchievement(client, userId, 'economy_billionaire', interaction);
+                }
+                if (baubleData.baubles >= 10000000) {
+                    await checkAndAwardAchievement(client, userId, 'economy_emperor', interaction);
+                }
+                if (baubleData.baubles >= 50000000) {
+                    await checkAndAwardAchievement(client, userId, 'economy_god', interaction);
+                }
+                // jack_of_all_trades: track today's slots win
+                if (isWin) {
+                    const _slotToday = new Date().toISOString().slice(0, 10);
+                    if (baubleData.jackOfAllTradesDate !== _slotToday) {
+                        baubleData.jackOfAllTradesDate = _slotToday;
+                        baubleData.jackOfAllTradesWins = [];
+                    }
+                    if (!baubleData.jackOfAllTradesWins.includes('slots')) {
+                        baubleData.jackOfAllTradesWins.push('slots');
+                        await baubleData.save();
+                    }
+                    const _joatNeeded = ['coinflip', 'slots', 'blackjack', 'gamble', 'mines'];
+                    if (_joatNeeded.every(g => baubleData.jackOfAllTradesWins.includes(g))) {
+                        await checkAndAwardAchievement(client, userId, 'jack_of_all_trades', interaction);
+                    }
                 }
             }
 

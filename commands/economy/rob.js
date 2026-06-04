@@ -439,8 +439,22 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         targetData.baubles -= stolen;
         robberData.baubles += stolen;
 
+        // Track heist successes for achievement
+        if (strategy.id === 'heist') {
+            robberData.heistRobsSuccessful = (robberData.heistRobsSuccessful || 0) + 1;
+        }
+
         await robberData.save();
         await targetData.save();
+
+        // Achievement check
+        if (strategy.id === 'heist') {
+            const client = (interaction || message)?.client;
+            if (client && (robberData.heistRobsSuccessful || 0) >= 50) {
+                const { checkAndAwardAchievement } = require('../../utils/achievements');
+                await checkAndAwardAchievement(client, robberId, 'master_heist', null);
+            }
+        }
 
         const successEmbed = new EmbedBuilder()
             .setColor(0x2ECC71)

@@ -19,7 +19,6 @@ module.exports = {
 
                 const { checkAndAwardAchievement } = require('../utils/achievements');
                 await checkAndAwardAchievement(client, interaction.user.id, 'pre_release_badge');
-                await checkAndAwardAchievement(client, interaction.user.id, 'beta_tester');
 
                 const { EmbedBuilder } = require('discord.js');
                 const embed = EmbedBuilder.from(interaction.message.embeds[0])

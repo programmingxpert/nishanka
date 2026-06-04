@@ -97,11 +97,31 @@ module.exports = {
                         await checkAndAwardAchievement(client, giverId, 'tax_tycoon', interaction);
                     }
                 }
+                // Philanthropist: track unique users given to
+                if (!giverBaubleData.uniqueUsersGiftedTo) giverBaubleData.uniqueUsersGiftedTo = [];
+                if (!giverBaubleData.uniqueUsersGiftedTo.includes(receiverId)) {
+                    giverBaubleData.uniqueUsersGiftedTo.push(receiverId);
+                    await giverBaubleData.save();
+                }
+                giverBaubleData.totalBaublesGiven = (giverBaubleData.totalBaublesGiven || 0) + amount;
+                await giverBaubleData.save();
+                if (giverBaubleData.uniqueUsersGiftedTo.length >= 25) {
+                    await checkAndAwardAchievement(client, giverId, 'philanthropist', interaction);
+                }
+                if (giverBaubleData.totalBaublesGiven >= 1000000) {
+                    await checkAndAwardAchievement(client, giverId, 'robin_hood', interaction);
+                }
                 if (receiverBaubleData.baubles >= 1000000) {
                     await checkAndAwardAchievement(client, receiverId, 'economy_millionaire', interaction);
                 }
                 if (receiverBaubleData.baubles >= 5000000) {
                     await checkAndAwardAchievement(client, receiverId, 'economy_billionaire', interaction);
+                }
+                if (receiverBaubleData.baubles >= 10000000) {
+                    await checkAndAwardAchievement(client, receiverId, 'economy_emperor', interaction);
+                }
+                if (receiverBaubleData.baubles >= 50000000) {
+                    await checkAndAwardAchievement(client, receiverId, 'economy_god', interaction);
                 }
             }
 
@@ -238,11 +258,31 @@ module.exports = {
                         await checkAndAwardAchievement(client, giverId, 'tax_tycoon', message);
                     }
                 }
+                // Philanthropist: track unique users given to
+                if (!giverBaubleData.uniqueUsersGiftedTo) giverBaubleData.uniqueUsersGiftedTo = [];
+                if (!giverBaubleData.uniqueUsersGiftedTo.includes(receiverId)) {
+                    giverBaubleData.uniqueUsersGiftedTo.push(receiverId);
+                    await giverBaubleData.save();
+                }
+                giverBaubleData.totalBaublesGiven = (giverBaubleData.totalBaublesGiven || 0) + amount;
+                await giverBaubleData.save();
+                if (giverBaubleData.uniqueUsersGiftedTo.length >= 25) {
+                    await checkAndAwardAchievement(client, giverId, 'philanthropist', message);
+                }
+                if (giverBaubleData.totalBaublesGiven >= 1000000) {
+                    await checkAndAwardAchievement(client, giverId, 'robin_hood', message);
+                }
                 if (receiverBaubleData.baubles >= 1000000) {
                     await checkAndAwardAchievement(client, receiverId, 'economy_millionaire', message);
                 }
                 if (receiverBaubleData.baubles >= 5000000) {
                     await checkAndAwardAchievement(client, receiverId, 'economy_billionaire', message);
+                }
+                if (receiverBaubleData.baubles >= 10000000) {
+                    await checkAndAwardAchievement(client, receiverId, 'economy_emperor', message);
+                }
+                if (receiverBaubleData.baubles >= 50000000) {
+                    await checkAndAwardAchievement(client, receiverId, 'economy_god', message);
                 }
             }
 

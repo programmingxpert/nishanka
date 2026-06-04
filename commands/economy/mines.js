@@ -434,7 +434,28 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                                 await checkAndAwardAchievement(client, userId, 'minesweeper_deity', initialMsg);
                             } else if (finalMinesCount === 13) {
                                 await checkAndAwardAchievement(client, userId, 'minesweeper_demigod', initialMsg);
+                            } else if (finalMinesCount === 10) {
+                                await checkAndAwardAchievement(client, userId, 'mines_perfect_10', initialMsg);
+                            } else if (finalMinesCount === 8) {
+                                await checkAndAwardAchievement(client, userId, 'mines_perfect_8', initialMsg);
                             }
+
+                            // jack_of_all_trades: track today's mines win
+                            (async () => {
+                                const _mToday = new Date().toISOString().slice(0, 10);
+                                if (baubleData.jackOfAllTradesDate !== _mToday) {
+                                    baubleData.jackOfAllTradesDate = _mToday;
+                                    baubleData.jackOfAllTradesWins = [];
+                                }
+                                if (!baubleData.jackOfAllTradesWins.includes('mines')) {
+                                    baubleData.jackOfAllTradesWins.push('mines');
+                                    await baubleData.save();
+                                }
+                                const _mNeeded = ['coinflip', 'slots', 'blackjack', 'gamble', 'mines'];
+                                if (_mNeeded.every(g => baubleData.jackOfAllTradesWins.includes(g))) {
+                                    await checkAndAwardAchievement(client, userId, 'jack_of_all_trades', initialMsg);
+                                }
+                            })().catch(() => {});
 
                             const perfectEmbed = new EmbedBuilder()
                                 .setColor(0x4ADE80)
@@ -490,6 +511,23 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                     if (finalMinesCount >= 9) {
                         await checkAndAwardAchievement(client, userId, `mines_${finalMinesCount}`, initialMsg);
                     }
+
+                    // jack_of_all_trades: track today's mines win
+                    (async () => {
+                        const _coToday = new Date().toISOString().slice(0, 10);
+                        if (baubleData.jackOfAllTradesDate !== _coToday) {
+                            baubleData.jackOfAllTradesDate = _coToday;
+                            baubleData.jackOfAllTradesWins = [];
+                        }
+                        if (!baubleData.jackOfAllTradesWins.includes('mines')) {
+                            baubleData.jackOfAllTradesWins.push('mines');
+                            await baubleData.save();
+                        }
+                        const _coNeeded = ['coinflip', 'slots', 'blackjack', 'gamble', 'mines'];
+                        if (_coNeeded.every(g => baubleData.jackOfAllTradesWins.includes(g))) {
+                            await checkAndAwardAchievement(client, userId, 'jack_of_all_trades', initialMsg);
+                        }
+                    })().catch(() => {});
 
                     const cashoutEmbed = new EmbedBuilder()
                         .setColor(0x4ADE80)

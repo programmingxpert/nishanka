@@ -157,6 +157,37 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
                     if (baubleData.baubles >= 5000000) {
                         await checkAndAwardAchievement(client, userId, 'economy_billionaire', interactionOrMessage);
                     }
+                    if (baubleData.baubles >= 10000000) {
+                        await checkAndAwardAchievement(client, userId, 'economy_emperor', interactionOrMessage);
+                    }
+                    if (baubleData.baubles >= 50000000) {
+                        await checkAndAwardAchievement(client, userId, 'economy_god', interactionOrMessage);
+                    }
+                    // high_roller_god: win a HIGH risk gamble with bet >= 1,000,000
+                    if (risk === 'high' && amount >= 1000000) {
+                        await checkAndAwardAchievement(client, userId, 'high_roller_god', interactionOrMessage);
+                    }
+                    // midnight_gambler: win between 00:00 and 00:10 UTC
+                    const _utcH = new Date().getUTCHours();
+                    const _utcM = new Date().getUTCMinutes();
+                    if (_utcH === 0 && _utcM < 10) {
+                        await checkAndAwardAchievement(client, userId, 'midnight_gambler', interactionOrMessage);
+                    }
+                    // jack_of_all_trades: track today's wins across game types
+                    const _today = new Date().toISOString().slice(0, 10);
+                    if (baubleData.jackOfAllTradesDate !== _today) {
+                        baubleData.jackOfAllTradesDate = _today;
+                        baubleData.jackOfAllTradesWins = [];
+                        await baubleData.save();
+                    }
+                    if (!baubleData.jackOfAllTradesWins.includes('gamble')) {
+                        baubleData.jackOfAllTradesWins.push('gamble');
+                        await baubleData.save();
+                    }
+                    const _needed = ['coinflip', 'slots', 'blackjack', 'gamble', 'mines'];
+                    if (_needed.every(g => baubleData.jackOfAllTradesWins.includes(g))) {
+                        await checkAndAwardAchievement(client, userId, 'jack_of_all_trades', interactionOrMessage);
+                    }
                 }
             }
 

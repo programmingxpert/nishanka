@@ -101,6 +101,8 @@ module.exports = {
             if (baubleData.dailyStreak >= 100) await checkAndAwardAchievement(interaction.client, userId, 'streak_100', interaction);
             if (baubleData.dailyStreak >= 180) await checkAndAwardAchievement(interaction.client, userId, 'active_180', interaction);
             if (baubleData.dailyStreak >= 365) await checkAndAwardAchievement(interaction.client, userId, 'active_year', interaction);
+            if (baubleData.dailyStreak >= 500) await checkAndAwardAchievement(interaction.client, userId, 'streak_500', interaction);
+            if (baubleData.dailyStreak >= 1000) await checkAndAwardAchievement(interaction.client, userId, 'streak_1000', interaction);
 
             const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 
@@ -203,6 +205,8 @@ module.exports = {
             if (baubleData.dailyStreak >= 100) await checkAndAwardAchievement(message.client, userId, 'streak_100', message);
             if (baubleData.dailyStreak >= 180) await checkAndAwardAchievement(message.client, userId, 'active_180', message);
             if (baubleData.dailyStreak >= 365) await checkAndAwardAchievement(message.client, userId, 'active_year', message);
+            if (baubleData.dailyStreak >= 500) await checkAndAwardAchievement(message.client, userId, 'streak_500', message);
+            if (baubleData.dailyStreak >= 1000) await checkAndAwardAchievement(message.client, userId, 'streak_1000', message);
 
             const nextClaimEpoch = Math.floor((now.getTime() + cooldownMs) / 1000);
 

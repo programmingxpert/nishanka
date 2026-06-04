@@ -101,11 +101,33 @@ async function handleStreak(userId, isWin, channel = null) {
             if (baubleData.blackjackWins >= 100) {
                 await checkAndAwardAchievement(channel.client, userId, 'blackjack_pro', targetMsg);
             }
+            if (baubleData.blackjackWins >= 500) {
+                await checkAndAwardAchievement(channel.client, userId, 'blackjack_500', targetMsg);
+            }
             if (baubleData.baubles >= 1000000) {
                 await checkAndAwardAchievement(channel.client, userId, 'economy_millionaire', targetMsg);
             }
             if (baubleData.baubles >= 5000000) {
                 await checkAndAwardAchievement(channel.client, userId, 'economy_billionaire', targetMsg);
+            }
+            if (baubleData.baubles >= 10000000) {
+                await checkAndAwardAchievement(channel.client, userId, 'economy_emperor', targetMsg);
+            }
+            if (baubleData.baubles >= 50000000) {
+                await checkAndAwardAchievement(channel.client, userId, 'economy_god', targetMsg);
+            }
+            // jack_of_all_trades: track today's blackjack win
+            const _bjToday = new Date().toISOString().slice(0, 10);
+            if (baubleData.jackOfAllTradesDate !== _bjToday) {
+                baubleData.jackOfAllTradesDate = _bjToday;
+                baubleData.jackOfAllTradesWins = [];
+            }
+            if (!baubleData.jackOfAllTradesWins.includes('blackjack')) {
+                baubleData.jackOfAllTradesWins.push('blackjack');
+            }
+            const _bjNeeded = ['coinflip', 'slots', 'blackjack', 'gamble', 'mines'];
+            if (_bjNeeded.every(g => baubleData.jackOfAllTradesWins.includes(g))) {
+                await checkAndAwardAchievement(channel.client, userId, 'jack_of_all_trades', targetMsg);
             }
         }
     } else if (isWin === false) {

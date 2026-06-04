@@ -246,7 +246,7 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
 
         if (chosenOption) {
             if (chosenOption.success) {
-                const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, config.baseEarnings || 100, config.statField);
+                const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, config.baseEarnings || 100, config.statField, channel.client);
                 
                 resultEmbed
                     .setColor(0x2ecc71)
@@ -405,7 +405,7 @@ async function runMiningGame(initialData, channel, user, baubleData) {
         const baseEarnings = Math.min(80, clicks * 4);
         const earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
 
-        const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, null);
+        const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, null, channel.client);
 
         const successEmbed = new EmbedBuilder()
             .setColor(0x2ecc71)
@@ -590,7 +590,7 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
             
             earnings = Math.floor(baseEarnings * globalMultiplier * incomeMultiplier);
 
-            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, 'inspectionsSurvived');
+            const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, 'inspectionsSurvived', channel.client);
 
             resultEmbed
                 .setColor(0x2ecc71)
@@ -722,7 +722,7 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
                 const incomeMultiplier = await getIncomeMultiplier(userId);
                 earnings = Math.floor(70 * globalMultiplier * incomeMultiplier);
 
-                const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, 'customersServed');
+                const { finalEarnings, taxMsg, event, unlockedTitles, balance } = await processWorkReward(baubleData, earnings, 'customersServed', channel.client);
                 
                 resultEmbed
                     .setColor(0x2ecc71)
@@ -1349,7 +1349,7 @@ function unlockWorkTitles(baubleData) {
     return unlocked;
 }
 
-async function processWorkReward(baubleData, baseEarnings, statField) {
+async function processWorkReward(baubleData, baseEarnings, statField, client = null) {
     const event = chooseWorkEvent();
     const adjustedBase = adjustEarningsForEvent(baseEarnings, event);
     const { finalEarnings, taxMsg } = await applyParentLaborTax(baubleData.userId, adjustedBase, baubleData);
@@ -1365,6 +1365,29 @@ async function processWorkReward(baubleData, baseEarnings, statField) {
     
     const unlockedTitles = unlockWorkTitles(baubleData);
     await baubleData.save();
+
+    // Achievement triggers
+    if (client) {
+        const { checkAndAwardAchievement } = require('../../utils/achievements');
+        const userId = baubleData.userId;
+        if (baubleData.workJobsCompleted >= 5000) {
+            await checkAndAwardAchievement(client, userId, 'work_legend');
+        }
+        if (baubleData.workJobsCompleted >= 10000) {
+            await checkAndAwardAchievement(client, userId, 'work_titan');
+        }
+        // overtime_grinder: 30 work jobs in a single calendar day
+        const _wToday = new Date().toISOString().slice(0, 10);
+        if (baubleData.dailyWorkDate !== _wToday) {
+            baubleData.dailyWorkDate = _wToday;
+            baubleData.dailyWorkCount = 0;
+        }
+        baubleData.dailyWorkCount = (baubleData.dailyWorkCount || 0) + 1;
+        await baubleData.save();
+        if (baubleData.dailyWorkCount >= 30) {
+            await checkAndAwardAchievement(client, userId, 'overtime_grinder');
+        }
+    }
 
     return { finalEarnings, taxMsg, event, unlockedTitles, balance: baubleData.baubles };
 }
