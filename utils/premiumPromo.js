@@ -61,10 +61,50 @@ function getUserPremiumTier(userId) {
     return 'free';
 }
 
+async function getGuildPremiumTier(guildId) {
+    if (!guildId) return 'free';
+
+    // 1. Check direct guild whitelists from env
+    const liteGuilds = (process.env.PREMIUM_GUILDS_LITE || "").split(",").map(id => id.trim());
+    const proGuilds = (process.env.PREMIUM_GUILDS_PRO || "").split(",").map(id => id.trim());
+    const networkGuilds = (process.env.PREMIUM_GUILDS_NETWORK || "").split(",").map(id => id.trim());
+    const lifetimeGuilds = (process.env.PREMIUM_GUILDS_LIFETIME || "").split(",").map(id => id.trim());
+    const generalGuilds = (process.env.PREMIUM_GUILDS || "").split(",").map(id => id.trim());
+
+    if (lifetimeGuilds.includes(guildId)) return 'lifetime';
+    if (networkGuilds.includes(guildId)) return 'network';
+    if (proGuilds.includes(guildId)) return 'pro';
+    if (liteGuilds.includes(guildId)) return 'lite';
+    if (generalGuilds.includes(guildId)) return 'pro'; // default general to pro
+
+    // 2. Check guild owner's tier
+    try {
+        const botClient = global.client;
+        if (botClient) {
+            const guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId).catch(() => null);
+            if (guild && guild.ownerId) {
+                const ownerTier = getUserPremiumTier(guild.ownerId);
+                if (ownerTier !== 'free') return ownerTier;
+            }
+        }
+    } catch (e) {}
+
+    // 3. Check database isPremium flag
+    try {
+        const guildConfig = await GuildSettings.findOne({ guildId }).lean();
+        if (guildConfig && guildConfig.isPremium) {
+            return guildConfig.premiumTier || 'lite'; // default db premium to lite
+        }
+    } catch (e) {}
+
+    return 'free';
+}
+
 module.exports = {
     isGuildPremium,
     isUserPremium,
     getUserPremiumTier,
+    getGuildPremiumTier,
     getRandomPromoTip,
     getRandomDashboardTip
 };

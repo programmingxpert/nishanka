@@ -87,8 +87,12 @@ module.exports = {
             const expiry = timestamps.get(interaction.user.id) + cooldownMs;
             if (now < expiry) {
                 const timestampId = Math.floor(expiry / 1000);
+                let contentText = `⏳ Please wait, you can use \`${fullCommandPath}\` again <t:${timestampId}:R>.`;
+                if (!isPrem) {
+                    contentText += `\n💡 *Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to reduce/remove cooldowns!*`;
+                }
                 return interaction.reply({
-                    content: `⏳ Please wait, you can use \`${fullCommandPath}\` again <t:${timestampId}:R>.`,
+                    content: contentText,
                     flags: MessageFlags.Ephemeral,
                 });
             }

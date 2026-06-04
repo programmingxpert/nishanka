@@ -37,6 +37,8 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
+global.client = client;
+
 // ─── Bot collections ─────────────────────────────────────────────────────────
 client.commands      = new Collection();
 client.cooldowns     = new Collection();
@@ -657,8 +659,17 @@ app.get('/api/premium/status', async (req, res) => {
       };
     }));
 
+    const { getUserAPU, TIER_APU_LIMITS } = require('./utils/aiManager');
+    const { getUserPremiumTier } = require('./utils/premiumPromo');
+    const apuBalance = await getUserAPU(req.session.user.id);
+    const tier = getUserPremiumTier(req.session.user.id);
+    const maxApu = TIER_APU_LIMITS[tier] || TIER_APU_LIMITS.free;
+
     res.json({
       userIsPremium,
+      apuBalance,
+      apuMax: maxApu,
+      apuTier: tier,
       guilds: enrichedGuilds
     });
   } catch (err) {
@@ -925,7 +936,11 @@ app.get('/api/guilds/:guildId', async (req, res) => {
       userPermissions,
       guildName,
       guildIcon,
-      isPremium: await isPremium(guildId)
+      isPremium: await isPremium(guildId),
+      premiumTier: await (async () => {
+        const { getGuildPremiumTier } = require('./utils/premiumPromo');
+        return await getGuildPremiumTier(guildId);
+      })()
     });
   } catch (err) {
     console.error('Fetch settings error:', err);
@@ -993,7 +1008,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
         ? leveling.roleRewards.map(r => ({ level: Number(r.level), roleId: String(r.roleId) }))
         : [];
       if (!isPrem && rewards.length > 10) {
-        return res.status(403).json({ error: 'Free servers are limited to 10 leveling role rewards. Upgrade to Premium for unlimited!' });
+        return res.status(403).json({ error: 'Free servers are limited to 10 leveling role rewards. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock unlimited!' });
       }
       settingsUpdates.leveling = {
         enabled: leveling.enabled !== false,
@@ -1066,10 +1081,17 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
       if (!canEdit('censor')) {
         return res.status(403).json({ error: 'You do not have permission to modify Censor settings.' });
       }
-      const isPrem = await isPremium(guildId);
+      const { getGuildPremiumTier } = require('./utils/premiumPromo');
+      const guildTier = await getGuildPremiumTier(guildId);
       const totalWords = (censor.hardcoreWords || []).length + (censor.restrictedWords || []).length;
-       if (!isPrem && totalWords > 30) {
-        return res.status(403).json({ error: 'Free servers are limited to 30 censored words in total. Upgrade to Premium for unlimited!' });
+      
+      let censorLimit = 30;
+      if (guildTier === 'lite') censorLimit = 100;
+      else if (guildTier === 'pro') censorLimit = 300;
+      else if (guildTier === 'network' || guildTier === 'lifetime') censorLimit = Infinity;
+
+      if (totalWords > censorLimit) {
+        return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${censorLimit} censored words. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock higher limits!` });
       }
       await Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true });
       if (client.censorCache) client.censorCache.delete(guildId);
@@ -1209,11 +1231,18 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
   if (!msValue) return res.status(400).json({ error: 'Invalid duration' });
 
   try {
-    const isPrem = await isPremium(guildId);
+    const { getGuildPremiumTier } = require('./utils/premiumPromo');
+    const guildTier = await getGuildPremiumTier(guildId);
     const Giveaway = require('./models/Giveaway');
     const activeCount = await Giveaway.countDocuments({ guildId, ended: false });
-    if (activeCount >= 1 && !isPrem) {
-      return res.status(403).json({ error: 'Free servers are limited to 1 active giveaway. Upgrade to Premium for unlimited active giveaways!' });
+    
+    let giveawayLimit = 1;
+    if (guildTier === 'lite') giveawayLimit = 5;
+    else if (guildTier === 'pro') giveawayLimit = 15;
+    else if (guildTier === 'network' || guildTier === 'lifetime') giveawayLimit = Infinity;
+
+    if (activeCount >= giveawayLimit) {
+      return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${giveawayLimit} active giveaways. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock higher limits!` });
     }
 
     const guild = client.guilds.cache.get(guildId);
@@ -1404,15 +1433,22 @@ app.post('/api/guilds/:guildId/triggers', express.json(), async (req, res) => {
     const { triggerWord, matchType, response } = req.body;
     if (!triggerWord) return res.status(400).json({ error: 'triggerWord required' });
 
-    const isPrem = await isPremium(guildId);
     const Trigger = require('./models/triggerSchema');
 
     // Check limit if adding new
     const existing = await Trigger.findOne({ guildId, triggerWord: triggerWord.toLowerCase() });
     if (!existing) {
+      const { getGuildPremiumTier } = require('./utils/premiumPromo');
+      const guildTier = await getGuildPremiumTier(guildId);
       const count = await Trigger.countDocuments({ guildId });
-      if (count >= 3 && !isPrem) {
-        return res.status(403).json({ error: 'Free servers are limited to 3 custom triggers. Upgrade to Premium for unlimited!' });
+
+      let triggerLimit = 3;
+      if (guildTier === 'lite') triggerLimit = 20;
+      else if (guildTier === 'pro') triggerLimit = 50;
+      else if (guildTier === 'network' || guildTier === 'lifetime') triggerLimit = Infinity;
+
+      if (count >= triggerLimit) {
+        return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${triggerLimit} custom triggers. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock higher limits!` });
       }
     }
 
@@ -1562,7 +1598,7 @@ app.post('/api/guilds/:guildId/media-only-channels', express.json(), async (req,
     if (!existing) {
       const count = await MediaOnly.countDocuments({ guildId });
       if (count >= 1 && !isPrem) {
-        return res.status(403).json({ error: 'Free servers are limited to 1 media-only channel. Upgrade to Premium for unlimited!' });
+        return res.status(403).json({ error: 'Free servers are limited to 1 media-only channel. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock unlimited!' });
       }
     }
     

@@ -95,13 +95,44 @@ function bundleSlashCommands() {
                 }
             }
         } else if (category === 'economy') {
+            const ECONOMY_GAMES = ['slots', 'coinflip', 'gamble', 'buckshot', 'mines'];
+            const ECONOMY_EARN = ['crime', 'daily', 'dig', 'dumpster', 'expedition', 'fish', 'grab', 'hourly', 'memehunt', 'monthly', 'scavenge', 'weekly', 'work'];
+
+            const gamesGroup = {
+                name: 'game',
+                description: 'Play economy minigames to win or lose baubles',
+                type: 2,
+                options: []
+            };
+
+            const earnGroup = {
+                name: 'action',
+                description: 'Earning baubles and related activities',
+                type: 2,
+                options: []
+            };
+
             for (const cmd of cmds) {
                 const cmdJson = cmd.data.toJSON();
                 const sub = toSubcommandOrGroup(cmdJson);
                 if (sub.name === 'economy') {
                     sub.name = 'status';
                 }
-                topLevelCmd.options.push(sub);
+
+                if (ECONOMY_GAMES.includes(sub.name)) {
+                    gamesGroup.options.push(sub);
+                } else if (ECONOMY_EARN.includes(sub.name)) {
+                    earnGroup.options.push(sub);
+                } else {
+                    topLevelCmd.options.push(sub);
+                }
+            }
+
+            if (gamesGroup.options.length > 0) {
+                topLevelCmd.options.push(gamesGroup);
+            }
+            if (earnGroup.options.length > 0) {
+                topLevelCmd.options.push(earnGroup);
             }
         } else if (category === 'profile') {
             for (const cmd of cmds) {
@@ -186,8 +217,11 @@ function resolveGroupedCommand(interaction, client) {
             resolvedName = subCmd;
         }
     } else if (topLevel === 'economy') {
+        const subGroup = interaction.options.getSubcommandGroup(false);
         const subCmd = interaction.options.getSubcommand(false);
-        if (subCmd === 'status') {
+        if (subGroup === 'game' || subGroup === 'action') {
+            resolvedName = subCmd;
+        } else if (subCmd === 'status') {
             resolvedName = 'economy';
         } else if (subCmd) {
             resolvedName = subCmd;

@@ -217,6 +217,7 @@ const COMMAND_MAPPING = {
 	// AI
 	excuse: 'ai',
 	ai: 'ai',
+	apu: 'ai',
 
 	// Music
 	play: 'music',
@@ -354,7 +355,7 @@ const commandGroups = {
 	ai: [
 		{
 			title: '🤖 Artificial Intelligence',
-			commands: ['ai', 'excuse']
+			commands: ['ai', 'apu', 'excuse']
 		}
 	],
 	music: [

@@ -201,7 +201,11 @@ module.exports = {
             const expiry = timestamps.get(message.author.id) + cooldownMs;
             if (now < expiry) {
                 const timestampId = Math.floor(expiry / 1000);
-                return message.reply(`⏳ Please wait, you can use \`${prefix}${commandName}\` again <t:${timestampId}:R>.`);
+                let contentText = `⏳ Please wait, you can use \`${prefix}${commandName}\` again <t:${timestampId}:R>.`;
+                if (!isPrem) {
+                    contentText += `\n💡 *Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to reduce/remove cooldowns!*`;
+                }
+                return message.reply(contentText);
             }
         }
 
