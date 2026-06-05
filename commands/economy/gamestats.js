@@ -60,7 +60,8 @@ async function buildStatsEmbed(user) {
             blackjackPlayed: 0, blackjackWins: 0, blackjackStreak: 0, blackjackMaxStreak: 0,
             robberiesAttempted: 0, robberiesSuccessful: 0, heistRobsSuccessful: 0,
             crimesAttempted: 0, crimesSuccessful: 0, crimeSuccessStreak: 0,
-            scrambleWins: 0, wordbombWins: 0, emojidecodeWins: 0
+            scrambleWins: 0, wordbombWins: 0, emojidecodeWins: 0,
+            guesstheflagWins: 0, geoguesserWins: 0
         };
     }
 
@@ -109,7 +110,9 @@ async function buildStatsEmbed(user) {
                 value: [
                     `🏁 **Word Scramble**: \`${baubleData.scrambleWins || 0}\` victories`,
                     `💣 **Word Bomb**: \`${baubleData.wordbombWins || 0}\` victories`,
-                    `🧩 **Emoji Decode**: \`${baubleData.emojidecodeWins || 0}\` victories`
+                    `🧩 **Emoji Decode**: \`${baubleData.emojidecodeWins || 0}\` victories`,
+                    `🌍 **Guess the Flag**: \`${baubleData.guesstheflagWins || 0}\` victories`,
+                    `📍 **GeoGuesser**: \`${baubleData.geoguesserWins || 0}\` victories`
                 ].join('\n'),
                 inline: false
             }

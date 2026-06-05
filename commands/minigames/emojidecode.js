@@ -184,7 +184,9 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
     try {
       question = await generateAIQuestion(apiKey);
     } catch (err) {
-      console.warn('[emojidecode] AI generation failed, using fallback:', err.message);
+      if (!err.message.includes('recently played')) {
+        console.warn('[emojidecode] AI generation failed, using fallback:', err.message);
+      }
     }
   }
 

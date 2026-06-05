@@ -90,6 +90,12 @@ const ACHIEVEMENTS = [
     { id: 'emojidecode_win_50', name: 'Hieroglyph Hero', emoji: '🗺️', description: 'Win 50 Emoji Decode games.', rarity: 1.0, isAward: true, isBadge: false, category: 'minigames' },
     { id: 'emojidecode_win_100', name: 'Cryptographer Supreme', emoji: '🧩', description: 'Win 100 Emoji Decode games.', rarity: 0.1, isAward: true, isBadge: false, category: 'minigames' },
     { id: 'emojidecode_win_250', name: 'Rosetta Stone', emoji: '🧩', description: 'Win 250 Emoji Decode games.', rarity: 0.01, isAward: true, isBadge: false, category: 'minigames' },
+    { id: 'guesstheflag_win_10', name: 'Vexillologist Apprentice', emoji: '🗺️', description: 'Win 10 Guess the Flag games.', rarity: 5.0, isAward: true, isBadge: false, category: 'minigames' },
+    { id: 'guesstheflag_win_50', name: 'Global Vexillologist', emoji: '🌐', description: 'Win 50 Guess the Flag games.', rarity: 1.0, isAward: true, isBadge: false, category: 'minigames' },
+    { id: 'guesstheflag_win_100', name: 'Master of Flags', emoji: '🏁', description: 'Win 100 Guess the Flag games.', rarity: 0.1, isAward: true, isBadge: false, category: 'minigames' },
+    { id: 'geoguesser_win_10', name: 'Local Guide', emoji: '📍', description: 'Win 10 Geoguesser games.', rarity: 5.0, isAward: true, isBadge: false, category: 'minigames' },
+    { id: 'geoguesser_win_50', name: 'Globetrotter', emoji: '🧭', description: 'Win 50 Geoguesser games.', rarity: 1.0, isAward: true, isBadge: false, category: 'minigames' },
+    { id: 'geoguesser_win_100', name: 'GPS Navigator', emoji: '🗺️', description: 'Win 100 Geoguesser games.', rarity: 0.1, isAward: true, isBadge: false, category: 'minigames' },
 
     // Casino Stat Milestones
     { id: 'coinflip_play_100', name: 'Flip Master', emoji: '🪙', description: 'Play 100 Coinflip games in total.', rarity: 5.0, isAward: true, isBadge: false, category: 'casino' },
@@ -286,6 +292,16 @@ async function syncUserAchievements(client, userId) {
         if (emWins >= 50) await checkAndAwardAchievement(client, userId, 'emojidecode_win_50');
         if (emWins >= 100) await checkAndAwardAchievement(client, userId, 'emojidecode_win_100');
         if (emWins >= 250) await checkAndAwardAchievement(client, userId, 'emojidecode_win_250');
+
+        const gtWins = baubleData.guesstheflagWins || 0;
+        if (gtWins >= 10) await checkAndAwardAchievement(client, userId, 'guesstheflag_win_10');
+        if (gtWins >= 50) await checkAndAwardAchievement(client, userId, 'guesstheflag_win_50');
+        if (gtWins >= 100) await checkAndAwardAchievement(client, userId, 'guesstheflag_win_100');
+
+        const ggWins = baubleData.geoguesserWins || 0;
+        if (ggWins >= 10) await checkAndAwardAchievement(client, userId, 'geoguesser_win_10');
+        if (ggWins >= 50) await checkAndAwardAchievement(client, userId, 'geoguesser_win_50');
+        if (ggWins >= 100) await checkAndAwardAchievement(client, userId, 'geoguesser_win_100');
 
         const cfPlayed = baubleData.coinflipPlayed || 0;
         if (cfPlayed >= 100) await checkAndAwardAchievement(client, userId, 'coinflip_play_100');

@@ -4,8 +4,8 @@ const getBaseUrl = () => mode === 'live' ? 'https://api-m.paypal.com' : 'https:/
 async function getPayPalAccessToken() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
     const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-    if (!clientId || !clientSecret) {
-        throw new Error('PayPal Client ID or Client Secret is not configured in .env');
+    if (!clientId || !clientSecret || clientId === 'your_paypal_client_id_here' || clientSecret === 'your_paypal_client_secret_here') {
+        throw new Error('PayPal Client ID or Client Secret is not configured in .env (still set to placeholder values)');
     }
 
     const baseUrl = getBaseUrl();

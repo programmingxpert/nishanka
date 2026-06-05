@@ -354,6 +354,26 @@ module.exports = {
                     let userDoc = await Bauble.findOne({ userId });
                     if (!userDoc) userDoc = new Bauble({ userId });
                     userDoc.baubles += reward;
+                    
+                    if (place === 1 && data.score > 0) {
+                        userDoc.geoguesserWins = (userDoc.geoguesserWins || 0) + 1;
+                        
+                        const client = context.client || channel.client;
+                        if (client) {
+                            const { checkAndAwardAchievement } = require('../../utils/achievements');
+                            const targetMsg = { channel };
+                            if (userDoc.geoguesserWins >= 10) {
+                                await checkAndAwardAchievement(client, userId, 'geoguesser_win_10', targetMsg);
+                            }
+                            if (userDoc.geoguesserWins >= 50) {
+                                await checkAndAwardAchievement(client, userId, 'geoguesser_win_50', targetMsg);
+                            }
+                            if (userDoc.geoguesserWins >= 100) {
+                                await checkAndAwardAchievement(client, userId, 'geoguesser_win_100', targetMsg);
+                            }
+                        }
+                    }
+                    
                     await userDoc.save();
 
                     leaderboardText += `**#${place}** <@${userId}> — ${data.score} Points (+🪙 ${reward})\n`;

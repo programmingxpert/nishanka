@@ -60,7 +60,8 @@ async function buildWinLossEmbed(user) {
             blackjackPlayed: 0, blackjackWins: 0,
             robberiesAttempted: 0, robberiesSuccessful: 0,
             crimesAttempted: 0, crimesSuccessful: 0,
-            scrambleWins: 0, wordbombWins: 0, emojidecodeWins: 0
+            scrambleWins: 0, wordbombWins: 0, emojidecodeWins: 0,
+            guesstheflagWins: 0, geoguesserWins: 0
         };
     }
 
@@ -101,7 +102,9 @@ async function buildWinLossEmbed(user) {
                 value: [
                     `🏁 **Word Scramble**: \`${(baubleData.scrambleWins || 0).toLocaleString()}\` wins`,
                     `💣 **Word Bomb**: \`${(baubleData.wordbombWins || 0).toLocaleString()}\` wins`,
-                    `🧩 **Emoji Decode**: \`${(baubleData.emojidecodeWins || 0).toLocaleString()}\` wins`
+                    `🧩 **Emoji Decode**: \`${(baubleData.emojidecodeWins || 0).toLocaleString()}\` wins`,
+                    `🌍 **Guess the Flag**: \`${(baubleData.guesstheflagWins || 0).toLocaleString()}\` wins`,
+                    `📍 **GeoGuesser**: \`${(baubleData.geoguesserWins || 0).toLocaleString()}\` wins`
                 ].join('\n'),
                 inline: false
             }

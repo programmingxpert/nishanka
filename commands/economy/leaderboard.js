@@ -21,7 +21,9 @@ module.exports = {
                     { name: 'Robberies Successful', value: 'robberiesSuccessful' },
                     { name: 'Word Scramble Wins', value: 'scrambleWins' },
                     { name: 'Word Bomb Wins', value: 'wordbombWins' },
-                    { name: 'Emoji Decode Wins', value: 'emojidecodeWins' }
+                    { name: 'Emoji Decode Wins', value: 'emojidecodeWins' },
+                    { name: 'Guess the Flag Wins', value: 'guesstheflagWins' },
+                    { name: 'GeoGuesser Wins', value: 'geoguesserWins' }
                 )
         ),
 
@@ -54,7 +56,9 @@ module.exports = {
                 robberiesSuccessful: 'Robberies Successful',
                 scrambleWins: 'Scramble Wins',
                 wordbombWins: 'Word Bomb Wins',
-                emojidecodeWins: 'Emoji Decode Wins'
+                emojidecodeWins: 'Emoji Decode Wins',
+                guesstheflagWins: 'Guess the Flag Wins',
+                geoguesserWins: 'GeoGuesser Wins'
             };
 
             // Create leaderboard string
@@ -83,7 +87,9 @@ module.exports = {
                 robberiesSuccessful: 'Robberies Successful Leaderboard',
                 scrambleWins: 'Word Scramble Wins Leaderboard',
                 wordbombWins: 'Word Bomb Wins Leaderboard',
-                emojidecodeWins: 'Emoji Decode Wins Leaderboard'
+                emojidecodeWins: 'Emoji Decode Wins Leaderboard',
+                guesstheflagWins: 'Guess the Flag Wins Leaderboard',
+                geoguesserWins: 'GeoGuesser Wins Leaderboard'
             };
 
             const embed = new EmbedBuilder()
@@ -120,6 +126,8 @@ module.exports = {
                 else if (arg === 'scramble') metric = 'scrambleWins';
                 else if (arg === 'wordbomb' || arg === 'wb') metric = 'wordbombWins';
                 else if (arg === 'emojidecode' || arg === 'emoji') metric = 'emojidecodeWins';
+                else if (arg === 'guesstheflag' || arg === 'flag' || arg === 'gtf') metric = 'guesstheflagWins';
+                else if (arg === 'geoguesser' || arg === 'geo' || arg === 'gg') metric = 'geoguesserWins';
             }
 
             // Fetch all members of the server to ensure cache is populated and accurate
@@ -146,7 +154,9 @@ module.exports = {
                 robberiesSuccessful: 'Robberies Successful',
                 scrambleWins: 'Scramble Wins',
                 wordbombWins: 'Word Bomb Wins',
-                emojidecodeWins: 'Emoji Decode Wins'
+                emojidecodeWins: 'Emoji Decode Wins',
+                guesstheflagWins: 'Guess the Flag Wins',
+                geoguesserWins: 'GeoGuesser Wins'
             };
 
             // Create leaderboard string
@@ -175,7 +185,9 @@ module.exports = {
                 robberiesSuccessful: 'Robberies Successful Leaderboard',
                 scrambleWins: 'Word Scramble Wins Leaderboard',
                 wordbombWins: 'Word Bomb Wins Leaderboard',
-                emojidecodeWins: 'Emoji Decode Wins Leaderboard'
+                emojidecodeWins: 'Emoji Decode Wins Leaderboard',
+                guesstheflagWins: 'Guess the Flag Wins Leaderboard',
+                geoguesserWins: 'GeoGuesser Wins Leaderboard'
             };
 
             const embed = new EmbedBuilder()

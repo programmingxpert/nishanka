@@ -97,7 +97,9 @@ const baubleSchema = new Schema({
     crimesSuccessful: { type: Number, default: 0 },
     scrambleWins: { type: Number, default: 0 },
     wordbombWins: { type: Number, default: 0 },
-    emojidecodeWins: { type: Number, default: 0 }
+    emojidecodeWins: { type: Number, default: 0 },
+    guesstheflagWins: { type: Number, default: 0 },
+    geoguesserWins: { type: Number, default: 0 }
 });
 
 const mongoose = require('mongoose');

@@ -1,6 +1,14 @@
 /* eslint-disable */
 require('dotenv').config();
 
+// Silences deprecated "ephemeral" response options warnings from discord.js
+const originalEmitWarning = process.emitWarning;
+process.emitWarning = function(warning, ...args) {
+    if (typeof warning === 'string' && warning.includes('ephemeral')) return;
+    if (warning instanceof Error && warning.message && warning.message.includes('ephemeral')) return;
+    return originalEmitWarning.call(process, warning, ...args);
+};
+
 // Global process error handlers to prevent unhandled rejection/exception crashes
 process.on('unhandledRejection', (reason, promise) => {
     console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
@@ -298,7 +306,15 @@ client.on('raw', (data) => client.riffy.updateVoiceState(data));
 
 // Riffy events
 client.riffy.on('nodeConnect',    (node)          => console.log(`🎵 Lavalink node "${node.name}" connected`));
-client.riffy.on('nodeError',      (node, err)     => console.error(`🎵 Lavalink node "${node.name}" error:`, err.message));
+const lastNodeErrors = new Map();
+client.riffy.on('nodeError',      (node, err)     => {
+    const lastError = lastNodeErrors.get(node.name);
+    const now = Date.now();
+    if (!lastError || lastError.message !== err.message || (now - lastError.time) > 5 * 60 * 1000) {
+        lastNodeErrors.set(node.name, { message: err.message, time: now });
+        console.error(`🎵 Lavalink node "${node.name}" error:`, err.message);
+    }
+});
 client.riffy.on('trackStart', async (player, track) => {
     const channel = client.channels.cache.get(player.textChannel);
     if (!channel) return;

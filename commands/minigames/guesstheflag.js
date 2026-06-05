@@ -166,6 +166,26 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
                 baubleData = new Bauble({ userId: uId, baubles: 0 });
             }
             baubleData.baubles += reward;
+            
+            if (idx === 0 && data.points > 0) {
+                baubleData.guesstheflagWins = (baubleData.guesstheflagWins || 0) + 1;
+                
+                const client = initialMessageOrInteraction.client || channel.client;
+                if (client) {
+                    const { checkAndAwardAchievement } = require('../../utils/achievements');
+                    const targetMsg = { channel };
+                    if (baubleData.guesstheflagWins >= 10) {
+                        await checkAndAwardAchievement(client, uId, 'guesstheflag_win_10', targetMsg);
+                    }
+                    if (baubleData.guesstheflagWins >= 50) {
+                        await checkAndAwardAchievement(client, uId, 'guesstheflag_win_50', targetMsg);
+                    }
+                    if (baubleData.guesstheflagWins >= 100) {
+                        await checkAndAwardAchievement(client, uId, 'guesstheflag_win_100', targetMsg);
+                    }
+                }
+            }
+            
             await baubleData.save();
         } catch(e) {
             console.error('Error saving baubles for flag winner:', e);
