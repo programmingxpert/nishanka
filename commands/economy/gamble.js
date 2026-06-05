@@ -123,6 +123,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
         }
 
         const didWin = isGuaranteedWin || Math.random() < actualChance;
+        baubleData.gamblePlayed = (baubleData.gamblePlayed || 0) + 1;
 
         if (didWin) {
             const earnings = Math.floor(amount * multiplier);
@@ -144,6 +145,9 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
                     const { checkAndAwardAchievement } = require('../../utils/achievements');
                     if (baubleData.gambleWins >= 100) {
                         await checkAndAwardAchievement(client, userId, 'gamble_win_100', interactionOrMessage);
+                    }
+                    if (baubleData.gamblePlayed >= 100) {
+                        await checkAndAwardAchievement(client, userId, 'gamble_play_100', interactionOrMessage);
                     }
                     if (risk === 'high' && cloverUsed) {
                         await checkAndAwardAchievement(client, userId, 'lucky_clover_max', interactionOrMessage);
@@ -215,6 +219,14 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             baubleData.gambleStreak = 0;
             baubleData.dailyGambleLastCompleted = new Date();
             await retryDatabaseOperation(() => baubleData.save());
+
+            if (interactionOrMessage) {
+                const client = interactionOrMessage.client || (interactionOrMessage.channel && interactionOrMessage.channel.client);
+                if (client && baubleData.gamblePlayed >= 100) {
+                    const { checkAndAwardAchievement } = require('../../utils/achievements');
+                    await checkAndAwardAchievement(client, userId, 'gamble_play_100', interactionOrMessage);
+                }
+            }
 
             const newStreak = losses + 1;
             LOSS_TRACKER.set(userId, newStreak);

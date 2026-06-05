@@ -6,7 +6,8 @@ const premiumUserSchema = new Schema({
     expiresAt: { type: Date, default: null }, // null means lifetime
     activatedAt: { type: Date, default: Date.now },
     orderId: { type: String, default: '' },
-    paymentId: { type: String, default: '' }
+    paymentId: { type: String, default: '' },
+    lifetimeBaublesClaimed: { type: Number, default: 0 }
 });
 
 const mongoose = require('mongoose');

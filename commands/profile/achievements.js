@@ -9,8 +9,11 @@ const CATEGORIES = {
     streaks: { label: 'Daily & Active Streaks', emoji: '🔥', desc: 'Milestones for persistent daily active play.' },
     casino: { label: 'Casino & Card Games', emoji: '🎰', desc: 'Milestones earned in Slots, Coinflip, and Blackjack.' },
     supporter: { label: 'Supporters & Pre-Release', emoji: '💎', desc: 'Trophies for premium support and early users.' },
-    economy: { label: 'Wealth & Relics', emoji: '👑', desc: 'Milestones for wealth totals, tax tiers, and rare items.' }
+    economy: { label: 'Wealth & Relics', emoji: '👑', desc: 'Milestones for wealth totals, tax tiers, and robberies.' },
+    minigames: { label: 'Minigames & Wordplays', emoji: '🎮', desc: 'Accolades for Scramble, Word Bomb, and Emoji Decode.' }
 };
+
+const PAGE_SIZE = 5;
 
 module.exports = {
     category: 'profile',
@@ -34,8 +37,9 @@ module.exports = {
             const userUnlocked = await Achievement.find({ userId: targetUser.id }).lean();
             const unlockedIds = new Set(userUnlocked.map(a => a.achievementId));
 
-            const embed = buildCategoryEmbed(targetUser, 'all', userUnlocked, unlockedIds);
-            const components = createControls(targetUser.id, runnerId, 'all');
+            const totalPages = Math.ceil(unlockedIds.size / PAGE_SIZE) || 1;
+            const embed = buildCategoryEmbed(targetUser, 'all', userUnlocked, unlockedIds, 0);
+            const components = createControls(targetUser.id, runnerId, 'all', 0, totalPages);
 
             const reply = await interaction.reply({ embeds: [embed], components, fetchReply: true });
             createCategoryCollector(reply, targetUser, runnerId);
@@ -67,8 +71,9 @@ module.exports = {
             const userUnlocked = await Achievement.find({ userId: targetUser.id }).lean();
             const unlockedIds = new Set(userUnlocked.map(a => a.achievementId));
 
-            const embed = buildCategoryEmbed(targetUser, 'all', userUnlocked, unlockedIds);
-            const components = createControls(targetUser.id, runnerId, 'all');
+            const totalPages = Math.ceil(unlockedIds.size / PAGE_SIZE) || 1;
+            const embed = buildCategoryEmbed(targetUser, 'all', userUnlocked, unlockedIds, 0);
+            const components = createControls(targetUser.id, runnerId, 'all', 0, totalPages);
 
             const reply = await message.reply({ embeds: [embed], components });
             createCategoryCollector(reply, targetUser, runnerId);
@@ -79,7 +84,7 @@ module.exports = {
     }
 };
 
-function buildCategoryEmbed(targetUser, currentCategory, userUnlocked, unlockedIds) {
+function buildCategoryEmbed(targetUser, currentCategory, userUnlocked, unlockedIds, page = 0) {
     const totalCount = ACHIEVEMENTS.length;
     const unlockedCount = unlockedIds.size;
     const totalPct = totalCount > 0 ? ((unlockedCount / totalCount) * 100).toFixed(1) : '0.0';
@@ -89,15 +94,20 @@ function buildCategoryEmbed(targetUser, currentCategory, userUnlocked, unlockedI
         .setColor(0x1abc9c)
         .setTitle(`🏆 ${targetUser.username}'s Unlocked Achievements`)
         .setThumbnail(targetUser.displayAvatarURL({ extension: 'png', size: 256 }))
-        .setFooter({ text: 'Unlock achievements by playing minigames, gaining streaks, and supporting us!' })
         .setTimestamp();
 
     if (unlockedCount === 0) {
         embed.setDescription(`This user has not unlocked any achievements yet.\n\nUse \`/profile achievements-list\` or \`-achievements-list\` to view all available achievements!`);
+        embed.setFooter({ text: 'Unlock achievements by playing minigames, gaining streaks, and supporting us!' });
         return embed;
     }
 
     if (currentCategory === 'all') {
+        const filteredAchievements = ACHIEVEMENTS.filter(ach => unlockedIds.has(ach.id));
+        const categoryUnlocked = filteredAchievements.length;
+        const totalPages = Math.ceil(categoryUnlocked / PAGE_SIZE) || 1;
+        const clampedPage = Math.max(0, Math.min(page, totalPages - 1));
+
         let desc = `*${categoryInfo.desc}*\n\n` +
             `Global Progress: **${unlockedCount} / ${totalCount}** unlocked (${totalPct}%)\n\n` +
             `**Category Overview:**\n`;
@@ -111,37 +121,56 @@ function buildCategoryEmbed(targetUser, currentCategory, userUnlocked, unlockedI
             desc += `${catVal.emoji} **${catVal.label}**: **${catUnlocked} / ${catTotal}** (${catPct}%)\n`;
         }
 
-        desc += `\n*Click any button below to see the specific unlocked achievements for that category!*`;
-        embed.setDescription(desc);
+        desc += `\n**Unlocked Achievements List (Page ${clampedPage + 1}/${totalPages}):**\n\n`;
+
+        const sliced = filteredAchievements.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
+
+        const listLines = [];
+        for (const ach of sliced) {
+            const unlockData = userUnlocked.find(a => a.achievementId === ach.id);
+            const unixTime = unlockData && unlockData.unlockedAt 
+                ? Math.floor(new Date(unlockData.unlockedAt).getTime() / 1000)
+                : Math.floor(Date.now() / 1000);
+            const unlockedTime = `<t:${unixTime}:f> (<t:${unixTime}:R>)`;
+            const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
+            listLines.push(`**${ach.emoji} ${ach.name}** (${CATEGORIES[ach.category]?.label || ach.category})\n${ach.description}\n*Unlocked: ${unlockedTime} | Rarity: ${ach.rarity}% | ${typeLabel}*`);
+        }
+
+        embed.setDescription(desc + (listLines.join('\n\n') || '_No achievements unlocked yet._'));
+        embed.setFooter({ text: `Page ${clampedPage + 1}/${totalPages} • Use buttons below to switch categories or page` });
     } else {
-        const filteredAchievements = ACHIEVEMENTS.filter(ach => ach.category === currentCategory);
-        const categoryTotal = filteredAchievements.length;
-        const categoryUnlocked = filteredAchievements.filter(a => unlockedIds.has(a.id)).length;
-        const categoryPct = categoryTotal > 0 ? ((categoryUnlocked / categoryTotal) * 100).toFixed(0) : '0';
+        const filteredAchievements = ACHIEVEMENTS.filter(ach => ach.category === currentCategory && unlockedIds.has(ach.id));
+        const categoryTotalUnfiltered = ACHIEVEMENTS.filter(ach => ach.category === currentCategory).length;
+        const categoryUnlocked = filteredAchievements.length;
+        const categoryPct = categoryTotalUnfiltered > 0 ? ((categoryUnlocked / categoryTotalUnfiltered) * 100).toFixed(0) : '0';
+
+        const totalPages = Math.ceil(categoryUnlocked / PAGE_SIZE) || 1;
+        const clampedPage = Math.max(0, Math.min(page, totalPages - 1));
 
         const descHeader = `*${categoryInfo.desc}*\n\n` +
             `Global Progress: **${unlockedCount} / ${totalCount}** unlocked (${totalPct}%)\n` +
-            `Category Progress: **${categoryUnlocked} / ${categoryTotal}** unlocked (${categoryPct}%)\n\n`;
+            `Category Unlocked: **${categoryUnlocked} / ${categoryTotalUnfiltered}** (${categoryPct}%)\n\n`;
+
+        const sliced = filteredAchievements.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
 
         const listLines = [];
-        for (const ach of filteredAchievements) {
-            if (unlockedIds.has(ach.id)) {
-                const unlockData = userUnlocked.find(a => a.achievementId === ach.id);
-                const unixTime = unlockData && unlockData.unlockedAt 
-                    ? Math.floor(new Date(unlockData.unlockedAt).getTime() / 1000)
-                    : Math.floor(Date.now() / 1000);
-                const unlockedTime = `<t:${unixTime}:f> (<t:${unixTime}:R>)`;
-                const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
-                listLines.push(`**${ach.emoji} ${ach.name}**\n${ach.description}\n*Unlocked: ${unlockedTime} | Rarity: ${ach.rarity}% | ${typeLabel}*`);
-            }
+        for (const ach of sliced) {
+            const unlockData = userUnlocked.find(a => a.achievementId === ach.id);
+            const unixTime = unlockData && unlockData.unlockedAt 
+                ? Math.floor(new Date(unlockData.unlockedAt).getTime() / 1000)
+                : Math.floor(Date.now() / 1000);
+            const unlockedTime = `<t:${unixTime}:f> (<t:${unixTime}:R>)`;
+            const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
+            listLines.push(`**${ach.emoji} ${ach.name}**\n${ach.description}\n*Unlocked: ${unlockedTime} | Rarity: ${ach.rarity}% | ${typeLabel}*`);
         }
 
         embed.setDescription(descHeader + (listLines.join('\n\n') || '_No achievements unlocked in this category yet._'));
+        embed.setFooter({ text: `Page ${clampedPage + 1}/${totalPages} • Use buttons below to switch categories or page` });
     }
     return embed;
 }
 
-function createControls(targetUserId, runnerId, currentCategory) {
+function createControls(targetUserId, runnerId, currentCategory, page = 0, totalPages = 1) {
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`ach_view_all_${targetUserId}_${runnerId}`)
@@ -177,13 +206,38 @@ function createControls(targetUserId, runnerId, currentCategory) {
             .setStyle(currentCategory === 'economy' ? ButtonStyle.Success : ButtonStyle.Secondary)
             .setEmoji('👑'),
         new ButtonBuilder()
+            .setCustomId(`ach_view_minigames_${targetUserId}_${runnerId}`)
+            .setLabel('Minigames')
+            .setStyle(currentCategory === 'minigames' ? ButtonStyle.Success : ButtonStyle.Secondary)
+            .setEmoji('🎮'),
+        new ButtonBuilder()
             .setCustomId(`ach_view_close_${targetUserId}_${runnerId}`)
             .setLabel('Close')
             .setStyle(ButtonStyle.Danger)
             .setEmoji('❌')
     );
 
-    return [row1, row2];
+    const rows = [row1, row2];
+
+    if (totalPages > 1) {
+        const row3 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`ach_pg_${currentCategory}_${page - 1}_${targetUserId}_${runnerId}`)
+                .setLabel('Prev Page')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('⬅️')
+                .setDisabled(page <= 0),
+            new ButtonBuilder()
+                .setCustomId(`ach_pg_${currentCategory}_${page + 1}_${targetUserId}_${runnerId}`)
+                .setLabel('Next Page')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('➡️')
+                .setDisabled(page >= totalPages - 1)
+        );
+        rows.push(row3);
+    }
+
+    return rows;
 }
 
 function createCategoryCollector(message, targetUser, runnerId) {
@@ -198,6 +252,7 @@ function createCategoryCollector(message, targetUser, runnerId) {
         }
 
         const parts = interaction.customId.split('_');
+        const actionType = parts[1]; // 'view' or 'pg'
         const categoryOrClose = parts[2];
 
         if (categoryOrClose === 'close') {
@@ -213,9 +268,29 @@ function createCategoryCollector(message, targetUser, runnerId) {
         const userUnlocked = await Achievement.find({ userId: targetUser.id }).lean();
         const unlockedIds = new Set(userUnlocked.map(a => a.achievementId));
 
-        const newEmbed = buildCategoryEmbed(targetUser, categoryOrClose, userUnlocked, unlockedIds);
-        const newComponents = createControls(targetUser.id, runnerId, categoryOrClose);
-        await interaction.update({ embeds: [newEmbed], components: newComponents });
+        if (actionType === 'view') {
+            const selectedCategory = categoryOrClose;
+            const filteredAchievements = selectedCategory === 'all'
+                ? ACHIEVEMENTS.filter(ach => unlockedIds.has(ach.id))
+                : ACHIEVEMENTS.filter(ach => ach.category === selectedCategory && unlockedIds.has(ach.id));
+            const totalPages = Math.ceil(filteredAchievements.length / PAGE_SIZE) || 1;
+
+            const newEmbed = buildCategoryEmbed(targetUser, selectedCategory, userUnlocked, unlockedIds, 0);
+            const newComponents = createControls(targetUser.id, runnerId, selectedCategory, 0, totalPages);
+            await interaction.update({ embeds: [newEmbed], components: newComponents });
+        }
+        else if (actionType === 'pg') {
+            const selectedCategory = categoryOrClose;
+            const pageIndex = parseInt(parts[3], 10);
+            const filteredAchievements = selectedCategory === 'all'
+                ? ACHIEVEMENTS.filter(ach => unlockedIds.has(ach.id))
+                : ACHIEVEMENTS.filter(ach => ach.category === selectedCategory && unlockedIds.has(ach.id));
+            const totalPages = Math.ceil(filteredAchievements.length / PAGE_SIZE) || 1;
+
+            const newEmbed = buildCategoryEmbed(targetUser, selectedCategory, userUnlocked, unlockedIds, pageIndex);
+            const newComponents = createControls(targetUser.id, runnerId, selectedCategory, pageIndex, totalPages);
+            await interaction.update({ embeds: [newEmbed], components: newComponents });
+        }
     });
 
     collector.on('end', async (_, reason) => {

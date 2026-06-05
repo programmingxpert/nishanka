@@ -41,10 +41,32 @@ module.exports = {
             
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
             const { getIncomeMultiplier } = require('../../utils/items');
+            const { getUserPremiumTier } = require('../../utils/premiumPromo');
             const globalMultiplier = await getGlobalMultiplier();
             const incomeMultiplier = await getIncomeMultiplier(userId);
             const multiplier = globalMultiplier * incomeMultiplier;
-            const totalReward = Math.floor(baseReward * multiplier);
+
+            let premiumBonus = 0;
+            let bonusInfo = '';
+            const userTier = getUserPremiumTier(userId);
+            if (userTier === 'lifetime') {
+                const PremiumUser = require('../../models/premiumUserSchema');
+                const premUser = await PremiumUser.findOne({ userId });
+                if (premUser) {
+                    const claimed = premUser.lifetimeBaublesClaimed || 0;
+                    const remaining = Math.max(0, 5000000 - claimed);
+                    if (remaining > 0) {
+                        premiumBonus = Math.min(200000, remaining);
+                        premUser.lifetimeBaublesClaimed = claimed + premiumBonus;
+                        await premUser.save();
+                        bonusInfo = `\n🎁 **Lifetime Premium Perk:** +${premiumBonus.toLocaleString()} 🪙 claimed (Total: ${(claimed + premiumBonus).toLocaleString()}/5,000,000)`;
+                    } else {
+                        bonusInfo = `\n⚠️ **Lifetime Premium Perk:** You have already reached the 5,000,000 limit.`;
+                    }
+                }
+            }
+
+            const totalReward = Math.floor(baseReward * multiplier) + premiumBonus;
 
             // Save to database
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
@@ -57,7 +79,8 @@ module.exports = {
                 .setColor(0x9b59b6)
                 .setTitle('✦ Monthly Claim')
                 .setDescription(
-                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward.toLocaleString()}\` • Multiplier: \`${multiplier.toFixed(2)}x\`)\n\n` +
+                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward.toLocaleString()}\` • Multiplier: \`${multiplier.toFixed(2)}x\`${premiumBonus > 0 ? ` • Premium: \`+${premiumBonus.toLocaleString()}\`` : ''})\n` +
+                    `${bonusInfo}\n\n` +
                     `💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n` +
                     `⏱️ Next Claim: <t:${nextClaimEpoch}:R>`
                 );
@@ -102,10 +125,32 @@ module.exports = {
             
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
             const { getIncomeMultiplier } = require('../../utils/items');
+            const { getUserPremiumTier } = require('../../utils/premiumPromo');
             const globalMultiplier = await getGlobalMultiplier();
             const incomeMultiplier = await getIncomeMultiplier(userId);
             const multiplier = globalMultiplier * incomeMultiplier;
-            const totalReward = Math.floor(baseReward * multiplier);
+
+            let premiumBonus = 0;
+            let bonusInfo = '';
+            const userTier = getUserPremiumTier(userId);
+            if (userTier === 'lifetime') {
+                const PremiumUser = require('../../models/premiumUserSchema');
+                const premUser = await PremiumUser.findOne({ userId });
+                if (premUser) {
+                    const claimed = premUser.lifetimeBaublesClaimed || 0;
+                    const remaining = Math.max(0, 5000000 - claimed);
+                    if (remaining > 0) {
+                        premiumBonus = Math.min(200000, remaining);
+                        premUser.lifetimeBaublesClaimed = claimed + premiumBonus;
+                        await premUser.save();
+                        bonusInfo = `\n🎁 **Lifetime Premium Perk:** +${premiumBonus.toLocaleString()} 🪙 claimed (Total: ${(claimed + premiumBonus).toLocaleString()}/5,000,000)`;
+                    } else {
+                        bonusInfo = `\n⚠️ **Lifetime Premium Perk:** You have already reached the 5,000,000 limit.`;
+                    }
+                }
+            }
+
+            const totalReward = Math.floor(baseReward * multiplier) + premiumBonus;
 
             baubleData.baubles = (baubleData.baubles || 0) + totalReward;
             baubleData.monthlyLastClaimed = now;
@@ -117,7 +162,8 @@ module.exports = {
                 .setColor(0x9b59b6)
                 .setTitle('✦ Monthly Claim')
                 .setDescription(
-                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward.toLocaleString()}\` • Multiplier: \`${multiplier.toFixed(2)}x\`)\n\n` +
+                    `Received **+${totalReward.toLocaleString()}** 🪙 (Base: \`${baseReward.toLocaleString()}\` • Multiplier: \`${multiplier.toFixed(2)}x\`${premiumBonus > 0 ? ` • Premium: \`+${premiumBonus.toLocaleString()}\`` : ''})\n` +
+                    `${bonusInfo}\n\n` +
                     `💰 Balance: **${baubleData.baubles.toLocaleString()}** 🪙\n` +
                     `⏱️ Next Claim: <t:${nextClaimEpoch}:R>`
                 );

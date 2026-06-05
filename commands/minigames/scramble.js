@@ -233,7 +233,32 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
             }
             baubleData.baubles += reward;
             baubleData.dailyGameLastCompleted = new Date();
+            
+            if (idx === 0) {
+                baubleData.scrambleWins = (baubleData.scrambleWins || 0) + 1;
+            }
+            
             await baubleData.save();
+
+            if (idx === 0) {
+                const client = initialMessageOrInteraction.client || (initialMessageOrInteraction.channel && initialMessageOrInteraction.channel.client);
+                if (client) {
+                    const { checkAndAwardAchievement } = require('../../utils/achievements');
+                    const targetMsg = { channel };
+                    if (baubleData.scrambleWins >= 10) {
+                        await checkAndAwardAchievement(client, uId, 'scramble_win_10', targetMsg);
+                    }
+                    if (baubleData.scrambleWins >= 50) {
+                        await checkAndAwardAchievement(client, uId, 'scramble_win_50', targetMsg);
+                    }
+                    if (baubleData.scrambleWins >= 100) {
+                        await checkAndAwardAchievement(client, uId, 'scramble_win_100', targetMsg);
+                    }
+                    if (baubleData.scrambleWins >= 250) {
+                        await checkAndAwardAchievement(client, uId, 'scramble_win_250', targetMsg);
+                    }
+                }
+            }
         } catch(e) {
             console.error('Error saving baubles for scramble winner:', e);
         }

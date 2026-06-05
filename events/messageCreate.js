@@ -154,7 +154,8 @@ module.exports = {
 
         if (!command) return;
 
-        if (command.category === 'admin' && message.author.id !== config.devId) {
+        const isDevOnly = command.category === 'admin' || command.category === 'developer' || command.devOnly === true;
+        if (isDevOnly && message.author.id !== config.devId) {
             return message.reply('❌ This command is restricted to the bot developer only.').catch(() => {});
         }
 

@@ -101,6 +101,42 @@
       "source": "assets/emojis/source/game-mines-bomb-chroma.png",
       "png": "assets/emojis/png/game-mines-bomb.png",
       "prompt": "Nishanka-themed mines bomb: round midnight navy bomb, powder-blue gloss, hot pink star fuse spark, violet accents."
+    },
+    {
+      "key": "game.duck_blue",
+      "discordName": "blue_duck",
+      "fallback": "🦆",
+      "status": "generated"
+    },
+    {
+      "key": "game.duck_red",
+      "discordName": "red_duck",
+      "fallback": "🦆",
+      "status": "generated"
+    },
+    {
+      "key": "game.duck_green",
+      "discordName": "green_duck",
+      "fallback": "🦆",
+      "status": "generated"
+    },
+    {
+      "key": "game.duck_yellow",
+      "discordName": "yellow_duck",
+      "fallback": "🦆",
+      "status": "generated"
+    },
+    {
+      "key": "game.heart",
+      "discordName": "heart",
+      "fallback": "❤️",
+      "status": "generated"
+    },
+    {
+      "key": "game.moneybag",
+      "discordName": "moneybag",
+      "fallback": "💰",
+      "status": "generated"
     }
   ],
   "plannedGroups": [

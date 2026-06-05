@@ -4,19 +4,21 @@ const Bauble = require('../../models/baubleSchema');
 const { emoji } = require('../../utils/customEmojis');
 
 const DUCKS = {
-    red: { id: 'red', name: 'Red Duck', emoji: '🔴', emojiKey: 'nk_item_rubber_duck' },
-    blue: { id: 'blue', name: 'Blue Duck', emoji: '🔵', emojiKey: 'nk_item_rubber_duck' },
-    green: { id: 'green', name: 'Green Duck', emoji: '🟢', emojiKey: 'nk_item_rubber_duck' },
-    yellow: { id: 'yellow', name: 'Yellow Duck', emoji: '🟡', emojiKey: 'nk_item_rubber_duck' }
+    red: { id: 'red', name: 'Red Duck', emoji: '🔴', emojiKey: 'game.duck_red' },
+    blue: { id: 'blue', name: 'Blue Duck', emoji: '🔵', emojiKey: 'game.duck_blue' },
+    green: { id: 'green', name: 'Green Duck', emoji: '🟢', emojiKey: 'game.duck_green' },
+    yellow: { id: 'yellow', name: 'Yellow Duck', emoji: '🟡', emojiKey: 'game.duck_yellow' }
 };
 
 const TRACK_LENGTH = 15;
 
-function drawTrack(duckName, duckEmoji, position) {
+function drawTrack(duckKey, duckName, fallbackEmoji, position) {
     const clampedPos = Math.min(position, TRACK_LENGTH);
     const before = '─'.repeat(clampedPos);
     const after = '─'.repeat(Math.max(0, TRACK_LENGTH - clampedPos));
-    return `${duckEmoji} **${duckName}**: ${before}🦆${after} 🏁 *(${clampedPos}/${TRACK_LENGTH}m)*`;
+    const trackDuckEmoji = emoji(`game.duck_${duckKey}`, '🦆');
+    const startEmoji = emoji(`game.duck_${duckKey}`, fallbackEmoji);
+    return `${startEmoji} **${duckName}**: ${before}${trackDuckEmoji}${after} 🏁 *(${clampedPos}/${TRACK_LENGTH}m)*`;
 }
 
 module.exports = {
@@ -114,11 +116,11 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
                 `🏁 **READY, SET, GO!** 🏁\n\n` +
                 `👤 **Racer:** <@${userId}>\n` +
                 `💰 **Bet:** **${bet.toLocaleString()}** ${baubleEmoji}\n` +
-                `✨ **Chose:** **${selectedDuck.emoji} ${selectedDuck.name}**\n\n` +
-                `${drawTrack('Red Duck', '🔴', 0)}\n` +
-                `${drawTrack('Blue Duck', '🔵', 0)}\n` +
-                `${drawTrack('Green Duck', '🟢', 0)}\n` +
-                `${drawTrack('Yellow Duck', '🟡', 0)}`
+                `✨ **Chose:** **${emoji(selectedDuck.emojiKey, selectedDuck.emoji)} ${selectedDuck.name}**\n\n` +
+                `${drawTrack('red', 'Red Duck', '🔴', 0)}\n` +
+                `${drawTrack('blue', 'Blue Duck', '🔵', 0)}\n` +
+                `${drawTrack('green', 'Green Duck', '🟢', 0)}\n` +
+                `${drawTrack('yellow', 'Yellow Duck', '🟡', 0)}`
             )
             .setTimestamp();
 
@@ -166,11 +168,11 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
                 .setDescription(
                     `👤 **Racer:** <@${userId}>\n` +
                     `💰 **Bet:** **${bet.toLocaleString()}** ${baubleEmoji}\n` +
-                    `✨ **Chose:** **${selectedDuck.emoji} ${selectedDuck.name}**\n\n` +
-                    `${drawTrack('Red Duck', '🔴', positions.red)}\n` +
-                    `${drawTrack('Blue Duck', '🔵', positions.blue)}\n` +
-                    `${drawTrack('Green Duck', '🟢', positions.green)}\n` +
-                    `${drawTrack('Yellow Duck', '🟡', positions.yellow)}`
+                    `✨ **Chose:** **${emoji(selectedDuck.emojiKey, selectedDuck.emoji)} ${selectedDuck.name}**\n\n` +
+                    `${drawTrack('red', 'Red Duck', '🔴', positions.red)}\n` +
+                    `${drawTrack('blue', 'Blue Duck', '🔵', positions.blue)}\n` +
+                    `${drawTrack('green', 'Green Duck', '🟢', positions.green)}\n` +
+                    `${drawTrack('yellow', 'Yellow Duck', '🟡', positions.yellow)}`
                 )
                 .setTimestamp();
 
@@ -195,13 +197,13 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
                 .setColor(0x2ecc71)
                 .setTitle('🎉 Victory! You Won the Bet!')
                 .setDescription(
-                    `🏆 **${winningDuck.emoji} ${winningDuck.name}** crossed the finish line first!\n\n` +
+                    `🏆 **${emoji(winningDuck.emojiKey, winningDuck.emoji)} ${winningDuck.name}** crossed the finish line first!\n\n` +
                     `You predicted correctly and won **+${payout.toLocaleString()}** ${baubleEmoji}!\n\n` +
                     `👛 **New Balance:** **${baubleData.baubles.toLocaleString()}** ${baubleEmoji}\n\n` +
-                    `${drawTrack('Red Duck', '🔴', positions.red)}\n` +
-                    `${drawTrack('Blue Duck', '🔵', positions.blue)}\n` +
-                    `${drawTrack('Green Duck', '🟢', positions.green)}\n` +
-                    `${drawTrack('Yellow Duck', '🟡', positions.yellow)}`
+                    `${drawTrack('red', 'Red Duck', '🔴', positions.red)}\n` +
+                    `${drawTrack('blue', 'Blue Duck', '🔵', positions.blue)}\n` +
+                    `${drawTrack('green', 'Green Duck', '🟢', positions.green)}\n` +
+                    `${drawTrack('yellow', 'Yellow Duck', '🟡', positions.yellow)}`
                 )
                 .setTimestamp();
 
@@ -213,13 +215,13 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
                 .setColor(0xe74c3c)
                 .setTitle('❌ Defeat! Your Duck Lost!')
                 .setDescription(
-                    `😭 **${winningDuck.emoji} ${winningDuck.name}** won the race!\n\n` +
-                    `Your duck (**${selectedDuck.name}**) fell behind. You lost **-${bet.toLocaleString()}** ${baubleEmoji}!\n\n` +
+                    `😭 **${emoji(winningDuck.emojiKey, winningDuck.emoji)} ${winningDuck.name}** won the race!\n\n` +
+                    `Your duck (**${emoji(selectedDuck.emojiKey, selectedDuck.emoji)} ${selectedDuck.name}**) fell behind. You lost **-${bet.toLocaleString()}** ${baubleEmoji}!\n\n` +
                     `👛 **New Balance:** **${baubleData.baubles.toLocaleString()}** ${baubleEmoji}\n\n` +
-                    `${drawTrack('Red Duck', '🔴', positions.red)}\n` +
-                    `${drawTrack('Blue Duck', '🔵', positions.blue)}\n` +
-                    `${drawTrack('Green Duck', '🟢', positions.green)}\n` +
-                    `${drawTrack('Yellow Duck', '🟡', positions.yellow)}`
+                    `${drawTrack('red', 'Red Duck', '🔴', positions.red)}\n` +
+                    `${drawTrack('blue', 'Blue Duck', '🔵', positions.blue)}\n` +
+                    `${drawTrack('green', 'Green Duck', '🟢', positions.green)}\n` +
+                    `${drawTrack('yellow', 'Yellow Duck', '🟡', positions.yellow)}`
                 )
                 .setTimestamp();
 

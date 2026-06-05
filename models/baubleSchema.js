@@ -84,7 +84,20 @@ const baubleSchema = new Schema({
     dailyWorkDate: { type: String, default: null },
     dailyWorkCount: { type: Number, default: 0 },
     jackOfAllTradesDate: { type: String, default: null },
-    jackOfAllTradesWins: { type: [String], default: [] }
+    jackOfAllTradesWins: { type: [String], default: [] },
+    // Game stats fields
+    coinflipPlayed: { type: Number, default: 0 },
+    coinflipWins: { type: Number, default: 0 },
+    gamblePlayed: { type: Number, default: 0 },
+    slotsPlayed: { type: Number, default: 0 },
+    blackjackPlayed: { type: Number, default: 0 },
+    robberiesAttempted: { type: Number, default: 0 },
+    robberiesSuccessful: { type: Number, default: 0 },
+    crimesAttempted: { type: Number, default: 0 },
+    crimesSuccessful: { type: Number, default: 0 },
+    scrambleWins: { type: Number, default: 0 },
+    wordbombWins: { type: Number, default: 0 },
+    emojidecodeWins: { type: Number, default: 0 }
 });
 
 const mongoose = require('mongoose');

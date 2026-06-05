@@ -224,7 +224,26 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
       if (!record) record = new Bauble({ userId: m.author.id, baubles: 0 });
       record.baubles += reward;
       record.dailyGameLastCompleted = new Date();
+      record.emojidecodeWins = (record.emojidecodeWins || 0) + 1;
       await record.save();
+
+      const client = m.client;
+      if (client) {
+        const { checkAndAwardAchievement } = require('../../utils/achievements');
+        const targetMsg = { channel };
+        if (record.emojidecodeWins >= 10) {
+          await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_10', targetMsg);
+        }
+        if (record.emojidecodeWins >= 50) {
+          await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_50', targetMsg);
+        }
+        if (record.emojidecodeWins >= 100) {
+          await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_100', targetMsg);
+        }
+        if (record.emojidecodeWins >= 250) {
+          await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_250', targetMsg);
+        }
+      }
 
       await m.reply({
         embeds: [

@@ -592,7 +592,32 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
                 }
                 baubleData.baubles += prize;
                 baubleData.dailyGameLastCompleted = new Date();
+                
+                if (isWinner) {
+                    baubleData.wordbombWins = (baubleData.wordbombWins || 0) + 1;
+                }
+                
                 await baubleData.save();
+
+                if (isWinner) {
+                    const client = initialMessageOrInteraction.client || (initialMessageOrInteraction.channel && initialMessageOrInteraction.channel.client);
+                    if (client) {
+                        const { checkAndAwardAchievement } = require('../../utils/achievements');
+                        const targetMsg = { channel };
+                        if (baubleData.wordbombWins >= 10) {
+                            await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_10', targetMsg);
+                        }
+                        if (baubleData.wordbombWins >= 50) {
+                            await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_50', targetMsg);
+                        }
+                        if (baubleData.wordbombWins >= 100) {
+                            await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_100', targetMsg);
+                        }
+                        if (baubleData.wordbombWins >= 250) {
+                            await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_250', targetMsg);
+                        }
+                    }
+                }
             } catch (dbErr) {
                 console.error(`Failed to save baubles for ${playerState.user.username}:`, dbErr);
             }

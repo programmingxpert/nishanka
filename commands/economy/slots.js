@@ -120,6 +120,8 @@ module.exports = {
                 finalEmbed.setColor(0xFF0000).setDescription('🙁 No luck this time!');
             }
 
+            baubleData.slotsPlayed = (baubleData.slotsPlayed || 0) + 1;
+
             if (isWin) {
                 baubleData.slotsWins = (baubleData.slotsWins || 0) + 1;
                 if (isJackpot) {
@@ -151,6 +153,9 @@ module.exports = {
                 }
                 if (baubleData.slotsWins >= 50) {
                     await checkAndAwardAchievement(client, userId, 'slots_win_50', interaction);
+                }
+                if (baubleData.slotsPlayed >= 100) {
+                    await checkAndAwardAchievement(client, userId, 'slots_play_100', interaction);
                 }
                 if (baubleData.baubles >= 1000000) {
                     await checkAndAwardAchievement(client, userId, 'economy_millionaire', interaction);

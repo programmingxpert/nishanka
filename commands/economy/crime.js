@@ -50,6 +50,8 @@ async function doCrime(userId, client, isButton = false) {
         baubleData = new Bauble({ userId });
     }
 
+    baubleData.crimesAttempted = (baubleData.crimesAttempted || 0) + 1;
+
     const incomeMult = await getIncomeMultiplier(userId);
     const globalMult = await getGlobalMultiplier();
 
@@ -61,6 +63,7 @@ async function doCrime(userId, client, isButton = false) {
 
     if (rng < 0.60) {
         // SUCCESS (60% chance)
+        baubleData.crimesSuccessful = (baubleData.crimesSuccessful || 0) + 1;
         const baseCoins = Math.floor(Math.random() * 151) + 50; // 50-200
         const coins = Math.floor(baseCoins * incomeMult * globalMult);
 
@@ -94,6 +97,16 @@ async function doCrime(userId, client, isButton = false) {
         baubleData.baubles = Math.max(0, baubleData.baubles - fine);
         resultMsg = scenario.text.replace('{coins}', fine.toLocaleString());
         color = 0xe67e22; // Orange for failure
+
+        try {
+            const GlobalEconomy = require('../../models/GlobalEconomy');
+            let globalEco = await GlobalEconomy.findOne();
+            if (!globalEco) globalEco = new GlobalEconomy({ taxFund: 0 });
+            globalEco.taxFund = (globalEco.taxFund || 0) + fine;
+            await globalEco.save();
+        } catch (err) {
+            console.error('Failed to add crime fine to taxfund:', err);
+        }
     } else {
         // ARRESTED (15% chance) - Heavy penalty + 5m cooldown lock
         isArrested = true;
@@ -104,6 +117,16 @@ async function doCrime(userId, client, isButton = false) {
         const scenario = ARREST_SCENARIOS[Math.floor(Math.random() * ARREST_SCENARIOS.length)];
         resultMsg = scenario.text.replace('{coins}', fine.toLocaleString());
         color = 0xe74c3c; // Red for arrest
+
+        try {
+            const GlobalEconomy = require('../../models/GlobalEconomy');
+            let globalEco = await GlobalEconomy.findOne();
+            if (!globalEco) globalEco = new GlobalEconomy({ taxFund: 0 });
+            globalEco.taxFund = (globalEco.taxFund || 0) + fine;
+            await globalEco.save();
+        } catch (err) {
+            console.error('Failed to add crime arrest fine to taxfund:', err);
+        }
 
         // Lock them out of crime for 5 minutes by overriding the cooldown timestamp in client cache
         if (!client.cooldowns.has('crime')) {
@@ -117,11 +140,21 @@ async function doCrime(userId, client, isButton = false) {
     await baubleData.save();
 
     // Achievement checks
-    if (rng < 0.60 && client) {
+    if (client) {
         const { checkAndAwardAchievement } = require('../../utils/achievements');
-        if ((baubleData.crimeSuccessStreak || 0) >= 300) {
-            // Notify via a dummy message ref if possible — pass null for no notification
-            await checkAndAwardAchievement(client, userId, 'crime_lord', null);
+        if (rng < 0.60) {
+            if ((baubleData.crimeSuccessStreak || 0) >= 300) {
+                await checkAndAwardAchievement(client, userId, 'crime_lord', null);
+            }
+            if ((baubleData.crimesSuccessful || 0) >= 50) {
+                await checkAndAwardAchievement(client, userId, 'crime_success_50', null);
+            }
+            if ((baubleData.crimesSuccessful || 0) >= 200) {
+                await checkAndAwardAchievement(client, userId, 'crime_success_200', null);
+            }
+        }
+        if ((baubleData.crimesAttempted || 0) >= 100) {
+            await checkAndAwardAchievement(client, userId, 'crime_attempt_100', null);
         }
     }
 

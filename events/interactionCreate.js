@@ -130,7 +130,8 @@ module.exports = {
             if (subCmd) fullCommandPath += ` ${subCmd}`;
         } catch (_) {}
 
-        if (command.category === 'admin' && interaction.user.id !== config.devId) {
+        const isDevOnly = command.category === 'admin' || command.category === 'developer' || command.devOnly === true;
+        if (isDevOnly && interaction.user.id !== config.devId) {
             return interaction.reply({ content: '❌ This command is restricted to the bot developer only.', ephemeral: true });
         }
 

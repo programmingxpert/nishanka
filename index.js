@@ -23,7 +23,9 @@ const emojiMapping = {
     '☕': 'item.coffee',
     '💎': 'currency.premium_gem',
     '💣': 'game.mines_bomb',
-    '🦆': 'item.rubber_duck'
+    '🦆': 'item.rubber_duck',
+    '❤️': 'game.heart',
+    '💰': 'game.moneybag'
 };
 
 EmbedBuilder.prototype.toJSON = function() {
@@ -115,7 +117,7 @@ function replaceEmojisRecursive(obj) {
                 }
             }
             newObj[key] = resolvedEmoji;
-        } else if (typeof value === 'string') {
+        } else if (typeof value === 'string' && key !== 'label') {
             let valStr = value;
             for (const [standardEmoji, emojiKey] of Object.entries(emojiMapping)) {
                 const customEmoji = getCustomEmoji(emojiKey);
@@ -771,9 +773,10 @@ app.get('/api/premium/status', async (req, res) => {
     const maxApu = TIER_APU_LIMITS[tier] || TIER_APU_LIMITS.free;
 
     // Fetch plan dates from DB for "Your Plan" card
-    const DAILY_BAUBLES_BY_TIER = { lite: 1000, pro: 2500, network: 5000, lifetime: 10000, free: 0 };
+    const DAILY_BAUBLES_BY_TIER = { lite: 1000, pro: 2500, network: 5000, lifetime: 0, free: 0 };
     let planActivatedAt = null;
     let planExpiresAt = null;
+    let lifetimeBaublesClaimed = 0;
     if (userIsPremium && tier !== 'free') {
       try {
         const PremiumUser = require('./models/premiumUserSchema');
@@ -781,6 +784,7 @@ app.get('/api/premium/status', async (req, res) => {
         if (premUser) {
           planActivatedAt = premUser.activatedAt || null;
           planExpiresAt = premUser.expiresAt || null;
+          lifetimeBaublesClaimed = premUser.lifetimeBaublesClaimed || 0;
         }
       } catch (e) {}
     }
@@ -793,6 +797,7 @@ app.get('/api/premium/status', async (req, res) => {
       planActivatedAt,
       planExpiresAt,
       planDailyBaubles: DAILY_BAUBLES_BY_TIER[tier] || 0,
+      lifetimeBaublesClaimed,
       guilds: enrichedGuilds
     });
   } catch (err) {
@@ -801,11 +806,10 @@ app.get('/api/premium/status', async (req, res) => {
   }
 });
 
-// Razorpay Order Creation API
 app.post('/api/premium/create-order', express.json(), async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
   
-  const { tier, currency } = req.body;
+  const { tier, currency, gateway = 'razorpay' } = req.body;
   if (!tier || !currency) {
     return res.status(400).json({ error: 'Tier and currency are required' });
   }
@@ -821,6 +825,21 @@ app.post('/api/premium/create-order', express.json(), async (req, res) => {
   const tierPrice = PRICES[selectedCurrency][tier.toLowerCase()];
   if (!tierPrice) {
     return res.status(400).json({ error: 'Invalid tier specified' });
+  }
+
+  if (gateway === 'paypal') {
+    try {
+      const { createPayPalOrder } = require('./utils/paypal');
+      const orderData = await createPayPalOrder(tierPrice, selectedCurrency);
+      return res.json({
+        orderId: orderData.id,
+        amount: tierPrice,
+        currency: selectedCurrency
+      });
+    } catch (err) {
+      console.error('Failed to create PayPal order:', err);
+      return res.status(500).json({ error: err.message || 'Internal server error during PayPal order creation.' });
+    }
   }
 
   const keyId = process.env.RAZORPAY_KEY_ID;
@@ -877,19 +896,44 @@ app.post('/api/premium/create-order', express.json(), async (req, res) => {
   }
 });
 
-// Razorpay Payment Verification API
 app.post('/api/premium/verify-payment', express.json(), async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
 
-  const { razorpay_payment_id, razorpay_order_id, razorpay_signature, tier } = req.body;
-  if (!razorpay_payment_id || !tier) {
-    return res.status(400).json({ error: 'Missing payment details for verification' });
+  const { gateway = 'razorpay', tier } = req.body;
+  if (!tier) {
+    return res.status(400).json({ error: 'Missing tier for verification' });
   }
 
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  const isSecretConfigured = keySecret && keySecret !== 'your_razorpay_key_secret_here';
+  let orderId = '';
+  let paymentId = '';
 
-  try {
+  if (gateway === 'paypal') {
+    const { paypal_order_id } = req.body;
+    if (!paypal_order_id) {
+      return res.status(400).json({ error: 'Missing PayPal order ID' });
+    }
+    try {
+      const { capturePayPalOrder } = require('./utils/paypal');
+      const captureData = await capturePayPalOrder(paypal_order_id);
+      if (captureData.status !== 'COMPLETED') {
+        return res.status(400).json({ error: `PayPal payment is not completed. Status: ${captureData.status}` });
+      }
+      orderId = paypal_order_id;
+      paymentId = captureData.purchase_units[0].payments.captures[0].id;
+    } catch (err) {
+      console.error('Failed to capture PayPal payment:', err);
+      return res.status(500).json({ error: err.message || 'PayPal payment capture failed.' });
+    }
+  } else {
+    // Razorpay verification
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+    if (!razorpay_payment_id) {
+      return res.status(400).json({ error: 'Missing payment details for verification' });
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const isSecretConfigured = keySecret && keySecret !== 'your_razorpay_key_secret_here';
+
     if (isSecretConfigured && razorpay_order_id && razorpay_signature) {
       const crypto = require('crypto');
       const generated_signature = crypto
@@ -900,10 +944,12 @@ app.post('/api/premium/verify-payment', express.json(), async (req, res) => {
       if (generated_signature !== razorpay_signature) {
         return res.status(400).json({ error: 'Invalid payment signature. Verification failed.' });
       }
-    } else {
-      console.warn(`[Razorpay] Bypassing payment signature verification (Secret key missing or direct checkout used).`);
     }
+    orderId = razorpay_order_id || '';
+    paymentId = razorpay_payment_id;
+  }
 
+  try {
     // Purchase is verified! Save to MongoDB
     const PremiumUser = require('./models/premiumUserSchema');
     const expiresAt = tier.toLowerCase() === 'lifetime'
@@ -916,8 +962,8 @@ app.post('/api/premium/verify-payment', express.json(), async (req, res) => {
         tier: tier.toLowerCase(),
         expiresAt: expiresAt,
         activatedAt: new Date(),
-        orderId: razorpay_order_id || '',
-        paymentId: razorpay_payment_id
+        orderId: orderId,
+        paymentId: paymentId
       },
       { upsert: true, new: true }
     );
@@ -2697,6 +2743,173 @@ app.get('/api/economy-stats', async (req, res) => {
         console.error('Failed to fetch economy stats:', err);
         res.status(500).json({ error: 'Failed to fetch economy stats' });
     }
+});
+
+// --- Support API endpoints ---
+app.get('/api/support/config', async (req, res) => {
+  res.json({
+    paypalClientId: process.env.PAYPAL_CLIENT_ID || '',
+    razorpayKeyId: process.env.RAZORPAY_KEY_ID || ''
+  });
+});
+
+app.post('/api/support/create-order', express.json(), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { amount, currency, gateway } = req.body;
+  if (!amount || !currency || !gateway) {
+    return res.status(400).json({ error: 'Amount, currency, and gateway are required' });
+  }
+
+  const numAmount = parseFloat(amount);
+  if (isNaN(numAmount)) {
+    return res.status(400).json({ error: 'Amount must be a number' });
+  }
+
+  // Enforce minimum limits (50 INR or 0.99 USD/EUR)
+  if (currency === 'INR' && numAmount < 50) {
+    return res.status(400).json({ error: 'Minimum financial support is ₹50' });
+  }
+  if ((currency === 'USD' || currency === 'EUR') && numAmount < 0.99) {
+    return res.status(400).json({ error: 'Minimum financial support is $0.99 / €0.99' });
+  }
+
+  if (gateway === 'paypal') {
+    try {
+      const { createPayPalOrder } = require('./utils/paypal');
+      const orderData = await createPayPalOrder(numAmount, currency);
+      return res.json({
+        orderId: orderData.id,
+        amount: numAmount,
+        currency: currency
+      });
+    } catch (err) {
+      console.error('Failed to create PayPal support order:', err);
+      return res.status(500).json({ error: err.message || 'Internal server error during PayPal support order creation.' });
+    }
+  }
+
+  // Default to Razorpay
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const isSecretConfigured = keySecret && keySecret !== 'your_razorpay_key_secret_here';
+
+  if (!keyId) {
+    return res.status(500).json({ error: 'Razorpay billing credentials (RAZORPAY_KEY_ID) not configured on server.' });
+  }
+
+  const amountInPaise = Math.round(numAmount * 100);
+
+  if (!isSecretConfigured) {
+    return res.json({
+      orderId: null,
+      amount: amountInPaise,
+      currency: currency,
+      keyId: keyId
+    });
+  }
+
+  try {
+    const orderResponse = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64')
+      },
+      body: JSON.stringify({
+        amount: amountInPaise,
+        currency: currency,
+        receipt: `support_receipt_${req.session.user.id}_${Date.now()}`
+      })
+    });
+
+    if (!orderResponse.ok) {
+      const errText = await orderResponse.text();
+      console.error('[Razorpay Support Order Error] Raw response:', errText);
+      return res.status(500).json({ error: 'Failed to create support order with Razorpay.' });
+    }
+
+    const orderData = await orderResponse.json();
+    res.json({
+      orderId: orderData.id,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      keyId: keyId
+    });
+  } catch (err) {
+    console.error('Failed to create Razorpay support order:', err);
+    res.status(500).json({ error: 'Internal server error during order creation.' });
+  }
+});
+
+app.post('/api/support/verify-payment', express.json(), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { gateway, amount, currency } = req.body;
+  if (!gateway || !amount || !currency) {
+    return res.status(400).json({ error: 'Missing gateway, amount, or currency for verification' });
+  }
+
+  let orderId = '';
+  let paymentId = '';
+
+  if (gateway === 'paypal') {
+    const { paypal_order_id } = req.body;
+    if (!paypal_order_id) {
+      return res.status(400).json({ error: 'Missing PayPal order ID' });
+    }
+    try {
+      const { capturePayPalOrder } = require('./utils/paypal');
+      const captureData = await capturePayPalOrder(paypal_order_id);
+      if (captureData.status !== 'COMPLETED') {
+        return res.status(400).json({ error: `PayPal payment is not completed. Status: ${captureData.status}` });
+      }
+      orderId = paypal_order_id;
+      paymentId = captureData.purchase_units[0].payments.captures[0].id;
+    } catch (err) {
+      console.error('Failed to capture PayPal support payment:', err);
+      return res.status(500).json({ error: err.message || 'PayPal payment capture failed.' });
+    }
+  } else {
+    // Razorpay
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+    if (!razorpay_payment_id) {
+      return res.status(400).json({ error: 'Missing payment details for verification' });
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const isSecretConfigured = keySecret && keySecret !== 'your_razorpay_key_secret_here';
+
+    if (isSecretConfigured && razorpay_order_id && razorpay_signature) {
+      const crypto = require('crypto');
+      const generated_signature = crypto
+        .createHmac('sha256', keySecret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
+
+      if (generated_signature !== razorpay_signature) {
+        return res.status(400).json({ error: 'Invalid payment signature. Verification failed.' });
+      }
+    }
+    orderId = razorpay_order_id || '';
+    paymentId = razorpay_payment_id;
+  }
+
+  try {
+    const Donation = require('./models/donationSchema');
+    const newDonation = new Donation({
+      userId: req.session.user.id,
+      amount: parseFloat(amount),
+      currency: currency,
+      gateway: gateway,
+      paymentId: paymentId
+    });
+    await newDonation.save();
+    return res.json({ success: true, message: '🎉 Thank you so much for your financial support!' });
+  } catch (err) {
+    console.error('Failed to save donation:', err);
+    return res.status(500).json({ error: 'Failed to record donation' });
+  }
 });
 
 const PORT = process.env.BOT_PORT || 4000;

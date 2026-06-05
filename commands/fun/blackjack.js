@@ -88,6 +88,8 @@ async function handleStreak(userId, isWin, channel = null) {
     let baubleData = await Bauble.findOne({ userId });
     if (!baubleData) return 0;
     
+    baubleData.blackjackPlayed = (baubleData.blackjackPlayed || 0) + 1;
+
     if (isWin === true) {
         baubleData.blackjackStreak = (baubleData.blackjackStreak || 0) + 1;
         baubleData.blackjackWins = (baubleData.blackjackWins || 0) + 1;
@@ -98,11 +100,23 @@ async function handleStreak(userId, isWin, channel = null) {
         if (channel && channel.client) {
             const { checkAndAwardAchievement } = require('../../utils/achievements');
             const targetMsg = { channel };
+            if (baubleData.blackjackWins >= 10) {
+                await checkAndAwardAchievement(channel.client, userId, 'blackjack_win_10', targetMsg);
+            }
+            if (baubleData.blackjackWins >= 50) {
+                await checkAndAwardAchievement(channel.client, userId, 'blackjack_win_50', targetMsg);
+            }
             if (baubleData.blackjackWins >= 100) {
                 await checkAndAwardAchievement(channel.client, userId, 'blackjack_pro', targetMsg);
             }
+            if (baubleData.blackjackWins >= 250) {
+                await checkAndAwardAchievement(channel.client, userId, 'blackjack_win_250', targetMsg);
+            }
             if (baubleData.blackjackWins >= 500) {
                 await checkAndAwardAchievement(channel.client, userId, 'blackjack_500', targetMsg);
+            }
+            if (baubleData.blackjackWins >= 1000) {
+                await checkAndAwardAchievement(channel.client, userId, 'blackjack_win_1000', targetMsg);
             }
             if (baubleData.baubles >= 1000000) {
                 await checkAndAwardAchievement(channel.client, userId, 'economy_millionaire', targetMsg);
@@ -134,6 +148,15 @@ async function handleStreak(userId, isWin, channel = null) {
         baubleData.blackjackStreak = 0;
     }
     // tie = no streak change
+
+    if (channel && channel.client) {
+        const { checkAndAwardAchievement } = require('../../utils/achievements');
+        const targetMsg = { channel };
+        if (baubleData.blackjackPlayed >= 100) {
+            await checkAndAwardAchievement(channel.client, userId, 'blackjack_play_100', targetMsg);
+        }
+    }
+
     await baubleData.save();
     return baubleData.blackjackStreak;
 }

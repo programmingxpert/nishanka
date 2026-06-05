@@ -76,6 +76,11 @@ const categoryDetails = {
 		label: 'Utility Tools',
 		emoji: emoji('category.utility', '🛠️'),
 		description: 'General utilities, reminders, AFK status, and server info.',
+	},
+	developer: {
+		label: 'Developer Only',
+		emoji: '👑',
+		description: 'Exclusive command controls restricted to the bot owner.'
 	}
 };
 
@@ -92,10 +97,15 @@ const categoryColors = {
 	music: 0x9b59b6,
 	actions: 0xe84393,
 	ai: 0x7c6cf0,
-	utility: 0x95a5a6
+	utility: 0x95a5a6,
+	developer: 0x2c3e50
 };
 
 const COMMAND_MAPPING = {
+	// Developer Only
+	devinfo: 'developer',
+	eval: 'developer',
+
 	// Admin
 	setquoteschannel: 'admin',
 	trigger: 'admin',
@@ -163,6 +173,8 @@ const COMMAND_MAPPING = {
 	fish: 'economy',
 	items: 'economy',
 	memehunt: 'economy',
+	gamestats: 'economy',
+	winloss: 'economy',
 
 	// Casino
 	gamble: 'casino',
@@ -246,7 +258,8 @@ const COMMAND_MAPPING = {
 	avatar: 'utility',
 	rep: 'utility',
 	rank: 'utility',
-	snipe: 'utility'
+	snipe: 'utility',
+	support: 'utility'
 };
 
 const commandGroups = {
@@ -287,7 +300,7 @@ const commandGroups = {
 	economy: [
 		{
 			title: '💳 Balance & Stats',
-			commands: ['bauble', 'inventory', 'passive', 'collections', 'economy']
+			commands: ['bauble', 'inventory', 'passive', 'collections', 'economy', 'gamestats', 'winloss']
 		},
 		{
 			title: '💼 Earnings & Work',
@@ -383,7 +396,13 @@ const commandGroups = {
 		},
 		{
 			title: 'ℹ️ Information Lookup',
-			commands: ['server', 'servericon', 'user', 'avatar', 'rep', 'rank', 'snipe']
+			commands: ['server', 'servericon', 'user', 'avatar', 'rep', 'rank', 'snipe', 'support']
+		}
+	],
+	developer: [
+		{
+			title: '👑 Owner / Developer Commands',
+			commands: ['devinfo', 'eval']
 		}
 	]
 };
@@ -425,7 +444,8 @@ module.exports = {
 
 		// Group commands by category (collect name -> description map)
 		for (const [, cmd] of commands) {
-			if (cmd.devOnly || cmd.hidden) continue;
+			const isDev = cmd.devOnly || cmd.hidden || cmd.category === 'developer' || COMMAND_MAPPING[cmd.data.name] === 'developer';
+			if (isDev && !isOwner) continue;
 			if (context.client.disabledCommands && context.client.disabledCommands.has(cmd.data.name)) continue;
 
 			// Permission filtering: Skip if user lacks required permissions
@@ -445,14 +465,14 @@ module.exports = {
 				}
 			}
 
-			if (category === 'admin' && !isOwner) continue;
+			if ((category === 'admin' || category === 'developer') && !isOwner) continue;
 
 			if (!grouped[category]) grouped[category] = {};
 			grouped[category][cmd.data.name] = cmd.data.description || 'No description provided.';
 		}
 
 		// Sort categories by predefined order
-		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'casino', 'marriage', 'minigames', 'fun', 'profile', 'music', 'actions', 'ai', 'utility'];
+		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'casino', 'marriage', 'minigames', 'fun', 'profile', 'music', 'actions', 'ai', 'utility', 'developer'];
 		const categories = Object.keys(grouped).sort((a, b) => {
 			const idxA = categoryOrder.indexOf(a);
 			const idxB = categoryOrder.indexOf(b);

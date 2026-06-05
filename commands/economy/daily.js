@@ -83,7 +83,7 @@ module.exports = {
             const multiplier = globalMultiplier * incomeMultiplier;
             
             const userTier = getUserPremiumTier(userId);
-            const TIER_DAILY_BONUS = { free: 0, lite: 1000, pro: 2500, network: 5000, lifetime: 10000 };
+            const TIER_DAILY_BONUS = { free: 0, lite: 1000, pro: 2500, network: 5000, lifetime: 0 };
             const premiumBonus = TIER_DAILY_BONUS[userTier] || 0;
             const totalReward = Math.floor((baseReward + streakBonus) * multiplier) + premiumBonus;
 
@@ -188,7 +188,7 @@ module.exports = {
             const multiplier = globalMultiplier * incomeMultiplier;
             
             const userTier = getUserPremiumTier(userId);
-            const TIER_DAILY_BONUS = { free: 0, lite: 1000, pro: 2500, network: 5000, lifetime: 10000 };
+            const TIER_DAILY_BONUS = { free: 0, lite: 1000, pro: 2500, network: 5000, lifetime: 0 };
             const premiumBonus = TIER_DAILY_BONUS[userTier] || 0;
             const totalReward = Math.floor((baseReward + streakBonus) * multiplier) + premiumBonus;
 

@@ -384,6 +384,7 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
 
     // Apply cooldown and save immediately to prevent exploit exit triggers
     robberData.robLastAttemptedAt = new Date();
+    robberData.robberiesAttempted = (robberData.robberiesAttempted || 0) + 1;
     await robberData.save();
 
     // Helper function to resolve robbery outcome as failure
@@ -397,10 +398,32 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         fine = Math.min(robberData.baubles, fine);
 
         robberData.baubles -= fine;
-        targetData.baubles += fine;
+
+        try {
+            const GlobalEconomy = require('../../models/GlobalEconomy');
+            let globalEco = await GlobalEconomy.findOne();
+            if (!globalEco) globalEco = new GlobalEconomy({ taxFund: 0 });
+            globalEco.taxFund = (globalEco.taxFund || 0) + fine;
+            await globalEco.save();
+        } catch (err) {
+            console.error('Failed to add rob court fine to taxfund:', err);
+        }
 
         await robberData.save();
-        await targetData.save();
+
+        const client = (interaction || message)?.client;
+        if (client) {
+            const { checkAndAwardAchievement } = require('../../utils/achievements');
+            if ((robberData.robberiesAttempted || 0) >= 50) {
+                await checkAndAwardAchievement(client, robberId, 'rob_attempt_50', null);
+            }
+            if ((robberData.robberiesAttempted || 0) >= 200) {
+                await checkAndAwardAchievement(client, robberId, 'rob_attempt_200', null);
+            }
+            if ((robberData.robberiesAttempted || 0) >= 1000) {
+                await checkAndAwardAchievement(client, robberId, 'rob_attempt_1000', null);
+            }
+        }
 
         const failEmbed = new EmbedBuilder()
             .setColor(0xE74C3C)
@@ -409,9 +432,8 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
             .addFields(
                 { name: '🥷 Robber', value: `<@${robberId}>`, inline: true },
                 { name: '👤 Victim', value: `<@${targetId}>`, inline: true },
-                { name: '⚖️ Court Fine Paid', value: `\`-${fine.toLocaleString()}\` Baubles`, inline: true },
-                { name: '👛 Your New Balance', value: `\`${robberData.baubles.toLocaleString()}\` Baubles`, inline: true },
-                { name: '👛 Target Balance', value: `\`${targetData.baubles.toLocaleString()}\` Baubles`, inline: true }
+                { name: '⚖️ Court Fine Paid', value: `\`-${fine.toLocaleString()}\` Baubles (sent to federal tax fund)`, inline: true },
+                { name: '👛 Your New Balance', value: `\`${robberData.baubles.toLocaleString()}\` Baubles`, inline: true }
             )
             .setTimestamp();
 
@@ -443,16 +465,50 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         if (strategy.id === 'heist') {
             robberData.heistRobsSuccessful = (robberData.heistRobsSuccessful || 0) + 1;
         }
+        robberData.robberiesSuccessful = (robberData.robberiesSuccessful || 0) + 1;
 
         await robberData.save();
         await targetData.save();
 
         // Achievement check
-        if (strategy.id === 'heist') {
-            const client = (interaction || message)?.client;
-            if (client && (robberData.heistRobsSuccessful || 0) >= 50) {
-                const { checkAndAwardAchievement } = require('../../utils/achievements');
-                await checkAndAwardAchievement(client, robberId, 'master_heist', null);
+        const client = (interaction || message)?.client;
+        if (client) {
+            const { checkAndAwardAchievement } = require('../../utils/achievements');
+            if (strategy.id === 'heist') {
+                const heists = robberData.heistRobsSuccessful || 0;
+                if (heists >= 10) {
+                    await checkAndAwardAchievement(client, robberId, 'heist_success_10', null);
+                }
+                if (heists >= 50) {
+                    await checkAndAwardAchievement(client, robberId, 'master_heist', null);
+                }
+                if (heists >= 100) {
+                    await checkAndAwardAchievement(client, robberId, 'heist_success_100', null);
+                }
+            }
+            const attempts = robberData.robberiesAttempted || 0;
+            if (attempts >= 50) {
+                await checkAndAwardAchievement(client, robberId, 'rob_attempt_50', null);
+            }
+            if (attempts >= 200) {
+                await checkAndAwardAchievement(client, robberId, 'rob_attempt_200', null);
+            }
+            if (attempts >= 1000) {
+                await checkAndAwardAchievement(client, robberId, 'rob_attempt_1000', null);
+            }
+
+            const successes = robberData.robberiesSuccessful || 0;
+            if (successes >= 10) {
+                await checkAndAwardAchievement(client, robberId, 'rob_success_10', null);
+            }
+            if (successes >= 50) {
+                await checkAndAwardAchievement(client, robberId, 'rob_success_50', null);
+            }
+            if (successes >= 100) {
+                await checkAndAwardAchievement(client, robberId, 'rob_success_100', null);
+            }
+            if (successes >= 500) {
+                await checkAndAwardAchievement(client, robberId, 'rob_success_500', null);
             }
         }
 

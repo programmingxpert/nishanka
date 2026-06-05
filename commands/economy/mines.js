@@ -322,7 +322,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
             const initialEmbed = new EmbedBuilder()
                 .setColor(0x7c6cf0)
                 .setTitle('💣  MINES CHALLENGE')
-                .setDescription(`A **4x4** grid has been prepared with **${finalMinesCount}** hidden mines.\n\nClick the numbered tiles below to reveal them. Find **Diamonds** \`💎\` to multiply your stake, but hit a **Mine** \`💥\` and you lose it all!`)
+                .setDescription(`A **4x4** grid has been prepared with **${finalMinesCount}** hidden mines.\n\nClick the numbered tiles below to reveal them. Find **Diamonds** 💎 to multiply your stake, but hit a **Mine** 💥 and you lose it all!`)
                 .addFields(
                     { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                     { name: '📈 Current Multiplier', value: `\`1.00x\``, inline: true },

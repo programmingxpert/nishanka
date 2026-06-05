@@ -49,9 +49,28 @@ function envNameForKey(key) {
     return `NISHANKA_EMOJI_${key.replace(/[^a-z0-9]+/gi, '_').toUpperCase()}`;
 }
 
+function verifyEmojiAccess(emojiStr) {
+    if (!emojiStr) return false;
+    const match = emojiStr.match(/<a?:[a-zA-Z0-9_~]+:(\d+)>/);
+    if (!match) return true; // Unicode emojis or plain text are always safe
+    const emojiId = match[1];
+    
+    if (global.client && global.client.emojis.cache.has(emojiId)) {
+        return true;
+    }
+    
+    for (const val of dynamicEmojis.values()) {
+        if (val.includes(emojiId)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 function emoji(key, fallback = '') {
     const envValue = process.env[envNameForKey(key)];
-    if (envValue) return envValue;
+    if (envValue && verifyEmojiAccess(envValue)) return envValue;
 
     // Check dynamic mapped emojis by various name styles
     const normKey = key.replace(/[^a-z0-9]/gi, '').toLowerCase(); // e.g. currencybauble
@@ -71,9 +90,10 @@ function emoji(key, fallback = '') {
         }
     }
 
-    if (localOverrides[key]) return localOverrides[key];
+    const localVal = localOverrides[key];
+    if (localVal && verifyEmojiAccess(localVal)) return localVal;
 
-    if (asset?.discord) return asset.discord;
+    if (asset?.discord && verifyEmojiAccess(asset.discord)) return asset.discord;
     if (asset?.fallback) return asset.fallback;
 
     return fallback;

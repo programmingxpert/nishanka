@@ -346,9 +346,11 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
     }
 
     const previousLossStreak = baubleData.coinflipLossStreak || 0;
+    baubleData.coinflipPlayed = (baubleData.coinflipPlayed || 0) + 1;
 
     if (didWin) {
         baubleData.baubles += winnings;
+        baubleData.coinflipWins = (baubleData.coinflipWins || 0) + 1;
         baubleData.coinflipStreak = (baubleData.coinflipStreak || 0) + 1;
         if (baubleData.coinflipStreak > (baubleData.coinflipMaxStreak || 0)) {
             baubleData.coinflipMaxStreak = baubleData.coinflipStreak;
@@ -380,6 +382,12 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
             }
             if (baubleData.coinflipStreak >= 25) {
                 await checkAndAwardAchievement(client, userId, 'coinflip_streak_25', initialMsg);
+            }
+            if (baubleData.coinflipPlayed >= 100) {
+                await checkAndAwardAchievement(client, userId, 'coinflip_play_100', initialMsg);
+            }
+            if (baubleData.coinflipWins >= 50) {
+                await checkAndAwardAchievement(client, userId, 'coinflip_win_50', initialMsg);
             }
             if (baubleData.baubles >= 1000000) {
                 await checkAndAwardAchievement(client, userId, 'economy_millionaire', initialMsg);
