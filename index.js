@@ -1030,10 +1030,27 @@ app.get('/api/guilds', async (req, res) => {
   try {
     let allGuilds = req.session.guilds;
     if (!allGuilds) {
-      const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
-        headers: { Authorization: `Bearer ${req.session.accessToken}` },
-      });
-      if (!discordRes.ok) throw new Error('Discord API error');
+      let discordRes;
+      let attempts = 0;
+      let lastErrorText = '';
+      while (attempts < 3) {
+        try {
+          discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
+            headers: { Authorization: `Bearer ${req.session.accessToken}` },
+          });
+          if (discordRes.ok) break;
+          lastErrorText = `${discordRes.statusText} (${discordRes.status})`;
+        } catch (e) {
+          lastErrorText = e.message;
+        }
+        attempts++;
+        if (attempts < 3) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      if (!discordRes || !discordRes.ok) {
+        throw new Error(`Discord API error: ${lastErrorText || 'Failed to fetch guilds from Discord'}`);
+      }
       allGuilds = await discordRes.json();
       req.session.guilds = allGuilds;
       req.session.save();
@@ -1067,10 +1084,21 @@ const checkGuildAccess = async (req, guildId) => {
     
     // If we don't have the guilds cached in the session, fetch them
     if (!allGuilds) {
-      const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
-        headers: { Authorization: `Bearer ${req.session.accessToken}` },
-      });
-      if (!discordRes.ok) return false;
+      let discordRes;
+      let attempts = 0;
+      while (attempts < 3) {
+        try {
+          discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
+            headers: { Authorization: `Bearer ${req.session.accessToken}` },
+          });
+          if (discordRes.ok) break;
+        } catch (e) {}
+        attempts++;
+        if (attempts < 3) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      if (!discordRes || !discordRes.ok) return false;
       allGuilds = await discordRes.json();
       req.session.guilds = allGuilds; // Cache for the session duration
       req.session.save(); // Ensure it saves immediately
