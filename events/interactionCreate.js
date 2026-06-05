@@ -122,6 +122,51 @@ module.exports = {
             return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });
         }
 
+        // ─── Global Ban & Soft-Ban Guards ──────────────────────────────────────────
+        const UserRestriction = require('../models/UserRestriction');
+        const userRestriction = await UserRestriction.findOne({ userId: interaction.user.id });
+        if (userRestriction) {
+            if (userRestriction.isBanned) {
+                return interaction.reply({
+                    content: `❌ **Global Ban:** You have been globally banned from using Nishanka.\nReason: *${userRestriction.banReason || 'Violation of terms'}*`,
+                    ephemeral: true
+                });
+            }
+            if (userRestriction.isSoftBanned && userRestriction.lockoutExpiresAt && Date.now() < new Date(userRestriction.lockoutExpiresAt).getTime()) {
+                const isEconomyOrGame = command.category === 'economy' || command.category === 'minigames' || command.category === 'casino';
+                if (isEconomyOrGame) {
+                    const expiryUnix = Math.floor(new Date(userRestriction.lockoutExpiresAt).getTime() / 1000);
+                    return interaction.reply({
+                        content: `⚠️ **Access Suspended:** Your access to economy and games has been temporarily locked due to automated anti-exploit detection. You can play again <t:${expiryUnix}:R>.`,
+                        ephemeral: true
+                    });
+                }
+            } else if (userRestriction.isSoftBanned) {
+                userRestriction.isSoftBanned = false;
+                userRestriction.lockoutExpiresAt = null;
+                await userRestriction.save();
+            }
+        }
+
+        // ─── Maintenance Mode Guard ────────────────────────────────────────────────
+        const SystemConfig = require('../models/SystemConfig');
+        const sysConfig = await SystemConfig.findOne();
+        if (sysConfig && sysConfig.maintenanceMode) {
+            const isDev = interaction.user.id === config.devId;
+            if (!isDev) {
+                const etaStr = sysConfig.maintenanceETA ? `\n⏳ **Estimated Uptime:** ${sysConfig.maintenanceETA}` : '';
+                return interaction.reply({
+                    content: `🛠️ **Maintenance Mode:** Nishanka is currently undergoing scheduled maintenance. Please check back later.\n> *${sysConfig.maintenanceMessage}*${etaStr}`,
+                    ephemeral: true
+                });
+            }
+        }
+
+        let announcementText = '';
+        if (sysConfig && sysConfig.announcementActive && sysConfig.announcement) {
+            announcementText = sysConfig.announcement;
+        }
+
         let fullCommandPath = `/${interaction.commandName}`;
         try {
             const subGroup = interaction.options.getSubcommandGroup(false);
@@ -192,8 +237,15 @@ module.exports = {
             }
         }
 
+        const lastExecutionTime = timestamps.get(interaction.user.id);
+
         timestamps.set(interaction.user.id, now);
         setTimeout(() => timestamps.delete(interaction.user.id), cooldownMs);
+
+        if (lastExecutionTime) {
+            const { trackCommandTiming } = require('../utils/antiExploit');
+            trackCommandTiming(interaction.user.id, command.data.name, cooldownMs, lastExecutionTime, client).catch(() => {});
+        }
 
         // Wrap reply and followUp to clear cooldown on error response
         const originalReply = interaction.reply;
@@ -208,51 +260,54 @@ module.exports = {
             let promoText = '';
 
             if (isGuildPrem) {
-                // Premium servers only get dashboard promo tips (1.5% chance)
                 if (rand < 0.015) {
                     promoText = getRandomDashboardTip();
-                } else {
-                    return options;
                 }
             } else {
-                // Non-premium servers get premium promo (1%) or dashboard tips (1.5%)
                 if (rand < 0.01) {
                     promoText = getRandomPromoTip();
                 } else if (rand < 0.025) {
                     promoText = getRandomDashboardTip();
-                } else {
-                    return options;
                 }
             }
             
+            const announcePrefix = announcementText ? `📢 **Announcement:** ${announcementText}\n\n` : '';
+
             if (typeof options === 'string') {
                 if (options.startsWith('❌') || options.startsWith('⚠️')) return options;
-                return options + `\n\n*${promoText}*`;
+                return announcePrefix + options + (promoText ? `\n\n*${promoText}*` : '');
             } else if (options && typeof options === 'object') {
                 let content = options.content || '';
                 if (content.startsWith('❌') || content.startsWith('⚠️')) return options;
                 
                 if (options.embeds && options.embeds.length > 0) {
+                    if (announcePrefix) {
+                        options.content = announcePrefix + content;
+                    }
                     const embed = options.embeds[0];
-                    if (embed && typeof embed.setFooter === 'function') {
-                        try {
-                            const currentFooter = embed.data?.footer?.text;
+                    if (promoText) {
+                        if (embed && typeof embed.setFooter === 'function') {
+                            try {
+                                const currentFooter = embed.data?.footer?.text;
+                                if (!currentFooter || !currentFooter.includes(promoText)) {
+                                    const footerText = currentFooter ? `${currentFooter} | ${promoText}` : promoText;
+                                    embed.setFooter({ text: footerText, iconURL: embed.data?.footer?.icon_url });
+                                }
+                            } catch (e) {}
+                        } else if (embed && typeof embed === 'object') {
+                            const currentFooter = embed.footer?.text;
                             if (!currentFooter || !currentFooter.includes(promoText)) {
-                                const footerText = currentFooter ? `${currentFooter} | ${promoText}` : promoText;
-                                embed.setFooter({ text: footerText, iconURL: embed.data?.footer?.icon_url });
+                                embed.footer = {
+                                    text: currentFooter ? `${currentFooter} | ${promoText}` : promoText,
+                                    icon_url: embed.footer?.icon_url
+                                };
                             }
-                        } catch (e) {}
-                    } else if (embed && typeof embed === 'object') {
-                        const currentFooter = embed.footer?.text;
-                        if (!currentFooter || !currentFooter.includes(promoText)) {
-                            embed.footer = {
-                                text: currentFooter ? `${currentFooter} | ${promoText}` : promoText,
-                                icon_url: embed.footer?.icon_url
-                            };
                         }
                     }
                 } else {
-                    options.content = content + `\n\n*${promoText}*`;
+                    if (announcePrefix || promoText) {
+                        options.content = announcePrefix + content + (promoText ? `\n\n*${promoText}*` : '');
+                    }
                 }
             }
             return options;

@@ -288,6 +288,7 @@ async function runSimpleChoiceGame(initialData, channel, user, baubleData, confi
 async function runMiningGame(initialData, channel, user, baubleData) {
     const isSlash = !!initialData.deferReply;
     const userId = user.id;
+    const startTime = Date.now();
 
     const progress = 100;
     const bar = '`' + '█'.repeat(10) + ` ${progress}%\``;
@@ -398,6 +399,12 @@ async function runMiningGame(initialData, channel, user, baubleData) {
     });
 
     collector.on('end', async () => {
+        const elapsed = Date.now() - startTime;
+        if (clicks >= maxClicks && elapsed < 1200) {
+            const { recordSuspicion } = require('../../utils/antiExploit');
+            recordSuspicion(userId, 40, `Mining Game: Completed 20 clicks in ${elapsed}ms (autoclicker limit <1200ms).`, channel.client).catch(() => {});
+        }
+
         const { getGlobalMultiplier } = require('../../utils/economyEngine');
         const { getIncomeMultiplier } = require('../../utils/items');
         const globalMultiplier = await getGlobalMultiplier();
@@ -571,6 +578,10 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
                 );
         } else if (reason === 'caught') {
             const ms = Date.now() - startTime;
+            if (ms < 80) {
+                const { recordSuspicion } = require('../../utils/antiExploit');
+                recordSuspicion(userId, 40, `Security Game: Visual reaction time of ${ms}ms is physically impossible (autoclicker limit <80ms).`, channel.client).catch(() => {});
+            }
 
             const { getGlobalMultiplier } = require('../../utils/economyEngine');
             const { getIncomeMultiplier } = require('../../utils/items');
@@ -637,6 +648,7 @@ async function runSecurityGame(initialData, channel, user, baubleData) {
 async function runBaristaGame(initialData, channel, user, baubleData) {
     const isSlash = !!initialData.deferReply;
     const userId = user.id;
+    const baristaStartTime = Date.now();
 
     const recipes = [
         { name: "Double Espresso", ingredients: ["coffee", "coffee"], display: "☕ Coffee + ☕ Coffee" },
@@ -711,6 +723,12 @@ async function runBaristaGame(initialData, channel, user, baubleData) {
         let resultEmbed = new EmbedBuilder();
 
         if (reason === 'complete') {
+            const elapsed = Date.now() - baristaStartTime;
+            if (elapsed < 400) {
+                const { recordSuspicion } = require('../../utils/antiExploit');
+                recordSuspicion(userId, 30, `Barista Game: Completed order in ${elapsed}ms (macro limit <400ms).`, channel.client).catch(() => {});
+            }
+
             const sortedSelected = [...selectedIngredients].sort();
             const sortedRecipe = [...recipe.ingredients].sort();
             const isMatch = sortedSelected.length === sortedRecipe.length && sortedSelected.every((val, index) => val === sortedRecipe[index]);

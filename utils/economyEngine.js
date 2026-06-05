@@ -1,6 +1,7 @@
 const Bauble = require('../models/baubleSchema');
 const EconomyMetrics = require('../models/EconomyMetrics');
 const GlobalEconomy = require('../models/GlobalEconomy');
+const { emoji } = require('./customEmojis');
 
 let tempMultiplierOverride = null;
 let tempMultiplierExpiresAt = null;
@@ -66,7 +67,7 @@ async function calculateEconomy(client) {
 
         let status = "⚖️ Stable Market";
         if (newMultiplier >= 1.5) {
-            status = "🚀 Booming Market (High Rewards)";
+            status = `${emoji('market.booming', '🚀')} Booming Market (High Rewards)`;
         } else if (newMultiplier >= 1.1) {
             status = "📈 Growing Market (Good Rewards)";
         } else if (newMultiplier >= 0.9) {

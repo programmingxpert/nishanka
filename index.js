@@ -1,4 +1,5 @@
 /* eslint-disable */
+require('./utils/logger'); // Start console log interception immediately
 require('dotenv').config();
 
 // Silences deprecated "ephemeral" response options warnings from discord.js
@@ -449,8 +450,154 @@ app.use(session({
 }));
 
 
+// Global Ban check middleware
+app.use(async (req, res, next) => {
+  if (req.session && req.session.user) {
+    try {
+      const UserRestriction = require('./models/UserRestriction');
+      const restriction = await UserRestriction.findOne({ userId: req.session.user.id });
+      if (restriction && restriction.isBanned) {
+        req.session.destroy(() => {});
+        return res.status(403).json({ error: 'banned', message: restriction.banReason || 'You have been globally banned from using Nishanka.' });
+      }
+    } catch (e) {
+      console.error('Ban check middleware error:', e);
+    }
+  }
+  next();
+});
+
+// Maintenance Write block middleware
+app.use(async (req, res, next) => {
+  const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+  const isSystemRoute = req.path.startsWith('/auth') || req.path.startsWith('/api/system-config') || req.path.startsWith('/api/health');
+  if (isWrite && !isSystemRoute) {
+    try {
+      const SystemConfig = require('./models/SystemConfig');
+      const sysConfig = await SystemConfig.findOne();
+      if (sysConfig && sysConfig.maintenanceMode) {
+        const config = require('./config.json');
+        const isDev = req.session && req.session.user && req.session.user.id === config.devId;
+        if (!isDev) {
+          return res.status(503).json({ error: 'maintenance', message: sysConfig.maintenanceMessage || 'The bot is currently undergoing maintenance. Please try again later.' });
+        }
+      }
+    } catch (e) {
+      console.error('Maintenance write block middleware error:', e);
+    }
+  }
+  next();
+});
+
 app.get("/", (req, res) => {
   res.send("Nishanka Bot API is running");
+});
+
+app.get("/api/system-config", async (req, res) => {
+  try {
+    const SystemConfig = require('./models/SystemConfig');
+    let sysConfig = await SystemConfig.findOne();
+    if (!sysConfig) {
+      sysConfig = new SystemConfig();
+      await sysConfig.save();
+    }
+    res.json({
+      maintenanceMode: !!sysConfig.maintenanceMode,
+      maintenanceMessage: sysConfig.maintenanceMessage,
+      maintenanceETA: sysConfig.maintenanceETA,
+      announcement: sysConfig.announcement,
+      announcementActive: !!sysConfig.announcementActive
+    });
+  } catch (e) {
+    console.error('Error fetching system config:', e);
+    res.status(500).json({ error: 'Failed to retrieve system settings.' });
+  }
+});
+
+// Middleware to restrict access to developer only
+const developerOnly = (req, res, next) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  const config = require('./config.json');
+  if (req.session.user.id !== config.devId) {
+    return res.status(403).json({ error: 'forbidden', message: 'This page is restricted to the bot developer only.' });
+  }
+  next();
+};
+
+// Developer Administration Panel Endpoints
+app.get('/api/admin/logs', developerOnly, (req, res) => {
+  try {
+    const { getLogs } = require('./utils/logger');
+    let logs = getLogs();
+
+    const { limit, level, guildId, search } = req.query;
+
+    if (level) {
+      logs = logs.filter(l => l.level === level.toUpperCase());
+    }
+    if (guildId) {
+      logs = logs.filter(l => l.guildId === guildId);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      logs = logs.filter(l => l.message.toLowerCase().includes(q));
+    }
+
+    const maxLimit = parseInt(limit) || 200;
+    res.json(logs.slice(-maxLimit));
+  } catch (e) {
+    console.error('Error fetching admin logs:', e);
+    res.status(500).json({ error: 'Failed to retrieve logs.' });
+  }
+});
+
+app.get('/api/admin/guilds', developerOnly, (req, res) => {
+  try {
+    const guilds = client.guilds.cache.map(g => {
+      const owner = g.ownerId;
+      return {
+        id: g.id,
+        name: g.name,
+        memberCount: g.memberCount,
+        icon: g.iconURL() || null,
+        ownerId: owner
+      };
+    });
+    res.json(guilds);
+  } catch (e) {
+    console.error('Error fetching admin guilds:', e);
+    res.status(500).json({ error: 'Failed to retrieve servers.' });
+  }
+});
+
+app.get('/api/admin/minigames', developerOnly, (req, res) => {
+  try {
+    const activeMines = [];
+    if (client.activeMinesGames) {
+      for (const [userId, game] of client.activeMinesGames.entries()) {
+        if (game.setup) continue; // skip games still in setup phase
+        
+        const discordUser = client.users.cache.get(userId);
+        
+        activeMines.push({
+          userId,
+          username: discordUser ? discordUser.username : `User (${userId})`,
+          stake: game.stake,
+          minesCount: game.minesCount,
+          revealedCount: game.revealedCount,
+          grid: game.grid,         // Reveals bomb answers!
+          revealed: game.revealed,
+          timestamp: game.timestamp
+        });
+      }
+    }
+    res.json({ activeMines });
+  } catch (e) {
+    console.error('Error fetching admin minigames:', e);
+    res.status(500).json({ error: 'Failed to retrieve active minigames.' });
+  }
 });
 
 app.get("/api/health", (req, res) => {
@@ -573,11 +720,13 @@ app.get('/auth/callback', async (req, res) => {
 app.get('/api/me', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
   const u = req.session.user;
+  const config = require('./config.json');
   res.json({
     id:       u.id,
     username: u.username,
     name:     u.global_name || u.username,
     avatar:   u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png` : null,
+    isDeveloper: u.id === config.devId
   });
 });
 

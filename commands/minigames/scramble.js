@@ -163,6 +163,7 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
             .setTitle(`🔄 Round ${round}/${totalRounds}`)
             .setDescription(`Unscramble this word:\n\n# **\`${scrambled.toUpperCase()}\`**\n\n*First to type it correctly wins the round! (30 seconds)*`);
             
+        const roundStartTime = Date.now();
         await channel.send({ embeds: [roundEmbed] });
         
         const filter = m => {
@@ -174,6 +175,12 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
             const collected = await channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
             const winner = collected.first();
             
+            const reactionTime = Date.now() - roundStartTime;
+            if (reactionTime < 400) {
+                const { recordSuspicion } = require('../../utils/antiExploit');
+                recordSuspicion(winner.author.id, 30, `Scramble Game: Solved word in ${reactionTime}ms (unscramble limit <400ms).`, channel.client).catch(() => {});
+            }
+
             const uId = winner.author.id;
             if (!scores.has(uId)) {
                 scores.set(uId, { name: winner.author.username, points: 0 });
