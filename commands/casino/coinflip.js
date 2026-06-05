@@ -4,7 +4,7 @@ const Bauble = require('../../models/baubleSchema');
 const { checkAndAwardAchievement } = require('../../utils/achievements');
 
 module.exports = {
-    category: 'economy',
+    category: 'casino',
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('coinflip')

@@ -67,7 +67,7 @@ function giveItems(player, amount) {
 }
 
 module.exports = {
-    category: 'economy',
+    category: 'casino',
     cooldown: 15,
 
     data: new SlashCommandBuilder()

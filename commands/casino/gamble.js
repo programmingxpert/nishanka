@@ -28,7 +28,7 @@ async function retryDatabaseOperation(operation, maxRetries = 3, delay = 1000) {
 }
 
 module.exports = {
-    category: 'economy',
+    category: 'casino',
     data: new SlashCommandBuilder()
         .setName('gamble')
         .setDescription('Gamble your Baubles with different risk and reward tiers!')

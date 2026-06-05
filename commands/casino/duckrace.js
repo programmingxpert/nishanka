@@ -22,7 +22,7 @@ function drawTrack(duckKey, duckName, fallbackEmoji, position) {
 }
 
 module.exports = {
-    category: 'economy',
+    category: 'casino',
     aliases: ['dr', 'duck', 'duck-race'],
     data: new SlashCommandBuilder()
         .setName('duckrace')

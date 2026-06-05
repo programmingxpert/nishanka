@@ -6,7 +6,7 @@ const { checkAndAwardAchievement } = require('../../utils/achievements');
 const slotEmojis = ['💎', '💰', '🍀', '🔔', '🍒']; // Slot machine emojis
 
 module.exports = {
-    category: 'economy',
+    category: 'casino',
     slashOnly: true,
     cooldown: 30, // 30-second cooldown
     data: new SlashCommandBuilder()

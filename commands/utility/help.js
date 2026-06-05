@@ -105,10 +105,15 @@ const COMMAND_MAPPING = {
 	// Developer Only
 	devinfo: 'developer',
 	eval: 'developer',
+	reload: 'developer',
+	add: 'developer',
+	take: 'developer',
+	reset: 'developer',
+	awardachievement: 'developer',
+	setquoteschannel: 'developer',
+	trigger: 'developer',
 
 	// Admin
-	setquoteschannel: 'admin',
-	trigger: 'admin',
 	welcome: 'admin',
 	autorole: 'admin',
 	logging: 'admin',
@@ -160,9 +165,6 @@ const COMMAND_MAPPING = {
 	gift: 'economy',
 	leaderboard: 'economy',
 	globalleaderboard: 'economy',
-	add: 'economy',
-	take: 'economy',
-	reset: 'economy',
 	taxfund: 'economy',
 	collections: 'economy',
 	crime: 'economy',
@@ -175,6 +177,7 @@ const COMMAND_MAPPING = {
 	memehunt: 'economy',
 	gamestats: 'economy',
 	winloss: 'economy',
+	streak: 'economy',
 
 	// Casino
 	gamble: 'casino',
@@ -248,7 +251,6 @@ const COMMAND_MAPPING = {
 	// Utility
 	help: 'utility',
 	ping: 'utility',
-	reload: 'utility',
 	togglecmd: 'utility',
 	remind: 'utility',
 	afk: 'utility',
@@ -259,18 +261,15 @@ const COMMAND_MAPPING = {
 	rep: 'utility',
 	rank: 'utility',
 	snipe: 'utility',
-	support: 'utility'
+	support: 'utility',
+	invite: 'utility'
 };
 
 const commandGroups = {
 	admin: [
 		{
 			title: '⚙️ Server Configurations',
-			commands: ['setquoteschannel', 'welcome', 'autorole', 'logging', 'leveling', 'snipetoggle']
-		},
-		{
-			title: '⚡ Custom Triggers',
-			commands: ['trigger']
+			commands: ['welcome', 'autorole', 'logging', 'leveling', 'snipetoggle']
 		}
 	],
 	moderation: [
@@ -300,7 +299,7 @@ const commandGroups = {
 	economy: [
 		{
 			title: '💳 Balance & Stats',
-			commands: ['bauble', 'inventory', 'passive', 'collections', 'economy', 'gamestats', 'winloss']
+			commands: ['bauble', 'inventory', 'passive', 'collections', 'economy', 'gamestats', 'winloss', 'streak']
 		},
 		{
 			title: '💼 Earnings & Work',
@@ -313,10 +312,6 @@ const commandGroups = {
 		{
 			title: '📈 Leaderboards',
 			commands: ['leaderboard', 'globalleaderboard']
-		},
-		{
-			title: '⚙️ Administration',
-			commands: ['add', 'take', 'reset']
 		}
 	],
 	casino: [
@@ -362,7 +357,7 @@ const commandGroups = {
 	fun: [
 		{
 			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry', 'gta6', 'mblackjack']
+			commands: ['meme', 'wanted', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry', 'gta6']
 		},
 		{
 			title: '💬 Attributions',
@@ -388,7 +383,7 @@ const commandGroups = {
 	utility: [
 		{
 			title: '⚙️ System Commands',
-			commands: ['help', 'ping', 'reload', 'togglecmd']
+			commands: ['help', 'ping', 'togglecmd']
 		},
 		{
 			title: '📅 Reminders & AFK',
@@ -396,13 +391,13 @@ const commandGroups = {
 		},
 		{
 			title: 'ℹ️ Information Lookup',
-			commands: ['server', 'servericon', 'user', 'avatar', 'rep', 'rank', 'snipe', 'support']
+			commands: ['server', 'servericon', 'user', 'avatar', 'rep', 'rank', 'snipe', 'support', 'invite']
 		}
 	],
 	developer: [
 		{
 			title: '👑 Owner / Developer Commands',
-			commands: ['devinfo', 'eval']
+			commands: ['devinfo', 'eval', 'reload', 'add', 'take', 'reset', 'awardachievement', 'setquoteschannel', 'trigger']
 		}
 	]
 };

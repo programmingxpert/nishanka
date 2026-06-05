@@ -131,7 +131,7 @@ function createMinesGridRows(grid, revealed, active, minesCount, revealedCount, 
 }
 
 module.exports = {
-    category: 'economy',
+    category: 'casino',
     cooldown: 10,
     data: new SlashCommandBuilder()
         .setName('mines')

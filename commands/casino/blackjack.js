@@ -798,7 +798,7 @@ async function selectBet(context, channel, user) {
 
 // ─── Module export ────────────────────────────────────────────────────────────
 module.exports = {
-    category: 'fun',
+    category: 'casino',
     aliases: ['bj'],
     cooldown: 5,
     data: new SlashCommandBuilder()
