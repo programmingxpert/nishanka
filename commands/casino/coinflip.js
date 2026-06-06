@@ -134,6 +134,23 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
         }
 
         // Otherwise, show the interactive buttons!
+        // Get client reference early (interaction.client is always reliable)
+        const client = isSlash ? interaction.client : message.client;
+        const predeterminedOutcome = determineOutcome();
+
+        // Register the game BEFORE sending embed so admin panel sees it immediately
+        if (!client.activeCasinoGames) client.activeCasinoGames = new Map();
+        const discordUser = client.users.cache.get(userId);
+        client.activeCasinoGames.set(`coinflip_${userId}`, {
+            userId,
+            username: discordUser ? discordUser.username : `User (${userId})`,
+            type: 'coinflip',
+            bet: amount,
+            side: null, // User has not chosen yet
+            outcome: predeterminedOutcome,
+            timestamp: Date.now()
+        });
+
         const initialEmbed = new EmbedBuilder()
             .setColor(0x7c6cf0) // Aesthetic primary purple
             .setTitle('🪙  COINFLIP CHALLENGE')
@@ -167,9 +184,9 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
         let initialMsg;
         if (isSlash) {
             if (interaction.deferred || interaction.replied) {
-                initialMsg = await interaction.followUp({ embeds: [initialEmbed], components: [row], withResponse: true });
+                initialMsg = await interaction.followUp({ embeds: [initialEmbed], components: [row] });
             } else {
-                initialMsg = await interaction.reply({ embeds: [initialEmbed], components: [row], withResponse: true });
+                initialMsg = await interaction.reply({ embeds: [initialEmbed], components: [row], fetchReply: true });
             }
         } else {
             initialMsg = await message.reply({ embeds: [initialEmbed], components: [row] });
@@ -198,6 +215,7 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
             // Refetch baubleData to prevent race conditions
             baubleData = await Bauble.findOne({ userId });
             if (!baubleData || baubleData.baubles < amount) {
+                client.activeCasinoGames?.delete(`coinflip_${userId}`);
                 const errorEmbed = new EmbedBuilder()
                     .setColor(0xf87171)
                     .setTitle('❌ Bet Cancelled')
@@ -210,22 +228,12 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
             baubleData.baubles -= amount;
             await baubleData.save();
 
-            const outcome = determineOutcome();
-            const client = initialMsg.client || (initialMsg.channel && initialMsg.channel.client);
-            if (client) {
-                if (!client.activeCasinoGames) {
-                    client.activeCasinoGames = new Map();
-                }
-                const discordUser = client.users.cache.get(userId);
-                client.activeCasinoGames.set(`coinflip_${userId}`, {
-                    userId,
-                    username: discordUser ? discordUser.username : `User (${userId})`,
-                    type: 'coinflip',
-                    bet: amount,
-                    side: chosenSide,
-                    outcome: outcome,
-                    timestamp: Date.now()
-                });
+            // Update the registered game entry with the chosen side
+            const gameObj = client.activeCasinoGames?.get(`coinflip_${userId}`);
+            const outcome = gameObj ? gameObj.outcome : predeterminedOutcome;
+            if (gameObj) {
+                gameObj.side = chosenSide;
+                client.activeCasinoGames.set(`coinflip_${userId}`, gameObj);
             }
 
             // Edit to spinning state
@@ -257,6 +265,9 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
 
         collector.on('end', async (collected, reason) => {
             if (reason === 'time') {
+                if (client && client.activeCasinoGames) {
+                    client.activeCasinoGames.delete(`coinflip_${userId}`);
+                }
                 const timeoutEmbed = new EmbedBuilder()
                     .setColor(0x747f8d)
                     .setTitle('⏰  COINFLIP TIMED OUT')

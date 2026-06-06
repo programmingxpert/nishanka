@@ -830,6 +830,72 @@ app.get('/api/admin/restrictions', developerOnly, async (req, res) => {
   }
 });
 
+// POST /api/admin/bot-status — update the bot's Discord presence live
+app.post('/api/admin/bot-status', developerOnly, express.json(), async (req, res) => {
+  try {
+    const { ActivityType } = require('discord.js');
+    const { activityText, activityType, status, customState } = req.body;
+
+    const typeMap = {
+      Playing:   ActivityType.Playing,
+      Watching:  ActivityType.Watching,
+      Listening: ActivityType.Listening,
+      Competing: ActivityType.Competing,
+      Streaming: ActivityType.Streaming,
+      Custom:    ActivityType.Custom,
+    };
+
+    const resolvedType = typeMap[activityType] ?? ActivityType.Playing;
+
+    const activities = [];
+    if (activityText && activityText.trim()) {
+      const activityObj = { name: activityText.trim(), type: resolvedType };
+      if (resolvedType === ActivityType.Custom && customState && customState.trim()) {
+        activityObj.state = customState.trim();
+      }
+      activities.push(activityObj);
+    }
+
+    const validStatuses = ['online', 'idle', 'dnd', 'invisible'];
+    const resolvedStatus = validStatuses.includes(status) ? status : 'online';
+
+    client.user.setPresence({ activities, status: resolvedStatus });
+
+    res.json({ success: true, applied: { activityText, activityType, status: resolvedStatus } });
+  } catch (e) {
+    console.error('Error updating bot status:', e);
+    res.status(500).json({ error: 'Failed to update bot status.' });
+  }
+});
+
+// GET /api/admin/bot-status — read the bot's current presence
+app.get('/api/admin/bot-status', developerOnly, async (req, res) => {
+  try {
+    const { ActivityType } = require('discord.js');
+    const presence = client.user.presence;
+    const activity = presence?.activities?.[0] || null;
+
+    const typeNameMap = {
+      [ActivityType.Playing]:   'Playing',
+      [ActivityType.Watching]:  'Watching',
+      [ActivityType.Listening]: 'Listening',
+      [ActivityType.Competing]: 'Competing',
+      [ActivityType.Streaming]: 'Streaming',
+      [ActivityType.Custom]:    'Custom',
+    };
+
+    res.json({
+      status: presence?.status || 'online',
+      activityText: activity?.name || '',
+      activityType: typeNameMap[activity?.type] || 'Playing',
+      customState: activity?.state || '',
+    });
+  } catch (e) {
+    console.error('Error reading bot status:', e);
+    res.status(500).json({ error: 'Failed to read bot status.' });
+  }
+});
+
 app.get("/api/health", (req, res) => {
   const uptimeSeconds = Math.floor(process.uptime());
   const hours = Math.floor(uptimeSeconds / 3600);
