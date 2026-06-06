@@ -9,11 +9,10 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('coinflip')
         .setDescription('Flip a coin to gamble your baubles (heads, tails, or draw).')
-        .addIntegerOption(option =>
+        .addStringOption(option =>
             option.setName('amount')
-                .setDescription('The amount of Baubles to gamble.')
+                .setDescription('Amount of Baubles to gamble (e.g. 200, 1k, all, half, 50%)')
                 .setRequired(true)
-                .setMinValue(200)
         )
         .addStringOption(option =>
             option.setName('side')
@@ -28,7 +27,12 @@ module.exports = {
 
     async execute(interaction) {
         const userId = interaction.user.id;
-        const amount = interaction.options.getInteger('amount');
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId });
+        const amountStr = interaction.options.getString('amount');
+        const amount = require('../../utils/economyEngine').parseAmount(amountStr, baubleData?.baubles ?? 0);
+        if (isNaN(amount) || amount < 200) {
+            return interaction.reply({ content: '❌ The minimum amount is **200** Baubles. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
         const side = interaction.options.getString('side')?.toLowerCase() || null;
 
         await runCoinflip({
@@ -66,7 +70,8 @@ module.exports = {
             sideArg = '';
         }
 
-        const amount = parseAmount(amountArg);
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId: message.author.id });
+        const amount = parseAmount(amountArg, baubleData?.baubles ?? 0);
         if (isNaN(amount) || amount < 200) {
             return message.reply('❌ The minimum amount to gamble is **200** Baubles.');
         }

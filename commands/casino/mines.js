@@ -136,11 +136,10 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('mines')
         .setDescription('Stake baubles in a minesweeper grid! Find diamonds to multiply your winnings.')
-        .addIntegerOption(option =>
+        .addStringOption(option =>
             option.setName('amount')
-                .setDescription('The amount of Baubles to stake.')
+                .setDescription('Amount of Baubles to stake (e.g. 500, 1k, all, half, 50%)')
                 .setRequired(true)
-                .setMinValue(500)
         )
         .addIntegerOption(option =>
             option.setName('mines')
@@ -152,7 +151,12 @@ module.exports = {
 
     async execute(interaction) {
         const userId = interaction.user.id;
-        const amount = interaction.options.getInteger('amount');
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId });
+        const amountStr = interaction.options.getString('amount');
+        const amount = require('../../utils/economyEngine').parseAmount(amountStr, baubleData?.baubles ?? 0);
+        if (isNaN(amount) || amount < 500) {
+            return interaction.reply({ content: '❌ The minimum amount to stake is **500** Baubles. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
         const minesCount = interaction.options.getInteger('mines') || 3;
         const hasSpecifiedMines = interaction.options.getInteger('mines') !== null;
 
@@ -174,7 +178,8 @@ module.exports = {
         }
 
         const { parseAmount } = require('../../utils/economyEngine');
-        const amount = parseAmount(args[0]);
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId });
+        const amount = parseAmount(args[0], baubleData?.baubles ?? 0);
         if (isNaN(amount) || amount < 500) {
             return message.reply('❌ The minimum amount to stake is **500** Baubles.');
         }

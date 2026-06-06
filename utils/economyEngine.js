@@ -153,26 +153,47 @@ async function checkCatchUpEconomy(client) {
 }
 
 /**
- * Parses an amount string (like "10K", "1.5M", etc.) into a number.
+ * Parses an amount string (like "10K", "1.5M", "all", "half", "50%") into a number.
  * Supports k/K (thousands), m/M (millions), b/B (billions).
- * Returns NaN if it's invalid.
+ * Pass `balance` to enable shorthand keywords:
+ *   "all" / "everything" / "max" / "yolo"  → full balance
+ *   "half"                                  → floor(balance / 2)
+ *   "X%" / "X %" (0‒100)                   → floor(balance * X / 100)
+ * Returns NaN if the input is invalid.
  */
-function parseAmount(input) {
+function parseAmount(input, balance) {
     if (typeof input === 'number') return Math.floor(input);
     if (typeof input !== 'string') return NaN;
-    
-    const cleaned = input.trim().replace(/,/g, '');
-    const match = cleaned.match(/^(\d+(?:\.\d+)?)\s*([kmbKMB]?)$/);
+
+    const cleaned = input.trim().toLowerCase().replace(/,/g, '');
+
+    // Shorthand keywords — only resolved when a balance is supplied
+    if (balance !== undefined && balance !== null) {
+        if (['all', 'everything', 'max', 'yolo'].includes(cleaned)) {
+            return Math.floor(balance);
+        }
+        if (cleaned === 'half') {
+            return Math.floor(balance / 2);
+        }
+        const pctMatch = cleaned.match(/^(\d+(?:\.\d+)?)\s*%$/);
+        if (pctMatch) {
+            const pct = parseFloat(pctMatch[1]);
+            if (pct >= 0 && pct <= 100) return Math.floor(balance * pct / 100);
+        }
+    }
+
+    const match = cleaned.match(/^(\d+(?:\.\d+)?)\s*([kmb]?)$/);
     if (!match) return NaN;
-    
+
     const num = parseFloat(match[1]);
-    const suffix = match[2].toLowerCase();
-    
+    const suffix = match[2];
+
     if (suffix === 'k') return Math.floor(num * 1000);
     if (suffix === 'm') return Math.floor(num * 1000000);
     if (suffix === 'b') return Math.floor(num * 1000000000);
     return Math.floor(num);
 }
+
 
 module.exports = {
     calculateEconomy,

@@ -27,11 +27,10 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('duckrace')
         .setDescription('Bet Glimmering Baubles on a high-stakes duck race!')
-        .addIntegerOption(option =>
+        .addStringOption(option =>
             option.setName('bet')
-                .setDescription('Amount of Glimmering Baubles to bet.')
-                .setRequired(true)
-                .setMinValue(10))
+                .setDescription('Amount of Glimmering Baubles to bet (e.g. 10, 1k, all, half, 50%)')
+                .setRequired(true))
         .addStringOption(option =>
             option.setName('duck')
                 .setDescription('Choose the duck you think will win.')
@@ -44,7 +43,13 @@ module.exports = {
                 )),
 
     async execute(interaction) {
-        const bet = interaction.options.getInteger('bet');
+        const userId = interaction.user.id;
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId });
+        const betStr = interaction.options.getString('bet');
+        const bet = require('../../utils/economyEngine').parseAmount(betStr, baubleData?.baubles ?? 0);
+        if (isNaN(bet) || bet < 10) {
+            return interaction.reply({ content: '❌ Please specify a valid bet amount of at least **10 Baubles**. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
         const duckChoice = interaction.options.getString('duck');
         await runDuckRace({
             interaction,
@@ -60,7 +65,9 @@ module.exports = {
             return message.reply('⚠️ Usage: `-duckrace <bet> <duck_choice>`\nDucks to choose: `red`, `blue`, `green`, `yellow`');
         }
 
-        const bet = parseInt(args[0]);
+        const { parseAmount } = require('../../utils/economyEngine');
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId: message.author.id });
+        const bet = parseAmount(args[0], baubleData?.baubles ?? 0);
         if (isNaN(bet) || bet < 10) {
             return message.reply('❌ Please specify a valid bet amount of at least **10 Baubles**.');
         }

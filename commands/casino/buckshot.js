@@ -78,20 +78,26 @@ module.exports = {
                 .setDescription('The user you want to challenge.')
                 .setRequired(true)
         )
-        .addIntegerOption(o =>
+        .addStringOption(o =>
             o.setName('wager')
-                .setDescription('How many Baubles to put on the line.')
+                .setDescription('How many Baubles to put on the line (e.g. 1000, 1k, all, half, 50%)')
                 .setRequired(true)
-                .setMinValue(1000)
         ),
 
     async execute(interaction) {
+        const userId = interaction.user.id;
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId });
+        const wagerStr = interaction.options.getString('wager');
+        const wager = require('../../utils/economyEngine').parseAmount(wagerStr, baubleData?.baubles ?? 0);
+        if (isNaN(wager) || wager < 1000) {
+            return interaction.reply({ content: '❌ Minimum wager is **1,000 Baubles**. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
         await runBuckshot({
             isSlash: true,
             interaction,
             challenger: interaction.user,
             opponent: interaction.options.getUser('opponent'),
-            wager: interaction.options.getInteger('wager'),
+            wager,
         });
     },
 
@@ -119,7 +125,8 @@ module.exports = {
         }
 
         const { parseAmount } = require('../../utils/economyEngine');
-        const wager = parseAmount(args[1]);
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId: message.author.id });
+        const wager = parseAmount(args[1], baubleData?.baubles ?? 0);
         if (isNaN(wager) || wager < 1000) {
             return message.reply('❌ Minimum wager is **1,000 Baubles**.');
         }

@@ -32,11 +32,10 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('gamble')
         .setDescription('Gamble your Baubles with different risk and reward tiers!')
-        .addIntegerOption(option =>
+        .addStringOption(option =>
             option.setName('amount')
-                .setDescription('Amount of Baubles to gamble')
+                .setDescription('Amount of Baubles to gamble (e.g. 500, 1k, all, half, 50%)')
                 .setRequired(true)
-                .setMinValue(500)
         )
         .addStringOption(option =>
             option.setName('risk')
@@ -51,7 +50,12 @@ module.exports = {
 
     async execute(interaction) {
         const userId = interaction.user.id;
-        const amount = interaction.options.getInteger('amount');
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId });
+        const amountStr = interaction.options.getString('amount');
+        const amount = require('../../utils/economyEngine').parseAmount(amountStr, baubleData?.baubles ?? 0);
+        if (isNaN(amount) || amount < 500) {
+            return interaction.reply({ content: '❌ The minimum amount to gamble is **500** Baubles. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
         const risk = interaction.options.getString('risk') || 'medium';
 
         await handleGamble({
@@ -68,7 +72,8 @@ module.exports = {
     async executePrefix(message, args) {
         const userId = message.author.id;
         const { parseAmount } = require('../../utils/economyEngine');
-        const amount = parseAmount(args[0]);
+        const baubleData = await require('../../models/baubleSchema').findOne({ userId });
+        const amount = parseAmount(args[0], baubleData?.baubles ?? 0);
         const risk = (args[1] || 'medium').toLowerCase();
 
         if (isNaN(amount) || amount < 500) {

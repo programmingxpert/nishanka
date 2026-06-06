@@ -175,8 +175,9 @@ module.exports = {
             const giverId = message.author.id;
             const receiver = message.mentions.users.first();
             const { parseAmount } = require('../../utils/economyEngine');
-            const amount = parseAmount(args[1]);
-            // REMOVE const guildId = message.guild.id;  // Get the guild ID
+            const _tempBauble = await require('../../models/baubleSchema').findOne({ userId: giverId });
+            const amount = parseAmount(args[1], _tempBauble?.baubles ?? 0);
+            let giverBaubleData = await Bauble.findOne({ userId: giverId });
 
             if (!receiver) {
                 return message.reply('⚠️ Please mention a user to give Baubles to.');
@@ -184,12 +185,10 @@ module.exports = {
 
             const receiverId = receiver.id;
 
-            // Check if the Giver account exists and the send welcome message
-            let giverBaubleData = await Bauble.findOne({ userId: giverId});
-
             if (!giverBaubleData) {
                 return message.reply({content: "❌ You don't have any baubles! Use /bauble."});
             }
+
 
             if (giverId === receiverId) {
                 return message.reply('❌ You cannot give Baubles to yourself!');

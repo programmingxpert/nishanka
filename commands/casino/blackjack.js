@@ -861,25 +861,36 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('blackjack')
         .setDescription('Play a game of Blackjack and win Baubles!')
-        .addIntegerOption(option => 
+        .addStringOption(option => 
             option.setName('bet')
-                .setDescription('The amount of Baubles to bet (minimum 100)')
+                .setDescription('Baubles to bet (e.g. 100, 1k, all, half, 50%). Leave blank for the selector.')
                 .setRequired(false)
-                .setMinValue(100)
         ),
 
     async execute(interaction) {
-        const betAmount = interaction.options.getInteger('bet');
         const userId = interaction.user.id;
         const username = interaction.user.username;
 
         let baubleData = await Bauble.findOne({ userId });
         const balance = baubleData?.baubles ?? 0;
 
+        const betStr = interaction.options.getString('bet');
+        let betAmount = null;
+        if (betStr) {
+            const { parseAmount } = require('../../utils/economyEngine');
+            betAmount = parseAmount(betStr, balance);
+        }
+
         if (betAmount) {
             if (balance < 100) {
                 return interaction.reply({
                     content: `❌ You need at least 100 Baubles to play. You have **${balance.toLocaleString()}** Baubles.`,
+                    ephemeral: true
+                });
+            }
+            if (isNaN(betAmount) || betAmount < 100) {
+                return interaction.reply({
+                    content: `❌ Invalid bet amount. Use a number (minimum 100), \`all\`, \`half\`, or \`50%\`.`,
                     ephemeral: true
                 });
             }

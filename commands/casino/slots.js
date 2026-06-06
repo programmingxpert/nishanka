@@ -12,16 +12,15 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('slots')
         .setDescription('Spin the Glimmering Bauble slots!')
-        .addIntegerOption(option =>
+        .addStringOption(option =>
             option.setName('bet')
-                .setDescription('The amount of Baubles to bet.')
-                .setRequired(true)
-                .setMinValue(100)),
+                .setDescription('Amount of Baubles to bet (e.g. 100, 1k, all, half, 50%)')
+                .setRequired(true)),
 
     async execute(interaction) {
         try {
             const userId = interaction.user.id;
-            const bet = interaction.options.getInteger('bet');
+            const betStr = interaction.options.getString('bet');
 
             // Check if user exists and apply the welcome message if they don't
             let baubleData = await Bauble.findOne({ userId });
@@ -43,6 +42,9 @@ module.exports = {
                 await baubleData.save();
                 return; // Exit out of this to stop the old method
             }
+
+            const { parseAmount } = require('../../utils/economyEngine');
+            const bet = parseAmount(betStr, baubleData.baubles);
 
             if (bet < 100) {
                 return interaction.reply({ content: `❌ The minimum bet for slots is **100** Baubles.`, ephemeral: true });
