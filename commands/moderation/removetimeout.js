@@ -26,6 +26,16 @@ module.exports = {
 
 		await member.timeout(null, reason);
 
+		const { logServerEvent } = require('../../utils/serverLogger');
+		await logServerEvent(
+			interaction.guild.id,
+			'TIMEOUT_REMOVE',
+			`Removed timeout from ${user.username}`,
+			interaction.user,
+			user,
+			{ reason }
+		);
+
 		// Try to DM the user
 		try {
 			await user.send(`✅ Your **timeout has been removed** in **${interaction.guild.name}**.\n**Reason:** ${reason}`);
@@ -61,6 +71,16 @@ module.exports = {
 		if (!member.moderatable) return message.reply('🚫 I cannot remove timeout from that user.');
 
 		await member.timeout(null, reason);
+
+		const { logServerEvent } = require('../../utils/serverLogger');
+		await logServerEvent(
+			message.guild.id,
+			'TIMEOUT_REMOVE',
+			`Removed timeout from ${user.username}`,
+			message.author,
+			user,
+			{ reason }
+		);
 
 		// Try to DM the user
 		try {

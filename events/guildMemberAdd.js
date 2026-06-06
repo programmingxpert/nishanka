@@ -56,6 +56,22 @@ module.exports = {
             }
 
             // ─── 5. Logging System (Member Join) ───
+            if (settings.logging?.memberJoin !== false) {
+                const { logServerEvent } = require('../utils/serverLogger');
+                await logServerEvent(
+                    member.guild.id,
+                    'MEMBER_JOIN',
+                    `Member joined: ${member.user.username}`,
+                    null,
+                    member.user,
+                    {
+                        userId: member.user.id,
+                        userTag: member.user.tag,
+                        createdTimestamp: member.user.createdTimestamp
+                    }
+                );
+            }
+
             if (settings.logging?.enabled && settings.logging?.channelId && settings.logging?.memberJoin !== false) {
                 const logChannel = member.guild.channels.cache.get(settings.logging.channelId);
                 if (logChannel) {

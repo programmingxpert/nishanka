@@ -210,6 +210,24 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
             baubleData.baubles -= amount;
             await baubleData.save();
 
+            const outcome = determineOutcome();
+            const client = initialMsg.client || (initialMsg.channel && initialMsg.channel.client);
+            if (client) {
+                if (!client.activeCasinoGames) {
+                    client.activeCasinoGames = new Map();
+                }
+                const discordUser = client.users.cache.get(userId);
+                client.activeCasinoGames.set(`coinflip_${userId}`, {
+                    userId,
+                    username: discordUser ? discordUser.username : `User (${userId})`,
+                    type: 'coinflip',
+                    bet: amount,
+                    side: chosenSide,
+                    outcome: outcome,
+                    timestamp: Date.now()
+                });
+            }
+
             // Edit to spinning state
             const spinningEmbed = new EmbedBuilder()
                 .setColor(0x7c6cf0)
@@ -234,7 +252,7 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             // Complete the flip
-            await executeCoinflipOutcome({ userId, amount, side: chosenSide, initialMsg, baubleData });
+            await executeCoinflipOutcome({ userId, amount, side: chosenSide, initialMsg, baubleData, outcome });
         });
 
         collector.on('end', async (collected, reason) => {
@@ -255,6 +273,17 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
 
     } catch (err) {
         console.error('Error starting coinflip:', err);
+    }
+}
+
+function determineOutcome() {
+    const rand = Math.random();
+    if (rand < 0.001) {
+        return 'draw';
+    } else if (rand < 0.5005) {
+        return 'heads';
+    } else {
+        return 'tails';
     }
 }
 
@@ -286,23 +315,40 @@ async function executeCoinflipFlip({ userId, amount, side, interaction, message,
         replyMsg = await message.reply({ embeds: [initialEmbed] });
     }
 
+    const outcome = determineOutcome();
+    const client = replyMsg.client || (replyMsg.channel && replyMsg.channel.client);
+    if (client) {
+        if (!client.activeCasinoGames) {
+            client.activeCasinoGames = new Map();
+        }
+        const discordUser = client.users.cache.get(userId);
+        client.activeCasinoGames.set(`coinflip_${userId}`, {
+            userId,
+            username: discordUser ? discordUser.username : `User (${userId})`,
+            type: 'coinflip',
+            bet: amount,
+            side: side,
+            outcome: outcome,
+            timestamp: Date.now()
+        });
+    }
+
     // Wait 1.5 seconds for dramatic effect
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    await executeCoinflipOutcome({ userId, amount, side, initialMsg: replyMsg, baubleData });
+    await executeCoinflipOutcome({ userId, amount, side, initialMsg: replyMsg, baubleData, outcome });
 }
 
 // Calculate outcome and edit the embed
-async function executeCoinflipOutcome({ userId, amount, side, initialMsg, baubleData }) {
-    // Determine outcome
-    const rand = Math.random();
-    let outcome;
-    if (rand < 0.001) {
-        outcome = 'draw';
-    } else if (rand < 0.5005) {
-        outcome = 'heads';
-    } else {
-        outcome = 'tails';
+async function executeCoinflipOutcome({ userId, amount, side, initialMsg, baubleData, outcome }) {
+    const client = initialMsg.client || (initialMsg.channel && initialMsg.channel.client);
+    if (client && client.activeCasinoGames) {
+        client.activeCasinoGames.delete(`coinflip_${userId}`);
+    }
+
+    // Determine outcome fallback
+    if (!outcome) {
+        outcome = determineOutcome();
     }
 
     // Refetch/reload baubleData to prevent race conditions during the setTimeout

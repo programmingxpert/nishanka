@@ -613,6 +613,7 @@ app.get('/api/admin/minigames', developerOnly, (req, res) => {
           totalRounds: game.totalRounds,
           word: game.word,
           scrambled: game.scrambled,
+          allWords: game.allWords,
           timestamp: game.timestamp
         });
       }
@@ -644,6 +645,7 @@ app.get('/api/admin/minigames', developerOnly, (req, res) => {
           word: game.word,
           guessed: game.guessed,
           mistakes: game.mistakes,
+          allWords: game.allWords,
           timestamp: game.timestamp
         });
       }
@@ -678,6 +680,7 @@ app.get('/api/admin/minigames', developerOnly, (req, res) => {
           totalRounds: game.totalRounds,
           country: game.country,
           flagUrl: game.flagUrl,
+          allCountries: game.allCountries,
           timestamp: game.timestamp
         });
       }
@@ -698,6 +701,29 @@ app.get('/api/admin/minigames', developerOnly, (req, res) => {
       }
     }
 
+    const activeCoinflip = [];
+    const activeSlots = [];
+    const activeDuckrace = [];
+    const activeBlackjack = [];
+
+    if (client.activeCasinoGames) {
+      for (const [key, game] of client.activeCasinoGames.entries()) {
+        const discordUser = client.users.cache.get(game.userId);
+        const enriched = {
+          userId: game.userId,
+          username: discordUser ? discordUser.username : game.username || `User (${game.userId})`,
+          bet: game.bet,
+          timestamp: game.timestamp,
+          ...game
+        };
+
+        if (game.type === 'coinflip') activeCoinflip.push(enriched);
+        else if (game.type === 'slots') activeSlots.push(enriched);
+        else if (game.type === 'duckrace') activeDuckrace.push(enriched);
+        else if (game.type === 'blackjack') activeBlackjack.push(enriched);
+      }
+    }
+
     res.json({
       activeMines,
       activeScramble,
@@ -705,7 +731,11 @@ app.get('/api/admin/minigames', developerOnly, (req, res) => {
       activeHangman,
       activeGeoguesser,
       activeGuesstheflag,
-      activeEmojidecode
+      activeEmojidecode,
+      activeCoinflip,
+      activeSlots,
+      activeDuckrace,
+      activeBlackjack
     });
   } catch (e) {
     console.error('Error fetching admin minigames:', e);
@@ -1425,6 +1455,7 @@ app.get('/api/guilds', async (req, res) => {
 
 // Authenticate helper for guild endpoints
 const checkGuildAccess = async (req, guildId) => {
+  if (!client.guilds.cache.has(guildId)) return false;
   if (req.session.user && req.session.user.id === config.devId) return true;
   if (!req.session.accessToken) return false;
 
@@ -1690,6 +1721,11 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
       userRoles = member.roles.cache.map(r => r.id);
     } catch (err) {}
 
+    if (req.session.user && req.session.user.id === config.devId) {
+      isOwner = true;
+      isAdmin = true;
+    }
+
     const currentConfig = await GuildSettings.findOne({ guildId }).lean();
     const dbPerms = currentConfig?.dashboardPermissions || {};
 
@@ -1787,6 +1823,19 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
     // Save GuildSettings
     if (Object.keys(settingsUpdates).length > 0) {
       await GuildSettings.findOneAndUpdate({ guildId }, { $set: settingsUpdates }, { upsert: true, new: true });
+      try {
+        const { logServerEvent } = require('./utils/serverLogger');
+        await logServerEvent(
+          guildId,
+          'SETTINGS_UPDATE',
+          `Guild settings updated via Web Dashboard`,
+          req.session.user,
+          null,
+          { changes: Object.keys(settingsUpdates) }
+        );
+      } catch (err) {
+        console.error('Failed to log settings update in DB:', err);
+      }
     }
 
     // Save AutoMod
@@ -1823,6 +1872,212 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   } catch (err) {
     console.error('Save settings error:', err);
     res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// ─── Guild Server Logs API ──────────────────────────────────────────────────
+app.get('/api/guilds/:guildId/logs', async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const { getGuildPremiumTier } = require('./utils/premiumPromo');
+  const guildTier = await getGuildPremiumTier(guildId);
+
+  // Retention restrictions
+  let daysLimit = 30;
+  if (guildTier === 'lite') daysLimit = 60;
+  else if (guildTier === 'pro') daysLimit = 90;
+  else if (guildTier === 'network' || guildTier === 'lifetime') daysLimit = 365;
+
+  const sinceDate = new Date(Date.now() - daysLimit * 24 * 60 * 60 * 1000);
+
+  try {
+    const ServerLog = require('./models/serverLogSchema');
+    const { search, action, page = 1, limit = 50 } = req.query;
+
+    const filter = {
+      guildId,
+      timestamp: { $gte: sinceDate }
+    };
+
+    if (action && action !== 'ALL') {
+      filter.action = action;
+    }
+
+    if (search) {
+      filter.$or = [
+        { details: { $regex: search, $options: 'i' } },
+        { executorTag: { $regex: search, $options: 'i' } },
+        { targetTag: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await ServerLog.countDocuments(filter);
+    const logs = await ServerLog.find(filter)
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    res.json({
+      logs,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      premiumTier: guildTier,
+      daysLimit
+    });
+  } catch (err) {
+    console.error('Fetch server logs error:', err);
+    res.status(500).json({ error: 'Failed to retrieve server logs.' });
+  }
+});
+
+// ─── Guild Reaction Roles API ──────────────────────────────────────────────
+app.get('/api/guilds/:guildId/reaction-roles', async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const ReactionRole = require('./models/reactionRoleSchema');
+    const list = await ReactionRole.find({ guildId }).lean();
+    res.json(list);
+  } catch (err) {
+    console.error('Fetch reaction roles error:', err);
+    res.status(500).json({ error: 'Failed to fetch reaction roles' });
+  }
+});
+
+app.post('/api/guilds/:guildId/reaction-roles', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const { channelId, messageId, emojiStr, roleId, embedTitle, embedDesc } = req.body;
+
+  if (!channelId || !emojiStr || !roleId) {
+    return res.status(400).json({ error: 'Channel, Emoji and Role are required.' });
+  }
+
+  const parseEmoji = (str) => {
+    const match = str.match(/<?a?:?\w+:(\d+)>?/);
+    if (match) return match[1];
+    return str.trim();
+  };
+
+  try {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return res.status(404).json({ error: 'Bot is not in this server.' });
+
+    const channel = guild.channels.cache.get(channelId);
+    if (!channel) return res.status(400).json({ error: 'Selected text channel not found.' });
+
+    const role = guild.roles.cache.get(roleId);
+    if (!role) return res.status(400).json({ error: 'Selected role not found.' });
+
+    const botMember = guild.members.me;
+    if (role.position >= botMember.roles.highest.position) {
+      return res.status(400).json({ error: `The role is higher than the bot's highest role. Please drag the bot's role higher in Discord Server Settings.` });
+    }
+
+    let msg;
+    if (messageId) {
+      msg = await channel.messages.fetch(messageId).catch(() => null);
+      if (!msg) return res.status(404).json({ error: 'Could not find message in that channel.' });
+    } else {
+      // Create new panel message
+      const embed = new EmbedBuilder()
+        .setColor(0x7c6cf0)
+        .setTitle(embedTitle || 'Select Roles')
+        .setDescription(embedDesc || 'React to claim your roles!')
+        .addFields({ name: 'Roles List', value: `${emojiStr} ➜ <@&${roleId}>` })
+        .setTimestamp();
+
+      msg = await channel.send({ embeds: [embed] });
+    }
+
+    const emojiKey = parseEmoji(emojiStr);
+
+    // React
+    await msg.react(emojiStr).catch(() => {});
+
+    // Save mapping
+    const ReactionRole = require('./models/reactionRoleSchema');
+    await ReactionRole.findOneAndUpdate(
+      { guildId, messageId: msg.id, emoji: emojiKey },
+      { channelId, roleId },
+      { upsert: true, new: true }
+    );
+
+    // Log setting update
+    const { logServerEvent } = require('./utils/serverLogger');
+    await logServerEvent(
+      guildId,
+      'REACTION_ROLE_CREATE',
+      `Reaction role created on message ${msg.id} via Web Dashboard`,
+      req.session.user,
+      role,
+      { channelId, messageId: msg.id, emoji: emojiStr, roleId }
+    );
+
+    res.json({ success: true, messageId: msg.id });
+  } catch (err) {
+    console.error('Create reaction role error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create reaction role.' });
+  }
+});
+
+app.delete('/api/guilds/:guildId/reaction-roles', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  const { messageId, emoji } = req.body;
+
+  if (!messageId || !emoji) {
+    return res.status(400).json({ error: 'Message ID and Emoji are required.' });
+  }
+
+  try {
+    const ReactionRole = require('./models/reactionRoleSchema');
+    const mapping = await ReactionRole.findOneAndDelete({ guildId, messageId, emoji });
+    if (!mapping) return res.status(404).json({ error: 'Reaction role mapping not found.' });
+
+    // Try to remove bot reaction
+    const guild = client.guilds.cache.get(guildId);
+    if (guild) {
+      const channel = guild.channels.cache.get(mapping.channelId);
+      if (channel) {
+        const msg = await channel.messages.fetch(messageId).catch(() => null);
+        if (msg) {
+          const reaction = msg.reactions.cache.get(emoji);
+          if (reaction) {
+            await reaction.users.remove(guild.members.me.id).catch(() => {});
+          }
+        }
+      }
+    }
+
+    const role = guild?.roles.cache.get(mapping.roleId);
+
+    // Log setting update
+    const { logServerEvent } = require('./utils/serverLogger');
+    await logServerEvent(
+      guildId,
+      'REACTION_ROLE_DELETE',
+      `Reaction role mapping deleted on message ${messageId} via Web Dashboard`,
+      req.session.user,
+      role,
+      { messageId, emoji, roleId: mapping.roleId }
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete reaction role error:', err);
+    res.status(500).json({ error: 'Failed to delete reaction role' });
   }
 });
 

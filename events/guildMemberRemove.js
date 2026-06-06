@@ -24,6 +24,22 @@ module.exports = {
             }
 
             // ─── 2. Logging System (Member Leave) ───
+            if (settings.logging?.memberLeave !== false) {
+                const { logServerEvent } = require('../utils/serverLogger');
+                await logServerEvent(
+                    member.guild.id,
+                    'MEMBER_LEAVE',
+                    `Member left: ${member.user.username}`,
+                    null,
+                    member.user,
+                    {
+                        userId: member.user.id,
+                        userTag: member.user.tag,
+                        joinedTimestamp: member.joinedTimestamp
+                    }
+                );
+            }
+
             if (settings.logging?.enabled && settings.logging?.channelId && settings.logging?.memberLeave !== false) {
                 const logChannel = member.guild.channels.cache.get(settings.logging.channelId);
                 if (logChannel) {

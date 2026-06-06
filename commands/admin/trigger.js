@@ -1,11 +1,9 @@
 const { EmbedBuilder, PermissionsBitField } = require('discord.js');
 const Trigger = require('../../models/triggerSchema');
-const config = require('../../config.json');
+const { checkCommandPermission } = require('../../utils/permissions');
 
 module.exports = {
     category: 'admin',
-    devOnly: true,
-    hidden: true,
     data: {
         name: 'trigger',
         description: 'Manage simple text triggers for the server.',
@@ -14,8 +12,8 @@ module.exports = {
     aliases: ['triggers'],
     
     async executePrefix(message, args, client) {
-        if (message.author.id !== config.devId) {
-            return message.reply('❌ This command is restricted to the bot developer only.');
+        if (!await checkCommandPermission(message, 'triggers')) {
+            return message.reply('❌ You do not have permission to run this command.');
         }
 
         const subCommand = args[0]?.toLowerCase();

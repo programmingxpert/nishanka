@@ -23,6 +23,16 @@ module.exports = {
 		try {
 			await interaction.guild.members.unban(userId, reason);
 
+			const { logServerEvent } = require('../../utils/serverLogger');
+			await logServerEvent(
+				interaction.guild.id,
+				'UNBAN',
+				`Unbanned user ID ${userId}`,
+				interaction.user,
+				{ id: userId },
+				{ reason }
+			);
+
 			const embed = new EmbedBuilder()
 				.setTitle('🔓 User Unbanned')
 				.setColor(0x00cc99)
@@ -51,6 +61,16 @@ module.exports = {
 
 		try {
 			await message.guild.members.unban(userId, reason);
+
+			const { logServerEvent } = require('../../utils/serverLogger');
+			await logServerEvent(
+				message.guild.id,
+				'UNBAN',
+				`Unbanned user ID ${userId}`,
+				message.author,
+				{ id: userId },
+				{ reason }
+			);
 
 			const embed = new EmbedBuilder()
 				.setTitle('🔓 User Unbanned')

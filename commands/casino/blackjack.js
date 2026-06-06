@@ -70,6 +70,22 @@ function drawCardsANSI(cards, hideFirst = false) {
 // ─── Active games tracking (keyed by userId — allows multiple concurrent games per channel) ───
 const activeGames = new Set();
 
+function updateBlackjackCache(client, playerId, data) {
+    if (client && client.activeCasinoGames) {
+        const game = client.activeCasinoGames.get(`blackjack_${playerId}`);
+        if (game) {
+            Object.assign(game, data);
+        }
+    }
+}
+
+function deleteBlackjackCache(client, playerId) {
+    activeGames.delete(playerId);
+    if (client && client.activeCasinoGames) {
+        client.activeCasinoGames.delete(`blackjack_${playerId}`);
+    }
+}
+
 // ─── Database helper ──────────────────────────────────────────────────────────
 async function adjustBaubles(userId, amount) {
     let baubleData = await Bauble.findOne({ userId });
@@ -187,6 +203,24 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
     playerHand1.push(deck.pop(), deck.pop());
     dealerHand.push(deck.pop(), deck.pop());
 
+    const client = channel.client;
+    if (client) {
+        if (!client.activeCasinoGames) {
+            client.activeCasinoGames = new Map();
+        }
+        client.activeCasinoGames.set(`blackjack_${playerId}`, {
+            userId: playerId,
+            username: playerName,
+            type: 'blackjack',
+            bet: betAmount,
+            playerHand: playerHand1,
+            playerHand2: playerHand2,
+            dealerHand: dealerHand,
+            nextCards: deck.slice(-10).reverse(),
+            timestamp: Date.now()
+        });
+    }
+
     const getBalance = async () => {
         const data = await Bauble.findOne({ userId: playerId });
         return data?.baubles ?? 0;
@@ -267,7 +301,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
                     );
 
                 await channel.send({ embeds: [insResultEmbed] });
-                activeGames.delete(playerId);
+                deleteBlackjackCache(client, playerId);
                 return;
             } else {
                 const insLostEmbed = new EmbedBuilder()
@@ -296,7 +330,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
                 { name: "Dealer's Hand", value: drawCardsANSI(dealerHand), inline: true }
             );
         await channel.send({ embeds: [naturalPushEmbed] });
-        activeGames.delete(playerId);
+        deleteBlackjackCache(client, playerId);
         return;
     } else if (player1Total === 21) {
         const payout = Math.floor(betAmount * 2.5);
@@ -316,7 +350,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
         if (currentStreak >= 3) naturalWinEmbed.setDescription(naturalWinEmbed.data.description + `\n🔥 **Streak:** ${currentStreak}`);
         
         await channel.send({ embeds: [naturalWinEmbed] });
-        activeGames.delete(playerId);
+        deleteBlackjackCache(client, playerId);
         return;
     } else if (dealerStartTotal === 21) {
         const naturalLossEmbed = new EmbedBuilder()
@@ -329,7 +363,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
             );
         await handleStreak(playerId, false, channel);
         await channel.send({ embeds: [naturalLossEmbed] });
-        activeGames.delete(playerId);
+        deleteBlackjackCache(client, playerId);
         return;
     }
 
@@ -447,7 +481,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
             );
 
             await gameMsg.edit({ embeds: [surrenderEmbed], components: [disabledRow] });
-            activeGames.delete(playerId);
+            deleteBlackjackCache(client, playerId);
             return;
         }
 
@@ -464,6 +498,13 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
 
             currentHandIndex = 0;
             currentActionIsFirst = true;
+
+            updateBlackjackCache(client, playerId, {
+                playerHand: playerHand1,
+                playerHand2: playerHand2,
+                nextCards: deck.slice(-10).reverse(),
+                bet: betHand1 + betHand2
+            });
 
             await gameMsg.edit({ 
                 embeds: [buildEmbed(false, 'Split complete! Playing Hand 1.')], 
@@ -487,6 +528,13 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
                 playerHand2.push(deck.pop());
             }
 
+            updateBlackjackCache(client, playerId, {
+                playerHand: playerHand1,
+                playerHand2: playerHand2,
+                nextCards: deck.slice(-10).reverse(),
+                bet: betHand1 + betHand2
+            });
+
             if (isSplit && currentHandIndex === 0) {
                 currentHandIndex = 1;
                 currentActionIsFirst = true;
@@ -503,6 +551,11 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
 
         if (i.customId === 'bj_hit') {
             activeHand.push(deck.pop());
+            updateBlackjackCache(client, playerId, {
+                playerHand: playerHand1,
+                playerHand2: playerHand2,
+                nextCards: deck.slice(-10).reverse()
+            });
             const total = calculateHand(activeHand);
 
             if (total > 21) {
@@ -594,7 +647,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
         await handleStreak(playerId, false);
         await gameMsg.edit({ embeds: [buildEmbed(true, 'Bust!')] }).catch(() => {});
         await channel.send({ embeds: [bustEmbed] });
-        activeGames.delete(playerId);
+        deleteBlackjackCache(client, playerId);
         return;
     }
 
@@ -604,6 +657,10 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
 
     while (calculateHand(dealerHand) < 17) {
         dealerHand.push(deck.pop());
+        updateBlackjackCache(client, playerId, {
+            dealerHand: dealerHand,
+            nextCards: deck.slice(-10).reverse()
+        });
         await gameMsg.edit({ embeds: [buildEmbed(true, "Dealer drawing a card...")] }).catch(() => {});
         await delay(1500);
     }
@@ -691,7 +748,7 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
     }
 
     await channel.send({ embeds: [finalEmbed] });
-    activeGames.delete(playerId);
+    deleteBlackjackCache(client, playerId);
 }
 
 // ─── Bet selection ────────────────────────────────────────────────────────────
@@ -777,7 +834,7 @@ async function selectBet(context, channel, user) {
 
         runBlackjackGame(channel, userId, username, betAmount).catch(err => {
             console.error('[Blackjack] Game error:', err);
-            activeGames.delete(userId);
+            deleteBlackjackCache(channel.client, userId);
             channel.send({ content: '⚠️ An unexpected error ended the game. Sorry!' });
         });
     });
@@ -845,7 +902,7 @@ module.exports = {
 
             runBlackjackGame(interaction.channel, userId, username, betAmount).catch(err => {
                 console.error('[Blackjack] Game error:', err);
-                activeGames.delete(userId);
+                deleteBlackjackCache(interaction.client, userId);
                 interaction.channel.send({ content: '⚠️ An unexpected error ended the game. Sorry!' });
             });
         } else {
@@ -895,7 +952,7 @@ module.exports = {
 
             runBlackjackGame(message.channel, userId, username, betAmount).catch(err => {
                 console.error('[Blackjack] Game error:', err);
-                activeGames.delete(userId);
+                deleteBlackjackCache(message.client, userId);
                 message.channel.send({ content: '⚠️ An unexpected error ended the game. Sorry!' });
             });
         }

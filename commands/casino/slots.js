@@ -62,6 +62,22 @@ module.exports = {
                 slotEmojis[Math.floor(Math.random() * slotEmojis.length)],
             ];
 
+            const client = interaction.client;
+            if (client) {
+                if (!client.activeCasinoGames) {
+                    client.activeCasinoGames = new Map();
+                }
+                const discordUser = client.users.cache.get(userId);
+                client.activeCasinoGames.set(`slots_${userId}`, {
+                    userId,
+                    username: discordUser ? discordUser.username : `User (${userId})`,
+                    type: 'slots',
+                    bet: bet,
+                    outcome: slotResults,
+                    timestamp: Date.now()
+                });
+            }
+
             const spinningEmbed = new EmbedBuilder()
                 .setColor(0xFFA500)
                 .setTitle('🎰 Bauble Slots')
@@ -91,6 +107,11 @@ module.exports = {
             await interaction.editReply({ embeds: [updateEmbed2] });
 
             await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (client && client.activeCasinoGames) {
+                client.activeCasinoGames.delete(`slots_${userId}`);
+            }
+
             const finalEmbed = new EmbedBuilder()
                 .setColor(0xFFA500)
                 .setTitle('🎰 Bauble Slots')
@@ -140,7 +161,6 @@ module.exports = {
             await baubleData.save();
 
             // Check achievements
-            const client = interaction.client;
             if (client) {
                 if (isPremiumJackpot) {
                     await checkAndAwardAchievement(client, userId, 'slots_jackpot', interaction);

@@ -274,8 +274,10 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                     guildName: channel.guild?.name || 'Unknown Server',
                     channelName: channel.name,
                     word: word.toUpperCase(),
-                    guessedLetters: Array.from(guessedLetters).map(l => l.toUpperCase()),
+                    guessed: Array.from(guessedLetters).map(l => l.toUpperCase()),
+                    mistakes: mistakes,
                     remainingGuesses: 6 - mistakes,
+                    allWords: gameWords.map(w => w.toUpperCase()),
                     timestamp: Date.now()
                 });
             };
@@ -510,49 +512,7 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
         if (client.activeHangmanGames) {
             client.activeHangmanGames.delete(channel.id);
         }
-    }────────────────────────────────────────────────────────
-    activeGames.delete(channel.id);
-
-    const finalScores = _getSortedScores(scores);
-    if (finalScores.length === 0) {
-        return channel.send({
-            embeds: [
-                new EmbedBuilder()
-                    .setColor(0x95a5a6)
-                    .setTitle('🏁 Game Over')
-                    .setDescription('Nobody scored any points this game. Better luck next time!')
-            ]
-        });
     }
-
-    const { getGlobalMultiplier } = require('../../utils/economyEngine');
-    const globalMultiplier = await getGlobalMultiplier();
-
-    let finalText = '';
-    for (const [idx, { id: uId, name, points }] of finalScores.entries()) {
-        const reward = Math.floor(points * POINTS_PER_ROUND * globalMultiplier);
-        const medal = ['🥇', '🥈', '🥉'][idx] ?? `**${idx + 1}.**`;
-        finalText += `${medal} **${name}** — ${points} pt${points !== 1 ? 's' : ''} → +**${reward.toLocaleString()}** Baubles *(Economy Multiplier: ${globalMultiplier}x)*\n`;
-
-        try {
-            let baubleData = await Bauble.findOne({ userId: uId });
-            if (!baubleData) baubleData = new Bauble({ userId: uId, baubles: 0 });
-            baubleData.baubles += reward;
-            baubleData.dailyGameLastCompleted = new Date();
-            await baubleData.save();
-        } catch (e) {
-            console.error('[Hangman] Error saving baubles:', e);
-        }
-    }
-
-    await channel.send({
-        embeds: [
-            new EmbedBuilder()
-                .setColor(0x9b59b6)
-                .setTitle('🏆 Hangman — Final Results')
-                .setDescription(finalText)
-        ]
-    });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

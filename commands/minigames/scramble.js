@@ -171,6 +171,7 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
                 totalRounds,
                 word,
                 scrambled,
+                allWords: gameWords,
                 timestamp: Date.now()
             });
 
@@ -298,7 +299,6 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
             client.activeScrambleGames.delete(channel.id);
         }
     }
-}
 }
 
 module.exports = {

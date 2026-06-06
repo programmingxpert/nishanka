@@ -95,6 +95,16 @@ module.exports = {
                 { expiresAt },
                 { upsert: true, new: true }
             );
+
+            const { logServerEvent } = require('../../utils/serverLogger');
+            await logServerEvent(
+                interaction.guild.id,
+                'TEMPROLE_ADD',
+                `Assigned temporary role @${role.name} to ${user.username} for ${duration}`,
+                interaction.user,
+                user,
+                { roleId: role.id, roleName: role.name, duration, expiresAt, reason }
+            );
         } catch (error) {
             console.error("Temporary role assignment failed:", error);
             return interaction.reply({ content: `❌ Failed to assign role: ${error.message}`, ephemeral: true });
@@ -211,6 +221,16 @@ module.exports = {
                 { guildId: message.guild.id, userId: member.id, roleId: role.id },
                 { expiresAt },
                 { upsert: true, new: true }
+            );
+
+            const { logServerEvent } = require('../../utils/serverLogger');
+            await logServerEvent(
+                message.guild.id,
+                'TEMPROLE_ADD',
+                `Assigned temporary role @${role.name} to ${member.user.username} for ${duration}`,
+                message.author,
+                member.user,
+                { roleId: role.id, roleName: role.name, duration, expiresAt, reason }
             );
         } catch (error) {
             console.error("Temporary role assignment failed:", error);

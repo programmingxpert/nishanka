@@ -34,6 +34,23 @@ module.exports = {
 
         // ─── Logging System ───
         try {
+            if (settings?.logging?.messageDelete !== false) {
+                const { logServerEvent } = require('../utils/serverLogger');
+                await logServerEvent(
+                    message.guild.id,
+                    'MESSAGE_DELETE',
+                    `Message deleted in #${message.channel.name}`,
+                    message.author,
+                    null,
+                    {
+                        channelId: message.channel.id,
+                        channelName: message.channel.name,
+                        content: message.content || '',
+                        attachmentUrl: message.attachments.first()?.url || null
+                    }
+                );
+            }
+
             if (settings?.logging?.enabled && settings.logging?.channelId && settings.logging?.messageDelete !== false) {
                 // Avoid logging in the log channel itself to prevent loops
                 if (message.channel.id === settings.logging.channelId) return;

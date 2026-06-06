@@ -45,6 +45,16 @@ module.exports = {
 
             const deleted = await interaction.channel.bulkDelete(messages, true);
 
+            const { logServerEvent } = require('../../utils/serverLogger');
+            await logServerEvent(
+                interaction.guild.id,
+                'PURGE',
+                `Purged ${deleted.size} messages in #${interaction.channel.name}`,
+                interaction.user,
+                null,
+                { channelId: interaction.channel.id, channelName: interaction.channel.name, count: deleted.size, targetUser: targetUser?.tag || null }
+            );
+
             const embed = new EmbedBuilder()
                 .setTitle('🧹 Messages Purged')
                 .setColor(0x00aeef)
@@ -99,6 +109,16 @@ module.exports = {
             }
 
             const deleted = await message.channel.bulkDelete(messagesToDelete, true);
+
+            const { logServerEvent } = require('../../utils/serverLogger');
+            await logServerEvent(
+                message.guild.id,
+                'PURGE',
+                `Purged ${deleted.size} messages in #${message.channel.name}`,
+                message.author,
+                null,
+                { channelId: message.channel.id, channelName: message.channel.name, count: deleted.size, targetUser: targetUser?.tag || null }
+            );
 
             const embed = new EmbedBuilder()
                 .setTitle('🧹 Messages Purged')

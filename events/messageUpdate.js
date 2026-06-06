@@ -17,6 +17,24 @@ module.exports = {
         // ─── Logging System ───
         try {
             const settings = await GuildSettings.findOne({ guildId: oldMessage.guild.id }).lean();
+            
+            if (settings?.logging?.messageUpdate !== false) {
+                const { logServerEvent } = require('../utils/serverLogger');
+                await logServerEvent(
+                    oldMessage.guild.id,
+                    'MESSAGE_UPDATE',
+                    `Message edited in #${oldMessage.channel.name}`,
+                    oldMessage.author,
+                    null,
+                    {
+                        channelId: oldMessage.channel.id,
+                        channelName: oldMessage.channel.name,
+                        oldContent: oldMessage.content || '',
+                        newContent: newMessage.content || ''
+                    }
+                );
+            }
+
             if (settings?.logging?.enabled && settings.logging?.channelId && settings.logging?.messageUpdate !== false) {
                 // Avoid logging in the log channel itself to prevent loops
                 if (oldMessage.channel.id === settings.logging.channelId) return;

@@ -98,6 +98,16 @@ module.exports = {
 				reason: reason
 			});
 
+			const { logServerEvent } = require('../../utils/serverLogger');
+			await logServerEvent(
+				interaction.guild.id,
+				'BAN',
+				`Banned ${targetUser.username}`,
+				interaction.user,
+				targetUser,
+				{ reason, deleteMessageSeconds: deleteSeconds }
+			);
+
 			const optionLabels = {
 				'0': 'Don\'t delete any messages',
 				'3600': 'Previous 1 hour',
@@ -219,6 +229,16 @@ module.exports = {
 				deleteMessageSeconds: deleteSeconds,
 				reason: reason
 			});
+
+			const { logServerEvent } = require('../../utils/serverLogger');
+			await logServerEvent(
+				message.guild.id,
+				'BAN',
+				`Banned ${user.username}`,
+				message.author,
+				user,
+				{ reason, deleteMessageSeconds: deleteSeconds }
+			);
 
 			const optionLabels = {
 				'0': 'Don\'t delete any messages',

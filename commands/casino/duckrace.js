@@ -124,6 +124,38 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
             )
             .setTimestamp();
 
+        // Pre-simulate the race steps
+        const simulatedPositions = { red: 0, blue: 0, green: 0, yellow: 0 };
+        const raceSteps = [];
+        let simulatedWinner = null;
+        const keys = ['red', 'blue', 'green', 'yellow'];
+        
+        while (!simulatedWinner) {
+            const stepPos = {};
+            for (const key of keys) {
+                const move = Math.floor(Math.random() * 3) + 1;
+                simulatedPositions[key] += move;
+                stepPos[key] = simulatedPositions[key];
+            }
+            raceSteps.push({ ...stepPos });
+            
+            // Check if any duck finished
+            const finished = keys.filter(key => simulatedPositions[key] >= TRACK_LENGTH);
+            if (finished.length > 0) {
+                let maxDist = -1;
+                let potentialWinners = [];
+                for (const key of finished) {
+                    if (simulatedPositions[key] > maxDist) {
+                        maxDist = simulatedPositions[key];
+                        potentialWinners = [key];
+                    } else if (simulatedPositions[key] === maxDist) {
+                        potentialWinners.push(key);
+                    }
+                }
+                simulatedWinner = potentialWinners[Math.floor(Math.random() * potentialWinners.length)];
+            }
+        }
+
         let raceMsg;
         if (isSlash) {
             raceMsg = await interaction.reply({ embeds: [startEmbed], fetchReply: true });
@@ -131,34 +163,37 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
             raceMsg = await message.reply({ embeds: [startEmbed] });
         }
 
+        const client = raceMsg.client || (raceMsg.channel && raceMsg.channel.client);
+        if (client) {
+            if (!client.activeCasinoGames) {
+                client.activeCasinoGames = new Map();
+            }
+            const discordUser = client.users.cache.get(userId);
+            client.activeCasinoGames.set(`duckrace_${userId}`, {
+                userId,
+                username: discordUser ? discordUser.username : `User (${userId})`,
+                type: 'duckrace',
+                bet: bet,
+                choice: duckChoice,
+                outcome: simulatedWinner,
+                timestamp: Date.now()
+            });
+        }
+
         // Run the race loop
         let winner = null;
-        const keys = ['red', 'blue', 'green', 'yellow'];
+        let stepIndex = 0;
 
         while (!winner) {
             await new Promise(r => setTimeout(r, 1200));
 
-            // Move each duck forward by 1, 2, or 3 steps
+            const step = raceSteps[stepIndex++];
             for (const key of keys) {
-                const move = Math.floor(Math.random() * 3) + 1; // 1 to 3
-                positions[key] += move;
+                positions[key] = step[key];
             }
 
-            // Check if any duck finished
-            const finished = keys.filter(key => positions[key] >= TRACK_LENGTH);
-            if (finished.length > 0) {
-                // Find winner (one with max distance, or tie break)
-                let maxDist = -1;
-                let potentialWinners = [];
-                for (const key of finished) {
-                    if (positions[key] > maxDist) {
-                        maxDist = positions[key];
-                        potentialWinners = [key];
-                    } else if (positions[key] === maxDist) {
-                        potentialWinners.push(key);
-                    }
-                }
-                winner = potentialWinners[Math.floor(Math.random() * potentialWinners.length)];
+            if (stepIndex >= raceSteps.length) {
+                winner = simulatedWinner;
             }
 
             // Render updated track embed
@@ -177,6 +212,10 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
                 .setTimestamp();
 
             await raceMsg.edit({ embeds: [raceEmbed] }).catch(() => {});
+        }
+
+        if (client && client.activeCasinoGames) {
+            client.activeCasinoGames.delete(`duckrace_${userId}`);
         }
 
         // Declare results

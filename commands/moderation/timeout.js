@@ -46,6 +46,16 @@ module.exports = {
 
         try {
             await member.timeout(msDuration, reason);
+
+            const { logServerEvent } = require('../../utils/serverLogger');
+            await logServerEvent(
+                interaction.guild.id,
+                'TIMEOUT',
+                `Timed out ${user.username} for ${duration}`,
+                interaction.user,
+                user,
+                { duration, msDuration, reason }
+            );
         } catch (error) {
             console.error("Timeout failed:", error);
             return interaction.reply({ content: `❌ Timeout failed: ${error.message}`, ephemeral: true });
@@ -121,6 +131,16 @@ module.exports = {
 
         try {
             await member.timeout(msDuration, reason);
+
+            const { logServerEvent } = require('../../utils/serverLogger');
+            await logServerEvent(
+                message.guild.id,
+                'TIMEOUT',
+                `Timed out ${user.username} for ${duration}`,
+                message.author,
+                user,
+                { duration, msDuration, reason }
+            );
         } catch (error) {
             console.error("Timeout failed:", error);
             return message.reply(`❌ Timeout failed: ${error.message}`);

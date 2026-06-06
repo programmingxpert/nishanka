@@ -42,6 +42,16 @@ module.exports = {
 		});
 		await warning.save();
 
+		const { logServerEvent } = require('../../utils/serverLogger');
+		await logServerEvent(
+			guildId,
+			'WARN',
+			`Warned user ${user.username}`,
+			interaction.user,
+			user,
+			{ reason, warnId: counter.count }
+		);
+
 		const embed = new EmbedBuilder()
 			.setTitle('⚠️ User Warned')
 			.setColor(0xffa500)
@@ -84,6 +94,16 @@ module.exports = {
 			timestamp: new Date()
 		});
 		await warning.save();
+
+		const { logServerEvent } = require('../../utils/serverLogger');
+		await logServerEvent(
+			guildId,
+			'WARN',
+			`Warned user ${user.username}`,
+			message.author,
+			user,
+			{ reason, warnId: counter.count }
+		);
 
 		const embed = new EmbedBuilder()
 			.setTitle('⚠️ User Warned')

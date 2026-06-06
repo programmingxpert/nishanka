@@ -78,18 +78,21 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
             await initialMessageOrInteraction.reply({ embeds: [startEmbed] });
         }
 
-        // copy to avoid duplicate flags in same game
+        // pre-select all flags for the game to expose answers upfront
+        const selectedFlags = [];
         let availableFlags = [...flagEntries];
+        for (let i = 0; i < totalRounds; i++) {
+            if (availableFlags.length === 0) availableFlags = [...flagEntries];
+            const randomIndex = Math.floor(Math.random() * availableFlags.length);
+            selectedFlags.push(availableFlags[randomIndex]);
+            availableFlags.splice(randomIndex, 1);
+        }
+        const allCountries = selectedFlags.map(f => f[1][0].replace(/\b\w/g, l => l.toUpperCase()));
 
         for (let round = 1; round <= totalRounds; round++) {
             await delay(5000);
             
-            if (availableFlags.length === 0) availableFlags = [...flagEntries];
-            
-            const randomIndex = Math.floor(Math.random() * availableFlags.length);
-            const [countryCode, validAnswers] = availableFlags[randomIndex];
-            availableFlags.splice(randomIndex, 1); // remove so it doesn't repeat
-            
+            const [countryCode, validAnswers] = selectedFlags[round - 1];
             const flagUrl = `https://flagcdn.com/w320/${countryCode}.png`;
             const primaryName = validAnswers[0].replace(/\b\w/g, l => l.toUpperCase());
             
@@ -101,6 +104,7 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
                 totalRounds,
                 country: primaryName,
                 flagUrl,
+                allCountries,
                 timestamp: Date.now()
             });
 

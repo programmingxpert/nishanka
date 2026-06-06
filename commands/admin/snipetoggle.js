@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
+const { checkCommandPermission } = require('../../utils/permissions');
 
 module.exports = {
     category: 'admin',
@@ -7,10 +8,12 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('snipetoggle')
         .setDescription('Enable or disable the snipe feature in the server.')
-        .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator)
         .addBooleanOption(opt => opt.setName('enabled').setDescription('Enable?').setRequired(true)),
 
     async execute(interaction) {
+        if (!await checkCommandPermission(interaction, 'bot')) {
+            return interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
+        }
         const enabled = interaction.options.getBoolean('enabled');
         const guildId = interaction.guild.id;
 
@@ -33,8 +36,8 @@ module.exports = {
     },
 
     async executePrefix(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ You need the **Administrator** permission to run this command.');
+        if (!await checkCommandPermission(message, 'bot')) {
+            return message.reply('❌ You do not have permission to run this command.');
         }
 
         const guildId = message.guild.id;
