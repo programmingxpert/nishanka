@@ -1,6 +1,7 @@
 /* eslint-disable */
 require('./utils/logger'); // Start console log interception immediately
 require('dotenv').config();
+const config = require('./config.json');
 
 // Silences deprecated "ephemeral" response options warnings from discord.js
 const originalEmitWarning = process.emitWarning;
@@ -1535,8 +1536,8 @@ const checkPermission = async (req, guildId, tab) => {
 
   if (isAdmin) return true;
 
-  const config = await GuildSettings.findOne({ guildId }).lean();
-  const dbPerms = config?.dashboardPermissions || {};
+  const guildConfig = await GuildSettings.findOne({ guildId }).lean();
+  const dbPerms = guildConfig?.dashboardPermissions || {};
   const allowedRoles = dbPerms[tab] || [];
   if (allowedRoles.length === 0) return true; // Default fallback
   return allowedRoles.some(r => userRoles.includes(r));
