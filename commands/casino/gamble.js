@@ -2,14 +2,12 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
-const LOSS_TRACKER = new Map(); // Hidden 5-loss safety net
-
 function getWinChance(risk) {
     switch (risk) {
-        case 'low': return { chance: 0.8, multiplier: 1.5 };
-        case 'medium': return { chance: 0.5, multiplier: 2 };
-        case 'high': return { chance: 0.3, multiplier: 3 };
-        default: return { chance: 0.5, multiplier: 2 };
+        case 'low': return { chance: 0.62, multiplier: 1.5 };
+        case 'medium': return { chance: 0.47, multiplier: 2 };
+        case 'high': return { chance: 0.28, multiplier: 3 };
+        default: return { chance: 0.47, multiplier: 2 };
     }
 }
 
@@ -101,9 +99,6 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
 
         const { chance, multiplier } = getWinChance(risk);
 
-        const losses = LOSS_TRACKER.get(userId) || 0;
-        const isGuaranteedWin = losses >= 5;
-
         let actualChance = chance;
         let cloverUsed = false;
         let rabbitUsed = false;
@@ -127,7 +122,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             }
         }
 
-        const didWin = isGuaranteedWin || Math.random() < actualChance;
+        const didWin = Math.random() < actualChance;
         baubleData.gamblePlayed = (baubleData.gamblePlayed || 0) + 1;
 
         if (didWin) {
@@ -140,8 +135,6 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             }
             baubleData.dailyGambleLastCompleted = new Date();
             await retryDatabaseOperation(() => baubleData.save());
-
-            LOSS_TRACKER.set(userId, 0); // reset loss streak
 
             // Check achievements
             if (interactionOrMessage) {
@@ -218,7 +211,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
 
             return sendWin(embed);
         } else {
-            const pity = Math.ceil(amount * 0.1); // 10% refund
+            const pity = Math.ceil(amount * 0.05); // 5% refund
             baubleData.baubles = baubleData.baubles - amount + pity;
             const previousStreak = baubleData.gambleStreak || 0;
             baubleData.gambleStreak = 0;
@@ -233,9 +226,6 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
                 }
             }
 
-            const newStreak = losses + 1;
-            LOSS_TRACKER.set(userId, newStreak);
-
             let streakLossDesc = '';
             if (previousStreak > 0) {
                 streakLossDesc = `\n\n*💔 Loss ended your winning streak of **${previousStreak}** wins!*`;
@@ -246,10 +236,19 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             else if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot boost (+15%) was active, but failed you!*';
             else if (cloverUsed) luckText = '\n\n🍀 *Lucky Clover boost (+10%) was active, but failed you!*';
 
+            const funnyLossMessages = [
+                "The dealer sneezed on your coins, rendering them completely unhygienic.",
+                "You dropped your baubles under a vending machine. You tried to reach them, but got your arm stuck.",
+                "A cheeky raccoon emerged from the vents, snatched your pity coins, and scurried off.",
+                "You tripped on a loose carpet tile, and your coins fell straight down an elevator shaft.",
+                "The bet multiplier spun so fast it created a small vortex that sucked your wallet into another dimension."
+            ];
+            const randomLossMsg = funnyLossMessages[Math.floor(Math.random() * funnyLossMessages.length)];
+
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle('💔 You Lost...')
-                .setDescription(`Risk: **${risk}**\nYou lost **${amount}**, but got **${pity}** Baubles back out of pity.${streakLossDesc}${luckText}`)
+                .setDescription(`Risk: **${risk}**\nYou lost **${amount}**, but got **${pity}** Baubles back out of pity.\n\n*${randomLossMsg}*${streakLossDesc}${luckText}`)
                 .addFields(
                     { name: '💸 New Balance', value: `${baubleData.baubles} Baubles`, inline: true },
                     { name: '🪹 Win Streak', value: `\`0 wins\` (Best: \`${baubleData.gambleMaxStreak || 0}\`)`, inline: true }

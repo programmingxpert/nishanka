@@ -3,20 +3,6 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const Bauble = require('../../models/baubleSchema');
 const { checkAndAwardAchievement } = require('../../utils/achievements');
 
-function getTargetMaxMultiplier(minesCount) {
-    if (minesCount <= 8) return null;
-    const targets = {
-        9: 15000,
-        10: 20000,
-        11: 25000,
-        12: 30000,
-        13: 40000,
-        14: 50000,
-        15: 75000
-    };
-    return targets[minesCount];
-}
-
 function getMultiplier(totalTiles, minesCount, revealedCount) {
     if (revealedCount === 0) return 1.0;
     
@@ -29,25 +15,6 @@ function getMultiplier(totalTiles, minesCount, revealedCount) {
         waysWinning *= (totalTiles - minesCount - i);
     }
     const standardMult = (1 - houseEdge) * (waysTotal / waysWinning);
-    
-    if (minesCount > 8) {
-        const targetMax = getTargetMaxMultiplier(minesCount);
-        const maxClicks = 16 - minesCount;
-        
-        // Calculate standard max for this mine count
-        let standardMaxTotal = 1;
-        let standardMaxWinning = 1;
-        for (let i = 0; i < maxClicks; i++) {
-            standardMaxTotal *= (totalTiles - i);
-            standardMaxWinning *= (totalTiles - minesCount - i);
-        }
-        const standardMax = (1 - houseEdge) * (standardMaxTotal / standardMaxWinning);
-        
-        const ratio = targetMax / standardMax;
-        const scale = Math.pow(ratio, revealedCount / maxClicks);
-        const mult = standardMult * scale;
-        return Math.round(mult * 100) / 100;
-    }
     
     return Math.round(standardMult * 100) / 100;
 }

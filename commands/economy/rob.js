@@ -10,7 +10,8 @@ const STRATEGIES = {
         minSteal: 0.05,
         maxSteal: 0.10,
         finePercent: 0.05,
-        description: 'High success chance (65%), but low yield (steals 5-10% wallet). 5% wallet fine if caught.'
+        description: 'High success chance (65%), but low yield (steals 5-10% wallet). 5% wallet fine if caught.',
+        maxCap: 30000
     },
     smash: {
         id: 'smash',
@@ -19,16 +20,18 @@ const STRATEGIES = {
         minSteal: 0.10,
         maxSteal: 0.20,
         finePercent: 0.12,
-        description: 'Medium success chance (50%) and yield (steals 10-20% wallet). 12% wallet fine if caught.'
+        description: 'Medium success chance (50%) and yield (steals 10-20% wallet). 12% wallet fine if caught.',
+        maxCap: 75000
     },
     heist: {
         id: 'heist',
         name: '🏦 High-Stakes Heist',
         baseSuccess: 0.30,
-        minSteal: 0.25,
-        maxSteal: 0.40,
+        minSteal: 0.45,
+        maxSteal: 0.75,
         finePercent: 0.25,
-        description: 'Low success chance (30%), but huge yield (steals 25-40% wallet). Massive 25% wallet fine if caught.'
+        description: 'Low success chance (30%), but huge yield (steals 45-75% wallet). Massive 25% wallet fine if caught.',
+        maxCap: 500000
     }
 };
 
@@ -279,7 +282,7 @@ async function runRob({ interaction, message, robberUser, targetUser, strategyOv
             .addFields(
                 { name: '🥷  Stealthy Pickpocket', value: `*Difficulty:* Easy (1-Stage QTE) | *Steals:* 5-10% wallet | *Fine:* 5% wallet`, inline: false },
                 { name: '💰  Smash & Grab', value: `*Difficulty:* Medium (2-Stage HP + Grab) | *Steals:* 10-20% wallet | *Fine:* 12% wallet`, inline: false },
-                { name: '🏦  High-Stakes Heist', value: `*Difficulty:* Hard (3-Stage Sequence/Laser/Puzzle) | *Steals:* 25-40% wallet | *Fine:* 25% wallet`, inline: false }
+                { name: '🏦  High-Stakes Heist', value: `*Difficulty:* Hard (3-Stage Sequence/Laser/Puzzle) | *Steals:* 45-75% wallet | *Fine:* 25% wallet`, inline: false }
             )
             .setFooter({ text: 'Pick a strategy within 30 seconds to proceed!' })
             .setTimestamp();
@@ -376,6 +379,30 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
     const robberId = robberUser.id;
     const targetId = targetUser.id;
 
+    const STEALTH_FAILS = [
+        "❌ **Ouch!** You successfully slipped your hand into their pocket, but grabbed a mouse trap instead!",
+        "❌ **Awkward...** Your hand got stuck in their pocket lining, and you had to ask them to help you pull it out.",
+        "❌ **Squeak!** You tried to sneak up, but your new shoes squeaked like a pack of angry mice, alerting the target.",
+        "❌ **Snort!** You sneezed directly onto the back of the target's neck while reaching for their wallet.",
+        "❌ **Oops!** You accidentally tickled the target, causing them to turn around and slap you."
+    ];
+
+    const SMASH_FAILS = [
+        "❌ **Time ran out!** You hit the glass, but the hammer recoiled and hit you in the forehead, knocking you cold.",
+        "❌ **Slippery!** You slipped on a puddle of wax and crashed through a display of souvenir mugs instead of the gold.",
+        "❌ **Oh no!** You shattered the glass, but a swarm of museum security bees was released!",
+        "❌ **Clumsy!** You dropped the heavy hammer on your own foot, screaming in pain and alerting the guards.",
+        "❌ **Busted!** You grabbed a box of worthless files while security guards closed in."
+    ];
+
+    const HEIST_FAILS = [
+        "❌ **Short circuit!** You tried to cut the red wire but accidentally cut your own headphones wire.",
+        "❌ **Laser burn!** You tried to slip under the lasers but your baggy pants caught on a beam, triggering the alarm.",
+        "❌ **Forgot to carry the one!** You got the gear combo math wrong. The vault door laughed at you and locked down.",
+        "❌ **Slip!** You hesitated too long and the security lasers reactivated right on your back.",
+        "❌ **Confused!** You clicked the wrong terminal connection wire and short-circuited the panel."
+    ];
+
     // 1. Initial State Save & Cooldown Write
     let robberData = await Bauble.findOne({ userId: robberId });
     let targetData = await Bauble.findOne({ userId: targetId });
@@ -453,10 +480,66 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         robberData = await Bauble.findOne({ userId: robberId });
         targetData = await Bauble.findOne({ userId: targetId });
 
-        const stealPercent = Math.random() * (strategy.maxSteal - strategy.minSteal) + strategy.minSteal;
-        let stolen = Math.floor(targetData.baubles * stealPercent);
-        stolen = Math.min(stolen, STOLEN_CAP);
-        stolen = Math.min(targetData.baubles, stolen);
+        let isJackpot = false;
+        let jackpotChance = 0.001; // 0.1% for Stealth (rare asf)
+        if (strategy.id === 'smash') jackpotChance = 0.003; // 0.3% for Smash
+        if (strategy.id === 'heist') jackpotChance = 0.005; // 0.5% for Heist
+
+        if (Math.random() < jackpotChance) {
+            isJackpot = true;
+        }
+
+        let stolen = 0;
+        let successEmbed;
+
+        if (isJackpot) {
+            const stealPercent = Math.random() * 0.35 + 0.40; // 40% to 75%
+            stolen = Math.floor(targetData.baubles * stealPercent);
+            stolen = Math.min(stolen, 1500000); // 1,500,000 cap for Jackpot (up to 1.5 mil or more!)
+            stolen = Math.min(targetData.baubles, stolen);
+
+            let jackpotDesc = "";
+            if (strategy.id === 'stealth') {
+                jackpotDesc = `✨ **JACKPOT PICKPOCKET!** While pickpocketing, you pulled out a shiny gold vault key! You ran to their bank safe and cleared out their secret compartment!`;
+            } else if (strategy.id === 'smash') {
+                jackpotDesc = `✨ **JACKPOT CRATE!** The display case didn't just contain gold nuggets—it was the target's entire backup life savings stash!`;
+            } else {
+                jackpotDesc = `✨ **JACKPOT HEIST!** You cracked the legendary diamond vault safe! Tons of baubles spilled onto the floor like a waterfall!`;
+            }
+
+            successEmbed = new EmbedBuilder()
+                .setColor(0xF1C40F) // Gold color
+                .setTitle('✨💎 GOLDEN JACKPOT ROBBERY! 💎✨')
+                .setDescription(`${jackpotDesc}\n\n**${robberUser.username}** hit the absolute motherlode against **${targetUser.username}**! 🏦💵`)
+                .addFields(
+                    { name: '🥷 Robber', value: `<@${robberId}>`, inline: true },
+                    { name: '👤 Victim', value: `<@${targetId}>`, inline: true },
+                    { name: '💰 Baubles Looted', value: `**+${stolen.toLocaleString()}** Baubles (JACKPOT!)`, inline: true },
+                    { name: '👛 Your Balance', value: `\`${(robberData.baubles + stolen).toLocaleString()}\` Baubles`, inline: true },
+                    { name: '👛 Target Balance', value: `\`${(targetData.baubles - stolen).toLocaleString()}\` Baubles`, inline: true }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Rarity: Extremely Rare outcome!' });
+        } else {
+            const stealPercent = Math.random() * (strategy.maxSteal - strategy.minSteal) + strategy.minSteal;
+            stolen = Math.floor(targetData.baubles * stealPercent);
+            const maxCap = strategy.maxCap || STOLEN_CAP;
+            stolen = Math.min(stolen, maxCap);
+            stolen = Math.min(targetData.baubles, stolen);
+
+            successEmbed = new EmbedBuilder()
+                .setColor(0x2ECC71)
+                .setTitle('🎉  SUCCESSFUL ROBBERY!')
+                .setDescription(`**${robberUser.username}** successfully pulled off a **${strategy.name}** against **${targetUser.username}**! 🏦💸`)
+                .addFields(
+                    { name: '🥷 Robber', value: `<@${robberId}>`, inline: true },
+                    { name: '👤 Victim', value: `<@${targetId}>`, inline: true },
+                    { name: '💰 Baubles Stolen', value: `**+${stolen.toLocaleString()}** Baubles`, inline: true },
+                    { name: '👛 Your Balance', value: `\`${(robberData.baubles + stolen).toLocaleString()}\` Baubles`, inline: true },
+                    { name: '👛 Target Balance', value: `\`${(targetData.baubles - stolen).toLocaleString()}\` Baubles`, inline: true }
+                )
+                .setTimestamp();
+        }
 
         targetData.baubles -= stolen;
         robberData.baubles += stolen;
@@ -474,6 +557,17 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         const client = (interaction || message)?.client;
         if (client) {
             const { checkAndAwardAchievement } = require('../../utils/achievements');
+            
+            // New robbery amount & jackpot achievements
+            if (isJackpot) {
+                await checkAndAwardAchievement(client, robberId, 'rob_jackpot', interaction || message);
+            }
+            if (stolen >= 1000000) {
+                await checkAndAwardAchievement(client, robberId, 'rob_millionaire', interaction || message);
+            } else if (stolen >= 500000) {
+                await checkAndAwardAchievement(client, robberId, 'rob_half_millionaire', interaction || message);
+            }
+
             if (strategy.id === 'heist') {
                 const heists = robberData.heistRobsSuccessful || 0;
                 if (heists >= 10) {
@@ -511,19 +605,6 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
                 await checkAndAwardAchievement(client, robberId, 'rob_success_500', null);
             }
         }
-
-        const successEmbed = new EmbedBuilder()
-            .setColor(0x2ECC71)
-            .setTitle('🎉  SUCCESSFUL ROBBERY!')
-            .setDescription(`**${robberUser.username}** successfully pulled off a **${strategy.name}** against **${targetUser.username}**! 🏦💸`)
-            .addFields(
-                { name: '🥷 Robber', value: `<@${robberId}>`, inline: true },
-                { name: '👤 Victim', value: `<@${targetId}>`, inline: true },
-                { name: '💰 Baubles Stolen', value: `**+${stolen.toLocaleString()}** Baubles`, inline: true },
-                { name: '👛 Your Balance', value: `\`${robberData.baubles.toLocaleString()}\` Baubles`, inline: true },
-                { name: '👛 Target Balance', value: `\`${targetData.baubles.toLocaleString()}\` Baubles`, inline: true }
-            )
-            .setTimestamp();
 
         if (initialMsg) {
             await initialMsg.edit({ embeds: [successEmbed], components: [] }).catch(() => {});
@@ -634,7 +715,7 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
 
         await updateMsg(playEmbed, row);
 
-        const timeLimit = cloverActive ? 3500 : 2000; // Lucky clover adds 1.5 seconds
+        const timeLimit = cloverActive ? 2500 : (Math.floor(Math.random() * 300) + 1200); // 1.2s - 1.5s reaction limit
 
         try {
             const btnClick = await initialMsg.awaitMessageComponent({
@@ -648,7 +729,8 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
             if (btnClick.customId === 'stealth_wallet') {
                 return await handleSuccess();
             } else {
-                return await handleFailure('❌ **Wrong item!** You grabbed keys and made noise, alerting the target!', '🚨  CAUGHT RED-HANDED!');
+                const randomFail = STEALTH_FAILS[Math.floor(Math.random() * STEALTH_FAILS.length)];
+                return await handleFailure(randomFail, '🚨  CAUGHT RED-HANDED!');
             }
 
         } catch (err) {
@@ -659,11 +741,11 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         // --- Smash & Grab (Brute HP speed click + Quick Select) ---
         
         // Stage 1: Smash the display case
-        let glassHp = 3;
+        let glassHp = 5;
         const stage1Embed = new EmbedBuilder()
             .setColor(0xE67E22)
             .setTitle('🔨  SMASH THE GLASS')
-            .setDescription(`Click the **Smash** button **3 times** before the alarm sounds! ⏰\n\n**Glass Integrity:** 🟥🟥🟥 (3/3 HP)`)
+            .setDescription(`Click the **Smash** button **5 times** before the alarm sounds! ⏰\n\n**Glass Integrity:** 🟥🟥🟥🟥🟥 (5/5 HP)`)
             .setTimestamp();
 
         const smashBtn = new ButtonBuilder().setCustomId('smash_click').setLabel('Smash! 🔨').setStyle(ButtonStyle.Danger);
@@ -672,7 +754,7 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         await updateMsg(stage1Embed, row);
 
         let stage1Succeeded = false;
-        const endTime = Date.now() + 5000; // 5 seconds total
+        const endTime = Date.now() + 3500; // 3.5 seconds total
 
         while (Date.now() < endTime && glassHp > 0) {
             const timeLeft = endTime - Date.now();
@@ -693,11 +775,11 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
                     break;
                 }
 
-                const hpIcons = '🟥'.repeat(glassHp) + '⬛'.repeat(3 - glassHp);
+                const hpIcons = '🟥'.repeat(glassHp) + '⬛'.repeat(5 - glassHp);
                 const progressEmbed = new EmbedBuilder()
                     .setColor(0xE67E22)
                     .setTitle('🔨  SMASH THE GLASS')
-                    .setDescription(`Keep smashing! 🔨\n\n**Glass Integrity:** ${hpIcons} (${glassHp}/3 HP)`)
+                    .setDescription(`Keep smashing! 🔨\n\n**Glass Integrity:** ${hpIcons} (${glassHp}/5 HP)`)
                     .setTimestamp();
 
                 await updateMsg(progressEmbed, row);
@@ -708,7 +790,8 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         }
 
         if (!stage1Succeeded) {
-            return await handleFailure('❌ **Time ran out!** You failed to break the glass display case before guards closed in.', '🚨  CAUGHT RED-HANDED!');
+            const randomFail = SMASH_FAILS[0]; // Hammer recoiled
+            return await handleFailure(randomFail, '🚨  CAUGHT RED-HANDED!');
         }
 
         // Stage 2: Grab the Gold
@@ -732,7 +815,7 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
 
         await updateMsg(stage2Embed, row);
 
-        const timeLimit = cloverActive ? 3500 : 2000; // 3.5s vs 2s
+        const timeLimit = cloverActive ? 2200 : 1300; // 2.2s vs 1.3s
 
         try {
             const btnClick = await initialMsg.awaitMessageComponent({
@@ -746,11 +829,13 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
             if (btnClick.customId === 'smash_gold') {
                 return await handleSuccess();
             } else {
-                return await handleFailure('❌ **Wrong item!** You grabbed a box of worthless files while escaping.', '🚨  CAUGHT RED-HANDED!');
+                const randomFail = SMASH_FAILS[Math.floor(Math.random() * (SMASH_FAILS.length - 2)) + 1]; // select from index 1-3
+                return await handleFailure(randomFail, '🚨  CAUGHT RED-HANDED!');
             }
 
         } catch (err) {
-            return await handleFailure('⏰ **Too slow!** Security guards blocked the exit before you could grab the gold.', '🚨  CAUGHT RED-HANDED!');
+            const randomFail = SMASH_FAILS[4]; // Security guards blocked exit
+            return await handleFailure(randomFail, '🚨  CAUGHT RED-HANDED!');
         }
 
     } else if (strategy.id === 'heist') {
@@ -779,7 +864,7 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         const sequence = ['heist_red', 'heist_blue', 'heist_green'];
         let seqIndex = 0;
         let stage1Succeeded = true;
-        const endTime = Date.now() + 7000; // 7 seconds
+        const endTime = Date.now() + 4000; // 4 seconds
 
         while (Date.now() < endTime && seqIndex < 3) {
             const timeLeft = endTime - Date.now();
@@ -820,7 +905,8 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         }
 
         if (!stage1Succeeded) {
-            return await handleFailure('❌ **Security Panel Shorted!** You clicked the wrong sequence or ran out of time.', '🚨  ALARM TRIGGERED!');
+            const randomFail = HEIST_FAILS[Math.random() > 0.5 ? 0 : 4]; // Short circuit or Confused
+            return await handleFailure(randomFail, '🚨  ALARM TRIGGERED!');
         }
 
         // STAGE 2: Bypass Laser Grid (Tension gate)
@@ -851,7 +937,8 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         }
 
         if (clickedEarly) {
-            return await handleFailure('❌ **Laser Grid Tripped!** You ran straight into a red security laser!', '🚨  ALARM TRIGGERED!');
+            const randomFail = HEIST_FAILS[1]; // Pants caught
+            return await handleFailure(randomFail, '🚨  ALARM TRIGGERED!');
         }
 
         // Lasers offline
@@ -866,7 +953,7 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
 
         await updateMsg(greenEmbed, heistRow);
 
-        const laserTimeLimit = cloverActive ? 2200 : 1200; // 2.2s vs 1.2s
+        const laserTimeLimit = cloverActive ? 1800 : 800; // 1.8s vs 0.8s
 
         let stage2Succeeded = false;
         try {
@@ -882,13 +969,15 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         }
 
         if (!stage2Succeeded) {
-            return await handleFailure('❌ **Lasers Reactivated!** You hesitated too long and the grid turned back on.', '🚨  ALARM TRIGGERED!');
+            const randomFail = HEIST_FAILS[3]; // Hesitated / reactivated
+            return await handleFailure(randomFail, '🚨  ALARM TRIGGERED!');
         }
 
         // STAGE 3: Combination Lock Encryption (Math code cracking)
-        const a = Math.floor(Math.random() * 8) + 3; // 3-10
-        const b = Math.floor(Math.random() * 8) + 3; // 3-10
-        const answer = a * b;
+        const a = Math.floor(Math.random() * 8) + 4; // 4-11
+        const b = Math.floor(Math.random() * 8) + 4; // 4-11
+        const c = Math.floor(Math.random() * 8) + 2; // 2-9
+        const answer = (a * b) - c;
         
         const choices = [answer, answer + 5, answer - 3, answer + 12];
         const uniqueChoices = [...new Set(choices)].filter(x => x >= 0);
@@ -900,16 +989,16 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
         const lockEmbed = new EmbedBuilder()
             .setColor(0xD35400)
             .setTitle('🏦  HEIST STAGE 3: CRACK THE VAULT COMBINATION')
-            .setDescription(`🔐 Solve the mechanical gear calculation to crack the vault combo:\n\n💻 **Gear Rotation Formula:** What is **${a} × ${b}**?`)
+            .setDescription(`🔐 Solve the mechanical gear calculation to crack the vault combo:\n\n💻 **Gear Rotation Formula:** What is **(${a} × ${b}) - ${c}**?`)
             .setTimestamp();
 
         heistRow = new ActionRowBuilder().addComponents(
-            uniqueChoices.map(c => new ButtonBuilder().setCustomId(`combo_${c}`).setLabel(String(c)).setStyle(ButtonStyle.Secondary))
+            uniqueChoices.map(choiceVal => new ButtonBuilder().setCustomId(`combo_${choiceVal}`).setLabel(String(choiceVal)).setStyle(ButtonStyle.Secondary))
         );
 
         await updateMsg(lockEmbed, heistRow);
 
-        const comboTimeLimit = cloverActive ? 6500 : 4000; // 6.5s vs 4.0s
+        const comboTimeLimit = cloverActive ? 5000 : 3200; // 5.0s vs 3.2s
 
         try {
             const comboClick = await initialMsg.awaitMessageComponent({
@@ -924,7 +1013,8 @@ async function executeRobberyResolution({ interaction, message, robberUser, targ
             if (chosenAnswer === answer) {
                 return await handleSuccess();
             } else {
-                return await handleFailure('❌ **Incorrect Combination!** The vault mechanism locked down and triggered alarms.', '🚨  VAULT LOCKDOWN!');
+                const randomFail = HEIST_FAILS[2]; // Forgot to carry the one
+                return await handleFailure(randomFail, '🚨  VAULT LOCKDOWN!');
             }
 
         } catch (err) {

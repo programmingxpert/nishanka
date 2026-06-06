@@ -296,10 +296,12 @@ function determineOutcome() {
     const rand = Math.random();
     if (rand < 0.001) {
         return 'draw';
-    } else if (rand < 0.5005) {
-        return 'heads';
+    } else if (rand < 0.040) {
+        return 'house_event'; // 3.9% funny house event loss
+    } else if (rand < 0.520) {
+        return 'heads'; // 48% heads
     } else {
-        return 'tails';
+        return 'tails'; // 48% tails
     }
 }
 
@@ -531,7 +533,20 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         else if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot boost (+15%) was active, but failed you!*';
         else if (cloverUsed) luckText = '\n\n🍀 *Lucky Clover boost (+10%) was active, but failed you!*';
 
-        if (outcome === 'draw') {
+        const funnyLossEvents = [
+            "A greedy seagull swoops down and snatches the coin mid-air! 🦅",
+            "The coin lands on a sewer grate, rolls around the rim, and drops straight into the abyss. 🕳️",
+            "The coin lands on edge, rolls under a heavy vending machine, and gets lost in the dust bunnies. 🖨️",
+            "A stray dog runs by, catches the coin in its mouth, and zooms away! 🐕",
+            "The coin spins so fast it friction-welds itself to the pavement. It's now part of the street. 🧲",
+            "The coin lands on a sleeping cat's nose. The cat sneezes, launching the coin into orbit. 🐈"
+        ];
+
+        if (outcome === 'house_event') {
+            const funnyEvent = funnyLossEvents[Math.floor(Math.random() * funnyLossEvents.length)];
+            finalEmbed.setTitle('💨  LOST THE COIN!')
+                .setDescription(`🪙 **Whoops!** ${funnyEvent}\nYou guessed **${side.toUpperCase()}** but lost your bet because the coin disappeared!${streakLossDesc}${luckText}`);
+        } else if (outcome === 'draw') {
             finalEmbed.setTitle('💔  COIN STOOD UPRIGHT!')
                 .setDescription(`🪙 The coin landed perfectly **sideways/upright** (0.1% chance)!\nYou guessed **${side.toUpperCase()}** and got nothing.${streakLossDesc}${luckText}`);
         } else {
