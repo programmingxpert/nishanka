@@ -4,10 +4,10 @@ const Bauble = require('../../models/baubleSchema');
 
 function getWinChance(risk) {
     switch (risk) {
-        case 'low': return { chance: 0.62, multiplier: 1.5 };
-        case 'medium': return { chance: 0.47, multiplier: 2 };
-        case 'high': return { chance: 0.28, multiplier: 3 };
-        default: return { chance: 0.47, multiplier: 2 };
+        case 'low': return { chance: 0.58, multiplier: 1.5 };
+        case 'medium': return { chance: 0.45, multiplier: 2 };
+        case 'high': return { chance: 0.25, multiplier: 3 };
+        default: return { chance: 0.45, multiplier: 2 };
     }
 }
 
@@ -114,10 +114,12 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             const luckTime = new Date(baubleData.luckExpiresAt).getTime();
             const isRabbit = (luckTime % 10 === 5);
             if (isRabbit) {
-                actualChance += 0.15;
+                // Rabbit's Foot converts 5.0% of losses to wins
+                actualChance = chance + (1 - chance) * 0.05;
                 rabbitUsed = true;
             } else {
-                actualChance += 0.10;
+                // Lucky Clover converts 4.0% of losses to wins
+                actualChance = chance + (1 - chance) * 0.04;
                 cloverUsed = true;
             }
         }
@@ -211,7 +213,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
 
             return sendWin(embed);
         } else {
-            const pity = Math.ceil(amount * 0.05); // 5% refund
+            const pity = Math.ceil(amount * 0.03); // 3% refund
             baubleData.baubles = baubleData.baubles - amount + pity;
             const previousStreak = baubleData.gambleStreak || 0;
             baubleData.gambleStreak = 0;

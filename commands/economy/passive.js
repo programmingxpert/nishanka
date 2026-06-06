@@ -6,7 +6,7 @@ module.exports = {
     category: 'economy',
     data: new SlashCommandBuilder()
         .setName('passive')
-        .setDescription('Toggle Passive Mode. Protects you from robbery/brawls, but prevents you from doing them.'),
+        .setDescription('Toggle Passive Mode. Protects you from robbery, but prevents you from robbing others.'),
 
     async execute(interaction) {
         try {
@@ -30,7 +30,7 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setColor(0xE74C3C) // Red / warning color
                     .setTitle('🔒 Passive Mode Disabled')
-                    .setDescription('You have disabled Passive Mode! You can now participate in battles and rob other players.\n\n⚠️ **WARNING:** You are now vulnerable to being robbed! You cannot enable Passive Mode again for **24 hours**.')
+                    .setDescription('You have disabled Passive Mode! You can now rob other players.\n\n⚠️ **WARNING:** You are now vulnerable to being robbed! You cannot enable Passive Mode again for **24 hours**.')
                     .setTimestamp();
 
                 return interaction.reply({ embeds: [embed] });
@@ -54,12 +54,11 @@ module.exports = {
                     .setColor(0xF1C40F)
                     .setTitle('⚠️ Enable Passive Mode?')
                     .setDescription(
-                        'Passive Mode protects you from being robbed and challenged to brawls, but:\n\n' +
-                        '🚫 **RESTRICTIONS:**\n' +
-                        '- You cannot rob other players.\n' +
-                        '- You cannot challenge others to brawls/battles.\n' +
-                        '- If you disable it later, you must wait **24 hours** before you can enable it again.\n\n' +
-                        'Are you sure you want to enable Passive Mode?'
+                         'Passive Mode protects you from being robbed, but:\n\n' +
+                         '🚫 **RESTRICTIONS:**\n' +
+                         '- You cannot rob other players.\n' +
+                         '- If you disable it later, you must wait **24 hours** before you can enable it again.\n\n' +
+                         'Are you sure you want to enable Passive Mode?'
                     );
 
                 const row = new ActionRowBuilder().addComponents(
@@ -96,7 +95,7 @@ module.exports = {
                         const successEmbed = new EmbedBuilder()
                             .setColor(0x2ECC71)
                             .setTitle('🛡️ Passive Mode Enabled')
-                            .setDescription('You have enabled Passive Mode! You are now completely safe from being robbed and challenged to battles.\n\n🚫 **Note:** You cannot rob other players or initiate battles while in Passive Mode.')
+                            .setDescription('You have enabled Passive Mode! You are now completely safe from being robbed.\n\n🚫 **Note:** You cannot rob other players while in Passive Mode.')
                             .setTimestamp();
 
                         await interaction.editReply({ embeds: [successEmbed], components: [] });
@@ -149,7 +148,7 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setColor(0xE74C3C)
                     .setTitle('🔒 Passive Mode Disabled')
-                    .setDescription('You have disabled Passive Mode! You can now participate in battles and rob other players.\n\n⚠️ **WARNING:** You are now vulnerable to being robbed! You cannot enable Passive Mode again for **24 hours**.')
+                    .setDescription('You have disabled Passive Mode! You can now rob other players.\n\n⚠️ **WARNING:** You are now vulnerable to being robbed! You cannot enable Passive Mode again for **24 hours**.')
                     .setTimestamp();
 
                 return message.reply({ embeds: [embed] });
@@ -169,12 +168,11 @@ module.exports = {
                     .setColor(0xF1C40F)
                     .setTitle('⚠️ Enable Passive Mode?')
                     .setDescription(
-                        'Passive Mode protects you from being robbed and challenged to brawls, but:\n\n' +
-                        '🚫 **RESTRICTIONS:**\n' +
-                        '- You cannot rob other players.\n' +
-                        '- You cannot challenge others to brawls/battles.\n' +
-                        '- If you disable it later, you must wait **24 hours** before you can enable it again.\n\n' +
-                        'Are you sure you want to enable Passive Mode?'
+                         'Passive Mode protects you from being robbed, but:\n\n' +
+                         '🚫 **RESTRICTIONS:**\n' +
+                         '- You cannot rob other players.\n' +
+                         '- If you disable it later, you must wait **24 hours** before you can enable it again.\n\n' +
+                         'Are you sure you want to enable Passive Mode?'
                     );
 
                 const row = new ActionRowBuilder().addComponents(
@@ -211,7 +209,7 @@ module.exports = {
                         const successEmbed = new EmbedBuilder()
                             .setColor(0x2ECC71)
                             .setTitle('🛡️ Passive Mode Enabled')
-                            .setDescription('You have enabled Passive Mode! You are now completely safe from being robbed and challenged to battles.\n\n🚫 **Note:** You cannot rob other players or initiate battles while in Passive Mode.')
+                            .setDescription('You have enabled Passive Mode! You are now completely safe from being robbed.\n\n🚫 **Note:** You cannot rob other players while in Passive Mode.')
                             .setTimestamp();
 
                         await response.edit({ embeds: [successEmbed], components: [] });

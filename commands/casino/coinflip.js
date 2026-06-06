@@ -296,12 +296,12 @@ function determineOutcome() {
     const rand = Math.random();
     if (rand < 0.001) {
         return 'draw';
-    } else if (rand < 0.040) {
-        return 'house_event'; // 3.9% funny house event loss
-    } else if (rand < 0.520) {
-        return 'heads'; // 48% heads
+    } else if (rand < 0.060) {
+        return 'house_event'; // 5.9% funny house event loss
+    } else if (rand < 0.530) {
+        return 'heads'; // 47% heads
     } else {
-        return 'tails'; // 48% tails
+        return 'tails'; // 47% tails
     }
 }
 
@@ -387,17 +387,17 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         }
     }
 
-    // 2. Good luck boost: clover (+10% win rate -> convert 20% of losses to wins) or rabbit's foot (+15% win rate -> convert 30% of losses to wins)
+    // 2. Good luck boost: clover (convert 2.0% of losses to wins) or rabbit's foot (convert 2.5% of losses to wins)
     if (!didWin && baubleData.luckExpiresAt && now < new Date(baubleData.luckExpiresAt).getTime()) {
         const luckTime = new Date(baubleData.luckExpiresAt).getTime();
         const isRabbit = (luckTime % 10 === 5);
         if (isRabbit) {
-            if (Math.random() < 0.30) {
+            if (Math.random() < 0.025) {
                 didWin = true;
                 rabbitUsed = true;
             }
         } else {
-            if (Math.random() < 0.20) {
+            if (Math.random() < 0.020) {
                 didWin = true;
                 cloverUsed = true;
             }

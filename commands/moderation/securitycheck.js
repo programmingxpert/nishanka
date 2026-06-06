@@ -353,21 +353,39 @@ module.exports = {
         let civilianCount = 0;
         let civilianFlaggedCount = 0;
 
+        const allowedRoleIds = new Set();
+        if (settings && settings.dashboardPermissions) {
+            for (const category in settings.dashboardPermissions) {
+                const rolesList = settings.dashboardPermissions[category];
+                if (Array.isArray(rolesList)) {
+                    rolesList.forEach(id => allowedRoleIds.add(id));
+                }
+            }
+        }
+        if (settings && settings.music && settings.music.djRoleId) {
+            allowedRoleIds.add(settings.music.djRoleId);
+        }
+
         for (const role of allRoles.values()) {
             if (role.managed || role.id === everyone.id) continue;
 
             const nameLower = role.name.toLowerCase();
-            const isModAdminRole = nameLower.includes('mod') || 
-                                   nameLower.includes('admin') || 
-                                   nameLower.includes('owner') || 
-                                   nameLower.includes('staff') || 
-                                   nameLower.includes('bot') || 
-                                   nameLower.includes('helper') || 
-                                   nameLower.includes('nishanka') ||
-                                   nameLower.includes('moderator') ||
-                                   nameLower.includes('developer');
+            const civilianKeywords = [
+                'member', 'user', 'verified', 'citizen', 'visitor', 'guest', 'gamer', 'player', 'level', 'rank', 
+                'color', 'ping', 'announcement', 'giveaway', 'subscriber', 'booster', 'vip', 'community', 'friend', 
+                'everyone', 'active', 'chat', 'verify', 'unverified', 'roleplay', 'rp', 'public', 'people', 'civilian'
+            ];
+            const hasCivilianName = civilianKeywords.some(keyword => nameLower.includes(keyword));
 
-            if (!isModAdminRole) {
+            // A role is classified as staff (not civilian) if:
+            // 1. It is explicitly configured in dashboard settings.
+            // 2. It has Administrator or Manage Server permissions, and doesn't have an explicitly civilian name.
+            const isStaffRole = allowedRoleIds.has(role.id) || 
+                                ((role.permissions.has(PermissionsBitField.Flags.Administrator) || role.permissions.has(PermissionsBitField.Flags.ManageGuild)) && !hasCivilianName);
+
+            const isCivilianRole = !isStaffRole;
+
+            if (isCivilianRole) {
                 civilianCount++;
                 const elevatedPerms = [];
                 const highPerms = [];

@@ -136,7 +136,7 @@ module.exports = {
                 }
                 finalEmbed.setColor(0x00FF00).setDescription('🎉 Jackpot! Three in a row!');
             } else if (slotResults[0] === slotResults[1] || slotResults[1] === slotResults[2] || slotResults[0] === slotResults[2]) {
-                winnings = Math.floor(bet * 1.5); // Two in a row: 1.5x payout
+                winnings = Math.floor(bet * 1.4); // Two in a row: 1.4x payout
                 isWin = true;
                 finalEmbed.setColor(0x00FFFF).setDescription('✨ Two in a row!');
             } else {

@@ -19,6 +19,12 @@ function getMultiplier(totalTiles, minesCount, revealedCount) {
     return Math.round(standardMult * 100) / 100;
 }
 
+function getMinClicks(minesCount) {
+    if (minesCount <= 2) return 3;
+    if (minesCount <= 4) return 2;
+    return 1;
+}
+
 function formatMinesTimeRemaining(ms) {
     const seconds = Math.ceil(ms / 1000);
     return `${seconds}s`;
@@ -73,11 +79,21 @@ function createMinesGridRows(grid, revealed, active, minesCount, revealedCount, 
     const currentMult = getMultiplier(16, minesCount, revealedCount);
     const payout = Math.floor(currentMult * stake);
     
+    const minClicks = getMinClicks(minesCount);
+    const canCashout = revealedCount >= minClicks;
+    
     const cashoutBtn = new ButtonBuilder()
         .setCustomId('mines_cashout')
-        .setLabel(revealedCount > 0 ? `Cash Out (${payout} Baubles)` : 'Cash Out')
         .setStyle(ButtonStyle.Success)
-        .setDisabled(revealedCount === 0 || !active);
+        .setDisabled(!canCashout || !active);
+
+    if (revealedCount === 0) {
+        cashoutBtn.setLabel('Cash Out');
+    } else if (canCashout) {
+        cashoutBtn.setLabel(`Cash Out (${payout} Baubles)`);
+    } else {
+        cashoutBtn.setLabel(`Cash Out (Min ${minClicks} clicks)`);
+    }
         
     const multBtn = new ButtonBuilder()
         .setCustomId('mines_mult_display')
@@ -290,11 +306,12 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
             const revealed = new Array(16).fill(false);
             let revealedCount = 0;
             let active = true;
+            const minClicks = getMinClicks(finalMinesCount);
 
             const initialEmbed = new EmbedBuilder()
                 .setColor(0x7c6cf0)
                 .setTitle('💣  MINES CHALLENGE')
-                .setDescription(`A **4x4** grid has been prepared with **${finalMinesCount}** hidden mines.\n\nClick the numbered tiles below to reveal them. Find **Diamonds** 💎 to multiply your stake, but hit a **Mine** 💥 and you lose it all!`)
+                .setDescription(`A **4x4** grid has been prepared with **${finalMinesCount}** hidden mines.\n\nClick the numbered tiles below to reveal them. Find **Diamonds** 💎 to multiply your stake, but hit a **Mine** 💥 and you lose it all!\n\n⚠️ **Minimum clicks required to Cash Out: ${minClicks}**`)
                 .addFields(
                     { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                     { name: '📈 Current Multiplier', value: `\`1.00x\``, inline: true },
@@ -449,10 +466,15 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                             const currentMult = getMultiplier(16, finalMinesCount, revealedCount);
                             let currentWinnings = Math.floor(currentMult * amount);
 
+                            const canCashout = revealedCount >= minClicks;
+                            const desc = canCashout
+                                ? `You found a Diamond! Your multiplier is now **${currentMult.toFixed(2)}x**.\n\nClick another tile to continue, or click **Cash Out** to claim your winnings!`
+                                : `You found a Diamond! Your multiplier is now **${currentMult.toFixed(2)}x**.\n\n⚠️ **You must make at least ${minClicks - revealedCount} more safe click(s) before you can Cash Out.**`;
+
                             const updateEmbed = new EmbedBuilder()
                                 .setColor(0x7c6cf0)
                                 .setTitle('💎  SAFE TILE REVEALED!')
-                                .setDescription(`You found a Diamond! Your multiplier is now **${currentMult.toFixed(2)}x**.\n\nClick another tile to continue, or click **Cash Out** to claim your winnings!`)
+                                .setDescription(desc)
                                 .addFields(
                                     { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                                     { name: '📈 Multiplier', value: `\`${currentMult.toFixed(2)}x\` (Next: \`${nextMult.toFixed(2)}x\`)`, inline: true },
@@ -467,7 +489,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         }
                     }
                 } else if (buttonId === 'mines_cashout') {
-                    if (revealedCount === 0) return;
+                    if (revealedCount < minClicks) return;
 
                     active = false;
                     client.activeMinesGames.delete(userId);
@@ -539,7 +561,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
 
                         const finalRows = createMinesGridRows(grid, revealed, active, finalMinesCount, revealedCount, amount);
                         await initialMsg.edit({ embeds: [refundEmbed], components: finalRows }).catch(() => {});
-                    } else {
+                    } else if (revealedCount >= minClicks) {
                         const winMult = getMultiplier(16, finalMinesCount, revealedCount);
                         let winnings = Math.floor(winMult * amount);
                         
@@ -565,6 +587,16 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
 
                         const finalRows = createMinesGridRows(grid, revealed, active, finalMinesCount, revealedCount, amount);
                         await initialMsg.edit({ embeds: [autoCashoutEmbed], components: finalRows }).catch(() => {});
+                    } else {
+                        const timeoutLossEmbed = new EmbedBuilder()
+                            .setColor(0xFF7171)
+                            .setTitle('⏰  MINES SESSION TIMED OUT')
+                            .setDescription(`Your session timed out before you reached the minimum required **${minClicks}** clicks for this game.\nAs a result, your stake of **${amount}** Baubles has been forfeited.`)
+                            .setTimestamp()
+                            .setFooter({ text: 'Game forfeited.' });
+
+                        const finalRows = createMinesGridRows(grid, revealed, active, finalMinesCount, revealedCount, amount);
+                        await initialMsg.edit({ embeds: [timeoutLossEmbed], components: finalRows }).catch(() => {});
                     }
                 }
             });
@@ -598,6 +630,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                 { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                 { name: '💣 Mines Count', value: `\`${minesCount}\``, inline: true },
                 { name: '💎 Safe Tiles', value: `\`${16 - minesCount}\``, inline: true },
+                { name: '⚠️ Minimum Clicks', value: `You must make at least **${getMinClicks(minesCount)}** safe click(s) to cash out.`, inline: false },
                 { name: '📈 Multiplier Preview', value: getMultiplierPreview(minesCount), inline: false }
             )
             .setTimestamp()
@@ -681,6 +714,7 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                         { name: '💰 Bet Amount', value: `\`${amount} Baubles\``, inline: true },
                         { name: '💣 Mines Count', value: `\`${minesCount}\``, inline: true },
                         { name: '💎 Safe Tiles', value: `\`${16 - minesCount}\``, inline: true },
+                        { name: '⚠️ Minimum Clicks', value: `You must make at least **${getMinClicks(minesCount)}** safe click(s) to cash out.`, inline: false },
                         { name: '📈 Multiplier Preview', value: getMultiplierPreview(minesCount), inline: false }
                     )
                     .setTimestamp()

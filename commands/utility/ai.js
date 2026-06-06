@@ -18,14 +18,17 @@ const COOLDOWNS = {
     lifetime: '0s'
 };
 
-const RPG_SYSTEM_PROMPT = `You are a text RPG Dungeon Master (DM) guiding the player on their adventure.
+function getSystemPrompt(tone = 'Balanced') {
+    return `You are a text RPG Dungeon Master (DM) guiding the player on their adventure.
 Generate short, immersive narrative updates (under 120 words) detailing what happens next.
+Tone of the story: ${tone}.
 IMPORTANT: At the end of every response, you MUST provide 4 options for the player to choose from:
 A: [First action]
 B: [Second action]
 C: [Third action]
 D: [Fourth action]
 Never forget to output these options! Be descriptive, dangerous, and exciting.`;
+}
 
 const TAROT_CARDS = [
     'The Fool', 'The Magician', 'The High Priestess', 'The Empress', 'The Emperor',
@@ -283,7 +286,7 @@ async function handleRoast(interactionOrMessage, user, targetUser) {
     }
 }
 
-async function handleAdventureStart(interactionOrMessage, user, scenario, charName, charClass) {
+async function handleAdventureStart(interactionOrMessage, user, scenario, charName, charClass, tone = 'Balanced') {
     const isSlash = !!interactionOrMessage.reply && !interactionOrMessage.author;
     const apiKey = process.env.DEEPSEEK_API_KEY;
 
@@ -321,7 +324,7 @@ async function handleAdventureStart(interactionOrMessage, user, scenario, charNa
             body: JSON.stringify({
                 model: 'deepseek-chat',
                 messages: [
-                    { role: 'system', content: RPG_SYSTEM_PROMPT },
+                    { role: 'system', content: getSystemPrompt(tone) },
                     { role: 'user', content: setupPrompt }
                 ],
                 temperature: 0.8,
@@ -341,6 +344,7 @@ async function handleAdventureStart(interactionOrMessage, user, scenario, charNa
             scenario,
             characterName: charName,
             characterClass: charClass,
+            tone,
             history: [
                 { role: 'user', content: setupPrompt },
                 { role: 'assistant', content: storyText }
@@ -359,7 +363,7 @@ async function handleAdventureStart(interactionOrMessage, user, scenario, charNa
         const embed = new EmbedBuilder()
             .setColor(0x7c6cf0)
             .setTitle(`⚔️ Adventure Started: ${scenario.toUpperCase()}`)
-            .setDescription(`**Hero:** ${charName} (${charClass})\n\n${storyText}`)
+            .setDescription(`**Hero:** ${charName} (${charClass}) | **Tone:** ${tone}\n\n${storyText}`)
             .setFooter({ text: `Deducted ${cost} APU | Choose an option below to continue!` })
             .setTimestamp();
 
@@ -410,10 +414,24 @@ async function handleAdventureChoose(interactionOrMessage, user, choice) {
     }
 
     try {
-        const userPrompt = `I choose: ${choice}. Describe the outcome of this action, continue the story, and give me a new set of 4 options (A, B, C, D).`;
+        let actualChoiceText = choice;
+        if (['A', 'B', 'C', 'D'].includes(choice)) {
+            const lastAssistantMsg = adventure.history.slice().reverse().find(h => h.role === 'assistant');
+            if (lastAssistantMsg) {
+                const text = lastAssistantMsg.content;
+                const regex = new RegExp(`(?:\\*\\*)?${choice}(?:\\*\\*)?\\s*[:\\.]\\s*(.*?)(?=\\n(?:\\*\\*)?[A-D](?:\\*\\*)?\\s*[:\\.]|$)`, 'is');
+                const match = text.match(regex);
+                if (match && match[1]) {
+                    actualChoiceText = `${choice}: ${match[1].trim()}`;
+                }
+            }
+        }
+
+        const userPrompt = `I choose: ${actualChoiceText}. Describe the outcome of this action, continue the story, and give me a new set of 4 options (A, B, C, D).`;
         
+        const tone = adventure.tone || 'Balanced';
         const apiMessages = [
-            { role: 'system', content: RPG_SYSTEM_PROMPT },
+            { role: 'system', content: getSystemPrompt(tone) },
             ...adventure.history.map(h => ({ role: h.role, content: h.content })),
             { role: 'user', content: userPrompt }
         ];
@@ -463,7 +481,7 @@ async function handleAdventureChoose(interactionOrMessage, user, choice) {
         const embed = new EmbedBuilder()
             .setColor(0x7c6cf0)
             .setTitle(`⚔️ Adventure: ${adventure.characterName} (${adventure.characterClass})`)
-            .setDescription(`**Action:** ${choice}\n\n${storyText}`)
+            .setDescription(`**Action:** ${actualChoiceText}\n\n${storyText}`)
             .setFooter({ text: `Deducted ${cost} APU | Choose an option below to continue!` })
             .setTimestamp();
 
@@ -626,14 +644,8 @@ module.exports = {
                 .addStringOption(option =>
                     option
                         .setName('scenario')
-                        .setDescription('Select the theme/scenario of your RPG adventure')
+                        .setDescription('Theme/Setting of your RPG (e.g. Medieval Fantasy, Hogwarts, Cyberpunk, Wild West, etc.)')
                         .setRequired(true)
-                        .addChoices(
-                            { name: 'Medieval Fantasy 🧙‍♂️', value: 'Fantasy' },
-                            { name: 'Neon Cyberpunk 🌆', value: 'Cyberpunk' },
-                            { name: 'Sci-Fi Space Voyage 🚀', value: 'Space Odyssey' },
-                            { name: 'Zombie Apocalypse 🧟‍♂️', value: 'Zombie Apocalypse' }
-                        )
                 )
                 .addStringOption(option =>
                     option
@@ -644,13 +656,21 @@ module.exports = {
                 .addStringOption(option =>
                     option
                         .setName('class')
-                        .setDescription('Your character Class')
+                        .setDescription('Character Class (e.g. Warrior, Jedi, Necromancer, Detective, etc.)')
                         .setRequired(true)
+                )
+                .addStringOption(option =>
+                    option
+                        .setName('tone')
+                        .setDescription('Story tone (optional, default: Balanced)')
+                        .setRequired(false)
                         .addChoices(
-                            { name: 'Warrior 🛡️', value: 'Warrior' },
-                            { name: 'Mage 🔮', value: 'Mage' },
-                            { name: 'Rogue 🗡️', value: 'Rogue' },
-                            { name: 'Cleric 💖', value: 'Cleric' }
+                            { name: 'Balanced / Standard ⚖️', value: 'Balanced' },
+                            { name: 'Gritty & Realistic 🪨', value: 'Gritty & Realistic' },
+                            { name: 'Humorous & Sarcastic 🎭', value: 'Humorous & Sarcastic' },
+                            { name: 'Dark & Horrific 🖤', value: 'Dark & Horrific' },
+                            { name: 'Epic & Heroic 👑', value: 'Epic & Heroic' },
+                            { name: 'Mysterious & Suspenseful 🔍', value: 'Mysterious & Suspenseful' }
                         )
                 )
         )
@@ -683,7 +703,8 @@ module.exports = {
             const scenario = interaction.options.getString('scenario');
             const name = interaction.options.getString('name');
             const charClass = interaction.options.getString('class');
-            await handleAdventureStart(interaction, interaction.user, scenario, name, charClass);
+            const tone = interaction.options.getString('tone') || 'Balanced';
+            await handleAdventureStart(interaction, interaction.user, scenario, name, charClass, tone);
         } else if (subcommand === 'adventure-choose') {
             const action = interaction.options.getString('action');
             await handleAdventureChoose(interaction, interaction.user, action);
@@ -709,10 +730,20 @@ module.exports = {
         } else if (subcommand === 'adventure') {
             const action = args[1]?.toLowerCase();
             if (action === 'start') {
-                const scenario = args[2] || 'Fantasy';
-                const name = args[3] || 'Hero';
-                const charClass = args[4] || 'Warrior';
-                await handleAdventureStart(message, message.author, scenario, name, charClass);
+                let scenario = 'Fantasy';
+                let name = 'Hero';
+                let charClass = 'Warrior';
+                let tone = 'Balanced';
+                
+                const fullText = args.slice(2).join(' ');
+                const matches = [...fullText.matchAll(/(?:"([^"]*)"|'([^']*)'|(\S+))/g)].map(m => m[1] || m[2] || m[3]);
+                
+                if (matches.length > 0) scenario = matches[0];
+                if (matches.length > 1) name = matches[1];
+                if (matches.length > 2) charClass = matches[2];
+                if (matches.length > 3) tone = matches[3];
+
+                await handleAdventureStart(message, message.author, scenario, name, charClass, tone);
             } else if (action === 'choose' || action === 'choice' || action === 'act') {
                 const actText = args.slice(2).join(' ');
                 if (!actText) {
