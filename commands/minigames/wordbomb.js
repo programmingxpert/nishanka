@@ -392,256 +392,279 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
     const wordsPool = await fetchRandomWords();
     await startingMsg.delete().catch(() => {});
 
-    const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
-    const gameState = shuffledPlayers.map(p => ({
-        user: p,
-        lives: 3,
-        eliminated: false,
-        successfulGuesses: 0
-    }));
+    const client = channel.client;
+    if (!client.activeWordbombGames) {
+        client.activeWordbombGames = new Map();
+    }
 
-    let usedWords = new Set();
-    let currentTurnIdx = 0;
-    let roundCount = 1;
-    let baseTimeLimit = 15000;
-    let turnsSinceLastLifeLoss = 0;
-    let currentPrompt = null;
+    try {
+        const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+        const gameState = shuffledPlayers.map(p => ({
+            user: p,
+            lives: 3,
+            eliminated: false,
+            successfulGuesses: 0
+        }));
 
-    const runEmbed = new EmbedBuilder()
-        .setColor(0xe74c3c)
-        .setTitle('🏁 WORD BOMB: GAME STARTED!')
-        .setDescription(
-            `**Turn Order:**\n${gameState.map((p, idx) => `${idx + 1}. **${p.user.username}** (Lives: 💣 💣 💣)`).join('\n')}\n\n` +
-            `**Rules:**\n` +
-            `- On your turn, submit a valid English word that contains the prompt characters.\n` +
-            `- You have a limited time to answer! If you fail, you lose a life.\n` +
-            `- Words cannot be reused. Let's play!`
-        );
-    
-    await channel.send({ embeds: [runEmbed] });
-    await new Promise(resolve => setTimeout(resolve, 5000));
+        let usedWords = new Set();
+        let currentTurnIdx = 0;
+        let roundCount = 1;
+        let baseTimeLimit = 15000;
+        let turnsSinceLastLifeLoss = 0;
+        let currentPrompt = null;
 
-    while (true) {
-        const activePlayers = gameState.filter(p => p.lives > 0);
-        if (activePlayers.length <= 1) {
-            break;
-        }
+        const runEmbed = new EmbedBuilder()
+            .setColor(0xe74c3c)
+            .setTitle('🏁 WORD BOMB: GAME STARTED!')
+            .setDescription(
+                `**Turn Order:**\n${gameState.map((p, idx) => `${idx + 1}. **${p.user.username}** (Lives: 💣 💣 💣)`).join('\n')}\n\n` +
+                `**Rules:**\n` +
+                `- On your turn, submit a valid English word that contains the prompt characters.\n` +
+                `- You have a limited time to answer! If you fail, you lose a life.\n` +
+                `- Words cannot be reused. Let's play!`
+            );
+        
+        await channel.send({ embeds: [runEmbed] });
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
-        while (gameState[currentTurnIdx].lives <= 0) {
+        while (true) {
+            const activePlayers = gameState.filter(p => p.lives > 0);
+            if (activePlayers.length <= 1) {
+                break;
+            }
+
+            while (gameState[currentTurnIdx].lives <= 0) {
+                currentTurnIdx = (currentTurnIdx + 1) % gameState.length;
+            }
+            const activePlayer = gameState[currentTurnIdx];
+
+            const totalTurnsPlayed = roundCount - 1;
+            const isDeathBattleMode = turnsSinceLastLifeLoss >= 8;
+            const currentLimit = isDeathBattleMode ? 10000 : Math.max(8000, baseTimeLimit - Math.floor(totalTurnsPlayed / 5) * 500);
+            const promptLength = totalTurnsPlayed >= 12 ? 3 : 2;
+
+            if (!currentPrompt) {
+                currentPrompt = getPromptFromPool(wordsPool, promptLength);
+            }
+            const prompt = currentPrompt;
+            
+            client.activeWordbombGames.set(channel.id, {
+                channelId: channel.id,
+                guildName: channel.guild?.name || 'Unknown Server',
+                channelName: channel.name,
+                round: roundCount,
+                prompt,
+                activePlayer: activePlayer.user.username,
+                lives: activePlayer.lives,
+                usedWordsCount: usedWords.size,
+                timestamp: Date.now()
+            });
+
+            const livesVisual = '💣'.repeat(activePlayer.lives);
+
+            let turnDescription = `Type a word containing:\n\n# **\`${prompt}\`**\n\n` +
+                `⏳ Time Limit: **${(currentLimit / 1000).toFixed(1)} seconds**\n` +
+                `❤️ Lives: ${livesVisual}\n\n` +
+                `*Type your word in this channel!*`;
+
+            if (isDeathBattleMode) {
+                turnDescription = `🔥 **DEATH BATTLE ACTIVE!** 🔥\n*No one has lost a life in 8 turns! The bomb timer is locked at 10 seconds until someone explodes!*\n\n` + turnDescription;
+            }
+
+            const turnEmbed = new EmbedBuilder()
+                .setColor(isDeathBattleMode ? 0xff1a1a : 0xe67e22)
+                .setTitle(`🔄 Round ${roundCount} — ${activePlayer.user.username}'s Turn!`)
+                .setDescription(turnDescription)
+                .setTimestamp();
+
+            const turnMsg = await channel.send({ content: `${activePlayer.user}`, embeds: [turnEmbed] });
+
+            const filter = m => m.author.id === activePlayer.user.id && !m.author.bot;
+            let turnActive = true;
+            const turnStartTime = Date.now();
+            let errorMsg = null;
+
+            while (turnActive) {
+                const elapsed = Date.now() - turnStartTime;
+                const timeLeft = currentLimit - elapsed;
+                if (timeLeft <= 0) {
+                    activePlayer.lives--;
+                    turnsSinceLastLifeLoss = 0; // Reset on life loss
+                    turnActive = false;
+
+                    const failEmbed = new EmbedBuilder()
+                        .setColor(0xc0392b)
+                        .setTitle('💥 BOOM!')
+                        .setDescription(`⏰ Time's up! **${activePlayer.user.username}** took too long and lost a life!\nRemaining Lives: ${'💣'.repeat(activePlayer.lives) || '💀 (ELIMINATED)'}`);
+                    
+                    await channel.send({ embeds: [failEmbed] });
+
+                    if (activePlayer.lives <= 0) {
+                        await channel.send(`💀 **${activePlayer.user.username}** has been eliminated!`);
+                    }
+                    break;
+                }
+
+                try {
+                    const collected = await channel.awaitMessages({
+                        filter,
+                        max: 1,
+                        time: timeLeft,
+                        errors: ['time']
+                    });
+
+                    const msg = collected.first();
+                    const word = msg.content.trim().toLowerCase();
+
+                    if (!word.includes(prompt.toLowerCase())) {
+                        if (errorMsg) {
+                            await errorMsg.delete().catch(() => {});
+                        }
+                        errorMsg = await msg.reply(`❌ **\`${word.toUpperCase()}\`** does not contain **\`${prompt}\`**! Try again.`);
+                        continue;
+                    }
+
+                    if (usedWords.has(word)) {
+                        if (errorMsg) {
+                            await errorMsg.delete().catch(() => {});
+                        }
+                        errorMsg = await msg.reply(`❌ **\`${word.toUpperCase()}\`** has already been used! Try again.`);
+                        continue;
+                    }
+
+                    await channel.sendTyping().catch(() => {});
+
+                    const validation = await validateEnglishWord(word);
+                    if (!validation.valid) {
+                        if (errorMsg) {
+                            await errorMsg.delete().catch(() => {});
+                        }
+                        errorMsg = await msg.reply(`❌ **\`${word.toUpperCase()}\`** is not valid: ${validation.reason}`);
+                        continue;
+                    }
+
+                    usedWords.add(word);
+                    activePlayer.successfulGuesses++;
+                    turnsSinceLastLifeLoss++; // Survived another turn
+                    turnActive = false;
+                    currentPrompt = null; // Clear so next turn gets a new prompt
+
+                    if (errorMsg) {
+                        await errorMsg.delete().catch(() => {});
+                    }
+
+                    const successEmbed = new EmbedBuilder()
+                        .setColor(0x2ecc71)
+                        .setTitle('✅ WORD ACCEPTED')
+                        .setDescription(`**${activePlayer.user.username}** cleared the bomb with **\`${word.toUpperCase()}\`**!\n\n*Definition:* ${validation.definition}`);
+                    
+                    await msg.reply({ embeds: [successEmbed] });
+
+                } catch (err) {
+                    activePlayer.lives--;
+                    turnsSinceLastLifeLoss = 0; // Reset on life loss
+                    turnActive = false;
+
+                    if (errorMsg) {
+                        await errorMsg.delete().catch(() => {});
+                    }
+
+                    const failEmbed = new EmbedBuilder()
+                        .setColor(0xc0392b)
+                        .setTitle('💥 BOOM!')
+                        .setDescription(`⏰ Time's up! **${activePlayer.user.username}** lost a life!\nRemaining Lives: ${'💣'.repeat(activePlayer.lives) || '💀 (ELIMINATED)'}`);
+                    
+                    await channel.send({ embeds: [failEmbed] });
+
+                    if (activePlayer.lives <= 0) {
+                        await channel.send(`💀 **${activePlayer.user.username}** has been eliminated!`);
+                    }
+                    break;
+                }
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            roundCount++;
             currentTurnIdx = (currentTurnIdx + 1) % gameState.length;
         }
-        const activePlayer = gameState[currentTurnIdx];
 
-        const totalTurnsPlayed = roundCount - 1;
-        const isDeathBattleMode = turnsSinceLastLifeLoss >= 8;
-        const currentLimit = isDeathBattleMode ? 10000 : Math.max(8000, baseTimeLimit - Math.floor(totalTurnsPlayed / 5) * 500);
-        const promptLength = totalTurnsPlayed >= 12 ? 3 : 2;
+        const winnerData = gameState.find(p => p.lives > 0);
+        const winner = winnerData ? winnerData.user : null;
 
-        if (!currentPrompt) {
-            currentPrompt = getPromptFromPool(wordsPool, promptLength);
+        const payoutDetails = [];
+        const globalMultiplier = await getGlobalMultiplier();
+        for (const playerState of gameState) {
+            let basePrize = playerState.successfulGuesses * 10;
+            const isWinner = winner && playerState.user.id === winner.id;
+            if (isWinner) {
+                basePrize += 100;
+            }
+            
+            let prize = Math.floor(basePrize * globalMultiplier);
+
+            if (prize > 0) {
+                try {
+                    let baubleData = await Bauble.findOne({ userId: playerState.user.id });
+                    if (!baubleData) {
+                        baubleData = new Bauble({ userId: playerState.user.id, baubles: 0 });
+                    }
+                    baubleData.baubles += prize;
+                    baubleData.dailyGameLastCompleted = new Date();
+                    
+                    if (isWinner) {
+                        baubleData.wordbombWins = (baubleData.wordbombWins || 0) + 1;
+                    }
+                    
+                    await baubleData.save();
+
+                    if (isWinner) {
+                        const client = initialMessageOrInteraction.client || (initialMessageOrInteraction.channel && initialMessageOrInteraction.channel.client);
+                        if (client) {
+                            const { checkAndAwardAchievement } = require('../../utils/achievements');
+                            const targetMsg = { channel };
+                            if (baubleData.wordbombWins >= 10) {
+                                await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_10', targetMsg);
+                            }
+                            if (baubleData.wordbombWins >= 50) {
+                                await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_50', targetMsg);
+                            }
+                            if (baubleData.wordbombWins >= 100) {
+                                await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_100', targetMsg);
+                            }
+                            if (baubleData.wordbombWins >= 250) {
+                                await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_250', targetMsg);
+                            }
+                        }
+                    }
+                } catch (dbErr) {
+                    console.error(`Failed to save baubles for ${playerState.user.username}:`, dbErr);
+                }
+                payoutDetails.push(`${isWinner ? '👑' : '👤'} **${playerState.user.username}**: +**${prize.toLocaleString()}** Baubles (${playerState.successfulGuesses} correct guesses)`);
+            } else {
+                payoutDetails.push(`👤 **${playerState.user.username}**: +0 Baubles (0 correct guesses)`);
+            }
         }
-        const prompt = currentPrompt;
-        const livesVisual = '💣'.repeat(activePlayer.lives);
 
-        let turnDescription = `Type a word containing:\n\n# **\`${prompt}\`**\n\n` +
-            `⏳ Time Limit: **${(currentLimit / 1000).toFixed(1)} seconds**\n` +
-            `❤️ Lives: ${livesVisual}\n\n` +
-            `*Type your word in this channel!*`;
-
-        if (isDeathBattleMode) {
-            turnDescription = `🔥 **DEATH BATTLE ACTIVE!** 🔥\n*No one has lost a life in 8 turns! The bomb timer is locked at 10 seconds until someone explodes!*\n\n` + turnDescription;
-        }
-
-        const turnEmbed = new EmbedBuilder()
-            .setColor(isDeathBattleMode ? 0xff1a1a : 0xe67e22)
-            .setTitle(`🔄 Round ${roundCount} — ${activePlayer.user.username}'s Turn!`)
-            .setDescription(turnDescription)
+        const victoryEmbed = new EmbedBuilder()
+            .setColor(0x2ecc71)
+            .setTitle('🏆 WORD BOMB: GAME OVER!')
+            .setDescription(
+                `Here are the final standings and Bauble rewards:\n\n${payoutDetails.join('\n')}`
+            )
             .setTimestamp();
 
-        const turnMsg = await channel.send({ content: `${activePlayer.user}`, embeds: [turnEmbed] });
-
-        const filter = m => m.author.id === activePlayer.user.id && !m.author.bot;
-        let turnActive = true;
-        const turnStartTime = Date.now();
-        let errorMsg = null;
-
-        while (turnActive) {
-            const elapsed = Date.now() - turnStartTime;
-            const timeLeft = currentLimit - elapsed;
-            if (timeLeft <= 0) {
-                activePlayer.lives--;
-                turnsSinceLastLifeLoss = 0; // Reset on life loss
-                turnActive = false;
-
-                const failEmbed = new EmbedBuilder()
-                    .setColor(0xc0392b)
-                    .setTitle('💥 BOOM!')
-                    .setDescription(`⏰ Time's up! **${activePlayer.user.username}** took too long and lost a life!\nRemaining Lives: ${'💣'.repeat(activePlayer.lives) || '💀 (ELIMINATED)'}`);
-                
-                await channel.send({ embeds: [failEmbed] });
-
-                if (activePlayer.lives <= 0) {
-                    await channel.send(`💀 **${activePlayer.user.username}** has been eliminated!`);
-                }
-                break;
-            }
-
-            try {
-                const collected = await channel.awaitMessages({
-                    filter,
-                    max: 1,
-                    time: timeLeft,
-                    errors: ['time']
-                });
-
-                const msg = collected.first();
-                const word = msg.content.trim().toLowerCase();
-
-                if (!word.includes(prompt.toLowerCase())) {
-                    if (errorMsg) {
-                        await errorMsg.delete().catch(() => {});
-                    }
-                    errorMsg = await msg.reply(`❌ **\`${word.toUpperCase()}\`** does not contain **\`${prompt}\`**! Try again.`);
-                    continue;
-                }
-
-                if (usedWords.has(word)) {
-                    if (errorMsg) {
-                        await errorMsg.delete().catch(() => {});
-                    }
-                    errorMsg = await msg.reply(`❌ **\`${word.toUpperCase()}\`** has already been used! Try again.`);
-                    continue;
-                }
-
-                await channel.sendTyping().catch(() => {});
-
-                const validation = await validateEnglishWord(word);
-                if (!validation.valid) {
-                    if (errorMsg) {
-                        await errorMsg.delete().catch(() => {});
-                    }
-                    errorMsg = await msg.reply(`❌ **\`${word.toUpperCase()}\`** is not valid: ${validation.reason}`);
-                    continue;
-                }
-
-                usedWords.add(word);
-                activePlayer.successfulGuesses++;
-                turnsSinceLastLifeLoss++; // Survived another turn
-                turnActive = false;
-                currentPrompt = null; // Clear so next turn gets a new prompt
-
-                if (errorMsg) {
-                    await errorMsg.delete().catch(() => {});
-                }
-
-                const successEmbed = new EmbedBuilder()
-                    .setColor(0x2ecc71)
-                    .setTitle('✅ WORD ACCEPTED')
-                    .setDescription(`**${activePlayer.user.username}** cleared the bomb with **\`${word.toUpperCase()}\`**!\n\n*Definition:* ${validation.definition}`);
-                
-                await msg.reply({ embeds: [successEmbed] });
-
-            } catch (err) {
-                activePlayer.lives--;
-                turnsSinceLastLifeLoss = 0; // Reset on life loss
-                turnActive = false;
-
-                if (errorMsg) {
-                    await errorMsg.delete().catch(() => {});
-                }
-
-                const failEmbed = new EmbedBuilder()
-                    .setColor(0xc0392b)
-                    .setTitle('💥 BOOM!')
-                    .setDescription(`⏰ Time's up! **${activePlayer.user.username}** lost a life!\nRemaining Lives: ${'💣'.repeat(activePlayer.lives) || '💀 (ELIMINATED)'}`);
-                
-                await channel.send({ embeds: [failEmbed] });
-
-                if (activePlayer.lives <= 0) {
-                    await channel.send(`💀 **${activePlayer.user.username}** has been eliminated!`);
-                }
-                break;
-            }
+        if (winner) {
+            victoryEmbed.setThumbnail(winner.displayAvatarURL({ dynamic: true }));
         }
 
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        roundCount++;
-        currentTurnIdx = (currentTurnIdx + 1) % gameState.length;
-    }
-
-    const winnerData = gameState.find(p => p.lives > 0);
-    const winner = winnerData ? winnerData.user : null;
-
-    const payoutDetails = [];
-    const globalMultiplier = await getGlobalMultiplier();
-    for (const playerState of gameState) {
-        let basePrize = playerState.successfulGuesses * 10;
-        const isWinner = winner && playerState.user.id === winner.id;
-        if (isWinner) {
-            basePrize += 100;
-        }
-        
-        let prize = Math.floor(basePrize * globalMultiplier);
-
-        if (prize > 0) {
-            try {
-                let baubleData = await Bauble.findOne({ userId: playerState.user.id });
-                if (!baubleData) {
-                    baubleData = new Bauble({ userId: playerState.user.id, baubles: 0 });
-                }
-                baubleData.baubles += prize;
-                baubleData.dailyGameLastCompleted = new Date();
-                
-                if (isWinner) {
-                    baubleData.wordbombWins = (baubleData.wordbombWins || 0) + 1;
-                }
-                
-                await baubleData.save();
-
-                if (isWinner) {
-                    const client = initialMessageOrInteraction.client || (initialMessageOrInteraction.channel && initialMessageOrInteraction.channel.client);
-                    if (client) {
-                        const { checkAndAwardAchievement } = require('../../utils/achievements');
-                        const targetMsg = { channel };
-                        if (baubleData.wordbombWins >= 10) {
-                            await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_10', targetMsg);
-                        }
-                        if (baubleData.wordbombWins >= 50) {
-                            await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_50', targetMsg);
-                        }
-                        if (baubleData.wordbombWins >= 100) {
-                            await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_100', targetMsg);
-                        }
-                        if (baubleData.wordbombWins >= 250) {
-                            await checkAndAwardAchievement(client, playerState.user.id, 'wordbomb_win_250', targetMsg);
-                        }
-                    }
-                }
-            } catch (dbErr) {
-                console.error(`Failed to save baubles for ${playerState.user.username}:`, dbErr);
-            }
-            payoutDetails.push(`${isWinner ? '👑' : '👤'} **${playerState.user.username}**: +**${prize.toLocaleString()}** Baubles (${playerState.successfulGuesses} correct guesses)`);
-        } else {
-            payoutDetails.push(`👤 **${playerState.user.username}**: +0 Baubles (0 correct guesses)`);
+        await channel.send({ embeds: [victoryEmbed] });
+    } finally {
+        activeGames.delete(channel.id);
+        if (client.activeWordbombGames) {
+            client.activeWordbombGames.delete(channel.id);
         }
     }
-
-    const victoryEmbed = new EmbedBuilder()
-        .setColor(0x2ecc71)
-        .setTitle('🏆 WORD BOMB: GAME OVER!')
-        .setDescription(
-            `Here are the final standings and Bauble rewards:\n\n${payoutDetails.join('\n')}`
-        )
-        .setTimestamp();
-
-    if (winner) {
-        victoryEmbed.setThumbnail(winner.displayAvatarURL({ dynamic: true }));
-    }
-
-    await channel.send({ embeds: [victoryEmbed] });
-
-    activeGames.delete(channel.id);
 }
 
 module.exports = {

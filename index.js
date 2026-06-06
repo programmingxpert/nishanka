@@ -99,6 +99,13 @@ const client = new Client({
 
 global.client = client;
 
+client.activeScrambleGames = new Map();
+client.activeWordbombGames = new Map();
+client.activeHangmanGames = new Map();
+client.activeGeoguesserGames = new Map();
+client.activeGuesstheflagGames = new Map();
+client.activeEmojidecodeGames = new Map();
+
 function replaceEmojisRecursive(obj) {
     if (!obj || typeof obj !== 'object') return obj;
 
@@ -532,13 +539,16 @@ app.get('/api/admin/logs', developerOnly, (req, res) => {
     const { getLogs } = require('./utils/logger');
     let logs = getLogs();
 
-    const { limit, level, guildId, search } = req.query;
+    const { limit, level, guildId, search, userId } = req.query;
 
     if (level) {
       logs = logs.filter(l => l.level === level.toUpperCase());
     }
     if (guildId) {
       logs = logs.filter(l => l.guildId === guildId);
+    }
+    if (userId) {
+      logs = logs.filter(l => l.message.includes(userId));
     }
     if (search) {
       const q = search.toLowerCase();
@@ -578,9 +588,7 @@ app.get('/api/admin/minigames', developerOnly, (req, res) => {
     if (client.activeMinesGames) {
       for (const [userId, game] of client.activeMinesGames.entries()) {
         if (game.setup) continue; // skip games still in setup phase
-        
         const discordUser = client.users.cache.get(userId);
-        
         activeMines.push({
           userId,
           username: discordUser ? discordUser.username : `User (${userId})`,
@@ -593,10 +601,201 @@ app.get('/api/admin/minigames', developerOnly, (req, res) => {
         });
       }
     }
-    res.json({ activeMines });
+
+    const activeScramble = [];
+    if (client.activeScrambleGames) {
+      for (const [channelId, game] of client.activeScrambleGames.entries()) {
+        activeScramble.push({
+          channelId,
+          guildName: game.guildName,
+          channelName: game.channelName,
+          round: game.round,
+          totalRounds: game.totalRounds,
+          word: game.word,
+          scrambled: game.scrambled,
+          timestamp: game.timestamp
+        });
+      }
+    }
+
+    const activeWordbomb = [];
+    if (client.activeWordbombGames) {
+      for (const [channelId, game] of client.activeWordbombGames.entries()) {
+        activeWordbomb.push({
+          channelId,
+          guildName: game.guildName,
+          channelName: game.channelName,
+          round: game.round,
+          prompt: game.prompt,
+          activePlayer: game.activePlayer,
+          lives: game.lives,
+          timestamp: game.timestamp
+        });
+      }
+    }
+
+    const activeHangman = [];
+    if (client.activeHangmanGames) {
+      for (const [channelId, game] of client.activeHangmanGames.entries()) {
+        activeHangman.push({
+          channelId,
+          guildName: game.guildName,
+          channelName: game.channelName,
+          word: game.word,
+          guessed: game.guessed,
+          mistakes: game.mistakes,
+          timestamp: game.timestamp
+        });
+      }
+    }
+
+    const activeGeoguesser = [];
+    if (client.activeGeoguesserGames) {
+      for (const [channelId, game] of client.activeGeoguesserGames.entries()) {
+        activeGeoguesser.push({
+          channelId,
+          guildName: game.guildName,
+          channelName: game.channelName,
+          round: game.round,
+          totalRounds: game.totalRounds,
+          capital: game.capital,
+          country: game.country,
+          image: game.image,
+          hint: game.hint,
+          timestamp: game.timestamp
+        });
+      }
+    }
+
+    const activeGuesstheflag = [];
+    if (client.activeGuesstheflagGames) {
+      for (const [channelId, game] of client.activeGuesstheflagGames.entries()) {
+        activeGuesstheflag.push({
+          channelId,
+          guildName: game.guildName,
+          channelName: game.channelName,
+          round: game.round,
+          totalRounds: game.totalRounds,
+          country: game.country,
+          flagUrl: game.flagUrl,
+          timestamp: game.timestamp
+        });
+      }
+    }
+
+    const activeEmojidecode = [];
+    if (client.activeEmojidecodeGames) {
+      for (const [channelId, game] of client.activeEmojidecodeGames.entries()) {
+        activeEmojidecode.push({
+          channelId,
+          guildName: game.guildName,
+          channelName: game.channelName,
+          emojis: game.emojis,
+          category: game.category,
+          answers: game.answers,
+          timestamp: game.timestamp
+        });
+      }
+    }
+
+    res.json({
+      activeMines,
+      activeScramble,
+      activeWordbomb,
+      activeHangman,
+      activeGeoguesser,
+      activeGuesstheflag,
+      activeEmojidecode
+    });
   } catch (e) {
     console.error('Error fetching admin minigames:', e);
     res.status(500).json({ error: 'Failed to retrieve active minigames.' });
+  }
+});
+
+// POST /api/admin/maintenance
+app.post('/api/admin/maintenance', developerOnly, express.json(), async (req, res) => {
+  try {
+    const SystemConfig = require('./models/SystemConfig');
+    const { maintenanceMode, maintenanceMessage, maintenanceETA } = req.body;
+    
+    let sysConfig = await SystemConfig.findOne();
+    if (!sysConfig) {
+      sysConfig = new SystemConfig();
+    }
+    
+    sysConfig.maintenanceMode = !!maintenanceMode;
+    if (maintenanceMessage !== undefined) sysConfig.maintenanceMessage = maintenanceMessage;
+    if (maintenanceETA !== undefined) sysConfig.maintenanceETA = maintenanceETA;
+    
+    await sysConfig.save();
+    res.json({ success: true, config: sysConfig });
+  } catch (e) {
+    console.error('Error updating maintenance status:', e);
+    res.status(500).json({ error: 'Failed to update maintenance settings.' });
+  }
+});
+
+// POST /api/admin/announcement
+app.post('/api/admin/announcement', developerOnly, express.json(), async (req, res) => {
+  try {
+    const SystemConfig = require('./models/SystemConfig');
+    const { announcement, announcementActive } = req.body;
+    
+    let sysConfig = await SystemConfig.findOne();
+    if (!sysConfig) {
+      sysConfig = new SystemConfig();
+    }
+    
+    if (announcement !== undefined) sysConfig.announcement = announcement;
+    sysConfig.announcementActive = !!announcementActive;
+    sysConfig.announcementUpdatedAt = new Date();
+    
+    await sysConfig.save();
+    res.json({ success: true, config: sysConfig });
+  } catch (e) {
+    console.error('Error updating announcement:', e);
+    res.status(500).json({ error: 'Failed to update announcement.' });
+  }
+});
+
+// POST /api/admin/ban
+app.post('/api/admin/ban', developerOnly, express.json(), async (req, res) => {
+  try {
+    const UserRestriction = require('./models/UserRestriction');
+    const { userId, isBanned, banReason } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' });
+    }
+    
+    let restriction = await UserRestriction.findOne({ userId });
+    if (!restriction) {
+      restriction = new UserRestriction({ userId });
+    }
+    
+    restriction.isBanned = !!isBanned;
+    restriction.banReason = isBanned ? (banReason || 'Banned by developer') : null;
+    restriction.bannedAt = isBanned ? new Date() : null;
+    restriction.bannedBy = isBanned ? req.session.user.id : null;
+    
+    await restriction.save();
+    res.json({ success: true, restriction });
+  } catch (e) {
+    console.error('Error updating ban status:', e);
+    res.status(500).json({ error: 'Failed to update ban status.' });
+  }
+});
+
+// GET /api/admin/restrictions
+app.get('/api/admin/restrictions', developerOnly, async (req, res) => {
+  try {
+    const UserRestriction = require('./models/UserRestriction');
+    const restrictions = await UserRestriction.find({ isBanned: true }).lean();
+    res.json(restrictions);
+  } catch (e) {
+    console.error('Error fetching restrictions:', e);
+    res.status(500).json({ error: 'Failed to retrieve restricted users.' });
   }
 });
 
@@ -1226,6 +1425,7 @@ app.get('/api/guilds', async (req, res) => {
 
 // Authenticate helper for guild endpoints
 const checkGuildAccess = async (req, guildId) => {
+  if (req.session.user && req.session.user.id === config.devId) return true;
   if (!req.session.accessToken) return false;
 
   try {
@@ -1282,6 +1482,7 @@ const isPremium = async (guildId) => {
 };
 
 const checkPermission = async (req, guildId, tab) => {
+  if (req.session.user && req.session.user.id === config.devId) return true;
   if (!req.session.user) return false;
   
   const guild = client.guilds.cache.get(guildId);
@@ -1380,6 +1581,11 @@ app.get('/api/guilds/:guildId', async (req, res) => {
           }
         }
       }
+    }
+
+    if (req.session.user && req.session.user.id === config.devId) {
+      isOwner = true;
+      isAdmin = true;
     }
 
     const dbPerms = guildConfig?.dashboardPermissions || {};

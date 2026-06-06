@@ -174,115 +174,142 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
   }
 
   activeGames.add(channelId);
+  const channel = respondable.channel ?? respondable;
+  const client = respondable.client ?? channel.client;
 
-  // Resolve question
-  let question   = null;
-  const apiKey   = process.env.DEEPSEEK_API_KEY;
-  const hasKey   = apiKey && apiKey !== 'your_deepseek_api_key_here';
+  try {
+    // Resolve question
+    let question   = null;
+    const apiKey   = process.env.DEEPSEEK_API_KEY;
+    const hasKey   = apiKey && apiKey !== 'your_deepseek_api_key_here';
 
-  if (hasKey) {
-    try {
-      question = await generateAIQuestion(apiKey);
-    } catch (err) {
-      if (!err.message.includes('recently played')) {
-        console.warn('[emojidecode] AI generation failed, using fallback:', err.message);
+    if (hasKey) {
+      try {
+        question = await generateAIQuestion(apiKey);
+      } catch (err) {
+        if (!err.message.includes('recently played')) {
+          console.warn('[emojidecode] AI generation failed, using fallback:', err.message);
+        }
       }
     }
-  }
 
-  if (!question) question = pickFallback();
+    if (!question) question = pickFallback();
 
-  // Reward
-  const multiplier = await getGlobalMultiplier();
-  const reward     = Math.floor((Math.floor(Math.random() * 76) + 25) * multiplier);
-
-  // Send game embed
-  const gameEmbed = new EmbedBuilder()
-    .setColor(0x7c6cf0)
-    .setTitle('🧩 Emoji Decode')
-    .setDescription(
-      `Decode the emojis to guess the title.\n\n` +
-      `# ${question.emojis}\n\n` +
-      `**Category:** ${question.category}\n` +
-      `**Reward:** ${reward.toLocaleString()} Baubles\n\n` +
-      `*Type your answer below. You have 45 seconds.*`
-    )
-    .setFooter({ text: 'First correct answer wins.' })
-    .setTimestamp();
-
-  await replyFn(gameEmbed);
-
-  // Collector
-  const channel   = respondable.channel ?? respondable;
-  const collector = channel.createMessageCollector({
-    filter: m => !m.author.bot && question.answers.includes(m.content.trim().toLowerCase()),
-    max:  1,
-    time: 45_000,
-  });
-
-  collector.on('collect', async m => {
-    try {
-      let record = await Bauble.findOne({ userId: m.author.id });
-      if (!record) record = new Bauble({ userId: m.author.id, baubles: 0 });
-      record.baubles += reward;
-      record.dailyGameLastCompleted = new Date();
-      record.emojidecodeWins = (record.emojidecodeWins || 0) + 1;
-      await record.save();
-
-      const client = m.client;
-      if (client) {
-        const { checkAndAwardAchievement } = require('../../utils/achievements');
-        const targetMsg = { channel };
-        if (record.emojidecodeWins >= 10) {
-          await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_10', targetMsg);
-        }
-        if (record.emojidecodeWins >= 50) {
-          await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_50', targetMsg);
-        }
-        if (record.emojidecodeWins >= 100) {
-          await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_100', targetMsg);
-        }
-        if (record.emojidecodeWins >= 250) {
-          await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_250', targetMsg);
-        }
+    if (client) {
+      if (!client.activeEmojidecodeGames) {
+        client.activeEmojidecodeGames = new Map();
       }
-
-      await m.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x2ecc71)
-            .setTitle('🎉 Correct!')
-            .setDescription(
-              `**${m.author.username}** got it!\n\n` +
-              `**${question.emojis}** → **${question.answers[0].toUpperCase()}**\n` +
-              `+**${reward.toLocaleString()} Baubles**`
-            )
-            .setThumbnail(m.author.displayAvatarURL({ dynamic: true }))
-            .setTimestamp(),
-        ],
+      client.activeEmojidecodeGames.set(channelId, {
+        channelId,
+        guildName: channel.guild?.name || 'Unknown Server',
+        channelName: channel.name,
+        emojis: question.emojis,
+        category: question.category,
+        answers: question.answers,
+        timestamp: Date.now()
       });
-    } catch (err) {
-      console.error('[emojidecode] reward error:', err);
     }
-  });
 
-  collector.on('end', async collected => {
+    // Reward
+    const multiplier = await getGlobalMultiplier();
+    const reward     = Math.floor((Math.floor(Math.random() * 76) + 25) * multiplier);
+
+    // Send game embed
+    const gameEmbed = new EmbedBuilder()
+      .setColor(0x7c6cf0)
+      .setTitle('🧩 Emoji Decode')
+      .setDescription(
+        `Decode the emojis to guess the title.\n\n` +
+        `# ${question.emojis}\n\n` +
+        `**Category:** ${question.category}\n` +
+        `**Reward:** ${reward.toLocaleString()} Baubles\n\n` +
+        `*Type your answer below. You have 45 seconds.*`
+      )
+      .setFooter({ text: 'First correct answer wins.' })
+      .setTimestamp();
+
+    await replyFn(gameEmbed);
+
+    // Collector
+    const collector = channel.createMessageCollector({
+      filter: m => !m.author.bot && question.answers.includes(m.content.trim().toLowerCase()),
+      max:  1,
+      time: 45_000,
+    });
+
+    collector.on('collect', async m => {
+      try {
+        let record = await Bauble.findOne({ userId: m.author.id });
+        if (!record) record = new Bauble({ userId: m.author.id, baubles: 0 });
+        record.baubles += reward;
+        record.dailyGameLastCompleted = new Date();
+        record.emojidecodeWins = (record.emojidecodeWins || 0) + 1;
+        await record.save();
+
+        const client = m.client;
+        if (client) {
+          const { checkAndAwardAchievement } = require('../../utils/achievements');
+          const targetMsg = { channel };
+          if (record.emojidecodeWins >= 10) {
+            await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_10', targetMsg);
+          }
+          if (record.emojidecodeWins >= 50) {
+            await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_50', targetMsg);
+          }
+          if (record.emojidecodeWins >= 100) {
+            await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_100', targetMsg);
+          }
+          if (record.emojidecodeWins >= 250) {
+            await checkAndAwardAchievement(client, m.author.id, 'emojidecode_win_250', targetMsg);
+          }
+        }
+
+        await m.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x2ecc71)
+              .setTitle('🎉 Correct!')
+              .setDescription(
+                `**${m.author.username}** got it!\n\n` +
+                `**${question.emojis}** → **${question.answers[0].toUpperCase()}**\n` +
+                `+**${reward.toLocaleString()} Baubles**`
+              )
+              .setThumbnail(m.author.displayAvatarURL({ dynamic: true }))
+              .setTimestamp(),
+          ],
+        });
+      } catch (err) {
+        console.error('[emojidecode] reward error:', err);
+      }
+    });
+
+    collector.on('end', async collected => {
+      activeGames.delete(channelId);
+      if (client && client.activeEmojidecodeGames) {
+        client.activeEmojidecodeGames.delete(channelId);
+      }
+      if (collected.size === 0) {
+        await followUpFn({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xe74c3c)
+              .setTitle('⏰ Time\'s up!')
+              .setDescription(
+                `Nobody guessed in time.\n\n` +
+                `**${question.emojis}** → **${question.answers[0].toUpperCase()}**`
+              )
+              .setTimestamp(),
+          ],
+        });
+      }
+    });
+  } catch (err) {
     activeGames.delete(channelId);
-    if (collected.size === 0) {
-      await followUpFn({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xe74c3c)
-            .setTitle('⏰ Time\'s up!')
-            .setDescription(
-              `Nobody guessed in time.\n\n` +
-              `**${question.emojis}** → **${question.answers[0].toUpperCase()}**`
-            )
-            .setTimestamp(),
-        ],
-      });
+    if (client && client.activeEmojidecodeGames) {
+      client.activeEmojidecodeGames.delete(channelId);
     }
-  });
+    throw err;
+  }
 }
 
 // ─── Export ────────────────────────────────────────────────────────────────────

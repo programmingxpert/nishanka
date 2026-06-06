@@ -118,6 +118,7 @@ module.exports = {
 		const isSlash = !!context.options;
 		const channel = context.channel;
 		const authorId = isSlash ? context.user.id : context.author.id;
+		const client = context.client || channel.client;
 		
         let mode = 'solo';
         let rounds = 5;
@@ -261,6 +262,22 @@ module.exports = {
                     if (recentLocations.length > 150) recentLocations.shift();
                 }
 
+                if (!client.activeGeoguesserGames) {
+                    client.activeGeoguesserGames = new Map();
+                }
+                client.activeGeoguesserGames.set(channel.id, {
+                    channelId: channel.id,
+                    guildName: channel.guild?.name || 'Unknown Server',
+                    channelName: channel.name,
+                    round: currentRound,
+                    totalRounds: rounds,
+                    capital: loc.capital,
+                    country: loc.country,
+                    image: loc.image,
+                    hint: loc.hint,
+                    timestamp: Date.now()
+                });
+
                 const gameEmbed = new EmbedBuilder()
                     .setColor(0x2ecc71)
                     .setTitle(`🌍 GeoGuessr${mode === 'solo' && rounds === 1 ? '' : ` (Round ${currentRound}/${rounds})`}`)
@@ -393,6 +410,9 @@ module.exports = {
             await channel.send('❌ An error occurred while running the game.');
         } finally {
             activeGames.delete(channel.id);
+            if (client && client.activeGeoguesserGames) {
+                client.activeGeoguesserGames.delete(channel.id);
+            }
         }
 	},
 

@@ -131,151 +131,174 @@ const delay = (ms) => new Promise(res => setTimeout(res, ms));
 async function runScrambleGame(initialMessageOrInteraction, channel) {
     const totalRounds = 5;
     const scores = new Map(); // userId -> { name: string, points: number }
-    
-    const startEmbed = new EmbedBuilder()
-        .setColor(0x7c6cf0)
-        .setTitle('🏁 SCRAMBLED WORD RACE: STARTED!')
-        .setDescription(`Get ready! There will be **${totalRounds}** rounds.\nUnscramble the words faster than your opponents to earn points!\n\nThe first round starts in 5 seconds...`);
-        
-    if (initialMessageOrInteraction.reply) {
-        await initialMessageOrInteraction.reply({ embeds: [startEmbed] });
+    const client = channel.client;
+    if (!client.activeScrambleGames) {
+        client.activeScrambleGames = new Map();
     }
-
-    const gameWordsPromise = getScrambleWords(totalRounds);
-
-    for (let round = 1; round <= totalRounds; round++) {
-        if (round === 1) {
-            const startTime = Date.now();
-            const gameWords = await gameWordsPromise;
-            const elapsed = Date.now() - startTime;
-            const remainingDelay = Math.max(0, 5000 - elapsed);
-            await delay(remainingDelay);
-        } else {
-            await delay(5000);
+    
+    try {
+        const startEmbed = new EmbedBuilder()
+            .setColor(0x7c6cf0)
+            .setTitle('🏁 SCRAMBLED WORD RACE: STARTED!')
+            .setDescription(`Get ready! There will be **${totalRounds}** rounds.\nUnscramble the words faster than your opponents to earn points!\n\nThe first round starts in 5 seconds...`);
+            
+        if (initialMessageOrInteraction.reply) {
+            await initialMessageOrInteraction.reply({ embeds: [startEmbed] });
         }
-        
-        const gameWords = await gameWordsPromise;
-        const word = gameWords[round - 1];
-        const scrambled = scrambleWord(word);
-        
-        const roundEmbed = new EmbedBuilder()
-            .setColor(0x3498db)
-            .setTitle(`🔄 Round ${round}/${totalRounds}`)
-            .setDescription(`Unscramble this word:\n\n# **\`${scrambled.toUpperCase()}\`**\n\n*First to type it correctly wins the round! (30 seconds)*`);
-            
-        const roundStartTime = Date.now();
-        await channel.send({ embeds: [roundEmbed] });
-        
-        const filter = m => {
-            if (m.author.bot) return false;
-            return m.content.trim().toLowerCase() === word.toLowerCase();
-        };
 
-        try {
-            const collected = await channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
-            const winner = collected.first();
-            
-            const reactionTime = Date.now() - roundStartTime;
-            if (reactionTime < 400) {
-                const { recordSuspicion } = require('../../utils/antiExploit');
-                recordSuspicion(winner.author.id, 30, `Scramble Game: Solved word in ${reactionTime}ms (unscramble limit <400ms).`, channel.client).catch(() => {});
-            }
+        const gameWordsPromise = getScrambleWords(totalRounds);
 
-            const uId = winner.author.id;
-            if (!scores.has(uId)) {
-                scores.set(uId, { name: winner.author.username, points: 0 });
-            }
-            scores.get(uId).points += 1;
-            
-            const winEmbed = new EmbedBuilder()
-                .setColor(0x2ecc71)
-                .setDescription(`🎉 **${winner.author.username}** unscrambled the word **\`${word.toUpperCase()}\`** first! (+1 point)`);
-            await channel.send({ embeds: [winEmbed] });
-            
-        } catch (err) {
-            const timeoutEmbed = new EmbedBuilder()
-                .setColor(0xe74c3c)
-                .setDescription(`⏰ Time's up! The word was **\`${word.toUpperCase()}\`**.`);
-            await channel.send({ embeds: [timeoutEmbed] });
-        }
-        
-        // Between rounds scoreboard
-        if (round < totalRounds) {
-            if (scores.size > 0) {
-                const sortedScores = Array.from(scores.entries()).sort((a, b) => b[1].points - a[1].points);
-                let boardText = sortedScores.map((s, idx) => `**${idx + 1}.** ${s[1].name} — ${s[1].points} pts`).join('\n');
-                
-                const boardEmbed = new EmbedBuilder()
-                    .setColor(0xf1c40f)
-                    .setTitle('📊 Current Standings')
-                    .setDescription(boardText)
-                    .setFooter({ text: 'Next round starting soon...' });
-                await channel.send({ embeds: [boardEmbed] });
+        for (let round = 1; round <= totalRounds; round++) {
+            if (round === 1) {
+                const startTime = Date.now();
+                const gameWords = await gameWordsPromise;
+                const elapsed = Date.now() - startTime;
+                const remainingDelay = Math.max(0, 5000 - elapsed);
+                await delay(remainingDelay);
             } else {
-                await channel.send({ content: '*Next round starting in 5 seconds...*' });
-            }
-        }
-    }
-    
-    activeGames.delete(channel.id);
-    
-    if (scores.size === 0) {
-        return channel.send({ content: '🏁 The game has ended! Nobody scored any points.' });
-    }
-    
-    const sortedScores = Array.from(scores.entries()).sort((a, b) => b[1].points - a[1].points);
-    let finalText = '';
-    
-    const { getGlobalMultiplier } = require('../../utils/economyEngine');
-    const globalMultiplier = await getGlobalMultiplier();
-
-    for (const [idx, [uId, data]] of sortedScores.entries()) {
-        const reward = Math.floor(data.points * 25 * globalMultiplier);
-        finalText += `**${idx + 1}.** ${data.name} — ${data.points} pts (+**${reward.toLocaleString()}** Baubles) *(Economy Multiplier: ${globalMultiplier}x)*\n`;
-        
-        try {
-            let baubleData = await Bauble.findOne({ userId: uId });
-            if (!baubleData) {
-                baubleData = new Bauble({ userId: uId, baubles: 0 });
-            }
-            baubleData.baubles += reward;
-            baubleData.dailyGameLastCompleted = new Date();
-            
-            if (idx === 0) {
-                baubleData.scrambleWins = (baubleData.scrambleWins || 0) + 1;
+                await delay(5000);
             }
             
-            await baubleData.save();
+            const gameWords = await gameWordsPromise;
+            const word = gameWords[round - 1];
+            const scrambled = scrambleWord(word);
+            
+            client.activeScrambleGames.set(channel.id, {
+                channelId: channel.id,
+                guildName: channel.guild?.name || 'Unknown Server',
+                channelName: channel.name,
+                round,
+                totalRounds,
+                word,
+                scrambled,
+                timestamp: Date.now()
+            });
 
-            if (idx === 0) {
-                const client = initialMessageOrInteraction.client || (initialMessageOrInteraction.channel && initialMessageOrInteraction.channel.client);
-                if (client) {
-                    const { checkAndAwardAchievement } = require('../../utils/achievements');
-                    const targetMsg = { channel };
-                    if (baubleData.scrambleWins >= 10) {
-                        await checkAndAwardAchievement(client, uId, 'scramble_win_10', targetMsg);
-                    }
-                    if (baubleData.scrambleWins >= 50) {
-                        await checkAndAwardAchievement(client, uId, 'scramble_win_50', targetMsg);
-                    }
-                    if (baubleData.scrambleWins >= 100) {
-                        await checkAndAwardAchievement(client, uId, 'scramble_win_100', targetMsg);
-                    }
-                    if (baubleData.scrambleWins >= 250) {
-                        await checkAndAwardAchievement(client, uId, 'scramble_win_250', targetMsg);
-                    }
+            const roundEmbed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle(`🔄 Round ${round}/${totalRounds}`)
+                .setDescription(`Unscramble this word:\n\n# **\`${scrambled.toUpperCase()}\`**\n\n*First to type it correctly wins the round! (30 seconds)*`);
+                
+            const roundStartTime = Date.now();
+            await channel.send({ embeds: [roundEmbed] });
+            
+            const filter = m => {
+                if (m.author.bot) return false;
+                return m.content.trim().toLowerCase() === word.toLowerCase();
+            };
+
+            try {
+                const collected = await channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
+                const winner = collected.first();
+                
+                const reactionTime = Date.now() - roundStartTime;
+                if (reactionTime < 400) {
+                    const { recordSuspicion } = require('../../utils/antiExploit');
+                    recordSuspicion(winner.author.id, 30, `Scramble Game: Solved word in ${reactionTime}ms (unscramble limit <400ms).`, channel.client).catch(() => {});
+                }
+
+                const uId = winner.author.id;
+                if (!scores.has(uId)) {
+                    scores.set(uId, { name: winner.author.username, points: 0 });
+                }
+                scores.get(uId).points += 1;
+                
+                const winEmbed = new EmbedBuilder()
+                    .setColor(0x2ecc71)
+                    .setDescription(`🎉 **${winner.author.username}** unscrambled the word **\`${word.toUpperCase()}\`** first! (+1 point)`);
+                await channel.send({ embeds: [winEmbed] });
+                
+            } catch (err) {
+                const timeoutEmbed = new EmbedBuilder()
+                    .setColor(0xe74c3c)
+                    .setDescription(`⏰ Time's up! The word was **\`${word.toUpperCase()}\`**.`);
+                await channel.send({ embeds: [timeoutEmbed] });
+            }
+            
+            // Between rounds scoreboard
+            if (round < totalRounds) {
+                if (scores.size > 0) {
+                    const sortedScores = Array.from(scores.entries()).sort((a, b) => b[1].points - a[1].points);
+                    let boardText = sortedScores.map((s, idx) => `**${idx + 1}.** ${s[1].name} — ${s[1].points} pts`).join('\n');
+                    
+                    const boardEmbed = new EmbedBuilder()
+                        .setColor(0xf1c40f)
+                        .setTitle('📊 Current Standings')
+                        .setDescription(boardText)
+                        .setFooter({ text: 'Next round starting soon...' });
+                    await channel.send({ embeds: [boardEmbed] });
+                } else {
+                    await channel.send({ content: '*Next round starting in 5 seconds...*' });
                 }
             }
-        } catch(e) {
-            console.error('Error saving baubles for scramble winner:', e);
+        }
+        
+        activeGames.delete(channel.id);
+        
+        if (scores.size === 0) {
+            return channel.send({ content: '🏁 The game has ended! Nobody scored any points.' });
+        }
+        
+        const sortedScores = Array.from(scores.entries()).sort((a, b) => b[1].points - a[1].points);
+        let finalText = '';
+        
+        const { getGlobalMultiplier } = require('../../utils/economyEngine');
+        const globalMultiplier = await getGlobalMultiplier();
+
+        for (const [idx, [uId, data]] of sortedScores.entries()) {
+            const reward = Math.floor(data.points * 25 * globalMultiplier);
+            finalText += `**${idx + 1}.** ${data.name} — ${data.points} pts (+**${reward.toLocaleString()}** Baubles) *(Economy Multiplier: ${globalMultiplier}x)*\n`;
+            
+            try {
+                let baubleData = await Bauble.findOne({ userId: uId });
+                if (!baubleData) {
+                    baubleData = new Bauble({ userId: uId, baubles: 0 });
+                }
+                baubleData.baubles += reward;
+                baubleData.dailyGameLastCompleted = new Date();
+                
+                if (idx === 0) {
+                    baubleData.scrambleWins = (baubleData.scrambleWins || 0) + 1;
+                }
+                
+                await baubleData.save();
+
+                if (idx === 0) {
+                    const client = initialMessageOrInteraction.client || (initialMessageOrInteraction.channel && initialMessageOrInteraction.channel.client);
+                    if (client) {
+                        const { checkAndAwardAchievement } = require('../../utils/achievements');
+                        const targetMsg = { channel };
+                        if (baubleData.scrambleWins >= 10) {
+                            await checkAndAwardAchievement(client, uId, 'scramble_win_10', targetMsg);
+                        }
+                        if (baubleData.scrambleWins >= 50) {
+                            await checkAndAwardAchievement(client, uId, 'scramble_win_50', targetMsg);
+                        }
+                        if (baubleData.scrambleWins >= 100) {
+                            await checkAndAwardAchievement(client, uId, 'scramble_win_100', targetMsg);
+                        }
+                        if (baubleData.scrambleWins >= 250) {
+                            await checkAndAwardAchievement(client, uId, 'scramble_win_250', targetMsg);
+                        }
+                    }
+                }
+            } catch(e) {
+                console.error('Error saving baubles for scramble winner:', e);
+            }
+        }
+        
+        const finalEmbed = new EmbedBuilder()
+            .setColor(0x9b59b6)
+            .setTitle('🏆 SCRAMBLED WORD RACE: FINAL RESULTS')
+            .setDescription(finalText);
+        await channel.send({ embeds: [finalEmbed] });
+    } finally {
+        activeGames.delete(channel.id);
+        if (client.activeScrambleGames) {
+            client.activeScrambleGames.delete(channel.id);
         }
     }
-    
-    const finalEmbed = new EmbedBuilder()
-        .setColor(0x9b59b6)
-        .setTitle('🏆 SCRAMBLED WORD RACE: FINAL RESULTS')
-        .setDescription(finalText);
-    await channel.send({ embeds: [finalEmbed] });
+}
 }
 
 module.exports = {
