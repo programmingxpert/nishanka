@@ -29,7 +29,7 @@ module.exports = {
         .setDescription('Bet Glimmering Baubles on a high-stakes duck race!')
         .addStringOption(option =>
             option.setName('bet')
-                .setDescription('Amount of Glimmering Baubles to bet (e.g. 10, 1k, all, half, 50%)')
+                .setDescription('Amount of Glimmering Baubles to bet (10 - 250k)')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('duck')
@@ -49,6 +49,9 @@ module.exports = {
         const bet = require('../../utils/economyEngine').parseAmount(betStr, baubleData?.baubles ?? 0);
         if (isNaN(bet) || bet < 10) {
             return interaction.reply({ content: '❌ Please specify a valid bet amount of at least **10 Baubles**. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
+        if (bet > 250000) {
+            return interaction.reply({ content: '❌ The maximum bet is **250,000** Baubles.', ephemeral: true });
         }
         const duckChoice = interaction.options.getString('duck');
         await runDuckRace({
@@ -70,6 +73,9 @@ module.exports = {
         const bet = parseAmount(args[0], baubleData?.baubles ?? 0);
         if (isNaN(bet) || bet < 10) {
             return message.reply('❌ Please specify a valid bet amount of at least **10 Baubles**.');
+        }
+        if (bet > 250000) {
+            return message.reply('❌ The maximum bet is **250,000** Baubles.');
         }
 
         const choiceInput = args[1].toLowerCase();

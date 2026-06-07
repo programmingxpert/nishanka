@@ -121,7 +121,7 @@ module.exports = {
         .setDescription('Stake baubles in a minesweeper grid! Find diamonds to multiply your winnings.')
         .addStringOption(option =>
             option.setName('amount')
-                .setDescription('Amount of Baubles to stake (e.g. 500, 1k, all, half, 50%)')
+                .setDescription('Amount of Baubles to stake (500 - 250k)')
                 .setRequired(true)
         )
         .addIntegerOption(option =>
@@ -139,6 +139,9 @@ module.exports = {
         const amount = require('../../utils/economyEngine').parseAmount(amountStr, baubleData?.baubles ?? 0);
         if (isNaN(amount) || amount < 500) {
             return interaction.reply({ content: '❌ The minimum amount to stake is **500** Baubles. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
+        if (amount > 250000) {
+            return interaction.reply({ content: '❌ The maximum amount to stake is **250,000** Baubles.', ephemeral: true });
         }
         const minesCount = interaction.options.getInteger('mines') || 3;
         const hasSpecifiedMines = interaction.options.getInteger('mines') !== null;
@@ -165,6 +168,9 @@ module.exports = {
         const amount = parseAmount(args[0], baubleData?.baubles ?? 0);
         if (isNaN(amount) || amount < 500) {
             return message.reply('❌ The minimum amount to stake is **500** Baubles.');
+        }
+        if (amount > 250000) {
+            return message.reply('❌ The maximum amount to stake is **250,000** Baubles.');
         }
 
         let minesCount = 3;
@@ -228,6 +234,16 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
         if (amount < 500) {
             client.activeMinesGames.delete(userId);
             const errorMsg = `❌ The minimum amount to stake is **500** Baubles.`;
+            if (isSlash) {
+                return interaction.reply({ content: errorMsg, ephemeral: true });
+            } else {
+                return message.reply(errorMsg);
+            }
+        }
+
+        if (amount > 250000) {
+            client.activeMinesGames.delete(userId);
+            const errorMsg = `❌ The maximum amount to stake is **250,000** Baubles.`;
             if (isSlash) {
                 return interaction.reply({ content: errorMsg, ephemeral: true });
             } else {

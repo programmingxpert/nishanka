@@ -14,7 +14,7 @@ module.exports = {
         .setDescription('Spin the Glimmering Bauble slots!')
         .addStringOption(option =>
             option.setName('bet')
-                .setDescription('Amount of Baubles to bet (e.g. 100, 1k, all, half, 50%)')
+                .setDescription('Amount of Baubles to bet (100 - 100k)')
                 .setRequired(true)),
 
     async execute(interaction) {
@@ -48,6 +48,10 @@ module.exports = {
 
             if (bet < 100) {
                 return interaction.reply({ content: `❌ The minimum bet for slots is **100** Baubles.`, ephemeral: true });
+            }
+
+            if (bet > 100000) {
+                return interaction.reply({ content: `❌ The maximum bet for slots is **100,000** Baubles.`, ephemeral: true });
             }
 
             if (baubleData.baubles < bet) {

@@ -772,7 +772,8 @@ async function selectBet(context, channel, user) {
     const betBtn500 = new ButtonBuilder().setCustomId('bj_bet_500').setLabel('500').setStyle(ButtonStyle.Secondary);
     const betBtn1000 = new ButtonBuilder().setCustomId('bj_bet_1000').setLabel('1000').setStyle(ButtonStyle.Secondary);
     const betBtn5000 = new ButtonBuilder().setCustomId('bj_bet_5000').setLabel('5000').setStyle(ButtonStyle.Secondary);
-    const betBtnMax = new ButtonBuilder().setCustomId('bj_bet_max').setLabel(`Max (${balance.toLocaleString()})`).setStyle(ButtonStyle.Danger);
+    const maxBetAllowed = Math.min(balance, 250000);
+    const betBtnMax = new ButtonBuilder().setCustomId('bj_bet_max').setLabel(`Max (${maxBetAllowed.toLocaleString()})`).setStyle(ButtonStyle.Danger);
 
     const row = new ActionRowBuilder().addComponents(betBtn100, betBtn500, betBtn1000, betBtn5000, betBtnMax);
 
@@ -798,7 +799,7 @@ async function selectBet(context, channel, user) {
     betCollector.on('collect', async i => {
         let betAmount;
         if (i.customId === 'bj_bet_max') {
-            betAmount = balance;
+            betAmount = Math.min(balance, 250000);
         } else {
             betAmount = parseInt(i.customId.split('_')[2]);
         }
@@ -863,7 +864,7 @@ module.exports = {
         .setDescription('Play a game of Blackjack and win Baubles!')
         .addStringOption(option => 
             option.setName('bet')
-                .setDescription('Baubles to bet (e.g. 100, 1k, all, half, 50%). Leave blank for the selector.')
+                .setDescription('Baubles to bet (100 - 250k). Leave blank for the selector.')
                 .setRequired(false)
         ),
 
@@ -891,6 +892,12 @@ module.exports = {
             if (isNaN(betAmount) || betAmount < 100) {
                 return interaction.reply({
                     content: `❌ Invalid bet amount. Use a number (minimum 100), \`all\`, \`half\`, or \`50%\`.`,
+                    ephemeral: true
+                });
+            }
+            if (betAmount > 250000) {
+                return interaction.reply({
+                    content: `❌ The maximum bet is **250,000** Baubles.`,
                     ephemeral: true
                 });
             }
@@ -931,12 +938,8 @@ module.exports = {
 
         let betAmount;
         if (args && args.length > 0) {
-            const arg = args[0].toLowerCase();
-            if (arg === 'all' || arg === 'max') {
-                betAmount = balance;
-            } else {
-                betAmount = parseInt(arg);
-            }
+            const { parseAmount } = require('../../utils/economyEngine');
+            betAmount = parseAmount(args[0], balance);
         }
 
         if (!betAmount || isNaN(betAmount) || betAmount < 100) {
@@ -948,6 +951,9 @@ module.exports = {
         } else {
             if (balance < 100) {
                 return message.reply(`❌ You need at least 100 Baubles to play. You have **${balance.toLocaleString()}** Baubles.`);
+            }
+            if (betAmount > 250000) {
+                return message.reply(`❌ The maximum bet is **250,000** Baubles.`);
             }
             if (betAmount > balance) {
                 return message.reply(`❌ You don't have enough Baubles! You tried to bet ${betAmount.toLocaleString()} but only have ${balance.toLocaleString()}.`);

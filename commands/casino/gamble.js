@@ -32,7 +32,7 @@ module.exports = {
         .setDescription('Gamble your Baubles with different risk and reward tiers!')
         .addStringOption(option =>
             option.setName('amount')
-                .setDescription('Amount of Baubles to gamble (e.g. 500, 1k, all, half, 50%)')
+                .setDescription('Amount of Baubles to gamble (500 - 250k)')
                 .setRequired(true)
         )
         .addStringOption(option =>
@@ -53,6 +53,9 @@ module.exports = {
         const amount = require('../../utils/economyEngine').parseAmount(amountStr, baubleData?.baubles ?? 0);
         if (isNaN(amount) || amount < 500) {
             return interaction.reply({ content: '❌ The minimum amount to gamble is **500** Baubles. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
+        if (amount > 250000) {
+            return interaction.reply({ content: '❌ The maximum amount to gamble is **250,000** Baubles.', ephemeral: true });
         }
         const risk = interaction.options.getString('risk') || 'medium';
 
@@ -77,6 +80,9 @@ module.exports = {
         if (isNaN(amount) || amount < 500) {
             return message.reply({ content: '❌ The minimum amount to gamble is **500** Baubles.' });
         }
+        if (amount > 250000) {
+            return message.reply({ content: '❌ The maximum amount to gamble is **250,000** Baubles.' });
+        }
 
         await handleGamble({
             userId,
@@ -95,6 +101,7 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
         const baubleData = await retryDatabaseOperation(() => Bauble.findOne({ userId }));
         if (!baubleData) return sendError("❌ You don't have any Baubles yet! Use `/work` to earn some.");
         if (amount < 500) return sendError("❌ The minimum amount to gamble is **500** Baubles.");
+        if (amount > 250000) return sendError("❌ The maximum amount to gamble is **250,000** Baubles.");
         if (baubleData.baubles < amount) return sendError(`❌ You only have ${baubleData.baubles} Baubles, can't gamble ${amount}.`);
 
         const { chance, multiplier } = getWinChance(risk);

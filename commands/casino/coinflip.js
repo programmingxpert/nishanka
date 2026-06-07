@@ -11,7 +11,7 @@ module.exports = {
         .setDescription('Flip a coin to gamble your baubles (heads, tails, or draw).')
         .addStringOption(option =>
             option.setName('amount')
-                .setDescription('Amount of Baubles to gamble (e.g. 200, 1k, all, half, 50%)')
+                .setDescription('Amount of Baubles to gamble (200 - 250k)')
                 .setRequired(true)
         )
         .addStringOption(option =>
@@ -32,6 +32,9 @@ module.exports = {
         const amount = require('../../utils/economyEngine').parseAmount(amountStr, baubleData?.baubles ?? 0);
         if (isNaN(amount) || amount < 200) {
             return interaction.reply({ content: '❌ The minimum amount is **200** Baubles. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
+        }
+        if (amount > 250000) {
+            return interaction.reply({ content: '❌ The maximum amount is **250,000** Baubles.', ephemeral: true });
         }
         const side = interaction.options.getString('side')?.toLowerCase() || null;
 
@@ -75,6 +78,9 @@ module.exports = {
         if (isNaN(amount) || amount < 200) {
             return message.reply('❌ The minimum amount to gamble is **200** Baubles.');
         }
+        if (amount > 250000) {
+            return message.reply('❌ The maximum amount to gamble is **250,000** Baubles.');
+        }
 
         let side = null;
         if (sideArg) {
@@ -109,6 +115,18 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
 
         if (amount < 200) {
             const errorMsg = `❌ The minimum amount to gamble is **200** Baubles.`;
+            if (isSlash) {
+                if (interaction.deferred || interaction.replied) {
+                    return interaction.followUp({ content: errorMsg, ephemeral: true });
+                } else {
+                    return interaction.reply({ content: errorMsg, ephemeral: true });
+                }
+            } else {
+                return message.reply(errorMsg);
+            }
+        }
+        if (amount > 250000) {
+            const errorMsg = `❌ The maximum amount to gamble is **250,000** Baubles.`;
             if (isSlash) {
                 if (interaction.deferred || interaction.replied) {
                     return interaction.followUp({ content: errorMsg, ephemeral: true });
