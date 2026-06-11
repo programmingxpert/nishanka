@@ -19,20 +19,53 @@ module.exports = {
         console.log(`📦 Loaded ${client.commands.size} command(s)`);
         console.log(`🌐 Serving ${client.guilds.cache.size} guild(s)`);
 
-        client.user.setPresence({
-            activities: [
-                {
-                    name: 'eating cookies 🍪',
-                    type: ActivityType.Playing
-                },
-                {
-                    name: 'Custom Status',
-                    type: ActivityType.Custom,
-                    state: 'nishanka is going public soon.. stay tuned!!'
-                }
-            ],
-            status: 'online'
-        });
+        const statuses = [
+            'dodging the IRS tax collectors... active cooldown 🏃‍♂️💨',
+            'losing all my Baubles on Coinflip... again 🪙',
+            'calculating casino taxes... please do not rob me 💸',
+            'running 193+ commands at 3:00 AM... send coffee ☕',
+            'arguing with the bot host about RAM usage 🧠',
+            'sweeping mines... oh wait, that was a bomb 💣',
+            'trying to buy a 1-of-1 item with a button battery 🔋',
+            'asking the developer for a raise... got warning logs 🚫',
+            'rigging blackjack for the house edge 🃏',
+            'searching for spouses... current streak: single 💔',
+            'crying over active cooldowns... please stand by ⏳',
+            'trying to pay rent with Glimmering Baubles 🪙',
+            'calculating the odds of winning jackpot... 0.0001% 🎰',
+            'wondering why people keep trying to rob the developer 👮‍♂️'
+        ];
+
+        client.setRotatingPresence = () => {
+            if (client.generosityStatusTimeout) return;
+            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+            client.user.setPresence({
+                activities: [
+                    {
+                        name: 'eating cookies 🍪',
+                        type: ActivityType.Playing
+                    },
+                    {
+                        name: 'Custom Status',
+                        type: ActivityType.Custom,
+                        state: randomStatus
+                    }
+                ],
+                status: 'online'
+            });
+        };
+
+        // Set initial status
+        client.setRotatingPresence();
+
+        // Rotate status every 2 minutes (120,000ms) - completely safe from rate limits
+        setInterval(() => {
+            try {
+                client.setRotatingPresence();
+            } catch (err) {
+                console.error('[Presence] Error setting rotating presence:', err);
+            }
+        }, 120_000);
 
         // Initialize Invites Cache
         client.invites = new Map();

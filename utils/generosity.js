@@ -35,20 +35,24 @@ async function triggerGlobalGenerosityAlert(client, senderUser, recipientUser, a
             }
             client.generosityStatusTimeout = setTimeout(() => {
                 try {
-                    client.user.setPresence({
-                        activities: [
-                            {
-                                name: 'eating cookies 🍪',
-                                type: ActivityType.Playing
-                            },
-                            {
-                                name: 'Custom Status',
-                                type: ActivityType.Custom,
-                                state: 'nishanka is going public soon.. stay tuned!!'
-                            }
-                        ],
-                        status: 'online'
-                    });
+                    if (typeof client.setRotatingPresence === 'function') {
+                        client.setRotatingPresence();
+                    } else {
+                        client.user.setPresence({
+                            activities: [
+                                {
+                                    name: 'eating cookies 🍪',
+                                    type: ActivityType.Playing
+                                },
+                                {
+                                    name: 'Custom Status',
+                                    type: ActivityType.Custom,
+                                    state: 'dodging the IRS tax collectors... active cooldown 🏃‍♂️💨'
+                                }
+                            ],
+                            status: 'online'
+                        });
+                    }
                 } catch (err) {
                     console.error('[Generosity Alert] Failed to reset bot presence:', err);
                 }

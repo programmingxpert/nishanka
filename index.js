@@ -501,6 +501,57 @@ app.get("/", (req, res) => {
   res.send("Nishanka Bot API is running");
 });
 
+app.post("/api/interactions", express.raw({ type: '*/*' }), async (req, res) => {
+  const signature = req.headers['x-signature-ed25519'];
+  const timestamp = req.headers['x-signature-timestamp'];
+
+  if (!signature || !timestamp) {
+    return res.status(401).send('Unauthorized: Missing signature headers');
+  }
+
+  const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY || 'dfcca1f6d8250c20eb096387529143c257d3c905b2cf581c5c5a7b43b8b67b22';
+
+  try {
+    const rawBody = req.body;
+    if (!rawBody || rawBody.length === 0) {
+      return res.status(400).send('Bad Request: Empty body');
+    }
+    
+    const crypto = require('crypto');
+    const publicKeyObj = crypto.createPublicKey({
+      key: Buffer.concat([
+        Buffer.from('302a300506032b6570032100', 'hex'),
+        Buffer.from(PUBLIC_KEY, 'hex')
+      ]),
+      format: 'der',
+      type: 'spki'
+    });
+
+    const isValid = crypto.verify(
+      null,
+      Buffer.concat([Buffer.from(timestamp), rawBody]),
+      publicKeyObj,
+      Buffer.from(signature, 'hex')
+    );
+
+    if (!isValid) {
+      return res.status(401).send('Unauthorized: Invalid request signature');
+    }
+
+    const body = JSON.parse(rawBody.toString('utf8'));
+
+    // Discord PING verification
+    if (body.type === 1) {
+      return res.json({ type: 1 });
+    }
+
+    return res.status(204).end();
+  } catch (err) {
+    console.error('Error handling interaction in Express:', err);
+    return res.status(400).send('Bad Request');
+  }
+});
+
 app.get("/api/system-config", async (req, res) => {
   try {
     const SystemConfig = require('./models/SystemConfig');
