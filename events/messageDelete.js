@@ -1,6 +1,30 @@
 const GuildSettings = require('../models/guildSettingsSchema');
 const { EmbedBuilder } = require('discord.js');
 
+function hasMedia(message) {
+    if (message.attachments && message.attachments.size > 0) {
+        for (const [_, attachment] of message.attachments) {
+            const type = attachment.contentType || '';
+            if (type.startsWith('image/') || type.startsWith('video/')) {
+                return true;
+            }
+            const name = (attachment.name || '').toLowerCase();
+            if (/\.(png|jpe?g|gif|webp|mp4|webm|mov|avi|wmv)$/i.test(name)) {
+                return true;
+            }
+        }
+    }
+    if (message.content) {
+        const content = message.content.toLowerCase();
+        if (/\.(png|jpe?g|gif|webp|mp4|webm|mov)(\?|$)/i.test(content) || 
+            content.includes('tenor.com') || 
+            content.includes('giphy.com')) {
+            return true;
+        }
+    }
+    return false;
+}
+
 module.exports = {
     name: 'messageDelete',
 
@@ -35,7 +59,7 @@ module.exports = {
         // ─── Logging System ───
         try {
             if (settings?.logging?.messageDelete !== false) {
-                const { logServerEvent } = require('../utils/serverLogger');
+                const { logServerEvent, sendDiscordLog } = require('../utils/serverLogger');
                 await logServerEvent(
                     message.guild.id,
                     'MESSAGE_DELETE',
@@ -49,42 +73,36 @@ module.exports = {
                         attachmentUrl: message.attachments.first()?.url || null
                     }
                 );
-            }
 
-            if (settings?.logging?.enabled && settings.logging?.channelId && settings.logging?.messageDelete !== false) {
-                // Avoid logging in the log channel itself to prevent loops
-                if (message.channel.id === settings.logging.channelId) return;
+                const deleteEmbed = new EmbedBuilder()
+                    .setColor(0xef4444) // Coral red
+                    .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
+                    .setTitle(`🗑️ Message Deleted`)
+                    .setDescription(`**Author:** <@${message.author.id}> (\`${message.author.id}\`)\n**Channel:** <#${message.channel.id}> (\`${message.channel.id}\`)`)
+                    .setTimestamp();
 
-                const logChannel = message.guild.channels.cache.get(settings.logging.channelId);
-                if (logChannel) {
-                    const deleteEmbed = new EmbedBuilder()
-                        .setColor(0xef4444) // Coral red
-                        .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
-                        .setTitle(`🗑️ Message Deleted`)
-                        .setDescription(`**Author:** <@${message.author.id}> (\`${message.author.id}\`)\n**Channel:** <#${message.channel.id}> (\`${message.channel.id}\`)`)
-                        .setTimestamp();
-
-                    if (message.content) {
-                        const contentCapped = message.content.length > 1000
-                            ? message.content.substring(0, 997) + '...'
-                            : message.content;
-                        deleteEmbed.addFields({ name: 'Content', value: contentCapped });
-                    } else {
-                        deleteEmbed.addFields({ name: 'Content', value: '*None (possibly embed or system message)*' });
-                    }
-
-                    const attachment = message.attachments.first();
-                    if (attachment) {
-                        deleteEmbed.addFields({ name: 'Attachment', value: `[${attachment.name || 'File'}](${attachment.url})` });
-                        if (attachment.contentType?.startsWith('image/')) {
-                            deleteEmbed.setImage(attachment.url);
-                        }
-                    }
-
-                    logChannel.send({ embeds: [deleteEmbed] }).catch(err => {
-                        console.error(`[Logging] Failed to send message delete to ${logChannel.name}:`, err.message);
-                    });
+                if (message.content) {
+                    const contentCapped = message.content.length > 1000
+                        ? message.content.substring(0, 997) + '...'
+                        : message.content;
+                    deleteEmbed.addFields({ name: 'Content', value: contentCapped });
+                } else {
+                    deleteEmbed.addFields({ name: 'Content', value: '*None (possibly embed or system message)*' });
                 }
+
+                const attachment = message.attachments.first();
+                if (attachment) {
+                    deleteEmbed.addFields({ name: 'Attachment', value: `[${attachment.name || 'File'}](${attachment.url})` });
+                    if (attachment.contentType?.startsWith('image/')) {
+                        deleteEmbed.setImage(attachment.url);
+                    }
+                }
+
+                // Classify destination
+                const logType = hasMedia(message) ? 'media' : 'text';
+
+                // Avoid loops: sendDiscordLog will check avoidChannelId
+                await sendDiscordLog(message.guild, logType, { embeds: [deleteEmbed] }, message.channel.id);
             }
         } catch (err) {
             console.error('Error in messageDelete logging handler:', err);

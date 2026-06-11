@@ -176,6 +176,17 @@ module.exports = {
         if (!message.content.startsWith(prefix)) {
             const chatTriggerRegex = /\b(nishanka|nish)\b/i;
             if (chatTriggerRegex.test(message.content)) {
+                const { consumeAPU } = require('../utils/aiManager');
+                const apuCheck = await consumeAPU(message.author.id, 1);
+
+                if (!apuCheck.success) {
+                    const nextReset = new Date();
+                    nextReset.setUTCHours(24, 0, 0, 0);
+                    const resetUnix = Math.floor(nextReset.getTime() / 1000);
+
+                    return message.reply(`❌ I'm literally out of battery to answer your silly questions today. My APUs reset <t:${resetUnix}:R> (00:00 UTC), or you could stop being poor and buy premium for a cheap price at https://nishanka.zeyuki.app/premium 🙄`).catch(() => {});
+                }
+
                 const { generateResponse } = require('../utils/nishankaAI');
                 const query = message.content.replace(/\b(nishanka|nish)\b/gi, '').replace(/\s+/g, ' ').trim();
                 

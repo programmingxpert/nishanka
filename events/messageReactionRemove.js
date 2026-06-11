@@ -29,6 +29,21 @@ module.exports = {
         const guild = reaction.message.guild;
         if (!guild) return;
 
+        // --- Reaction Log ---
+        try {
+            const { sendDiscordLog } = require('../utils/serverLogger');
+            const { EmbedBuilder } = require('discord.js');
+            const reactionEmbed = new EmbedBuilder()
+                .setColor(0xef4444) // Red
+                .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL({ dynamic: true }) })
+                .setTitle(`➖ Reaction Removed`)
+                .setDescription(`**User:** <@${user.id}> (\`${user.id}\`)\n**Message:** [Jump to Message](${reaction.message.url})\n**Channel:** <#${reaction.message.channel.id}> (\`${reaction.message.channel.id}\`)\n**Reaction:** ${reaction.emoji.toString()}`)
+                .setTimestamp();
+            await sendDiscordLog(guild, 'reaction', { embeds: [reactionEmbed] });
+        } catch (err) {
+            console.error('Error in reaction remove logging:', err);
+        }
+
         // --- Starboard Check ---
         try {
             const GuildSettings = require('../models/guildSettingsSchema');

@@ -51,7 +51,12 @@ const guildSettingsSchema = new mongoose.Schema({
         messageDelete: { type: Boolean, default: true },
         messageUpdate: { type: Boolean, default: true },
         memberJoin: { type: Boolean, default: true },
-        memberLeave: { type: Boolean, default: true }
+        memberLeave: { type: Boolean, default: true },
+        msgLogChannelId: { type: String, default: null },
+        mediaLogChannelId: { type: String, default: null },
+        reactionLogChannelId: { type: String, default: null },
+        antispamLogChannelId: { type: String, default: null },
+        modLogChannelId: { type: String, default: null }
     },
     dashboardPermissions: {
         bot: { type: [String], default: [] },

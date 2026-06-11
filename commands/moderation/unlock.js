@@ -22,6 +22,12 @@ module.exports = {
 			await interaction.channel.permissionOverwrites.edit(target, {
 				SendMessages: null
 			}, { reason: `Unlocked by ${interaction.user.tag}: ${reason}` });
+			try {
+				const { logServerEvent } = require('../../utils/serverLogger');
+				await logServerEvent(interaction.guild.id, 'UNLOCK', `Unlocked channel #${interaction.channel.name} for ${target.name}. Reason: ${reason}`, interaction.user, interaction.channel);
+			} catch (e) {
+				console.error('[unlock] Logging failed:', e);
+			}
 
 			const embed = new EmbedBuilder()
 				.setTitle('🔓 Channel Unlocked')
@@ -53,6 +59,12 @@ module.exports = {
 			await message.channel.permissionOverwrites.edit(target, {
 				SendMessages: null
 			}, { reason: `Unlocked by ${message.author.tag}: ${reason}` });
+			try {
+				const { logServerEvent } = require('../../utils/serverLogger');
+				await logServerEvent(message.guild.id, 'UNLOCK', `Unlocked channel #${message.channel.name} for ${target.name}. Reason: ${reason}`, message.author, message.channel);
+			} catch (e) {
+				console.error('[unlock] Logging failed:', e);
+			}
 
 			const embed = new EmbedBuilder()
 				.setTitle('🔓 Channel Unlocked')

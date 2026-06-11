@@ -31,6 +31,12 @@ module.exports = {
 
 		const avatarURL = member.displayAvatarURL({ dynamic: true });
 		await member.kick(reason);
+		try {
+			const { logServerEvent } = require('../../utils/serverLogger');
+			await logServerEvent(interaction.guild.id, 'KICK', reason, interaction.user, targetUser);
+		} catch (e) {
+			console.error('[mkick] Logging failed:', e);
+		}
 
 		const embed = new EmbedBuilder()
 			.setTitle('👢 Member Kicked')
@@ -62,6 +68,12 @@ module.exports = {
 
 		const avatarURL = member.displayAvatarURL({ dynamic: true });
 		await member.kick(reason);
+		try {
+			const { logServerEvent } = require('../../utils/serverLogger');
+			await logServerEvent(message.guild.id, 'KICK', reason, message.author, user);
+		} catch (e) {
+			console.error('[mkick] Logging failed:', e);
+		}
 
 		const embed = new EmbedBuilder()
 			.setTitle('👢 Member Kicked')

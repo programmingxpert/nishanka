@@ -60,7 +60,10 @@ EmbedBuilder.prototype.toJSON = function() {
         }
     }
 
-    // Globally replace standard emojis with custom configured emojis in embeds
+    // Globally replace standard emojis with custom configured emojis in embeds (except in footer)
+    const footer = json.footer;
+    delete json.footer;
+
     let str = JSON.stringify(json);
     for (const [standardEmoji, key] of Object.entries(emojiMapping)) {
         const customEmoji = getCustomEmoji(key);
@@ -69,7 +72,11 @@ EmbedBuilder.prototype.toJSON = function() {
             str = str.replace(regex, customEmoji);
         }
     }
-    return JSON.parse(str);
+    const finalJson = JSON.parse(str);
+    if (footer) {
+        finalJson.footer = footer;
+    }
+    return finalJson;
 };
 const { Riffy } = require('riffy');
 const { Bloom, initializeFonts } = require('musicard');

@@ -21,6 +21,12 @@ module.exports = {
 			await interaction.channel.permissionOverwrites.edit(target, {
 				SendMessages: false
 			}, { reason: `Locked by ${interaction.user.tag}: ${reason}` });
+			try {
+				const { logServerEvent } = require('../../utils/serverLogger');
+				await logServerEvent(interaction.guild.id, 'LOCK', `Locked channel #${interaction.channel.name} for ${target.name}. Reason: ${reason}`, interaction.user, interaction.channel);
+			} catch (e) {
+				console.error('[lock] Logging failed:', e);
+			}
 
 			const embed = new EmbedBuilder()
 				.setTitle('🔒 Channel Locked')
@@ -52,6 +58,12 @@ module.exports = {
 			await message.channel.permissionOverwrites.edit(target, {
 				SendMessages: false
 			}, { reason: `Locked by ${message.author.tag}: ${reason}` });
+			try {
+				const { logServerEvent } = require('../../utils/serverLogger');
+				await logServerEvent(message.guild.id, 'LOCK', `Locked channel #${message.channel.name} for ${target.name}. Reason: ${reason}`, message.author, message.channel);
+			} catch (e) {
+				console.error('[lock] Logging failed:', e);
+			}
 
 			const embed = new EmbedBuilder()
 				.setTitle('🔒 Channel Locked')

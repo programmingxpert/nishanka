@@ -159,6 +159,29 @@ async function handleSpam(message, client, trackerKey, type, settings) {
 
         console.log(`[AntiSpam] ${type} by ${message.author.tag} in ${message.guild.name}. Violations: ${violations}`);
 
+        // ─── Logging System ───
+        try {
+            const { sendDiscordLog } = require('../utils/serverLogger');
+            const logEmbed = new EmbedBuilder()
+                .setColor(0xf97316) // Premium orange
+                .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
+                .setTitle(`🚨 Anti-Spam Triggered`)
+                .setDescription(
+                    `**User:** <@${userId}> (\`${userId}\`)\n` +
+                    `**Channel:** <#${message.channel.id}> (\`${message.channel.id}\`)\n` +
+                    `**Trigger Type:** ${type}\n` +
+                    `**Violations:** ${violations}\n` +
+                    `**Actions Taken:**\n` +
+                    `• Deleted Messages: ${settings.deleteMessages ? '✅ Yes' : '❌ No'}\n` +
+                    `• Warned User: ${settings.warnUser ? '✅ Yes' : '❌ No'}\n` +
+                    `• Timed Out: ${settings.timeoutUser && violations >= 2 ? `✅ Yes (${(settings.timeoutDuration * (violations - 1)) / 1000}s)` : '❌ No'}`
+                )
+                .setTimestamp();
+            await sendDiscordLog(message.guild, 'antispam', { embeds: [logEmbed] });
+        } catch (err) {
+            console.error('Error logging antispam event:', err);
+        }
+
         // Partial violation reset
         setTimeout(() => {
             const val = client.spamViolations.get(trackerKey);
