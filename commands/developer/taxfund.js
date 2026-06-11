@@ -5,7 +5,9 @@ const { parseAmount } = require('../../utils/economyEngine');
 
 module.exports = {
     name: 'taxfund',
-    category: 'economy',
+    category: 'developer',
+    devOnly: true,
+    hidden: true,
     description: 'Manage the accumulated tax fund. Owner only.',
     // Missing data.name so it will be skipped from slash commands? 
     // Wait, let's add a dummy data so index.js loads it, but we won't implement the slash execute.

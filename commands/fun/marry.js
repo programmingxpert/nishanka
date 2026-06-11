@@ -4,9 +4,9 @@ const Family = require('../../models/familySchema');
 const Bauble = require('../../models/baubleSchema');
 
 const RING_ITEMS = {
-    ring_silver: { name: '💍 Silver Wedding Ring', emoji: '💍' },
-    ring_gold: { name: '💍 Gold Wedding Ring', emoji: '💍' },
-    ring_diamond: { name: '💎 Diamond Wedding Ring', emoji: '💎' }
+    ring_silver: { name: '💍 Ring of Mild Interest', emoji: '💍' },
+    ring_gold: { name: '💍 Ring of Financial Strain', emoji: '💍' },
+    ring_diamond: { name: '💎 Ring of Devastating Debt', emoji: '💎' }
 };
 
 module.exports = {
@@ -137,8 +137,11 @@ async function sendProposal(replyContext, proposer, target, ringId, isSlash, isU
 
     // Check if target had already proposed to proposer (auto-accept)
     if (proposerFamily.pendingSpouseProposal === target.id) {
+        const ringUsed = proposerFamily.pendingSpouseRing || 'ring_silver';
         proposerFamily.spouseId = target.id;
         targetFamily.spouseId = proposer.id;
+        proposerFamily.ringUsed = ringUsed;
+        targetFamily.ringUsed = ringUsed;
         proposerFamily.pendingSpouseProposal = null;
         targetFamily.pendingSpouseProposal = null;
         proposerFamily.pendingSpouseRing = null;
@@ -246,6 +249,8 @@ function handleMarriageCollector(message, proposer, target, ringId) {
 
             proposerFamily.spouseId = target.id;
             targetFamily.spouseId = proposer.id;
+            proposerFamily.ringUsed = ringId;
+            targetFamily.ringUsed = ringId;
             proposerFamily.pendingSpouseProposal = null;
             targetFamily.pendingSpouseProposal = null;
             proposerFamily.pendingSpouseRing = null;

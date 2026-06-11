@@ -7,8 +7,27 @@ module.exports = {
     name: 'messageCreate',
 
     async execute(message, client) {
-        // Ignore bots and DMs
-        if (message.author.bot || !message.guild) return;
+        if (!message.guild) return;
+
+        // Record ticket message transcripts
+        try {
+            const Ticket = require('../models/ticketSchema');
+            const openTicket = await Ticket.findOne({ channelId: message.channel.id, status: 'open' });
+            if (openTicket) {
+                openTicket.transcript.push({
+                    senderId: message.author.id,
+                    senderTag: message.author.tag,
+                    senderAvatar: message.author.displayAvatarURL({ extension: 'png', size: 128 }),
+                    content: message.content || (message.embeds.length > 0 ? '[Embed Content]' : ''),
+                    timestamp: new Date()
+                });
+                await openTicket.save().catch(err => console.error('Failed to save ticket transcript:', err));
+            }
+        } catch (e) {
+            console.error('Error saving ticket transcript:', e);
+        }
+
+        if (message.author.bot) return;
 
         let settings = null;
         try {

@@ -3,7 +3,9 @@ const { SlashCommandBuilder } = require('discord.js');
 const DisabledCommand = require('../../models/disabledCommandSchema');
 
 module.exports = {
-    category: 'utility',
+    category: 'developer',
+    devOnly: true,
+    hidden: true,
     data: new SlashCommandBuilder()
         .setName('togglecmd')
         .setDescription('[ADMIN ONLY] Disable or enable a command globally.')

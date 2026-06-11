@@ -1722,6 +1722,7 @@ app.get('/api/guilds/:guildId', async (req, res) => {
         automod: canEdit('automod'),
         censor: canEdit('censor'),
         music: canEdit('music'),
+        tickets: isOwner || isAdmin,
         permissions: isOwner || isAdmin
       },
       dashboardPermissions: {
@@ -1742,6 +1743,15 @@ app.get('/api/guilds/:guildId', async (req, res) => {
       economy: guildConfig?.economy || {},
       music: guildConfig?.music || {},
       bot: guildConfig?.bot || {},
+      tickets: guildConfig?.tickets || {
+        enabled: false,
+        categoryId: null,
+        staffRoleId: null,
+        logChannelId: null,
+        panelChannelId: null,
+        panelMessageId: null,
+        lastTicketNumber: 0
+      },
       leveling: guildConfig?.leveling || {
         enabled: true,
         levelUpChannelId: null,
@@ -1788,7 +1798,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
-  const { autoMod, censor, economy, music, bot, leveling, welcome, autoRole, logging, dashboardPermissions } = req.body;
+  const { autoMod, censor, economy, music, bot, leveling, welcome, autoRole, logging, dashboardPermissions, tickets } = req.body;
 
   try {
     const guild = client.guilds.cache.get(guildId);
@@ -1902,6 +1912,13 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
       settingsUpdates.dashboardPermissions = dashboardPermissions;
     }
 
+    if (tickets) {
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ error: 'Only server Owners or Administrators can modify Ticket settings.' });
+      }
+      settingsUpdates.tickets = tickets;
+    }
+
     // Save GuildSettings
     if (Object.keys(settingsUpdates).length > 0) {
       await GuildSettings.findOneAndUpdate({ guildId }, { $set: settingsUpdates }, { upsert: true, new: true });
@@ -1954,6 +1971,143 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   } catch (err) {
     console.error('Save settings error:', err);
     res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// ─── Guild Tickets API ──────────────────────────────────────────────────────
+app.get('/api/guilds/:guildId/tickets', async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const Ticket = require('./models/ticketSchema');
+    const tickets = await Ticket.find({ guildId })
+      .select('-transcript') // omit transcript for list view to save bandwidth
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(tickets);
+  } catch (err) {
+    console.error('Fetch tickets error:', err);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+app.get('/api/guilds/:guildId/tickets/:id', async (req, res) => {
+  const { guildId, id } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const Ticket = require('./models/ticketSchema');
+    const ticket = await Ticket.findOne({ guildId, _id: id }).lean();
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+    res.json(ticket);
+  } catch (err) {
+    console.error('Fetch ticket details error:', err);
+    res.status(500).json({ error: 'Failed to fetch ticket details' });
+  }
+});
+
+app.post('/api/guilds/:guildId/tickets/:id/close', async (req, res) => {
+  const { guildId, id } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const Ticket = require('./models/ticketSchema');
+    const ticket = await Ticket.findOne({ guildId, _id: id, status: 'open' });
+    if (!ticket) return res.status(404).json({ error: 'Open ticket not found' });
+
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return res.status(404).json({ error: 'Server not found' });
+
+    const channel = guild.channels.cache.get(ticket.channelId);
+    if (!channel) {
+      // Channel was manually deleted, mark status as closed in DB
+      ticket.status = 'closed';
+      ticket.closedAt = new Date();
+      ticket.closedBy = req.session.user.id;
+      await ticket.save();
+      return res.json({ ok: true, message: 'Ticket closed in database (channel was already deleted).' });
+    }
+
+    // Use our utility function to close the ticket
+    const { closeTicket } = require('./utils/ticketEngine');
+    const user = await client.users.fetch(req.session.user.id).catch(() => null);
+    const member = await guild.members.fetch(req.session.user.id).catch(() => null);
+
+    if (!member || !user) {
+      return res.status(403).json({ error: 'Unable to resolve your user info on Discord.' });
+    }
+
+    // Call closeTicket
+    let repliedText = '';
+    await closeTicket({
+      guild,
+      channel,
+      member,
+      user,
+      client,
+      replyFn: async (msg) => {
+        repliedText = msg;
+      }
+    });
+
+    res.json({ ok: true, message: repliedText });
+  } catch (err) {
+    console.error('Close ticket API error:', err);
+    res.status(500).json({ error: 'Failed to close ticket' });
+  }
+});
+
+app.post('/api/guilds/:guildId/tickets/send-panel', express.json(), async (req, res) => {
+  const { guildId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return res.status(404).json({ error: 'Server not found' });
+
+    const settings = await GuildSettings.findOne({ guildId }) || new GuildSettings({ guildId });
+    const panelChannelId = settings.tickets?.panelChannelId;
+    if (!panelChannelId) {
+      return res.status(400).json({ error: 'Panel channel is not configured in settings.' });
+    }
+
+    const targetChannel = guild.channels.cache.get(panelChannelId);
+    if (!targetChannel) {
+      return res.status(404).json({ error: 'Configured panel channel was not found in Discord.' });
+    }
+
+    const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+    const setupEmbed = new EmbedBuilder()
+      .setColor(0x7c6cf0)
+      .setTitle('🎫 Support Tickets')
+      .setDescription('Need help? Click the button below to open a private support ticket. Our staff will assist you as soon as possible!')
+      .setTimestamp()
+      .setFooter({ text: 'Nishanka Support System' });
+
+    const createBtn = new ButtonBuilder()
+      .setCustomId('ticket_create')
+      .setLabel('Create Ticket')
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji('🎫');
+
+    const row = new ActionRowBuilder().addComponents(createBtn);
+
+    const panelMessage = await targetChannel.send({ embeds: [setupEmbed], components: [row] });
+    
+    settings.tickets.panelMessageId = panelMessage.id;
+    settings.tickets.enabled = true;
+    await settings.save();
+
+    res.json({ ok: true, message: 'Ticket panel successfully deployed to channel!' });
+  } catch (err) {
+    console.error('Send ticket panel error:', err);
+    res.status(500).json({ error: 'Failed to send ticket panel: ' + err.message });
   }
 });
 

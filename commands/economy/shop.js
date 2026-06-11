@@ -20,6 +20,19 @@ async function executePurchase(userId, itemId, quantity, baubleData, globalMulti
     const item = ITEMS[itemId];
     if (!item) return { error: '❌ Invalid item ID.' };
 
+    const { getGlobalItemSupply } = require('../../utils/items');
+    const limit = item.maxGlobalSupply !== undefined ? item.maxGlobalSupply : (item.isUnique ? 1 : null);
+    if (limit !== null) {
+        const supply = await getGlobalItemSupply(itemId);
+        if (supply >= limit) {
+            return { error: `❌ **${item.name}** has reached its global supply cap of **${limit}** copies. No more can be obtained/bought!` };
+        }
+        if (supply + quantity > limit) {
+            const allowed = limit - supply;
+            return { error: `❌ Buying **${quantity}x ${item.name}** would exceed its global supply cap of **${limit}** copies. You can only buy at most **${allowed}** more.` };
+        }
+    }
+
     const dynamicPrice = Math.floor(item.basePrice / globalMultiplier);
     const totalPrice = dynamicPrice * quantity;
 
@@ -299,7 +312,7 @@ function getHelpPageEmbed(baubles, globalMultiplier) {
             `- *Example:* \`-shop buy coffee 2\`\n\n` +
             `**💸 Economy Rules & Constraints:**\n` +
             `- **Gifting:** Use \`/gift\` to send items to friends with a custom message. Note that select items like Custom Tags and Crown of Royalty are non-giftable.\n` +
-            `- **Selling:** Only the Golden Nugget can be sold back to the shop using \`/sell\` (refunds **150,000** Baubles). All other items are non-sellable.`
+            `- **Selling:** You can sell items back to the shop using \`/sell\` to receive a payout. Special items like Custom Tags cannot be sold.`
         )
         .setFooter({ text: 'Use the buttons below to browse items.' });
 }

@@ -1417,14 +1417,26 @@ async function applyParentLaborTax(userId, earnings, baubleData) {
         const fam = await Family.findOne({ userId });
         if (fam && fam.parents && fam.parents.length > 0) {
             const parentId = fam.parents[0];
-            const tax = Math.floor(earnings * 0.05);
-            if (tax > 0) {
-                const parentProfile = await Bauble.findOne({ userId: parentId });
-                if (parentProfile) {
-                    parentProfile.baubles += tax;
-                    await parentProfile.save();
-                    finalEarnings -= tax;
-                    taxMsg = `\n\n📄 **Child Labor Tax:** **${tax} Baubles** (5%) transferred to your parent <@${parentId}>!`;
+            const parentProfile = await Bauble.findOne({ userId: parentId });
+            if (parentProfile) {
+                const now = Date.now();
+                if (parentProfile.childLaborExpiresAt && now < new Date(parentProfile.childLaborExpiresAt).getTime()) {
+                    // 15% bonus cut, generated from thin air (does not subtract from child!)
+                    const tax = Math.floor(earnings * 0.15);
+                    if (tax > 0) {
+                        parentProfile.baubles += tax;
+                        await parentProfile.save();
+                        taxMsg = `\n\n📄 **Child Labor Cut:** **${tax} Baubles** (15%) generated and transferred to your parent <@${parentId}>!`;
+                    }
+                } else {
+                    // Standard 5% tax deducted from child
+                    const tax = Math.floor(earnings * 0.05);
+                    if (tax > 0) {
+                        parentProfile.baubles += tax;
+                        await parentProfile.save();
+                        finalEarnings -= tax;
+                        taxMsg = `\n\n📄 **Child Labor Tax:** **${tax} Baubles** (5%) transferred to your parent <@${parentId}>!`;
+                    }
                 }
             }
         }

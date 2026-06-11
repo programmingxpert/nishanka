@@ -370,17 +370,20 @@ module.exports = {
             if (role.managed || role.id === everyone.id) continue;
 
             const nameLower = role.name.toLowerCase();
-            const civilianKeywords = [
-                'member', 'user', 'verified', 'citizen', 'visitor', 'guest', 'gamer', 'player', 'level', 'rank', 
-                'color', 'ping', 'announcement', 'giveaway', 'subscriber', 'booster', 'vip', 'community', 'friend', 
-                'everyone', 'active', 'chat', 'verify', 'unverified', 'roleplay', 'rp', 'public', 'people', 'civilian'
-            ];
-            const hasCivilianName = civilianKeywords.some(keyword => nameLower.includes(keyword));
+            // Match civilian keywords with word boundaries to avoid partial matches
+            const civilianRegex = /\b(member|user|verified|citizen|visitor|guest|gamer|player|level|rank|color|ping|announcement|giveaway|subscriber|booster|vip|community|friend|everyone|active|chat|verify|unverified|roleplay|rp|public|people|civilian)\b/i;
+            const hasCivilianName = civilianRegex.test(role.name);
+
+            // Match staff/moderator keywords with word boundaries
+            const staffRegex = /\b(mod|moderator|staff|admin|administrator|owner|helper|support|manager|developer|dev|architect|lead|founder|co-founder|officer|co-owner|director|team|executive|host|referee|sentinel|guard|warden|police|security)\b/i;
+            const hasStaffName = staffRegex.test(role.name);
 
             // A role is classified as staff (not civilian) if:
             // 1. It is explicitly configured in dashboard settings.
-            // 2. It has Administrator or Manage Server permissions, and doesn't have an explicitly civilian name.
+            // 2. It has a staff/moderator name.
+            // 3. It has Administrator or Manage Server permissions, and doesn't have an explicitly civilian name.
             const isStaffRole = allowedRoleIds.has(role.id) || 
+                                hasStaffName ||
                                 ((role.permissions.has(PermissionsBitField.Flags.Administrator) || role.permissions.has(PermissionsBitField.Flags.ManageGuild)) && !hasCivilianName);
 
             const isCivilianRole = !isStaffRole;
@@ -442,16 +445,12 @@ module.exports = {
         for (const channel of channels.values()) {
             if (!channel) continue;
             
-            // Look for channels intended to be private or moderation channels
-            const nameLower = channel.name.toLowerCase();
-            const isSensitive = nameLower.includes('mod') || 
-                                nameLower.includes('admin') || 
-                                nameLower.includes('staff') || 
-                                nameLower.includes('logs') || 
-                                nameLower.includes('audit') || 
-                                nameLower.includes('dev') ||
-                                nameLower.includes('secret') ||
-                                nameLower.includes('ticket');
+            // Look for channels intended to be private or moderation channels using word boundaries
+            // Exclude public logging channels like changelogs, update-logs, or public support ticket channels
+            const sensitiveRegex = /\b(mod|moderator|admin|administrator|staff|log|logs|audit|dev|developer|secret)\b/i;
+            const excludeRegex = /\b(change|update|announcement|rules|welcome|ticket|tickets)\b/i;
+
+            const isSensitive = sensitiveRegex.test(channel.name) && !excludeRegex.test(channel.name);
 
             if (isSensitive && (channel.type === ChannelType.GuildText || channel.type === ChannelType.GuildVoice)) {
                 // Check if @everyone can view this channel

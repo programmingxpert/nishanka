@@ -63,6 +63,21 @@ const guildSettingsSchema = new mongoose.Schema({
         censor: { type: [String], default: [] },
         music: { type: [String], default: [] }
     },
+    tickets: {
+        enabled: { type: Boolean, default: false },
+        categoryId: { type: String, default: null },
+        staffRoleId: { type: String, default: null },
+        logChannelId: { type: String, default: null },
+        panelChannelId: { type: String, default: null },
+        panelMessageId: { type: String, default: null },
+        lastTicketNumber: { type: Number, default: 0 }
+    },
+    starboard: {
+        enabled: { type: Boolean, default: false },
+        channelId: { type: String, default: null },
+        emoji: { type: String, default: '⭐' },
+        threshold: { type: Number, default: 3 }
+    },
     isPremium: { type: Boolean, default: false },
     lastSecurityCheck: { type: Date, default: null }
 });

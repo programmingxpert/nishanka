@@ -69,7 +69,7 @@ const ACHIEVEMENTS = [
     { id: 'comeback_kid', name: 'The Comeback Kid', emoji: '🔥', description: 'Win a Coinflip when you had fewer than 1,000 Baubles in your wallet before betting.', rarity: 1.0, isAward: true, isBadge: false, category: 'casino' },
     { id: 'midnight_gambler', name: 'Midnight Phantom', emoji: '🌙', description: 'Win a Coinflip or Gamble between 00:00 and 00:10 UTC.', rarity: 0.5, isAward: true, isBadge: false, category: 'casino' },
     { id: 'draw_winner', name: 'Against the Universe', emoji: '🌌', description: 'Correctly guess the Sideways/Draw outcome in Coinflip — a 0.1% chance.', rarity: 0.1, isAward: true, isBadge: false, category: 'casino' },
-    { id: 'high_roller_god', name: 'All-In Legend', emoji: '🎰', description: 'Win a HIGH risk Gamble with a bet of at least 1,000,000 Baubles.', rarity: 0.01, isAward: true, isBadge: false, category: 'casino' },
+    { id: 'high_roller_god', name: 'All-In Legend', emoji: '🎰', description: 'Win a HIGH risk Gamble with a bet of at least 250,000 Baubles.', rarity: 0.01, isAward: true, isBadge: false, category: 'casino' },
     { id: 'loss_streak_survivor', name: 'Rock Bottom Comeback', emoji: '💀', description: 'Lose 15 Coinflip games in a row, then win the very next one.', rarity: 0.1, isAward: true, isBadge: false, category: 'casino' },
     { id: 'philanthropist', name: 'The Philanthropist', emoji: '💝', description: 'Give Baubles to 25 different unique players in your lifetime.', rarity: 0.2, isAward: true, isBadge: false, category: 'economy' },
     { id: 'robin_hood', name: 'Robin Hood', emoji: '🏹', description: 'Give away a cumulative total of 1,000,000 Baubles to other players.', rarity: 0.05, isAward: true, isBadge: false, category: 'economy' },

@@ -169,8 +169,11 @@ function handleProposalsCollector(message, user) {
             proposerEco.inventory[ringIndex].quantity -= 1;
             await proposerEco.save();
 
+            const ringUsed = familyData.pendingSpouseRing || 'ring_silver';
             familyData.spouseId = proposerId;
             proposerFamily.spouseId = user.id;
+            familyData.ringUsed = ringUsed;
+            proposerFamily.ringUsed = ringUsed;
             familyData.pendingSpouseProposal = null;
             proposerFamily.pendingSpouseProposal = null;
             familyData.pendingSpouseRing = null;

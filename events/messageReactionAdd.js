@@ -29,6 +29,92 @@ module.exports = {
         const guild = reaction.message.guild;
         if (!guild) return;
 
+        // --- Starboard Check ---
+        try {
+            const GuildSettings = require('../models/guildSettingsSchema');
+            const settings = await GuildSettings.findOne({ guildId: guild.id }).lean();
+            if (settings?.starboard?.enabled && settings.starboard.channelId) {
+                const isTargetEmoji = (settings.starboard.emoji === reaction.emoji.name) || 
+                                      (reaction.emoji.id && settings.starboard.emoji.includes(reaction.emoji.id));
+                
+                const isStarboardChannel = reaction.message.channel.id === settings.starboard.channelId;
+
+                if (isTargetEmoji && !isStarboardChannel) {
+                    const StarboardMessage = require('../models/starboardMessageSchema');
+                    const { EmbedBuilder } = require('discord.js');
+
+                    // Fetch reaction users to count (exclude bots and author self-star)
+                    const users = await reaction.users.fetch();
+                    let starCount = 0;
+                    users.forEach(u => {
+                        if (!u.bot && u.id !== reaction.message.author.id) {
+                            starCount++;
+                        }
+                    });
+
+                    // Build starboard embed
+                    const embed = new EmbedBuilder()
+                        .setColor(0xF1C40F)
+                        .setAuthor({
+                            name: reaction.message.author.username,
+                            iconURL: reaction.message.author.displayAvatarURL({ dynamic: true })
+                        })
+                        .setDescription(reaction.message.content || '')
+                        .setTimestamp(reaction.message.createdAt)
+                        .addFields({
+                            name: 'Original Message',
+                            value: `[Jump to Message](${reaction.message.url})`,
+                            inline: false
+                        });
+
+                    const firstAttachment = reaction.message.attachments.first();
+                    if (firstAttachment && firstAttachment.contentType?.startsWith('image/')) {
+                        embed.setImage(firstAttachment.url);
+                    }
+
+                    const starboardChannel = guild.channels.cache.get(settings.starboard.channelId);
+                    if (starboardChannel) {
+                        let starboardRecord = await StarboardMessage.findOne({ messageId: reaction.message.id });
+                        if (starboardRecord) {
+                            try {
+                                const starMessage = await starboardChannel.messages.fetch(starboardRecord.starboardMessageId);
+                                if (starMessage) {
+                                    await starMessage.edit({
+                                        content: `${settings.starboard.emoji || '⭐'} **${starCount}** | <#${reaction.message.channel.id}>`,
+                                        embeds: [embed]
+                                    });
+                                    starboardRecord.stars = starCount;
+                                    await starboardRecord.save();
+                                }
+                            } catch (err) {
+                                console.error('[Starboard] Failed to update existing starboard message:', err);
+                            }
+                        } else {
+                            if (starCount >= (settings.starboard.threshold || 3)) {
+                                try {
+                                    const sentMsg = await starboardChannel.send({
+                                        content: `${settings.starboard.emoji || '⭐'} **${starCount}** | <#${reaction.message.channel.id}>`,
+                                        embeds: [embed]
+                                    });
+                                    await StarboardMessage.create({
+                                        guildId: guild.id,
+                                        channelId: reaction.message.channel.id,
+                                        messageId: reaction.message.id,
+                                        starboardMessageId: sentMsg.id,
+                                        stars: starCount
+                                    });
+                                } catch (err) {
+                                    console.error('[Starboard] Failed to send new starboard message:', err);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[Starboard] Error checking messageReactionAdd:', err);
+        }
+
         // Normalize the emoji representation: use ID for custom, name for unicode
         const emojiKey = reaction.emoji.id ? reaction.emoji.id : reaction.emoji.name;
 

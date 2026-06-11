@@ -3,7 +3,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const Bauble = require('../../models/baubleSchema');
 
 module.exports = {
-    category: 'economy',
+    category: 'developer',
     devOnly: true,
     hidden: true,
     data: { name: 'take' },
@@ -51,18 +51,8 @@ module.exports = {
                 baubleData.markModified('inventory');
                 await baubleData.save();
 
-                const itemNames = {
-                    coffee: '☕ Energizing Coffee',
-                    clover: '🍀 Lucky Clover',
-                    shield: '🛡️ Aegis Shield',
-                    mystery_box: '📦 Mystery Box',
-                    padlock: '🔒 Safe Padlock',
-                    tag: '🏷️ Custom Tag',
-                    paintbrush: '🎨 Profile Paintbrush',
-                    nugget: '💎 Golden Nugget',
-                    crown: '👑 Crown of Royalty'
-                };
-                const itemName = itemNames[itemId] || itemId;
+                const { ITEMS } = require('../../utils/items');
+                const itemName = ITEMS[itemId]?.name || itemId;
                 await interaction.reply({ content: `✅ Successfully took **${amount}x ${itemName}** from ${user.tag}'s inventory.`, ephemeral: true });
             } else {
                 if (baubleData.baubles < amount) {
@@ -92,7 +82,8 @@ module.exports = {
             return message.reply('⚠️ Please mention a user to take from. Usage: `-take <@user> <amount|item_id> [item_id|amount]`');
         }
 
-        const itemIds = ["coffee", "clover", "shield", "mystery_box", "padlock", "tag", "paintbrush", "nugget", "crown"];
+        const { ITEMS } = require('../../utils/items');
+        const itemIds = Object.keys(ITEMS);
         let itemId = null;
         let amount = 1;
         let isItem = false;
@@ -162,18 +153,7 @@ module.exports = {
                 baubleData.markModified('inventory');
                 await baubleData.save();
 
-                const itemNames = {
-                    coffee: '☕ Energizing Coffee',
-                    clover: '🍀 Lucky Clover',
-                    shield: '🛡️ Aegis Shield',
-                    mystery_box: '📦 Mystery Box',
-                    padlock: '🔒 Safe Padlock',
-                    tag: '🏷️ Custom Tag',
-                    paintbrush: '🎨 Profile Paintbrush',
-                    nugget: '💎 Golden Nugget',
-                    crown: '👑 Crown of Royalty'
-                };
-                const itemName = itemNames[itemId] || itemId;
+                const itemName = ITEMS[itemId]?.name || itemId;
                 await message.reply(`✅ Successfully took **${amount}x ${itemName}** from ${user.tag}'s inventory.`);
             } else {
                 if (baubleData.baubles < amount) {

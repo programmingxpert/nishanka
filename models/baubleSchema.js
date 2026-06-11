@@ -75,6 +75,7 @@ const baubleSchema = new Schema({
     beamedExpiresAt: { type: Date, default: null },
     spaceDuckExpiresAt: { type: Date, default: null },
     itemLockoutExpiresAt: { type: Date, default: null },
+    childLaborExpiresAt: { type: Date, default: null },
     // Achievement tracking fields
     uniqueUsersGiftedTo: { type: [String], default: [] },
     totalBaublesGiven: { type: Number, default: 0 },

@@ -6,7 +6,7 @@ const path = require('node:path');
 module.exports = {
 	hidden: true,
 	devOnly: true,
-	category: 'utility',
+	category: 'developer',
 	data: new SlashCommandBuilder()
 		.setName('reload')
 		.setDescription('Reloads or loads a command.')

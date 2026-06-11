@@ -88,7 +88,7 @@ function buildInventoryPages(baubleData, user, unlockedCollections, unlockedTitl
         const ts = Math.floor(new Date(baubleData.luckExpiresAt).getTime() / 1000);
         const luckTime = new Date(baubleData.luckExpiresAt).getTime();
         const isRabbit = (luckTime % 10 === 5);
-        statusLines.push(`🍀 **Luck Boost (${isRabbit ? '+15%' : '+10%'}):** active • <t:${ts}:R>`);
+        statusLines.push(`🍀 **Luck Boost (${isRabbit ? '+25%' : '+15%'}):** active • <t:${ts}:R>`);
     }
     if (baubleData.luckPenaltyExpiresAt && now < new Date(baubleData.luckPenaltyExpiresAt).getTime()) {
         const ts = Math.floor(new Date(baubleData.luckPenaltyExpiresAt).getTime() / 1000);

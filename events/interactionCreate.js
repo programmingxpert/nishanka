@@ -9,6 +9,16 @@ module.exports = {
         // Handle button interactions for adventure choices
         if (interaction.isButton()) {
             const customId = interaction.customId;
+            if (customId === 'ticket_create') {
+                return await handleTicketCreate(interaction, client);
+            }
+            if (customId === 'ticket_close') {
+                return await handleTicketClose(interaction, client);
+            }
+            if (customId.startsWith('bauble_rain_grab_')) {
+                const rainId = customId.replace('bauble_rain_grab_', '');
+                return await handleBaubleRainGrab(interaction, client, rainId);
+            }
             if (customId.startsWith('claim_pre_release_')) {
                 const targetUserId = customId.split('_')[3];
                 if (interaction.user.id !== targetUserId) {
@@ -367,3 +377,216 @@ module.exports = {
         }
     },
 };
+
+async function handleTicketCreate(interaction, client) {
+    const { MessageFlags } = require('discord.js');
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    
+    const { guild, user } = interaction;
+    const GuildSettings = require('../models/guildSettingsSchema');
+    const Ticket = require('../models/ticketSchema');
+    const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = require('discord.js');
+
+    const settings = await GuildSettings.findOne({ guildId: guild.id });
+    if (!settings || !settings.tickets || !settings.tickets.enabled) {
+        return interaction.editReply({ content: '❌ The ticket system is currently disabled on this server.' });
+    }
+
+    // Check if user already has an open ticket
+    const existingTicket = await Ticket.findOne({ guildId: guild.id, userId: user.id, status: 'open' });
+    if (existingTicket) {
+        // Double check if the channel still exists in Discord
+        const chan = guild.channels.cache.get(existingTicket.channelId);
+        if (chan) {
+            return interaction.editReply({ content: `❌ You already have an open ticket: <#${existingTicket.channelId}>.` });
+        } else {
+            // Channel was deleted manually, close in DB
+            existingTicket.status = 'closed';
+            existingTicket.closedAt = new Date();
+            existingTicket.closedBy = client.user.id;
+            await existingTicket.save();
+        }
+    }
+
+    // Increment ticket number
+    settings.tickets.lastTicketNumber = (settings.tickets.lastTicketNumber || 0) + 1;
+    await settings.save();
+
+    const ticketNumberFormatted = String(settings.tickets.lastTicketNumber).padStart(4, '0');
+    const channelName = `ticket-${ticketNumberFormatted}`;
+
+    const permissionOverwrites = [
+        {
+            id: guild.roles.everyone.id,
+            deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+        },
+        {
+            id: user.id,
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory]
+        },
+        {
+            id: guild.members.me.id,
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
+        }
+    ];
+
+    if (settings.tickets.staffRoleId) {
+        permissionOverwrites.push({
+            id: settings.tickets.staffRoleId,
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ReadMessageHistory]
+        });
+    }
+
+    try {
+        const ticketChannel = await guild.channels.create({
+            name: channelName,
+            type: ChannelType.GuildText,
+            parent: settings.tickets.categoryId || null,
+            permissionOverwrites
+        });
+
+        const ticket = new Ticket({
+            guildId: guild.id,
+            ticketNumber: settings.tickets.lastTicketNumber,
+            userId: user.id,
+            channelId: ticketChannel.id,
+            status: 'open',
+            topic: 'General Support'
+        });
+        await ticket.save();
+
+        const welcomeEmbed = new EmbedBuilder()
+            .setColor(0x7c6cf0)
+            .setTitle(`🎫 Ticket #${ticketNumberFormatted}`)
+            .setDescription(`Welcome <@${user.id}>!\n\nThank you for reaching out to support. Please describe your issue or question in detail here. A staff member will assist you shortly.\n\nTo close this ticket, click the button below or type \`-ticket close\`.`)
+            .setTimestamp();
+
+        const closeBtn = new ButtonBuilder()
+            .setCustomId('ticket_close')
+            .setLabel('Close Ticket')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('🔒');
+
+        const row = new ActionRowBuilder().addComponents(closeBtn);
+
+        await ticketChannel.send({
+            content: `<@${user.id}>${settings.tickets.staffRoleId ? ` <@&${settings.tickets.staffRoleId}>` : ''}`,
+            embeds: [welcomeEmbed],
+            components: [row]
+        });
+
+        await interaction.editReply({ content: `✅ Ticket created successfully! Go to <#${ticketChannel.id}>.` });
+
+    } catch (err) {
+        console.error('Failed to create ticket channel:', err);
+        await interaction.editReply({ content: '❌ Failed to create ticket channel. Please check bot permissions.' });
+    }
+}
+
+async function handleTicketClose(interaction, client) {
+    await interaction.deferReply();
+    const { closeTicket } = require('../utils/ticketEngine');
+    await closeTicket({
+        guild: interaction.guild,
+        channel: interaction.channel,
+        member: interaction.member,
+        user: interaction.user,
+        client,
+        replyFn: async (msg) => {
+            if (interaction.replied || interaction.deferred) {
+                await interaction.editReply(msg).catch(() => {});
+            } else {
+                await interaction.reply(msg).catch(() => {});
+            }
+        }
+    });
+}
+
+async function handleBaubleRainGrab(interaction, client, rainId) {
+    if (!client.activeBaubleRains) {
+        client.activeBaubleRains = new Map();
+    }
+    const activeRain = client.activeBaubleRains.get(rainId);
+    if (!activeRain) {
+        return interaction.reply({ content: '❌ This bauble rain has expired or already ended.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (interaction.user.id === activeRain.senderId) {
+        return interaction.reply({ content: '❌ You cannot grab your own Bauble Rain!', flags: MessageFlags.Ephemeral });
+    }
+
+    if (activeRain.claimedBy.has(interaction.user.id)) {
+        return interaction.reply({ content: '❌ You have already grabbed a slice of this Bauble Rain!', flags: MessageFlags.Ephemeral });
+    }
+
+    if (activeRain.slices.length === 0) {
+        return interaction.reply({ content: '❌ All slices of this Bauble Rain have been claimed!', flags: MessageFlags.Ephemeral });
+    }
+
+    // Shift slice synchronously to prevent double-claiming
+    const claimAmount = activeRain.slices.shift();
+    activeRain.claimedBy.add(interaction.user.id);
+    activeRain.claims.push({ userId: interaction.user.id, amount: claimAmount });
+
+    // Acknowledge interaction first so Discord doesn't timeout
+    await interaction.reply({ content: `🎉 **Grabbed!** You snatched a rain droplet containing **${claimAmount.toLocaleString()}** Glimmering Baubles!`, flags: MessageFlags.Ephemeral });
+
+    try {
+        // Update database
+        const Bauble = require('../models/baubleSchema');
+        let userProfile = await Bauble.findOne({ userId: interaction.user.id });
+        if (!userProfile) {
+            userProfile = await Bauble.create({ userId: interaction.user.id, baubles: 0 });
+        }
+        userProfile.baubles = (userProfile.baubles || 0) + claimAmount;
+        await userProfile.save();
+
+        // Update the embed
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder } = require('discord.js');
+        const originalEmbed = interaction.message.embeds[0];
+        
+        const remainingClaims = activeRain.slices.length;
+        const embedBuilder = EmbedBuilder.from(originalEmbed)
+            .setFooter({ text: `Claims remaining: ${remainingClaims}` });
+
+        // Update/create fields
+        const fields = [
+            { name: '☁️ Cloud Size', value: `**${activeRain.totalAmount.toLocaleString()}** Baubles`, inline: true },
+            { name: '👥 Claims Available', value: `${remainingClaims} slots remaining`, inline: true }
+        ];
+
+        // Add claim list if any claims have happened
+        if (activeRain.claims.length > 0) {
+            const claimsList = activeRain.claims.map(c => `<@${c.userId}> grabbed **${c.amount.toLocaleString()}** Baubles`).join('\n');
+            fields.push({ name: '🎯 Grabbed Slices', value: claimsList });
+        }
+
+        embedBuilder.setFields(fields);
+
+        if (remainingClaims === 0) {
+            // Clear timeout
+            if (activeRain.timeout) {
+                clearTimeout(activeRain.timeout);
+            }
+            client.activeBaubleRains.delete(rainId);
+
+            embedBuilder.setColor(0x2ECC71)
+                .setTitle('☁️ BAUBLE RAIN COMPLETED!')
+                .setDescription(`The rain cloud has fully condensed. **${activeRain.claims.length}** players grabbed slices!`);
+
+            const disabledRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`bauble_rain_grab_${rainId}`)
+                    .setLabel('Claimed / Ended')
+                    .setStyle(2) // Secondary
+                    .setDisabled(true)
+            );
+
+            await activeRain.message.edit({ embeds: [embedBuilder], components: [disabledRow] }).catch(() => {});
+        } else {
+            await activeRain.message.edit({ embeds: [embedBuilder] }).catch(() => {});
+        }
+    } catch (e) {
+        console.error('Error in handleBaubleRainGrab:', e);
+    }
+}

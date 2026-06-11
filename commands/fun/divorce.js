@@ -46,8 +46,10 @@ async function performDivorce(user) {
     const exFamily = await Family.findOne({ userId: exSpouseId });
 
     userFamily.spouseId = null;
+    userFamily.ringUsed = null;
     if (exFamily) {
         exFamily.spouseId = null;
+        exFamily.ringUsed = null;
         await exFamily.save();
     }
     await userFamily.save();

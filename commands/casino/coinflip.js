@@ -441,12 +441,12 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
         const luckTime = new Date(baubleData.luckExpiresAt).getTime();
         const isRabbit = (luckTime % 10 === 5);
         if (isRabbit) {
-            if (Math.random() < 0.025) {
+            if (Math.random() < 0.50) {
                 didWin = true;
                 rabbitUsed = true;
             }
         } else {
-            if (Math.random() < 0.020) {
+            if (Math.random() < 0.30) {
                 didWin = true;
                 cloverUsed = true;
             }
@@ -579,8 +579,8 @@ async function executeCoinflipOutcome({ userId, amount, side, initialMsg, bauble
 
         let luckText = '';
         if (luckPenaltyActive) luckText = '\n\n🐰 *Rabbit\'s Foot curse (-15%) was active and dragged you down!*';
-        else if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot boost (+15%) was active, but failed you!*';
-        else if (cloverUsed) luckText = '\n\n🍀 *Lucky Clover boost (+10%) was active, but failed you!*';
+        else if (rabbitUsed) luckText = '\n\n🐰 *Lucky Rabbit Toe boost (+25%) was active, but failed you!*';
+        else if (cloverUsed) luckText = '\n\n🍀 *Chernobyl Salad boost (+15%) was active, but failed you!*';
 
         const funnyLossEvents = [
             "A greedy seagull swoops down and snatches the coin mid-air! 🦅",

@@ -1,12 +1,10 @@
 /* eslint-disable */
-const { SlashCommandBuilder, PermissionsBitField, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, ChannelType } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
-const config = require('../../config.json');
+const { checkCommandPermission } = require('../../utils/permissions');
 
 module.exports = {
     category: 'admin',
-    devOnly: true,
-    hidden: true,
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('setquoteschannel')
@@ -18,8 +16,8 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction) {
-        if (interaction.user.id !== config.devId) {
-            return interaction.reply({ content: '❌ This command is restricted to the bot developer only.', ephemeral: true });
+        if (!await checkCommandPermission(interaction, 'bot')) {
+            return interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
         }
 
         const channel = interaction.options.getChannel('channel');
@@ -51,8 +49,8 @@ module.exports = {
     },
 
     async executePrefix(message, args) {
-        if (message.author.id !== config.devId) {
-            return message.reply('❌ This command is restricted to the bot developer only.').catch(() => {});
+        if (!await checkCommandPermission(message, 'bot')) {
+            return message.reply('❌ You do not have permission to run this command.').catch(() => {});
         }
 
         const guildId = message.guild.id;

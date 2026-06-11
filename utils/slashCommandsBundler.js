@@ -10,7 +10,8 @@ const GROUP_CONFIGS = {
     music: { name: 'music', description: 'Music playback and queue controls' },
     profile: { name: 'profile', description: 'View and customize your user profile' },
     utility: { name: 'utility', description: 'Utility and informational commands' },
-    admin: { name: 'admin', description: 'Bot administrator settings' }
+    admin: { name: 'admin', description: 'Bot administrator settings' },
+    developer: { name: 'developer', description: 'Bot developer configuration and tools' }
 };
 
 // Helpers to identify relationship and game commands for the /fun category grouping
@@ -284,6 +285,11 @@ function resolveGroupedCommand(interaction, client) {
             resolvedName = subCmd;
         }
     } else if (topLevel === 'admin') {
+        const subCmd = interaction.options.getSubcommand(false);
+        if (subCmd) {
+            resolvedName = subCmd;
+        }
+    } else if (topLevel === 'developer') {
         const subCmd = interaction.options.getSubcommand(false);
         if (subCmd) {
             resolvedName = subCmd;

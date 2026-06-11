@@ -3,7 +3,7 @@ const { ACHIEVEMENTS, checkAndAwardAchievement } = require('../../utils/achievem
 const config = require('../../config.json');
 
 module.exports = {
-    category: 'admin',
+    category: 'developer',
     devOnly: true,
     hidden: true,
     data: {

@@ -44,7 +44,7 @@ module.exports = {
             }
 
             if (item.sellPrice === null || item.sellPrice === undefined) {
-                return interaction.reply({ content: `❌ **${item.name}** cannot be sold back to the shop. Only collectibles like the Golden Nugget can be sold.`, ephemeral: true });
+                return interaction.reply({ content: `❌ **${item.name}** cannot be sold back to the shop.`, ephemeral: true });
             }
 
             const baubleData = await Bauble.findOne({ userId });
@@ -99,7 +99,7 @@ module.exports = {
             }
 
             if (item.sellPrice === null || item.sellPrice === undefined) {
-                return message.reply(`❌ **${item.name}** cannot be sold back to the shop. Only collectibles like the Golden Nugget can be sold.`);
+                return message.reply(`❌ **${item.name}** cannot be sold back to the shop.`);
             }
 
             const baubleData = await Bauble.findOne({ userId });

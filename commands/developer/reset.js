@@ -6,7 +6,7 @@ const Bauble = require('../../models/baubleSchema');
 const ADMIN_ID = '805007574193405952';
 
 module.exports = {
-    category: 'economy',
+    category: 'developer',
     devOnly: true,
     hidden: true,
 

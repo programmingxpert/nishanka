@@ -15,10 +15,10 @@ const ITEMS = {
     // --- Shop & Utility Boosters ---
     coffee: {
         id: 'coffee',
-        name: '☕ Depresso Espresso',
+        name: '☕ Liquid Anxiety',
         emoji: '☕',
-        description: 'A cup of lukewarm water and pure sadness. Halves work and scavenge cooldowns for 30m, but 10% chance to get "Jittery Hands" (+2x next work payout) and 5% chance of "Despair Crash" (work lockout for 2m).',
-        useInfo: 'Drink to halve cooldowns. Risk a Despair Crash or get Jittery Hands!',
+        description: 'A boiling mug of 99% pure caffeine and raw panic. Halves work and scavenge cooldowns for 1 hour, with a 15% chance to double all command payouts during this time.',
+        useInfo: 'Chug to halve cooldowns. Might cause jittery double payouts!',
         basePrice: 15000,
         sellPrice: 7500,
         type: 'consumable',
@@ -27,10 +27,10 @@ const ITEMS = {
     },
     clover: {
         id: 'clover',
-        name: '🍀 Mutant Four-Leaf Clover',
+        name: '🍀 Chernobyl Salad',
         emoji: '🍀',
-        description: 'A glowing weed plucked near a toxic waste dump. Boosts Coinflip/Gamble win rates by +10% for 15m, and has a 5% chance to grow an extra toe and find 100 extra baubles.',
-        useInfo: 'Consume for 15m luck boost. Might sprout extra appendages.',
+        description: 'A glowing four-leaf weed plucked from a cooling tower. Boosts Coinflip/Gamble win rates by +15% for 30 minutes and instantly cures all bad luck.',
+        useInfo: 'Eat to gain +15% luck for 30m and nuke any bad luck penalties.',
         basePrice: 25000,
         sellPrice: 12500,
         type: 'consumable',
@@ -39,10 +39,10 @@ const ITEMS = {
     },
     shield: {
         id: 'shield',
-        name: '🛡️ Cardboard Aegis Shield',
+        name: '🛡️ Bubble Wrap Armor',
         emoji: '🛡️',
-        description: 'Made of cardboard and spray-painted metallic. Can be used to shield yourself from all robberies and duels for 30m (blocks you from robbing others too).',
-        useInfo: 'Activate to enter safe mode (immune to theft/duels but cannot rob) for 30m.',
+        description: 'Several layers of high-grade plastic packaging. Completely protects you from all robs and duels for 2 hours (but blocks you from robbing others too).',
+        useInfo: 'Wrap yourself to enter peaceful mode (rob/duel immune) for 2 hours.',
         basePrice: 60000,
         sellPrice: 30000,
         type: 'consumable',
@@ -51,10 +51,10 @@ const ITEMS = {
     },
     mystery_box: {
         id: 'mystery_box',
-        name: '📦 Disappointment Box',
+        name: '📦 Gacha Addiction Box',
         emoji: '📦',
-        description: 'Contains random loot. Could be coffee, clovers, mystery items, or a lint roller covered in golden retriever fur.',
-        useInfo: 'Pop it open and pray it is not actual garbage.',
+        description: 'An attractive cardboard box containing random loot. Could contain up to 15,000 baubles, useful boosters, hardware, or actual worthless junk.',
+        useInfo: 'Unbox to satisfy your gambling cravings. Hope it is not garbage!',
         basePrice: 20000,
         sellPrice: 10000,
         type: 'consumable',
@@ -63,10 +63,10 @@ const ITEMS = {
     },
     padlock: {
         id: 'padlock',
-        name: '🔒 Toddler-Proof Safe Padlock',
+        name: '🔒 Dollar Store Lock',
         emoji: '🔒',
-        description: 'An incredibly cheap combination lock. Can be used to lock yourself in a safe vault (immune to all theft for 30m, but cannot work or scavenge). Passively protects wallet from one rob automatically if kept in inventory.',
-        useInfo: 'Use to padlock yourself in the vault for 30m.',
+        description: 'A padlock made of compressed tin foil. Passively protects your wallet from 3 rob attempts before breaking. Alternatively, use it to lock yourself in a vault for 1 hour (immune to robs, but blocks work/scavenge).',
+        useInfo: 'Active: Lock yourself in vault for 1 hour. Passive: Block 3 robberies.',
         basePrice: 25000,
         sellPrice: 12500,
         type: 'consumable',
@@ -77,10 +77,10 @@ const ITEMS = {
     // --- Cosmetics & Premium Collectibles ---
     tag: {
         id: 'tag',
-        name: '🏷️ Dumb Custom Tag',
+        name: '🏷️ "Kick Me" Sticky Note',
         emoji: '🏷️',
-        description: 'A piece of paper taped to your head. Use it to temporarily brand yourself or another user with a silly active title (e.g. "Certified Bozo", "Smelly Loser") for 1 hour.',
-        useInfo: 'Use to brand a user with a stupid title (e.g. -use tag @User).',
+        description: 'A sticky note you slap on someone\'s back. Use it to temporarily brand yourself or another user with a silly active title (e.g. "Slightly Moist") for 24 hours.',
+        useInfo: 'Slap it on someone (e.g. -use tag @User) to change their title for 24 hours.',
         basePrice: 50000,
         sellPrice: null,
         type: 'collectible',
@@ -90,10 +90,10 @@ const ITEMS = {
     },
     paintbrush: {
         id: 'paintbrush',
-        name: '🎨 Blinding Paintbrush',
+        name: '🎨 Toxic Neon Highlighter',
         emoji: '🎨',
-        description: 'Splashes toxic neon paint in someone\'s eyes. Blinds them, making them unable to view profile, inventory, or use items for 5 minutes.',
-        useInfo: 'Use to blind another user (e.g. -use paintbrush @User) for 5 minutes.',
+        description: 'A highlighter filled with radioactive ink. Draw on someone\'s face to blind them for 15 minutes, blocking profiles/inv checks and robbing/dueling.',
+        useInfo: 'Blind another user (e.g. -use paintbrush @User) for 15 minutes.',
         basePrice: 80000,
         sellPrice: 40000,
         type: 'collectible',
@@ -102,36 +102,38 @@ const ITEMS = {
     },
     nugget: {
         id: 'nugget',
-        name: '💎 Shiny Golden Nugget',
+        name: '💎 Fool\'s Gold Chunk',
         emoji: '💎',
-        description: 'A high-value gold chunk. Use it to bribe the bot for a rare item (50% success), or have the bot pocket it, call you a nerd, and block you from daily/weekly for 12 hours.',
-        useInfo: 'Bribe the bot for a random Legendary/Mythic item. 50% failure lockout!',
+        description: 'A shiny pyrite chunk. Offer it to the bot for a 70% chance to receive a random rare item, or a 30% chance the bot pockets it and locks your commands for 1 hour.',
+        useInfo: 'Bribe the bot for a rare item. Watch out for the 1 hour lockout!',
         basePrice: 150000,
         sellPrice: 150000,
         type: 'collectible',
         category: 'cosmetics',
+        maxGlobalSupply: 30,
         rarity: 'Epic'
     },
     crown: {
         id: 'crown',
-        name: '👑 Paper Burger Crown',
+        name: '👑 Cardboard Monarch Hat',
         emoji: '👑',
-        description: 'Makes you feel like royalty. Use to declare yourself King. Everyone in the channel pays you 50 bauble tax, OR you get overthrown, lose 2,000 baubles, and get named "Royal Fraud".',
-        useInfo: 'Declare yourself King of the channel.',
+        description: 'A paper hat that makes you look slightly majestic. 75% success to tax everyone in the channel for 1,000 baubles (max 5,000 total). 25% chance to get overthrown, losing 3,000 baubles and the "Royal Fraud" title.',
+        useInfo: 'Crown yourself to tax the channel. Risk getting overthrown!',
         basePrice: 500000,
         sellPrice: 250000,
         type: 'collectible',
         category: 'cosmetics',
         giftable: false,
+        maxGlobalSupply: 10,
         rarity: 'Legendary'
     },
 
     // --- Family Essentials ---
     ring_silver: {
         id: 'ring_silver',
-        name: '💍 Ring of Average Commitment',
+        name: '💍 Ring of Mild Interest',
         emoji: '💍',
-        description: 'A silver ring. Required to propose. 90% chance it turns their finger green and starts a minor argument.',
+        description: 'A silver ring made of soda tabs. Required to propose. Grants the title "Mildly Interested" upon acceptance.',
         basePrice: 30000,
         sellPrice: 15000,
         type: 'collectible',
@@ -140,9 +142,9 @@ const ITEMS = {
     },
     ring_gold: {
         id: 'ring_gold',
-        name: '💍 Ring of Serious Commitment',
+        name: '💍 Ring of Financial Strain',
         emoji: '💍',
-        description: 'A gold ring. Required to propose. Gleams brightly enough to distract birds and gold-diggers.',
+        description: 'A gold-plated ring that cost two rent cycles. Required to propose. Grants a permanent +5% income boost while married.',
         basePrice: 100000,
         sellPrice: 50000,
         type: 'collectible',
@@ -151,21 +153,22 @@ const ITEMS = {
     },
     ring_diamond: {
         id: 'ring_diamond',
-        name: '💎 Ring of Financial Irresponsibility',
+        name: '💎 Ring of Devastating Debt',
         emoji: '💎',
-        description: 'The ultimate proposal ring. Can cut glass, diamonds, and your savings account in half.',
+        description: 'A massive diamond ring that bankrupted your descendants. Required to propose. Grants a permanent +15% income boost while married.',
         basePrice: 300000,
         sellPrice: 150000,
         type: 'collectible',
         category: 'family',
+        maxGlobalSupply: 100,
         rarity: 'Epic'
     },
     adoption_papers: {
         id: 'adoption_papers',
-        name: '📄 Legal Kidnapping Papers',
+        name: '📄 Child Labor Contract',
         emoji: '📄',
-        description: 'Allows you to adopt another user. Makes them your child, syncs family status, and gives you a 5% cut of their /work earnings for 1 hour.',
-        useInfo: 'Adopt another user (e.g. -use adoption_papers @User) for child labor.',
+        description: 'Legally adopt another user. Gives you a 15% cut of their /work earnings for 2 hours (generated from thin air, does not reduce their payout!).',
+        useInfo: 'Adopt a user (e.g. -use adoption_papers @User) to earn passive cuts.',
         basePrice: 15000,
         sellPrice: 7500,
         type: 'consumable',
@@ -176,10 +179,10 @@ const ITEMS = {
     // --- Dumpster Dive Loot ---
     broken_keyboard: {
         id: 'broken_keyboard',
-        name: '⌨️ Rage-Smashed Keyboard',
+        name: '⌨️ Rage-Quitted Keyboard',
         emoji: '⌨️',
-        description: 'Slam it. 15% chance it accidentally goes viral on Discord (1k-3k baubles), 40% chance coins rattle loose (100-300), 20% chance nothing but crumbs, 25% chance you get zapped (2min item lockout).',
-        useInfo: 'Smash it and hope Discord monetizes your gibberish.',
+        description: 'A plastic keyboard with half the keys missing. Smash it for a 30% chance to go viral (5k-15k baubles), 60% chance to shake loose coins (1k-3k baubles), or a 10% chance to get zapped (1m item lock).',
+        useInfo: 'Smash it to release built-up rage and cash.',
         basePrice: null,
         sellPrice: 150,
         type: 'junk',
@@ -188,10 +191,10 @@ const ITEMS = {
     },
     rotten_banana: {
         id: 'rotten_banana',
-        name: '🍌 Stinky Rotten Banana',
+        name: '🍌 Slip-and-Slide Peel',
         emoji: '🍌',
-        description: 'Throw at someone to cover them in flies — locks their work for 5 minutes AND steals 100-300 baubles from the shock of slipping.',
-        useInfo: 'Throw at a user (e.g. -use rotten_banana @User) to steal baubles + block their work.',
+        description: 'A slimy banana peel. Throw it at someone to steal 10% of their wallet (min 500, max 5,000 baubles) and lock them out of working for 10 minutes.',
+        useInfo: 'Throw at a user (e.g. -use rotten_banana @User) to rob and slip them up.',
         basePrice: null,
         sellPrice: 50,
         type: 'junk',
@@ -200,10 +203,10 @@ const ITEMS = {
     },
     rabbits_feet: {
         id: 'rabbits_feet',
-        name: '🐰 Lucky Rabbit Foot',
+        name: '🐰 Lucky Rabbit Toe',
         emoji: '🐰',
-        description: 'Always lucky — never cursed. Gives +15% luck for 10m and clears bad luck instantly. 10% chance to jackpot extra baubles (2k-5k), 25% chance to also drop a bonus item!',
-        useInfo: 'Rub for guaranteed luck. Sometimes jackpots cash or bonus items!',
+        description: 'A lucky rabbit\'s toe that actually works. Rub it to get +25% luck for 30 minutes, clear bad luck, with a 20% chance to jackpot 10k baubles and a 40% chance to find a Rare item.',
+        useInfo: 'Rub for +25% luck. Can trigger cash jackpots or rare item drops!',
         basePrice: null,
         sellPrice: 8888,
         type: 'collectible',
@@ -214,10 +217,10 @@ const ITEMS = {
     // --- Fishing Loot ---
     fish: {
         id: 'fish',
-        name: '🐟 Wiggling Wet Fish',
+        name: '🐟 Wet Carp Slap',
         emoji: '🐟',
-        description: 'A slimy trout. Use it to slap another user in the face! Deals 0 damage but steals 50-150 baubles out of sheer shock.',
-        useInfo: 'Slap another user (e.g. -use fish @User).',
+        description: 'A very wet, very heavy carp. Slap another user across the face with it to steal 1,000 - 3,000 baubles out of sheer surprise.',
+        useInfo: 'Slap a user (e.g. -use fish @User) to shock-rob them.',
         basePrice: null,
         sellPrice: 300,
         type: 'fish',
@@ -226,10 +229,10 @@ const ITEMS = {
     },
     golden_fish: {
         id: 'golden_fish',
-        name: '🐠 Radioactive Golden Fish',
+        name: '🐠 Glowing Mutant Guppy',
         emoji: '🐠',
-        description: 'Feed it! 50% chance it poops out a random rare item, 50% chance it bites your finger, costing 200 baubles in medical bills.',
-        useInfo: 'Feed it and pray it doesn\'t bite your fingers off.',
+        description: 'A glowing neon guppy. Feed it for a 75% chance to poop out a random Rare or Epic item. 25% chance it bites your finger, costing 500 baubles in medical bills.',
+        useInfo: 'Feed the guppy for a chance at high-tier loot.',
         basePrice: null,
         sellPrice: 2500,
         type: 'fish',
@@ -238,10 +241,10 @@ const ITEMS = {
     },
     treasure_chest: {
         id: 'treasure_chest',
-        name: '🏴‍☠️ Barnacle-Covered Chest',
+        name: '🏴‍☠️ Sunken Loot Crate',
         emoji: '🏴‍☠️',
-        description: 'Crowbar it open for 3k-8k baubles plus TWO random items including at least one from the rare pool (shield, clover, rabbit foot, golden fish, padlock).',
-        useInfo: 'Use to crack it open and get a full loot haul.',
+        description: 'A heavy chest covered in seaweed. Crowbar it open to receive 15,000 - 30,000 baubles plus 2 random items (one guaranteed to be Epic or Legendary).',
+        useInfo: 'Crack it open for a massive cash and item haul.',
         basePrice: null,
         sellPrice: 10000,
         type: 'lootbox',
@@ -250,10 +253,10 @@ const ITEMS = {
     },
     ancient_artifact: {
         id: 'ancient_artifact',
-        name: '🏺 Cursed Urn',
+        name: '🏺 Haunted Dial-Up Urn',
         emoji: '🏺',
-        description: 'Plays dial-up noises. Use it to summon a mummy curse, stealing 100-500 baubles from a random channel member.',
-        useInfo: 'Summon dial-up mummy curse for a random steal.',
+        description: 'An ancient urn that plays dial-up internet noises. Shake it to summon a digital curse that steals 5,000 - 15,000 baubles from a random member in the channel.',
+        useInfo: 'Release the mummy curse to steal from a random chat member.',
         basePrice: null,
         sellPrice: 12000,
         type: 'collectible',
@@ -264,10 +267,10 @@ const ITEMS = {
     // --- Dig Loot ---
     fossil_shell: {
         id: 'fossil_shell',
-        name: '🐚 Prehistoric Shell',
+        name: '🐚 Spyware Seashell',
         emoji: '🐚',
-        description: 'Consume it to do a full scan of a target — reveals their exact balance, every active status effect with countdown timers, their active title, and even their top inventory item. Single use.',
-        useInfo: 'Full scan a user (e.g. -use fossil_shell @User). Crumbles after use.',
+        description: 'A seashell with tiny antennas. Scan a user to reveal their wallet, active status effects, inventory, and steal 1 random item from their bag.',
+        useInfo: 'Scan a user (e.g. -use fossil_shell @User) and steal one of their items.',
         basePrice: null,
         sellPrice: 800,
         type: 'collectible',
@@ -276,10 +279,10 @@ const ITEMS = {
     },
     ancient_bone: {
         id: 'ancient_bone',
-        name: '🦴 Mammoth Femur',
+        name: '🦴 Ancient Dog Chew Toy',
         emoji: '🦴',
-        description: 'Summon the Ancient Dog! He runs off and digs up 100-500 baubles from a random user\'s wallet.',
-        useInfo: 'Summon the good boy to steal.',
+        description: 'A petrified bone. Whistle to summon the Ancient Dog, who runs off to dig up 3,000 - 8,000 baubles from a random user\'s backyard wallet.',
+        useInfo: 'Whistle to summon the good boy to steal baubles.',
         basePrice: null,
         sellPrice: 1200,
         type: 'collectible',
@@ -288,10 +291,10 @@ const ITEMS = {
     },
     t_rex_skull: {
         id: 't_rex_skull',
-        name: '🦖 Screaming T-Rex Skull',
+        name: '🦖 Dino Jump-Scare Mask',
         emoji: '🦖',
-        description: 'Use to scare a user into giving you 100-300 baubles, but if they stand ground, they steal from you!',
-        useInfo: 'Scare a user (e.g. -use t_rex_skull @User) to extort them.',
+        description: 'A plastic T-Rex skull you use to jump-scare someone. 70% success to extort 5,000 - 15,000 baubles. 30% failure: they stand their ground and steal 2,500 baubles from you.',
+        useInfo: 'Scare a user (e.g. -use t_rex_skull @User) to extort cash.',
         basePrice: null,
         sellPrice: 15000,
         type: 'collectible',
@@ -302,10 +305,10 @@ const ITEMS = {
     // --- Meme Hunt Loot ---
     common_meme: {
         id: 'common_meme',
-        name: '🐸 Stale Pepe Meme',
+        name: '🐸 Stale Pepeland JPEG',
         emoji: '🐸',
-        description: 'Post it. 10% chance of going viral (1k-2.5k baubles), 45% chance of upvotes (200-500 baubles), 45% chance of being ratio\'d and losing 100-250 baubles.',
-        useInfo: 'Post for a chance at viral fame or public humiliation.',
+        description: 'A moldy JPEG of a green frog. Post it: 25% viral (5k-10k baubles), 60% upvotes (1k-3k baubles), 15% ratio (lose 500 baubles).',
+        useInfo: 'Post to test your meme quality on the market.',
         basePrice: null,
         sellPrice: 200,
         type: 'meme',
@@ -314,10 +317,10 @@ const ITEMS = {
     },
     dead_meme: {
         id: 'dead_meme',
-        name: '💀 2011 Rage Comic',
+        name: '💀 Deep-Fried Rage Comic',
         emoji: '💀',
-        description: 'Force a random user to read it — they cringe-drop 50-200 baubles AND get locked from work for 3 minutes. No victim? You cringe yourself and lose 100 baubles.',
-        useInfo: 'Post cringe to steal baubles and lock a user\'s work.',
+        description: 'Force a user to read a terrible rage comic. Steals 2,000 - 5,000 baubles and locks their work for 10 minutes out of sheer embarrassment.',
+        useInfo: 'Post cringe at a user to steal cash and lock their work.',
         basePrice: null,
         sellPrice: 100,
         type: 'meme',
@@ -326,10 +329,10 @@ const ITEMS = {
     },
     ancient_meme: {
         id: 'ancient_meme',
-        name: '📜 Dancing Baby GIF',
+        name: '📜 Dial-up Dancing Baby',
         emoji: '📜',
-        description: 'Summon the ancient gods of internet humor. Alters the server-wide economy multiplier randomly (0.5x to 2.0x) for 5 minutes.',
-        useInfo: 'Mutate the economy multiplier.',
+        description: 'A 90s low-polygon dancing baby. Activates a global economy boost, setting the server-wide multiplier to 1.5x, 2.0x, or 3.0x for 10 minutes.',
+        useInfo: 'Post to boost global economy multipliers for 10m.',
         basePrice: null,
         sellPrice: 1500,
         type: 'meme',
@@ -338,10 +341,10 @@ const ITEMS = {
     },
     legendary_meme: {
         id: 'legendary_meme',
-        name: '👑 The Ultimate Rickroll',
+        name: '👑 Standard Rickroll Link',
         emoji: '👑',
-        description: 'Share the masterpiece. Grants everyone online 100 baubles and gives you the permanent title "Meme Lord".',
-        useInfo: 'Rickroll the entire server for server-wide cash.',
+        description: 'The ultimate link. Post to grant everyone online 1,000 baubles, pocket 10,000 baubles yourself, and unlock the permanent title "Meme Lord".',
+        useInfo: 'Rickroll the server for server-wide payouts and a title.',
         basePrice: null,
         sellPrice: 5000,
         type: 'meme',
@@ -352,10 +355,10 @@ const ITEMS = {
     // --- Rubber Duck Collection ---
     rubber_duck: {
         id: 'rubber_duck',
-        name: '🦆 Debugging Rubber Duck',
+        name: '🦆 Sentient Rubber Duck',
         emoji: '🦆',
-        description: 'Infinite use, not consumed. 8% chance to generate a free item, 6% chance to leak baubles into your wallet (200-700), 3% chance of segfault (90s lockout), 83% chance it does absolutely nothing helpful.',
-        useInfo: 'Squeeze for a chance at free loot. It keeps its job even if it fails.',
+        description: 'A highly intelligent debugging companion. Squeeze (infinite use): 15% chance to find a booster/computer item, 15% chance to leak 2,000 - 5,000 baubles, 5% chance of a segfault (30s item lock).',
+        useInfo: 'Squeeze for debugging assistance, item spawns, or cash leaks.',
         basePrice: null,
         sellPrice: 1000,
         type: 'collectible',
@@ -364,10 +367,10 @@ const ITEMS = {
     },
     golden_duck: {
         id: 'golden_duck',
-        name: '🟡 Golden Duck',
+        name: '🟡 Smeltable Aurum Duck',
         emoji: '🟡',
-        description: 'Smelt it down! Yields 15,000-30,000 baubles but destroys the duck.',
-        useInfo: 'Smelt for a giant cash payout.',
+        description: 'A duck cast in solid 24k gold. Melt it down in a blast furnace to extract 40,000 - 80,000 baubles.',
+        useInfo: 'Smelt down for a massive gold payout. Consumes the duck.',
         basePrice: null,
         sellPrice: 5000,
         type: 'collectible',
@@ -376,10 +379,10 @@ const ITEMS = {
     },
     pirate_duck: {
         id: 'pirate_duck',
-        name: '🏴‍☠️ Pirate Duck',
+        name: '🏴‍☠️ Tax Evader Duck',
         emoji: '🏴‍☠️',
-        description: 'Send it to plunder the server! Steals 200-600 baubles from the global tax fund.',
-        useInfo: 'Plunder the government tax fund.',
+        description: 'A duck wearing a tiny eyepatch. Send it to plunder the server tax fund, stealing 5,000 - 15,000 baubles.',
+        useInfo: 'Rob the server tax fund.',
         basePrice: null,
         sellPrice: 6000,
         type: 'collectible',
@@ -388,10 +391,10 @@ const ITEMS = {
     },
     space_duck: {
         id: 'space_duck',
-        name: '🚀 Space Duck',
+        name: '🚀 Spy Satellite Duck',
         emoji: '🚀',
-        description: 'Launch it into orbit! For 30 minutes, it intercepts 5% of any money transactions made by other players.',
-        useInfo: 'Launch space surveillance satellite.',
+        description: 'A high-orbit space surveillance duck. For 1 hour, it intercepts 15% of all bauble transactions made by other players.',
+        useInfo: 'Launch into orbit to intercept other players\' earnings for 1 hour.',
         basePrice: null,
         sellPrice: 12000,
         type: 'collectible',
@@ -400,10 +403,10 @@ const ITEMS = {
     },
     divine_duck: {
         id: 'divine_duck',
-        name: '✨ Divine Duck',
+        name: '✨ Holy Ascension Duck',
         emoji: '✨',
-        description: 'Sacrifice to the digital gods for a +100% income boost on all commands for 15 minutes.',
-        useInfo: 'Consume for double earnings.',
+        description: 'A radiant celestial duck. Sacrifice it to the server gods to receive a +200% income boost on all commands for 30 minutes.',
+        useInfo: 'Consume for double income (+200% boost) for 30 minutes.',
         basePrice: null,
         sellPrice: 35000,
         type: 'collectible',
@@ -414,10 +417,10 @@ const ITEMS = {
     // --- Computer Collection ---
     broken_laptop: {
         id: 'broken_laptop',
-        name: '💻 E-Waste Laptop',
+        name: '💻 Spicy Pillow Laptop',
         emoji: '💻',
-        description: 'Try to boot it. 10% chance it turns into a Gaming PC, 90% chance it shocks you (blocks item use for 10m).',
-        useInfo: 'Attempt to boot and upgrade it.',
+        description: 'A laptop with a swollen battery. Boot it: 35% chance to upgrade to a DIY Crypto Miner (gaming_pc), 65% chance it shocks your fingers (3m item lock).',
+        useInfo: 'Boot it and pray the battery doesn\'t explode.',
         basePrice: null,
         sellPrice: 1000,
         type: 'collectible',
@@ -426,10 +429,10 @@ const ITEMS = {
     },
     gaming_pc: {
         id: 'gaming_pc',
-        name: '🖥️ Mining Rig',
+        name: '🖥️ DIY Crypto Miner',
         emoji: '🖥️',
-        description: 'Mine crypto for 500-1,000 baubles. 20% chance it explodes and is consumed.',
-        useInfo: 'Mine crypto, watch out for fire.',
+        description: 'A noisy mining rig. Run it to mine 5,000 - 10,000 baubles. Has a 25% chance to melt down and be destroyed.',
+        useInfo: 'Mine crypto for baubles. Watch the temperature!',
         basePrice: null,
         sellPrice: 6500,
         type: 'collectible',
@@ -438,106 +441,114 @@ const ITEMS = {
     },
     quantum_computer: {
         id: 'quantum_computer',
-        name: '🔮 Quantum Computer',
+        name: '🔮 Quantum Casino Engine',
         emoji: '🔮',
-        description: 'Simulate the universe. 50% chance to win lottery (+50,000 baubles), 50% chance it creates a black hole (destroys 3 random items).',
-        useInfo: 'Run cosmic simulation.',
+        description: 'Computes multi-dimensional states. 60% chance to win lottery (+150,000 baubles). 40% chance it creates a black hole, sucking in 2 random inventory items.',
+        useInfo: 'Simulate winning states. Highly volatile!',
         basePrice: null,
         sellPrice: 20000,
         type: 'collectible',
         category: 'computers',
+        maxGlobalSupply: 30,
         rarity: 'Epic'
     },
     alien_computer: {
         id: 'alien_computer',
-        name: '👽 Extraterrestrial Terminal',
+        name: '👽 Area 51 Console',
         emoji: '👽',
-        description: '50% chance they beam up a target user (blocks them from commands for 5m), 50% chance they beam down space cargo (gives you 3 random items).',
-        useInfo: 'Contact alien mothership.',
+        description: 'A glowing alien command terminal. 50% chance to abvent a user (10m command lockout), 50% chance to beam down space cargo (5 random items, guaranteed one Legendary/Mythic).',
+        useInfo: 'Contact the mothership to abvent someone or spawn cargo.',
         basePrice: null,
         sellPrice: 45000,
         type: 'collectible',
         category: 'computers',
+        maxGlobalSupply: 15,
         rarity: 'Legendary'
     },
 
     // --- Boss Drops & Mythic Treasures ---
     dragon_egg: {
         id: 'dragon_egg',
-        name: '🥚 Dragon Egg',
+        name: '🥚 Scaly Fireball Egg',
         emoji: '🥚',
-        description: 'Hatch it! 35% chance a dragon hatches and robs everyone in the channel for 100-500 baubles each (gives to you), 65% chance it burns your wallet (you lose 5,000 baubles).',
-        useInfo: 'Incubate and hatch the beast.',
+        description: 'A burning egg. Hatch it: 50% baby dragon steals 1,000 - 3,000 baubles from all active channel users. 50% it sneezes fire, burning 5,000 baubles in your wallet.',
+        useInfo: 'Incubate and hatch the dragon.',
         basePrice: null,
         sellPrice: 60000,
         type: 'collectible',
         category: 'mythic',
+        maxGlobalSupply: 15,
         rarity: 'Mythic'
     },
     void_star: {
         id: 'void_star',
-        name: '⭐ Void Star',
+        name: '⭐ black_hole.exe',
         emoji: '⭐',
-        description: 'Absorbs all status penalties (clears stench, bad luck, blind, shock, etc.), but 10% chance it devours all your titles!',
-        useInfo: 'Consume to purge status effects.',
+        description: 'A program that consumes all physical matter. Purges all active status effects and penalties, with a 5% chance it also devours all your titles.',
+        useInfo: 'Execute to purge all negative status effects.',
         basePrice: null,
         sellPrice: 75000,
         type: 'collectible',
         category: 'mythic',
+        maxGlobalSupply: 15,
         rarity: 'Mythic'
     },
 
     // --- Unique Items (Exactly 1 Copy Globally) ---
     the_one_ring: {
         id: 'the_one_ring',
-        name: '💍 The One Ring',
+        name: '💍 Ring of Absolute Cowardice',
         emoji: '💍',
-        description: 'One ring to rule them all. Use it to go invisible (immune to rob / cannot rob others) for 1 hour.',
-        useInfo: 'Use to activate invisibility (rob protection & lockout) for 1 hour.',
+        description: 'A ring that makes you vanish from reality. Slip it on to go invisible for 4 hours (rob/duel immune, but you cannot rob others).',
+        useInfo: 'Activate 4 hours of complete safety and robbery protection.',
         basePrice: null,
         sellPrice: 150000,
         type: 'unique',
         category: 'unique',
         isUnique: true,
+        maxGlobalSupply: 1,
         rarity: 'Unique'
     },
     excalibur: {
         id: 'excalibur',
-        name: '⚔️ Excalibur',
+        name: '⚔️ Excalibur (Plastic Replica)',
         emoji: '⚔️',
-        description: 'The legendary sword of King Arthur. Use it to challenge someone to a high-noon duel!',
-        useInfo: 'Use to duel another user (e.g. -use excalibur @User). Winner takes 500 Baubles.',
+        description: 'A plastic sword that squeaks when you hit someone. Challenge a user to a high-noon duel. Winner steals 20,000 baubles!',
+        useInfo: 'Duel another user (e.g. -use excalibur @User) for 20,000 baubles.',
         basePrice: null,
         sellPrice: 150000,
         type: 'unique',
         category: 'unique',
         isUnique: true,
+        maxGlobalSupply: 1,
         rarity: 'Unique'
     },
     holy_grail: {
         id: 'holy_grail',
-        name: '🏆 Holy Grail',
+        name: '🏆 Shiny Wooden Cup',
         emoji: '🏆',
-        description: 'Cures all expedition injuries instantly and boosts income by +50% for 30 minutes. Made of wood?',
-        useInfo: 'Use to cure injuries and receive a +50% income boost for 30 minutes.',
+        description: 'A dusty cup that smells like tree bark. Cures all expedition injuries and grants a +100% income boost on all actions for 1 hour.',
+        useInfo: 'Drink to cure expedition injuries and double income for 1 hour.',
         basePrice: null,
         sellPrice: 150000,
         type: 'unique',
         category: 'unique',
         isUnique: true,
+        maxGlobalSupply: 1,
         rarity: 'Unique'
     },
     mona_lisa: {
         id: 'mona_lisa',
-        name: '🖼️ Original Mona Lisa',
+        name: '🖼️ Mustard-Stained Mona Lisa',
         emoji: '🖼️',
-        description: 'Da Vinci\'s original masterpiece. Draw a mustache on it! Defaces it, reducing sell price to 10 baubles, but yields 10,000 baubles and the title "Art Vandal".',
-        useInfo: 'Deface the masterpiece for internet points.',
+        description: 'A masterpiece vandalized with condiments. Draw a giant mustache on it to deface it, yielding 50,000 baubles and the permanent title "Art Vandal".',
+        useInfo: 'Deface the painting for internet fame and 50,000 baubles.',
         basePrice: null,
         sellPrice: 150000,
         type: 'unique',
         category: 'unique',
         isUnique: true,
+        maxGlobalSupply: 1,
         rarity: 'Unique'
     }
 };
@@ -562,7 +573,7 @@ const COLLECTIONS = {
         reward: {
             title: 'Tech Genius',
             baubles: 25000,
-            incomeMultiplier: 0.0
+            incomeMultiplier: 0.15
         }
     }
 };
@@ -623,8 +634,22 @@ async function getIncomeMultiplier(userId) {
 
         let multiplier = 1.0;
         if (baubleData.completedCollections) {
-            if (baubleData.completedCollections.includes('rubber_duck')) {
-                multiplier += 0.10;
+            for (const colId of baubleData.completedCollections) {
+                const col = COLLECTIONS[colId];
+                if (col && col.reward && col.reward.incomeMultiplier) {
+                    multiplier += col.reward.incomeMultiplier;
+                }
+            }
+        }
+
+        // Add Wedding Ring active buff (+5% for Gold Ring of Financial Strain, +15% for Diamond Ring of Devastating Debt)
+        const Family = require('../models/familySchema');
+        const familyData = await Family.findOne({ userId }).lean();
+        if (familyData && familyData.spouseId) {
+            if (familyData.ringUsed === 'ring_gold') {
+                multiplier += 0.05;
+            } else if (familyData.ringUsed === 'ring_diamond') {
+                multiplier += 0.15;
             }
         }
 
@@ -646,17 +671,46 @@ async function getIncomeMultiplier(userId) {
     }
 }
 
-async function isUniqueAvailable(itemId) {
+async function getGlobalItemSupply(itemId) {
     try {
-        const owner = await Bauble.findOne({ 
-            "inventory.itemId": itemId, 
-            "inventory.quantity": { $gt: 0 } 
-        }).lean();
-        return !owner;
+        const result = await Bauble.aggregate([
+            { $unwind: "$inventory" },
+            { $match: { "inventory.itemId": itemId } },
+            { $group: { _id: "$inventory.itemId", total: { $sum: "$inventory.quantity" } } }
+        ]);
+        return result.length > 0 ? result[0].total : 0;
     } catch (err) {
-        console.error('Error in isUniqueAvailable check:', err);
-        return false;
+        console.error(`Error in getGlobalItemSupply for ${itemId}:`, err);
+        return 0;
     }
+}
+
+async function isItemAvailable(itemId) {
+    const item = ITEMS[itemId];
+    if (!item) return false;
+    
+    const limit = item.maxGlobalSupply !== undefined ? item.maxGlobalSupply : (item.isUnique ? 1 : null);
+    if (limit === null) return true;
+    
+    const supply = await getGlobalItemSupply(itemId);
+    return supply < limit;
+}
+
+async function isUniqueAvailable(itemId) {
+    return isItemAvailable(itemId);
+}
+
+async function getRandomAvailableItem(pool) {
+    if (!pool || pool.length === 0) return null;
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    for (const item of shuffled) {
+        const itemId = typeof item === 'string' ? item : item.id;
+        const available = await isItemAvailable(itemId);
+        if (available) {
+            return typeof item === 'string' ? ITEMS[item] : item;
+        }
+    }
+    return ITEMS['rotten_banana'];
 }
 
 async function rollItemDrop(allowedCategories = []) {
@@ -692,16 +746,12 @@ async function rollItemDrop(allowedCategories = []) {
     let attempts = 0;
     while (attempts < 5) {
         const candidate = matchingItems[Math.floor(Math.random() * matchingItems.length)];
-        if (candidate.isUnique) {
-            const available = await isUniqueAvailable(candidate.id);
-            if (available) {
-                return candidate;
-            } else {
-                matchingItems = matchingItems.filter(i => i.id !== candidate.id);
-                if (matchingItems.length === 0) break;
-            }
-        } else {
+        const available = await isItemAvailable(candidate.id);
+        if (available) {
             return candidate;
+        } else {
+            matchingItems = matchingItems.filter(i => i.id !== candidate.id);
+            if (matchingItems.length === 0) break;
         }
         attempts++;
     }
@@ -760,5 +810,8 @@ module.exports = {
     isUniqueAvailable,
     rollItemDrop,
     addItemToInventory,
-    removeItemFromInventory
+    removeItemFromInventory,
+    getGlobalItemSupply,
+    isItemAvailable,
+    getRandomAvailableItem
 };

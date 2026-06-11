@@ -121,12 +121,12 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             const luckTime = new Date(baubleData.luckExpiresAt).getTime();
             const isRabbit = (luckTime % 10 === 5);
             if (isRabbit) {
-                // Rabbit's Foot converts 5.0% of losses to wins
-                actualChance = chance + (1 - chance) * 0.05;
+                // Lucky Rabbit Toe converts 50.0% of losses to wins
+                actualChance = chance + (1 - chance) * 0.50;
                 rabbitUsed = true;
             } else {
-                // Lucky Clover converts 4.0% of losses to wins
-                actualChance = chance + (1 - chance) * 0.04;
+                // Chernobyl Salad converts 30.0% of losses to wins
+                actualChance = chance + (1 - chance) * 0.30;
                 cloverUsed = true;
             }
         }
@@ -174,8 +174,8 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
                     if (baubleData.baubles >= 50000000) {
                         await checkAndAwardAchievement(client, userId, 'economy_god', interactionOrMessage);
                     }
-                    // high_roller_god: win a HIGH risk gamble with bet >= 1,000,000
-                    if (risk === 'high' && amount >= 1000000) {
+                    // high_roller_god: win a HIGH risk gamble with bet >= 250,000
+                    if (risk === 'high' && amount >= 250000) {
                         await checkAndAwardAchievement(client, userId, 'high_roller_god', interactionOrMessage);
                     }
                     // midnight_gambler: win between 00:00 and 00:10 UTC
@@ -203,8 +203,8 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
             }
 
             let luckText = '';
-            if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot luck boost (+15%) was active!*';
-            else if (cloverUsed) luckText = '\n\n🍀 *Lucky Clover boost (+10%) was active!*';
+            if (rabbitUsed) luckText = '\n\n🐰 *Lucky Rabbit Toe boost (+25%) was active!*';
+            else if (cloverUsed) luckText = '\n\n🍀 *Chernobyl Salad boost (+15%) was active!*';
             else if (luckPenaltyActive) luckText = '\n\n🐰 *Rabbit\'s Foot curse (-15%) was active, but you overcame it!*';
 
             const embed = new EmbedBuilder()
@@ -242,8 +242,8 @@ async function handleGamble({ userId, amount, risk, sendWin, sendLose, sendError
 
             let luckText = '';
             if (luckPenaltyActive) luckText = '\n\n🐰 *Rabbit\'s Foot curse (-15%) was active and dragged you down!*';
-            else if (rabbitUsed) luckText = '\n\n🐰 *Rabbit\'s Foot boost (+15%) was active, but failed you!*';
-            else if (cloverUsed) luckText = '\n\n🍀 *Lucky Clover boost (+10%) was active, but failed you!*';
+            else if (rabbitUsed) luckText = '\n\n🐰 *Lucky Rabbit Toe boost (+25%) was active, but failed you!*';
+            else if (cloverUsed) luckText = '\n\n🍀 *Chernobyl Salad boost (+15%) was active, but failed you!*';
 
             const funnyLossMessages = [
                 "The dealer sneezed on your coins, rendering them completely unhygienic.",
