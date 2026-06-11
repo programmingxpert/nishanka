@@ -19,16 +19,28 @@ module.exports = {
             || context.author;
 
 		// Calculate a random size between 0 and 15
-		// For fun, the bot owner could always be 15, but we'll stick to random per execution
 		const size = Math.floor(Math.random() * 16);
 		const shaft = '='.repeat(size);
 		const pp = `8${shaft}D`;
 
+		let commentary = '';
+		if (size <= 2) {
+			commentary = `${pp}\n\n...Oh. Bestie, I am so sorry. Is that a peanut? 🥜💀`;
+		} else if (size <= 5) {
+			commentary = `${pp}\n\nNot the smallest, but let's be real, you're not bragging about this to anyone. 🤏`;
+		} else if (size <= 9) {
+			commentary = `${pp}\n\nPerfectly average. Like a lukewarm cup of water. It exists. 🤷‍♀️`;
+		} else if (size <= 12) {
+			commentary = `${pp}\n\nOkay, hold on! You actually got blessed by the RNG gods today. Respect. 😳`;
+		} else {
+			commentary = `${pp}\n\nSir, this is a Discord server, please put that weapon away. 🚨🍆`;
+		}
+
 		const embed = new EmbedBuilder()
 			.setColor(0xff69b4)
-			.setTitle(`${target.displayName}'s PP Size`)
-			.setDescription(pp)
-			.setFooter({ text: '100% scientifically accurate' });
+			.setTitle(`📏 Nishanka's PP Measurer`)
+			.setDescription(`Measuring ${target}...\n\n${commentary}`)
+			.setFooter({ text: 'Validated by the Federal Measurement Bureau' });
 
 		if (context.reply) {
 			await context.reply({ embeds: [embed] });
