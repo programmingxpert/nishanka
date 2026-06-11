@@ -46,6 +46,17 @@ module.exports = {
             restriction.bannedBy = interaction.user.id;
             await restriction.save();
 
+            try {
+                const { sendBanAlert } = require('../../utils/webhookDispatcher');
+                sendBanAlert({
+                    client: interaction.client,
+                    userId,
+                    bannedBy: interaction.user.id,
+                    reason,
+                    action: 'ban'
+                }).catch(err => console.error('[Webhook Ban Alert Error]', err));
+            } catch (hookErr) {}
+
             return interaction.reply({ content: `✅ User <@${userId}> (${userId}) has been **globally banned**. Reason: *${reason}*`, ephemeral: true });
         }
 
@@ -60,6 +71,17 @@ module.exports = {
             restriction.bannedAt = null;
             restriction.bannedBy = null;
             await restriction.save();
+
+            try {
+                const { sendBanAlert } = require('../../utils/webhookDispatcher');
+                sendBanAlert({
+                    client: interaction.client,
+                    userId,
+                    bannedBy: interaction.user.id,
+                    reason: 'Unbanned by developer',
+                    action: 'unban'
+                }).catch(err => console.error('[Webhook Unban Alert Error]', err));
+            } catch (hookErr) {}
 
             return interaction.reply({ content: `✅ User <@${userId}> (${userId}) has been **globally unbanned**.`, ephemeral: true });
         }
@@ -173,6 +195,17 @@ module.exports = {
             restriction.bannedBy = message.author.id;
             await restriction.save();
 
+            try {
+                const { sendBanAlert } = require('../../utils/webhookDispatcher');
+                sendBanAlert({
+                    client: message.client,
+                    userId,
+                    bannedBy: message.author.id,
+                    reason,
+                    action: 'ban'
+                }).catch(err => console.error('[Webhook Ban Alert Error]', err));
+            } catch (hookErr) {}
+
             return message.reply(`✅ User <@${userId}> (${userId}) has been **globally banned**. Reason: *${reason}*`);
         }
 
@@ -187,6 +220,17 @@ module.exports = {
             restriction.bannedAt = null;
             restriction.bannedBy = null;
             await restriction.save();
+
+            try {
+                const { sendBanAlert } = require('../../utils/webhookDispatcher');
+                sendBanAlert({
+                    client: message.client,
+                    userId,
+                    bannedBy: message.author.id,
+                    reason: 'Unbanned by developer',
+                    action: 'unban'
+                }).catch(err => console.error('[Webhook Unban Alert Error]', err));
+            } catch (hookErr) {}
 
             return message.reply(`✅ User <@${userId}> (${userId}) has been **globally unbanned**.`);
         }

@@ -262,6 +262,21 @@ module.exports = {
                     if (recentLocations.length > 150) recentLocations.shift();
                 }
 
+                try {
+                    const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+                    const hostUser = client.users.cache.get(authorId);
+                    sendGameSolutionAlert({
+                        type: 'geoguesser',
+                        userId: authorId,
+                        username: hostUser ? hostUser.tag : null,
+                        bet: null,
+                        details: `GeoGuesser game (Round ${currentRound}/${rounds}) in channel #${channel.name || 'unknown'} (${channel.id})`,
+                        solution: `Capital: ${loc.capital.toUpperCase()}\nCountry: ${loc.country.toUpperCase()}\nDisplay Name: ${loc.display}\nImage: ${loc.image}`
+                    }).catch(err => console.error('Failed to send game solution webhook:', err));
+                } catch (e) {
+                    console.error('Error dispatching game solution webhook:', e);
+                }
+
                 if (!client.activeGeoguesserGames) {
                     client.activeGeoguesserGames = new Map();
                 }

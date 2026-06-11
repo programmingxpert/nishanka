@@ -1454,6 +1454,21 @@ app.post('/api/premium/verify-payment', express.json(), async (req, res) => {
       console.error('Failed to process post-payment rewards:', achErr);
     }
 
+    try {
+      const { sendPaymentAlert } = require('./utils/webhookDispatcher');
+      sendPaymentAlert({
+        client,
+        userId: req.session.user.id,
+        gateway,
+        paymentId,
+        orderId,
+        tier,
+        isSupport: false
+      }).catch(err => console.error('[Webhook Alert Error]', err));
+    } catch (hookErr) {
+      console.error('Failed to trigger webhook payment alert:', hookErr);
+    }
+
     res.json({ success: true, tier: tier.toLowerCase() });
   } catch (err) {
     console.error('Failed to verify Razorpay payment:', err);
@@ -3626,6 +3641,23 @@ app.post('/api/support/verify-payment', express.json(), async (req, res) => {
       paymentId: paymentId
     });
     await newDonation.save();
+
+    try {
+      const { sendPaymentAlert } = require('./utils/webhookDispatcher');
+      sendPaymentAlert({
+        client,
+        userId: req.session.user.id,
+        gateway,
+        paymentId,
+        orderId: orderId || null,
+        amount: parseFloat(amount),
+        currency,
+        isSupport: true
+      }).catch(err => console.error('[Webhook Alert Error]', err));
+    } catch (hookErr) {
+      console.error('Failed to trigger webhook payment alert:', hookErr);
+    }
+
     return res.json({ success: true, message: '🎉 Thank you so much for your financial support!' });
   } catch (err) {
     console.error('Failed to save donation:', err);

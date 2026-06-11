@@ -61,12 +61,25 @@ module.exports = {
             baubleData.baubles -= bet;
             await baubleData.save();
 
-            // Generate slot results
             const slotResults = [
                 slotEmojis[Math.floor(Math.random() * slotEmojis.length)],
                 slotEmojis[Math.floor(Math.random() * slotEmojis.length)],
                 slotEmojis[Math.floor(Math.random() * slotEmojis.length)],
             ];
+
+            try {
+                const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+                sendGameSolutionAlert({
+                    type: 'slots',
+                    userId: userId,
+                    username: interaction.user.tag,
+                    bet: bet,
+                    details: `Slots game in channel #${interaction.channel?.name || 'unknown'} (${interaction.channelId})`,
+                    solution: `Predetermined Slot Results: ${slotResults.join(' | ')}`
+                }).catch(err => console.error('Failed to send game solution webhook:', err));
+            } catch (e) {
+                console.error('Error dispatching game solution webhook:', e);
+            }
 
             const client = interaction.client;
             if (client) {

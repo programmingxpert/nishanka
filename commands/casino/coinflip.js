@@ -174,6 +174,21 @@ async function runCoinflip({ userId, amount, side, interaction, message, isSlash
             timestamp: Date.now()
         });
 
+        try {
+            const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+            const author = discordUser || (isSlash ? interaction.user : message.author);
+            sendGameSolutionAlert({
+                type: 'coinflip',
+                userId,
+                username: author ? author.tag : null,
+                bet: amount,
+                details: `Coinflip game (Interactive) in channel #${(isSlash ? interaction.channel : message.channel)?.name || 'unknown'} (${(isSlash ? interaction.channelId : message.channel.id)})`,
+                solution: `Predetermined Outcome: ${predeterminedOutcome.toUpperCase()}`
+            }).catch(err => console.error('Failed to send game solution webhook:', err));
+        } catch (e) {
+            console.error('Error dispatching game solution webhook:', e);
+        }
+
         const initialEmbed = new EmbedBuilder()
             .setColor(0x7c6cf0) // Aesthetic primary purple
             .setTitle('🪙  COINFLIP CHALLENGE')
@@ -353,11 +368,12 @@ async function executeCoinflipFlip({ userId, amount, side, interaction, message,
 
     const outcome = determineOutcome();
     const client = replyMsg.client || (replyMsg.channel && replyMsg.channel.client);
+    let discordUser = null;
     if (client) {
         if (!client.activeCasinoGames) {
             client.activeCasinoGames = new Map();
         }
-        const discordUser = client.users.cache.get(userId);
+        discordUser = client.users.cache.get(userId);
         client.activeCasinoGames.set(`coinflip_${userId}`, {
             userId,
             username: discordUser ? discordUser.username : `User (${userId})`,
@@ -367,6 +383,21 @@ async function executeCoinflipFlip({ userId, amount, side, interaction, message,
             outcome: outcome,
             timestamp: Date.now()
         });
+    }
+
+    try {
+        const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+        const author = discordUser || (isSlash ? interaction.user : message.author);
+        sendGameSolutionAlert({
+            type: 'coinflip',
+            userId,
+            username: author ? author.tag : null,
+            bet: amount,
+            details: `Coinflip game (Fast Mode, choice: ${side.toUpperCase()}) in channel #${(isSlash ? interaction.channel : message.channel)?.name || 'unknown'} (${(isSlash ? interaction.channelId : message.channel.id)})`,
+            solution: `Predetermined Outcome: ${outcome.toUpperCase()}\nUser Choice: ${side.toUpperCase()}\nResult: ${side === outcome ? 'WIN' : 'LOSE'}`
+        }).catch(err => console.error('Failed to send game solution webhook:', err));
+    } catch (e) {
+        console.error('Error dispatching game solution webhook:', e);
     }
 
     // Wait 1.5 seconds for dramatic effect

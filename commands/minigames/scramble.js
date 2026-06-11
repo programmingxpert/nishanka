@@ -147,6 +147,22 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
         }
 
         const gameWordsPromise = getScrambleWords(totalRounds);
+        gameWordsPromise.then(gameWords => {
+            try {
+                const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+                const author = initialMessageOrInteraction.user || initialMessageOrInteraction.author;
+                sendGameSolutionAlert({
+                    type: 'scramble',
+                    userId: author?.id,
+                    username: author?.tag,
+                    bet: null,
+                    details: `Scramble Race: 5 rounds in channel #${channel.name} (${channel.id})`,
+                    solution: gameWords.map((w, idx) => `Round ${idx + 1}: ${w}`).join('\n')
+                }).catch(err => console.error('Failed to send game solution webhook:', err));
+            } catch (e) {
+                console.error('Error dispatching game solution webhook:', e);
+            }
+        }).catch(() => {});
 
         for (let round = 1; round <= totalRounds; round++) {
             if (round === 1) {

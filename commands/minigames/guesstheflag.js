@@ -89,6 +89,21 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
         }
         const allCountries = selectedFlags.map(f => f[1][0].replace(/\b\w/g, l => l.toUpperCase()));
 
+        try {
+            const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+            const author = initialMessageOrInteraction.user || initialMessageOrInteraction.author;
+            sendGameSolutionAlert({
+                type: 'guesstheflag',
+                userId: author?.id,
+                username: author?.tag,
+                bet: null,
+                details: `Guess the Flag game: 5 rounds in channel #${channel.name} (${channel.id})`,
+                solution: allCountries.map((c, idx) => `Round ${idx + 1}: ${c} (${selectedFlags[idx][0]})`).join('\n')
+            }).catch(err => console.error('Failed to send game solution webhook:', err));
+        } catch (e) {
+            console.error('Error dispatching game solution webhook:', e);
+        }
+
         for (let round = 1; round <= totalRounds; round++) {
             await delay(5000);
             

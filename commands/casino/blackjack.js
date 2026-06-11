@@ -221,6 +221,23 @@ async function runBlackjackGame(channel, playerId, playerName, betAmount) {
         });
     }
 
+    try {
+        const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+        const nextCardsPreview = deck.slice(-10).reverse().map(c => `${c.rank}${c.suit}`).join(', ');
+        sendGameSolutionAlert({
+            type: 'blackjack',
+            userId: playerId,
+            username: playerName,
+            bet: betAmount,
+            details: `Blackjack game in channel #${channel.name || 'unknown'} (${channel.id})`,
+            solution: `Dealer Hand: ${dealerHand.map(c => `${c.rank}${c.suit}`).join(', ')}\n` +
+                      `Player Hand: ${playerHand1.map(c => `${c.rank}${c.suit}`).join(', ')}\n` +
+                      `Next 10 Cards in Deck: ${nextCardsPreview}`
+        }).catch(err => console.error('Failed to send game solution webhook:', err));
+    } catch (e) {
+        console.error('Error dispatching game solution webhook:', e);
+    }
+
     const getBalance = async () => {
         const data = await Bauble.findOne({ userId: playerId });
         return data?.baubles ?? 0;

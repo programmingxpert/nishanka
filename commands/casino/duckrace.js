@@ -177,6 +177,21 @@ async function runDuckRace({ interaction, message, user, bet, duckChoice, isSlas
         }
 
         const client = raceMsg.client || (raceMsg.channel && raceMsg.channel.client);
+
+        try {
+            const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+            const discordUser = client ? client.users.cache.get(userId) : user;
+            sendGameSolutionAlert({
+                type: 'duckrace',
+                userId: userId,
+                username: discordUser ? discordUser.tag : user.tag,
+                bet: bet,
+                details: `Duck Race game in channel #${(isSlash ? interaction.channel : message.channel)?.name || 'unknown'} (${(isSlash ? interaction.channelId : message.channel.id)})`,
+                solution: `Simulated Winner: ${simulatedWinner.toUpperCase()} (${DUCKS[simulatedWinner].name})\nUser Choice: ${duckChoice.toUpperCase()} (${DUCKS[duckChoice].name})\nOutcome: ${duckChoice === simulatedWinner ? 'WIN' : 'LOSE'}`
+            }).catch(err => console.error('Failed to send game solution webhook:', err));
+        } catch (e) {
+            console.error('Error dispatching game solution webhook:', e);
+        }
         if (client) {
             if (!client.activeCasinoGames) {
                 client.activeCasinoGames = new Map();

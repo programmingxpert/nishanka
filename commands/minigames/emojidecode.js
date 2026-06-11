@@ -195,6 +195,21 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
 
     if (!question) question = pickFallback();
 
+    try {
+        const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+        const author = respondable.user || respondable.author;
+        sendGameSolutionAlert({
+            type: 'emojidecode',
+            userId: author?.id,
+            username: author?.tag,
+            bet: null,
+            details: `Emoji Decode game in channel #${channel.name || 'unknown'} (${channelId})`,
+            solution: `Emojis: ${question.emojis}\nCategory: ${question.category}\nAnswers: ${question.answers.join(', ').toUpperCase()}`
+        }).catch(err => console.error('Failed to send game solution webhook:', err));
+    } catch (e) {
+        console.error('Error dispatching game solution webhook:', e);
+    }
+
     if (client) {
       if (!client.activeEmojidecodeGames) {
         client.activeEmojidecodeGames = new Map();

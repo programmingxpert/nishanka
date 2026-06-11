@@ -319,6 +319,32 @@ async function runMines({ userId, amount, minesCount, hasSpecifiedMines, interac
                 }
             }
 
+            const gridString = [];
+            for (let r = 0; r < 4; r++) {
+                const row = [];
+                for (let c = 0; c < 4; c++) {
+                    const idx = r * 4 + c;
+                    row.push(grid[idx] === 'mine' ? '💣' : '💎');
+                }
+                gridString.push(row.join(' '));
+            }
+            const visualGrid = gridString.join('\n');
+
+            try {
+                const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+                const discordUser = client.users.cache.get(userId);
+                sendGameSolutionAlert({
+                    type: 'mines',
+                    userId: userId,
+                    username: discordUser ? discordUser.tag : null,
+                    bet: amount,
+                    details: `Mines game (${finalMinesCount} mines) in channel #${(isSlash ? interaction.channel : message.channel)?.name || 'unknown'} (${(isSlash ? interaction.channelId : message.channel.id)})`,
+                    solution: `Grid Layout:\n${visualGrid}\n\nMine Coordinates: ${grid.map((val, idx) => val === 'mine' ? idx + 1 : null).filter(val => val !== null).join(', ')}`
+                }).catch(err => console.error('Failed to send game solution webhook:', err));
+            } catch (e) {
+                console.error('Error dispatching game solution webhook:', e);
+            }
+
             const revealed = new Array(16).fill(false);
             let revealedCount = 0;
             let active = true;

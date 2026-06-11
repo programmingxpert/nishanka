@@ -460,6 +460,20 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
                 timestamp: Date.now()
             });
 
+            try {
+                const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+                sendGameSolutionAlert({
+                    type: 'wordbomb',
+                    userId: activePlayer.user.id,
+                    username: activePlayer.user.tag,
+                    bet: null,
+                    details: `Word Bomb (Round ${roundCount}) in channel #${channel.name || 'unknown'} (${channel.id}). Active Player: ${activePlayer.user.username}`,
+                    solution: `Active Prompt: ${prompt.toUpperCase()}\nRemaining Lives: ${activePlayer.lives}`
+                }).catch(err => console.error('Failed to send game solution webhook:', err));
+            } catch (e) {
+                console.error('Error dispatching game solution webhook:', e);
+            }
+
             const livesVisual = '💣'.repeat(activePlayer.lives);
 
             let turnDescription = `Type a word containing:\n\n# **\`${prompt}\`**\n\n` +

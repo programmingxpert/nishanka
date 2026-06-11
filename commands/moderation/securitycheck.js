@@ -171,12 +171,12 @@ module.exports = {
                 await settings.save();
 
                 // Run scanning phase
-                await this.runScanningProcess(replyMsg, guild, settings, premiumTier);
+                await this.runScanningProcess(replyMsg, guild, settings, premiumTier, user);
             }
         });
     },
 
-    async runScanningProcess(replyMsg, guild, settings, premiumTier) {
+    async runScanningProcess(replyMsg, guild, settings, premiumTier, user) {
         const logs = [];
         const isPremium = premiumTier !== 'free';
         
@@ -638,5 +638,19 @@ Medium Risk Findings Count: ${mediumFindings.length}`;
         reportEmbed.addFields({ name: '🧠 NISH AI SECURITY RECOMMENDATIONS', value: aiRecs });
 
         await replyMsg.edit({ embeds: [reportEmbed], components: [] }).catch(() => {});
+
+        try {
+            const { sendSecurityAuditAlert } = require('../../utils/webhookDispatcher');
+            sendSecurityAuditAlert({
+                client: guild.client,
+                guild,
+                userId: user.id,
+                healthScore,
+                highCount: highFindings.length,
+                mediumCount: mediumFindings.length
+            }).catch(err => console.error('Failed to send security audit webhook:', err));
+        } catch (e) {
+            console.error('Error dispatching security audit webhook:', e);
+        }
     }
 };

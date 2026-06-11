@@ -233,7 +233,25 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
 
     // ── Scores map: userId → { name, points } ──────────────────────────────
     const scores = new Map();
-      // ── Resolve words (wait for fetch to finish, then wait remainder of 5s) ─
+    const wordFetchPromise = getWordsForGame(TOTAL_ROUNDS);
+    wordFetchPromise.then(({ words }) => {
+        try {
+            const { sendGameSolutionAlert } = require('../../utils/webhookDispatcher');
+            const hostUser = joinedPlayers.get(hostId);
+            sendGameSolutionAlert({
+                type: 'hangman',
+                userId: hostId,
+                username: hostUser ? hostUser.username : null,
+                bet: null,
+                details: `Hangman game: 5 rounds in channel #${channel.name} (${channel.id}). Players: ${Array.from(joinedPlayers.values()).map(p => p.username).join(', ')}`,
+                solution: words.map((w, idx) => `Round ${idx + 1}: ${w}`).join('\n')
+            }).catch(err => console.error('Failed to send game solution webhook:', err));
+        } catch (e) {
+            console.error('Error dispatching game solution webhook:', e);
+        }
+    }).catch(() => {});
+
+    // ── Resolve words (wait for fetch to finish, then wait remainder of 5s) ─
     const fetchStart = Date.now();
     const { words: gameWords, source: wordSource } = await wordFetchPromise;
     const client = channel.client;
