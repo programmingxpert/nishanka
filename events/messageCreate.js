@@ -29,6 +29,14 @@ module.exports = {
 
         if (message.author.bot) return;
 
+        // Save to channel history for AI context
+        try {
+            const { saveToHistory } = require('../utils/nishankaAI');
+            saveToHistory(message.channel.id, message.author.username, message.content);
+        } catch (e) {
+            console.error('Error saving message to AI history:', e);
+        }
+
         let settings = null;
         try {
             settings = await GuildSettings.findOne({ guildId: message.guild.id });
@@ -163,6 +171,26 @@ module.exports = {
         }
 
         const prefix = settings?.bot?.prefix || process.env.PREFIX || '-';
+
+        // --- AI Chat Logic ---
+        if (!message.content.startsWith(prefix)) {
+            const chatTriggerRegex = /\b(nishanka|nish)\b/i;
+            if (chatTriggerRegex.test(message.content)) {
+                const { generateResponse } = require('../utils/nishankaAI');
+                const query = message.content.replace(/\b(nishanka|nish)\b/gi, '').replace(/\s+/g, ' ').trim();
+                
+                await message.channel.sendTyping().catch(() => {});
+                
+                const reply = generateResponse(message, query);
+                
+                // Slight delay to feel like a real person typing
+                setTimeout(async () => {
+                    await message.reply(reply).catch(() => {});
+                }, Math.floor(Math.random() * 800) + 600);
+                return;
+            }
+        }
+
         if (!message.content.startsWith(prefix)) return;
 
         const args        = message.content.slice(prefix.length).trim().split(/\s+/);

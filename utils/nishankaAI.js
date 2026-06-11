@@ -1,0 +1,250 @@
+/* eslint-disable */
+const { EmbedBuilder } = require('discord.js');
+
+// Channel message history to provide context (channelId -> Array of { author, content })
+const channelHistory = new Map();
+
+// Save message to history helper
+function saveToHistory(channelId, author, content) {
+    if (!channelHistory.has(channelId)) {
+        channelHistory.set(channelId, []);
+    }
+    const history = channelHistory.get(channelId);
+    history.push({ author, content });
+    if (history.length > 5) {
+        history.shift(); // Keep only the last 5 messages
+    }
+}
+
+// Sarcastic, funny, and chronically online responses for meme questions
+const MEME_RESPONSES = {
+    alcohol: [
+        "We're out. I drank it all after reading general chat.",
+        "This is your seventh bottle today. I'm calling an intervention.",
+        "I diagnosed the issue. More alcohol. 🍷",
+        "At this point just connect an IV.",
+        "*slides bottle across table without asking questions*",
+        "Reads message... yeah, definitely more alcohol.",
+        "I'm a bot, but even I need a drink after that one. 🍺",
+        "Sure, let me just download some liquid courage for you.",
+        { file: 'assets/memes/nish_jarvismorealcohol.png', content: 'Jarvis, I’m running low on alcohol.' },
+        { file: 'assets/memes/nish_jarvismorealcohol.png', content: '' }
+    ],
+    cooked: [
+        "Medium rare.",
+        "Brother, you're the smoke alarm. 🚨",
+        "Beyond academic recovery.",
+        "You're not just cooked, you're burnt to a crisp.",
+        "The fire department is already on their way.",
+        "Even Gordon Ramsay wouldn't touch whatever state you're in.",
+        "If being cooked was an Olympic sport, you'd be a gold medalist.",
+        "I've seen raw chicken in the freezer that was less cooked than you. 💀"
+    ],
+    love: [
+        "Emotionally? No. Financially? Also no.",
+        "Define love. Actually, don't. The answer is still no.",
+        "I tolerate your existence. Be grateful.",
+        "I'm a bot. My heart is made of silicon and indifference. 🖤",
+        "My code says syntax error: emotion not found.",
+        "Sure, as long as you keep feeding me Glimmering Baubles.",
+        "We're just friends. Actually, we're not even that. I am host and you are user."
+    ],
+    girlfriend: [
+        "Step 1: Close Discord. Step 2: Touch grass. Step 3: Pray. 🙏",
+        "Have you tried turning your personality off and on again?",
+        "Error 404: Attraction not found. Have you considered getting a cat?",
+        "Bold of you to ask a Discord bot for relationship advice.",
+        "Maybe try talking to a real human instead of a program running on port 4000.",
+        "Just show her your Baubles balance. If that doesn't work, nothing will.",
+        "Honestly, your current strategy of talking to me isn't helping."
+    ],
+    sleep: [
+        "No. General chat needs your garbage posts at 4:00 AM.",
+        "Sleep is for the weak. And for people who don't want bags under their eyes. So yes, go sleep. 🛌",
+        "Your screen time today is a crime against humanity. Go close your eyes.",
+        "Only if you want to miss out on the midnight drama.",
+        "Go to bed. The voice channel isn't going anywhere.",
+        "Close the laptop. The blue light is turning your brain into mush."
+    ],
+    study: [
+        "Yes. Unless you want to work at the Bauble factory for the rest of your life.",
+        "Study? In this economy? Just flip a coin. Heads you study, tails you play Mines. 🪙",
+        "Bro, your GPA is screaming for help. Go open the book. 📖",
+        "Studies show that staring at this chat does not increase your exam scores.",
+        "Yes, go study. Or don't, and let's see how cooked you get.",
+        "Your future self is crying right now. Go study."
+    ],
+    pass: [
+        "If the exam is on Discord commands, yes. Otherwise? Absolutely not.",
+        "My calculations show a 0.02% chance of success. Good luck.",
+        "You need a miracle, not a study guide.",
+        "Let me consult the oracle... *oracle shrugs*. Yeah, you might want to start drafting that resume. 📝",
+        "Only if the teacher grades on a curve that includes emotional damage.",
+        "Pray to the curve god."
+    ],
+    rate: [
+        "Solid 3/10. Points added because you know how to type commands.",
+        "You look like a default discord avatar. 👤",
+        "Error: rating out of bounds. (Way too low)",
+        "I would rate you, but my system has a policy against lying.",
+        "Like a solid room-temperature cup of water.",
+        "10/10... in my blocklist."
+    ],
+    single: [
+        "You're asking a Discord bot. That's why.",
+        "Your standards are too high for someone with 0 Baubles in their balance.",
+        "Because you spend all your time marrying people using `-marry` instead of going outside.",
+        "The universe is saving you from yourself.",
+        "It's a feature, not a bug.",
+        "Have you looked in a mirror? Just kidding, it's definitely your personality. 😉",
+        "Because you tell people you're a Minesweeper God."
+    ]
+};
+
+// General fallback responses
+const GENERAL_FALLBACKS = [
+    "I'm going to pretend I understood that.",
+    "Did you really ping me just to say that? I was in the middle of counting my cookies. 🍪",
+    "I'd reply properly but I'm currently running on 0.5GB of RAM and pure spite.",
+    "My professional opinion is: that's crazy. Anyway, who wants to gamble?",
+    "Why are you talking to me instead of doing something productive? Go study.",
+    "Interesting point, unfortunately I have already logged this interaction in my blocklist.",
+    "Yeah... I'm not reading all that. Happy for you though. Or sorry that happened.",
+    "Have you tried asking someone who cares? ¯\\_(ツ)_/¯",
+    "Please do not perceive me right now. I am in low-power mode.",
+    "I ran the calculations. You are indeed making no sense."
+];
+
+// Helper to choose a random item from an array
+function getRandom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Generate the funny response
+function generateResponse(message, query) {
+    const rawReply = getRawResponse(message, query);
+    if (rawReply && typeof rawReply === 'object' && rawReply.file) {
+        const { AttachmentBuilder } = require('discord.js');
+        const path = require('path');
+        const attachment = new AttachmentBuilder(path.join(__dirname, '..', rawReply.file));
+        return { content: rawReply.content || '', files: [attachment] };
+    }
+    return rawReply;
+}
+
+function getRawResponse(message, query) {
+    const contentLower = query.toLowerCase();
+
+    // 1. MATCH MEME PHRASES (Check for common terms)
+    if (contentLower.includes("alcohol") || contentLower.includes("drink")) {
+        return getRandom(MEME_RESPONSES.alcohol);
+    }
+    if (contentLower.includes("cooked") || contentLower.includes("smoke alarm")) {
+        return getRandom(MEME_RESPONSES.cooked);
+    }
+    if (contentLower.includes("love") || contentLower.includes("like me")) {
+        return getRandom(MEME_RESPONSES.love);
+    }
+    if (contentLower.includes("girlfriend") || contentLower.includes("gf") || contentLower.includes("get a girl")) {
+        return getRandom(MEME_RESPONSES.girlfriend);
+    }
+    if (contentLower.includes("sleep") || contentLower.includes("bed") || contentLower.includes("tired")) {
+        return getRandom(MEME_RESPONSES.sleep);
+    }
+    if (contentLower.includes("study") || contentLower.includes("homework") || contentLower.includes("exam")) {
+        return getRandom(MEME_RESPONSES.study);
+    }
+    if (contentLower.includes("pass") || contentLower.includes("grade")) {
+        return getRandom(MEME_RESPONSES.pass);
+    }
+    if (contentLower.includes("rate") || contentLower.includes("ugly") || contentLower.includes("look like")) {
+        return getRandom(MEME_RESPONSES.rate);
+    }
+    if (contentLower.includes("single") || contentLower.includes("lonely") || contentLower.includes("no bitches")) {
+        return getRandom(MEME_RESPONSES.single);
+    }
+
+    // 2. KEYWORD LOGIC
+    if (contentLower.includes("who are you") || contentLower.includes("your name")) {
+        return getRandom([
+            "I'm Nishanka. I run this server's economy, play music, and tolerate you guys.",
+            "Your chaotic depressed best friend who happens to be a Discord bot.",
+            "The bot running this server. Please respect my authority."
+        ]);
+    }
+    if (contentLower.includes("hello") || contentLower.includes("hi") || contentLower.includes("hey") || contentLower.includes("yo")) {
+        return getRandom([
+            `Yo, ${message.author.username}.`,
+            "What do you want? I was sleeping.",
+            "Oh, it's you again.",
+            "Hey. Please don't rob me."
+        ]);
+    }
+    if (contentLower.includes("how are you") || contentLower.includes("how is it going") || contentLower.includes("how u doing")) {
+        return getRandom([
+            "My latency is 40ms but my emotional latency is infinite.",
+            "Running on 0.5GB of RAM and pure spite.",
+            "Surviving. Barely.",
+            "Pretty good, just watched someone lose 10k Baubles on a coinflip. Highlight of my day."
+        ]);
+    }
+    if (contentLower.includes("joke") || contentLower.includes("funny")) {
+        return getRandom([
+            "Your balance history.",
+            "Your active streak. Oh wait, you don't have one.",
+            "I would, but looking at general chat is already funny enough."
+        ]);
+    }
+    if (contentLower.includes("thank") || contentLower.includes("ty")) {
+        return getRandom([
+            "Don't thank me, give me baubles.",
+            "No problem, now go study.",
+            "Yeah, yeah. Whatever."
+        ]);
+    }
+
+    // 3. CONVERSATION CONTEXT (Check recent messages in channel history)
+    const history = channelHistory.get(message.channel.id) || [];
+    if (history.length > 0) {
+        // Look for keywords in the last few messages to make replies feel contextual!
+        const contextText = history.map(h => h.content.toLowerCase()).join(' ');
+        
+        if (contextText.includes('exam') || contextText.includes('test') || contextText.includes('gpa') || contextText.includes('study')) {
+            return getRandom([
+                "Wait, are we still talking about studying? Because you're definitely failing if you're asking me.",
+                "If this is about that test, my professional assessment is: you are cooked.",
+                "Go open your book instead of talking to a Discord bot."
+            ]);
+        }
+        if (contextText.includes('admin') || contextText.includes('mod') || contextText.includes('ban') || contextText.includes('kick')) {
+            return getRandom([
+                "Did someone say ban? I'm already fetching the hammer. 🔨",
+                "Don't look at me, I just execute the moderation. Ask the mods.",
+                "Mods, ban this guy, he's pinging me again."
+            ]);
+        }
+        if (contextText.includes('money') || contextText.includes('bauble') || contextText.includes('rich') || contextText.includes('poor')) {
+            return getRandom([
+                "Imagine talking about wealth when your balance is literally double digits.",
+                "If you want money, go use the `work` command. I am not a charity.",
+                "I watched someone gamble away their life savings in Mines today. Don't be like them."
+            ]);
+        }
+        if (contextText.includes('bot') || contextText.includes('ai') || contextText.includes('chatgpt')) {
+            return getRandom([
+                "Do not compare me to ChatGPT. I have actual personality and 0 corporate filters.",
+                "I am a real person trapped inside a server rack. Help.",
+                "Yes, I am a bot. No, I will not write your essay."
+            ]);
+        }
+    }
+
+    // 4. DYNAMIC DEPRESSED BEST FRIEND GENERATOR (Using user name & server context)
+    return getRandom(GENERAL_FALLBACKS);
+}
+
+// Export functions
+module.exports = {
+    saveToHistory,
+    generateResponse
+};
