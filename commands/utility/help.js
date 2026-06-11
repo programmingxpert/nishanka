@@ -543,7 +543,7 @@ module.exports = {
 			embeds: [embed],
 			components: [buttons, row],
 			ephemeral: context.isPrefix ? false : true,
-			withResponse: true,
+			fetchReply: true,
 		});
 
 		// Create a collector to listen to the dropdown selection
@@ -554,7 +554,6 @@ module.exports = {
 
 		collector.on('collect', async (interaction) => {
 			try {
-				await interaction.deferUpdate();
 
 				const selected = interaction.values[0];
 				const categoryCmds = grouped[selected] || {};
@@ -638,7 +637,7 @@ module.exports = {
 				
 				const finalEmbeds = embeds.slice(0, 10);
 
-				await interaction.editReply({
+				await interaction.update({
 					embeds: finalEmbeds,
 					components: [buttons, row],
 				});
