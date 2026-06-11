@@ -3,14 +3,10 @@ const fs = require('fs');
 const path = require('path');
 
 const GROUP_CONFIGS = {
-    moderation: { name: 'moderation', description: 'Server moderation and administration commands' },
     economy: { name: 'economy', description: 'Economy, balance, shop, and games commands' },
     fun: { name: 'fun', description: 'Fun, games, and relationship commands' },
-    giveaway: { name: 'giveaway', description: 'Create and manage giveaways' },
     music: { name: 'music', description: 'Music playback and queue controls' },
     profile: { name: 'profile', description: 'View and customize your user profile' },
-    utility: { name: 'utility', description: 'Utility and informational commands' },
-    admin: { name: 'admin', description: 'Bot administrator settings' },
     developer: { name: 'developer', description: 'Bot developer configuration and tools' }
 };
 
@@ -70,6 +66,9 @@ function bundleSlashCommands() {
 
     for (const [category, config] of Object.entries(GROUP_CONFIGS)) {
         let cmds = categoryCommands[category] || [];
+        if (category === 'music') {
+            cmds = cmds.filter(c => c.data.name !== 'songinfo' && c.data.name !== 'lyrics');
+        }
         if (category === 'fun') {
             cmds = [
                 ...cmds,
@@ -209,9 +208,18 @@ function bundleSlashCommands() {
         finalJSON.push(actionJson);
     }
 
-    // Add standalone top-level commands from category 'ai'
-    const aiCmds = categoryCommands['ai'] || [];
-    for (const cmd of aiCmds) {
+    // Add standalone top-level commands
+    const GROUPED_CATEGORIES = Object.keys(GROUP_CONFIGS);
+    for (const cmd of allCommands) {
+        const cat = cmd.category;
+        const name = cmd.data.name;
+        
+        // Skip grouped categories, casino/minigames (grouped inside /fun), and actions (handled separately), unless it is songinfo or lyrics
+        if ((GROUPED_CATEGORIES.includes(cat) && name !== 'songinfo' && name !== 'lyrics') || 
+            cat === 'casino' || cat === 'minigames' || cat === 'actions') {
+            continue;
+        }
+
         if (cmd.data && typeof cmd.data.toJSON === 'function') {
             finalJSON.push(cmd.data.toJSON());
         }

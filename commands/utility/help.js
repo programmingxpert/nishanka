@@ -261,6 +261,8 @@ const COMMAND_MAPPING = {
 	skip: 'music',
 	remove: 'music',
 	clearmusic: 'music',
+	songinfo: 'music',
+	lyrics: 'music',
 
 	// Utility
 	help: 'utility',
@@ -396,6 +398,10 @@ const commandGroups = {
 		{
 			title: '📜 Queue Management',
 			commands: ['queue', 'skip', 'remove', 'clearmusic']
+		},
+		{
+			title: 'ℹ️ Song Information & Lyrics',
+			commands: ['songinfo', 'lyrics']
 		}
 	],
 	utility: [
