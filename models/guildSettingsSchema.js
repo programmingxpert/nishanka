@@ -56,7 +56,8 @@ const guildSettingsSchema = new mongoose.Schema({
         mediaLogChannelId: { type: String, default: null },
         reactionLogChannelId: { type: String, default: null },
         antispamLogChannelId: { type: String, default: null },
-        modLogChannelId: { type: String, default: null }
+        modLogChannelId: { type: String, default: null },
+        voiceLogChannelId: { type: String, default: null }
     },
     dashboardPermissions: {
         bot: { type: [String], default: [] },

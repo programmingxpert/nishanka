@@ -25,7 +25,8 @@ function getLogChannelId(settings, guildId, logType) {
         media: '1514722619281117204',
         reaction: '1514723039604904076',
         antispam: '1514724086545256598',
-        mod: '1514722703016202380'
+        mod: '1514722703016202380',
+        voice: '1514723460335669339'
     };
 
     let targetChannelId = null;
@@ -40,6 +41,8 @@ function getLogChannelId(settings, guildId, logType) {
         targetChannelId = settings?.logging?.antispamLogChannelId;
     } else if (logType === 'mod') {
         targetChannelId = settings?.logging?.modLogChannelId;
+    } else if (logType === 'voice') {
+        targetChannelId = settings?.logging?.voiceLogChannelId;
     }
 
     if (targetChannelId) {

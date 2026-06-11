@@ -31,15 +31,31 @@ module.exports = {
 
         // --- Reaction Log ---
         try {
-            const { sendDiscordLog } = require('../utils/serverLogger');
-            const { EmbedBuilder } = require('discord.js');
-            const reactionEmbed = new EmbedBuilder()
-                .setColor(0xef4444) // Red
-                .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL({ dynamic: true }) })
-                .setTitle(`➖ Reaction Removed`)
-                .setDescription(`**User:** <@${user.id}> (\`${user.id}\`)\n**Message:** [Jump to Message](${reaction.message.url})\n**Channel:** <#${reaction.message.channel.id}> (\`${reaction.message.channel.id}\`)\n**Reaction:** ${reaction.emoji.toString()}`)
-                .setTimestamp();
-            await sendDiscordLog(guild, 'reaction', { embeds: [reactionEmbed] });
+            const emojiKey = reaction.emoji.id ? reaction.emoji.id : reaction.emoji.name;
+            const { trackRemove } = require('../utils/reactionTracker');
+            const { isSpam, spamCount, isRapid, duration } = trackRemove(user.id, reaction.message.id, emojiKey);
+
+            if (isSpam && spamCount === 6) { // Log when the spam threshold is crossed
+                const { sendDiscordLog } = require('../utils/serverLogger');
+                const { EmbedBuilder } = require('discord.js');
+                const reactionEmbed = new EmbedBuilder()
+                    .setColor(0xf59e0b) // Orange/Warning
+                    .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL({ dynamic: true }) })
+                    .setTitle(`⚠️ Reaction Spam Alert`)
+                    .setDescription(`**User:** <@${user.id}> (\`${user.id}\`)\n**Message:** [Jump to Message](${reaction.message.url})\n**Channel:** <#${reaction.message.channel.id}> (\`${reaction.message.channel.id}\`)\n**Reaction:** ${reaction.emoji.toString()}\n\n**Violation:** Adding/removing reactions too rapidly (**${spamCount}** actions in 5 seconds).`)
+                    .setTimestamp();
+                await sendDiscordLog(guild, 'reaction', { embeds: [reactionEmbed] });
+            } else if (isRapid && !isSpam) { // Log rapid toggle
+                const { sendDiscordLog } = require('../utils/serverLogger');
+                const { EmbedBuilder } = require('discord.js');
+                const reactionEmbed = new EmbedBuilder()
+                    .setColor(0xef4444) // Red
+                    .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL({ dynamic: true }) })
+                    .setTitle(`⏱️ Rapid Reaction Removed`)
+                    .setDescription(`**User:** <@${user.id}> (\`${user.id}\`)\n**Message:** [Jump to Message](${reaction.message.url})\n**Channel:** <#${reaction.message.channel.id}> (\`${reaction.message.channel.id}\`)\n**Reaction:** ${reaction.emoji.toString()}\n\n**Duration:** Added and removed within **${(duration / 1000).toFixed(1)}**s (Reaction Ping/Snipe).`)
+                    .setTimestamp();
+                await sendDiscordLog(guild, 'reaction', { embeds: [reactionEmbed] });
+            }
         } catch (err) {
             console.error('Error in reaction remove logging:', err);
         }

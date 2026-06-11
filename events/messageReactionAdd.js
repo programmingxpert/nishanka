@@ -31,15 +31,21 @@ module.exports = {
 
         // --- Reaction Log ---
         try {
-            const { sendDiscordLog } = require('../utils/serverLogger');
-            const { EmbedBuilder } = require('discord.js');
-            const reactionEmbed = new EmbedBuilder()
-                .setColor(0x10b981) // Green
-                .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL({ dynamic: true }) })
-                .setTitle(`➕ Reaction Added`)
-                .setDescription(`**User:** <@${user.id}> (\`${user.id}\`)\n**Message:** [Jump to Message](${reaction.message.url})\n**Channel:** <#${reaction.message.channel.id}> (\`${reaction.message.channel.id}\`)\n**Reaction:** ${reaction.emoji.toString()}`)
-                .setTimestamp();
-            await sendDiscordLog(guild, 'reaction', { embeds: [reactionEmbed] });
+            const emojiKey = reaction.emoji.id ? reaction.emoji.id : reaction.emoji.name;
+            const { trackAdd } = require('../utils/reactionTracker');
+            const { isSpam, count } = trackAdd(user.id, reaction.message.id, emojiKey);
+
+            if (isSpam && count === 6) { // Log when the spam threshold is crossed
+                const { sendDiscordLog } = require('../utils/serverLogger');
+                const { EmbedBuilder } = require('discord.js');
+                const reactionEmbed = new EmbedBuilder()
+                    .setColor(0xf59e0b) // Orange/Warning
+                    .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL({ dynamic: true }) })
+                    .setTitle(`⚠️ Reaction Spam Alert`)
+                    .setDescription(`**User:** <@${user.id}> (\`${user.id}\`)\n**Message:** [Jump to Message](${reaction.message.url})\n**Channel:** <#${reaction.message.channel.id}> (\`${reaction.message.channel.id}\`)\n**Reaction:** ${reaction.emoji.toString()}\n\n**Violation:** Adding/removing reactions too rapidly (**${count}** actions in 5 seconds).`)
+                    .setTimestamp();
+                await sendDiscordLog(guild, 'reaction', { embeds: [reactionEmbed] });
+            }
         } catch (err) {
             console.error('Error in reaction add logging:', err);
         }

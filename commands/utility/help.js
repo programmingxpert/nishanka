@@ -110,15 +110,23 @@ const COMMAND_MAPPING = {
 	take: 'developer',
 	reset: 'developer',
 	awardachievement: 'developer',
-	setquoteschannel: 'developer',
-	trigger: 'developer',
+	devban: 'developer',
+	devlogs: 'developer',
+	maintenance: 'developer',
+	taxfund: 'developer',
+	togglecmd: 'developer',
 
 	// Admin
+	config: 'admin',
 	welcome: 'admin',
 	autorole: 'admin',
 	logging: 'admin',
 	leveling: 'admin',
+	reactionroles: 'admin',
+	setquoteschannel: 'admin',
 	snipetoggle: 'admin',
+	starboard: 'admin',
+	trigger: 'admin',
 
 	// Moderation
 	automod: 'moderation',
@@ -140,6 +148,10 @@ const COMMAND_MAPPING = {
 	lock: 'moderation',
 	unlock: 'moderation',
 	temprole: 'moderation',
+	role: 'moderation',
+	colorrole: 'moderation',
+	securitycheck: 'moderation',
+	ticket: 'moderation',
 
 	// Giveaway
 	giveaway: 'giveaway',
@@ -165,7 +177,6 @@ const COMMAND_MAPPING = {
 	gift: 'economy',
 	leaderboard: 'economy',
 	globalleaderboard: 'economy',
-	taxfund: 'economy',
 	collections: 'economy',
 	crime: 'economy',
 	dig: 'economy',
@@ -178,6 +189,8 @@ const COMMAND_MAPPING = {
 	gamestats: 'economy',
 	winloss: 'economy',
 	streak: 'economy',
+	baublerain: 'economy',
+	opengift: 'economy',
 
 	// Casino
 	gamble: 'casino',
@@ -185,10 +198,8 @@ const COMMAND_MAPPING = {
 	slots: 'casino',
 	mines: 'casino',
 	buckshot: 'casino',
-	battle: 'minigames',
 	blackjack: 'casino',
 	bj: 'casino',
-	animebattle: 'minigames',
 	mblackjack: 'casino',
 	duckrace: 'casino',
 
@@ -218,6 +229,9 @@ const COMMAND_MAPPING = {
 	geoguesser: 'minigames',
 	hangman: 'minigames',
 	truthordare: 'minigames',
+	battle: 'minigames',
+	animebattle: 'minigames',
+	gridduel: 'minigames',
 
 	// Fun
 	meme: 'fun',
@@ -251,7 +265,6 @@ const COMMAND_MAPPING = {
 	// Utility
 	help: 'utility',
 	ping: 'utility',
-	togglecmd: 'utility',
 	remind: 'utility',
 	afk: 'utility',
 	server: 'utility',
@@ -262,20 +275,25 @@ const COMMAND_MAPPING = {
 	rank: 'utility',
 	snipe: 'utility',
 	support: 'utility',
-	invite: 'utility'
+	invite: 'utility',
+	announce: 'utility'
 };
 
 const commandGroups = {
 	admin: [
 		{
 			title: '⚙️ Server Configurations',
-			commands: ['welcome', 'autorole', 'logging', 'leveling', 'snipetoggle']
+			commands: ['config', 'welcome', 'autorole', 'logging', 'leveling', 'starboard', 'setquoteschannel', 'snipetoggle']
+		},
+		{
+			title: '🎭 Interactive & Utility Setup',
+			commands: ['reactionroles', 'trigger']
 		}
 	],
 	moderation: [
 		{
-			title: '🛡️ Automated Moderation',
-			commands: ['automod', 'antispam', 'censor', 'mediaonly']
+			title: '🛡️ Automated Moderation & Security',
+			commands: ['automod', 'antispam', 'censor', 'mediaonly', 'securitycheck']
 		},
 		{
 			title: '🔨 Punishments',
@@ -286,8 +304,8 @@ const commandGroups = {
 			commands: ['warn', 'warnings', 'clearwarn', 'clearwarnings']
 		},
 		{
-			title: '🛠️ Staff Tools',
-			commands: ['purge', 'defaultpurge', 'lock', 'unlock', 'temprole']
+			title: '🛠️ Staff Tools & Systems',
+			commands: ['purge', 'defaultpurge', 'lock', 'unlock', 'temprole', 'role', 'colorrole', 'ticket']
 		}
 	],
 	giveaway: [
@@ -303,11 +321,11 @@ const commandGroups = {
 		},
 		{
 			title: '💼 Earnings & Work',
-			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'hourly', 'monthly', 'checklist', 'grab', 'taxfund', 'crime', 'dig', 'dumpster', 'expedition', 'fish', 'memehunt']
+			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'hourly', 'monthly', 'checklist', 'grab', 'crime', 'dig', 'dumpster', 'expedition', 'fish', 'memehunt', 'baublerain']
 		},
 		{
 			title: '🛒 Market & Trading',
-			commands: ['shop', 'sell', 'use', 'give', 'gift', 'items']
+			commands: ['shop', 'sell', 'use', 'give', 'gift', 'opengift', 'items']
 		},
 		{
 			title: '📈 Leaderboards',
@@ -341,7 +359,7 @@ const commandGroups = {
 		},
 		{
 			title: '⚔️ Battles & Duels',
-			commands: ['battle', 'animebattle', 'deathbattle']
+			commands: ['battle', 'animebattle', 'deathbattle', 'gridduel']
 		},
 		{
 			title: '🌐 Trivia & Logic',
@@ -383,7 +401,11 @@ const commandGroups = {
 	utility: [
 		{
 			title: '⚙️ System Commands',
-			commands: ['help', 'ping', 'togglecmd']
+			commands: ['help', 'ping']
+		},
+		{
+			title: '📢 Broadcast & Announcements',
+			commands: ['announce']
 		},
 		{
 			title: '📅 Reminders & AFK',
@@ -397,7 +419,7 @@ const commandGroups = {
 	developer: [
 		{
 			title: '👑 Owner / Developer Commands',
-			commands: ['devinfo', 'eval', 'reload', 'add', 'take', 'reset', 'awardachievement', 'setquoteschannel', 'trigger']
+			commands: ['devinfo', 'eval', 'reload', 'add', 'take', 'reset', 'awardachievement', 'devban', 'devlogs', 'maintenance', 'taxfund', 'togglecmd']
 		}
 	]
 };
@@ -436,6 +458,8 @@ module.exports = {
 		const commands = context.client.commands;
 		const grouped = {};
 		const isOwner = (context.user?.id || context.author?.id) === config.devId;
+		const { checkCommandPermission } = require('../../utils/permissions');
+		const isAdmin = isOwner || (context.member && (context.member.permissions.has('Administrator') || await checkCommandPermission(context, 'bot')));
 
 		// Group commands by category (collect name -> description map)
 		for (const [, cmd] of commands) {
@@ -460,7 +484,8 @@ module.exports = {
 				}
 			}
 
-			if ((category === 'admin' || category === 'developer') && !isOwner) continue;
+			if (category === 'developer' && !isOwner) continue;
+			if (category === 'admin' && !isAdmin) continue;
 
 			if (!grouped[category]) grouped[category] = {};
 			grouped[category][cmd.data.name] = cmd.data.description || 'No description provided.';

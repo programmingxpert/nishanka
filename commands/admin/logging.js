@@ -26,7 +26,8 @@ module.exports = {
                         { name: 'Media Logs (Deleted Images/Videos/GIFs)', value: 'media' },
                         { name: 'Reaction Logs', value: 'reaction' },
                         { name: 'Anti-Spam Logs', value: 'antispam' },
-                        { name: 'Moderation Logs', value: 'mod' }
+                        { name: 'Moderation Logs', value: 'mod' },
+                        { name: 'Voice Logs (Join/Leave VC)', value: 'voice' }
                     )))
         .addSubcommand(sub =>
             sub.setName('event')
@@ -64,7 +65,8 @@ module.exports = {
                         `🖼️ **Media Logs Channel:** ${settings.logging.mediaLogChannelId ? `<#${settings.logging.mediaLogChannelId}>` : 'None set'}\n` +
                         `🎭 **Reaction Logs Channel:** ${settings.logging.reactionLogChannelId ? `<#${settings.logging.reactionLogChannelId}>` : 'None set'}\n` +
                         `🚨 **Anti-Spam Logs Channel:** ${settings.logging.antispamLogChannelId ? `<#${settings.logging.antispamLogChannelId}>` : 'None set'}\n` +
-                        `🛡️ **Moderation Logs Channel:** ${settings.logging.modLogChannelId ? `<#${settings.logging.modLogChannelId}>` : 'None set'}\n\n` +
+                        `🛡️ **Moderation Logs Channel:** ${settings.logging.modLogChannelId ? `<#${settings.logging.modLogChannelId}>` : 'None set'}\n` +
+                        `🎙️ **Voice Logs Channel:** ${settings.logging.voiceLogChannelId ? `<#${settings.logging.voiceLogChannelId}>` : 'None set'}\n\n` +
                         `**Tracked Events:**\n` +
                         `• Message Deletions: ${settings.logging.messageDelete ? '✅ Yes' : '❌ No'}\n` +
                         `• Message Edits: ${settings.logging.messageUpdate ? '✅ Yes' : '❌ No'}\n` +
@@ -91,6 +93,7 @@ module.exports = {
                 else if (type === 'reaction') settings.logging.reactionLogChannelId = channel.id;
                 else if (type === 'antispam') settings.logging.antispamLogChannelId = channel.id;
                 else if (type === 'mod') settings.logging.modLogChannelId = channel.id;
+                else if (type === 'voice') settings.logging.voiceLogChannelId = channel.id;
 
                 await settings.save();
                 return interaction.reply(`✅ **${type.charAt(0).toUpperCase() + type.slice(1)}** log channel has been set to ${channel}.`);
@@ -134,7 +137,8 @@ module.exports = {
                         `🖼️ **Media Logs Channel:** ${settings.logging.mediaLogChannelId ? `<#${settings.logging.mediaLogChannelId}>` : 'None set'}\n` +
                         `🎭 **Reaction Logs Channel:** ${settings.logging.reactionLogChannelId ? `<#${settings.logging.reactionLogChannelId}>` : 'None set'}\n` +
                         `🚨 **Anti-Spam Logs Channel:** ${settings.logging.antispamLogChannelId ? `<#${settings.logging.antispamLogChannelId}>` : 'None set'}\n` +
-                        `🛡️ **Moderation Logs Channel:** ${settings.logging.modLogChannelId ? `<#${settings.logging.modLogChannelId}>` : 'None set'}\n\n` +
+                        `🛡️ **Moderation Logs Channel:** ${settings.logging.modLogChannelId ? `<#${settings.logging.modLogChannelId}>` : 'None set'}\n` +
+                        `🎙️ **Voice Logs Channel:** ${settings.logging.voiceLogChannelId ? `<#${settings.logging.voiceLogChannelId}>` : 'None set'}\n\n` +
                         `**Tracked Events:**\n` +
                         `• Message Deletions (delete): ${settings.logging.messageDelete ? '✅ Yes' : '❌ No'}\n` +
                         `• Message Edits (edit): ${settings.logging.messageUpdate ? '✅ Yes' : '❌ No'}\n` +
@@ -180,8 +184,9 @@ module.exports = {
                 else if (typeArg === 'reaction') type = 'reaction';
                 else if (typeArg === 'antispam') type = 'antispam';
                 else if (typeArg === 'mod' || typeArg === 'moderation') type = 'mod';
+                else if (typeArg === 'voice' || typeArg === 'vc') type = 'voice';
                 else if (typeArg !== 'general') {
-                    return message.reply('❌ Invalid log type. Choose from: `general`, `text`, `media`, `reaction`, `antispam`, `mod`.');
+                    return message.reply('❌ Invalid log type. Choose from: `general`, `text`, `media`, `reaction`, `antispam`, `mod`, `voice`.');
                 }
 
                 if (type === 'general') settings.logging.channelId = targetChannel.id;
@@ -190,6 +195,7 @@ module.exports = {
                 else if (type === 'reaction') settings.logging.reactionLogChannelId = targetChannel.id;
                 else if (type === 'antispam') settings.logging.antispamLogChannelId = targetChannel.id;
                 else if (type === 'mod') settings.logging.modLogChannelId = targetChannel.id;
+                else if (type === 'voice') settings.logging.voiceLogChannelId = targetChannel.id;
 
                 await settings.save();
                 return message.reply(`✅ **${type.charAt(0).toUpperCase() + type.slice(1)}** log channel has been set to ${targetChannel}.`);

@@ -74,12 +74,31 @@ module.exports = {
                     }
                 );
 
+                const mentionedUsers = message.mentions.users.filter(u => u.id !== message.author.id);
+                const mentionedRoles = message.mentions.roles;
+                const isEveryone = message.mentions.everyone;
+                const isGhostPing = (mentionedUsers.size > 0) || (mentionedRoles.size > 0) || isEveryone;
+
                 const deleteEmbed = new EmbedBuilder()
                     .setColor(0xef4444) // Coral red
                     .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
-                    .setTitle(`🗑️ Message Deleted`)
+                    .setTitle(isGhostPing ? `👻 Ghost Ping Detected` : `🗑️ Message Deleted`)
                     .setDescription(`**Author:** <@${message.author.id}> (\`${message.author.id}\`)\n**Channel:** <#${message.channel.id}> (\`${message.channel.id}\`)`)
                     .setTimestamp();
+
+                if (isGhostPing) {
+                    let pingDetails = '';
+                    if (mentionedUsers.size > 0) {
+                        pingDetails += `**Users:** ${mentionedUsers.map(u => `<@${u.id}>`).join(', ')}\n`;
+                    }
+                    if (mentionedRoles.size > 0) {
+                        pingDetails += `**Roles:** ${mentionedRoles.map(r => `<@&${r.id}>`).join(', ')}\n`;
+                    }
+                    if (isEveryone) {
+                        pingDetails += `**Everyone/Here:** Yes\n`;
+                    }
+                    deleteEmbed.addFields({ name: 'Ghost Ping Targets', value: pingDetails });
+                }
 
                 if (message.content) {
                     const contentCapped = message.content.length > 1000
