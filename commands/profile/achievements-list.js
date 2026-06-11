@@ -99,9 +99,9 @@ function buildCategoryEmbed(user, currentCategory, unlockedIds, page = 0) {
             const isOwned = unlockedIds.has(ach.id);
             const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
             if (isOwned) {
-                return `✅ ~~${ach.emoji} **${ach.name}** (${CATEGORIES[ach.category]?.label || ach.category}): ${ach.description}~~ *(Owned | ${typeLabel})*`;
+                return `✅ ~~${ach.emoji} **${ach.name}** (\`${ach.id}\` | ${CATEGORIES[ach.category]?.label || ach.category}): ${ach.description}~~ *(Owned | ${typeLabel})*`;
             } else {
-                return `🔒 ${ach.emoji} **${ach.name}** (${CATEGORIES[ach.category]?.label || ach.category}): ${ach.description} *(Rarity: ${ach.rarity}% | ${typeLabel})*`;
+                return `🔒 ${ach.emoji} **${ach.name}** (\`${ach.id}\` | ${CATEGORIES[ach.category]?.label || ach.category}): ${ach.description} *(Rarity: ${ach.rarity}% | ${typeLabel})*`;
             }
         });
 
@@ -127,9 +127,9 @@ function buildCategoryEmbed(user, currentCategory, unlockedIds, page = 0) {
             const isOwned = unlockedIds.has(ach.id);
             const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
             if (isOwned) {
-                return `✅ ~~${ach.emoji} **${ach.name}**: ${ach.description}~~ *(Owned | ${typeLabel})*`;
+                return `✅ ~~${ach.emoji} **${ach.name}** (\`${ach.id}\`): ${ach.description}~~ *(Owned | ${typeLabel})*`;
             } else {
-                return `🔒 ${ach.emoji} **${ach.name}**: ${ach.description} *(Rarity: ${ach.rarity}% | ${typeLabel})*`;
+                return `🔒 ${ach.emoji} **${ach.name}** (\`${ach.id}\`): ${ach.description} *(Rarity: ${ach.rarity}% | ${typeLabel})*`;
             }
         });
 

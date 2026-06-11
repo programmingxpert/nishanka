@@ -80,15 +80,52 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
     if (hardcodedGifs && hardcodedGifs.length > 0) {
         gifUrl = hardcodedGifs[Math.floor(Math.random() * hardcodedGifs.length)];
     } else {
-        // Map some actions to valid Nekos.best endpoints if they differ
-        const endpointMap = { yay: 'happy' };
+        // Map some actions to valid endpoints if they differ
+        const endpointMap = { 
+            yay: 'happy',
+            peck: 'kiss',
+            touch: 'pat'
+        };
         const endpoint = endpointMap[actionType] || actionType;
-        
+
+        const waifuPicsCategories = [
+            'bite', 'blush', 'cry', 'cuddle', 'dance', 'handhold', 'happy', 'highfive', 
+            'hug', 'kick', 'kiss', 'neko', 'nom', 'pat', 'slap', 'smug', 'waifu', 'wave', 'wink', 'yeet'
+        ];
+
+        const otakuGifsCategories = [
+            'angry', 'facepalm', 'pout', 'shrug', 'sleep', 'stare', 'thumbsup', 'yawn',
+            'punch', 'run', 'shoot', 'tickle', 'nod', 'nope', 'feed', 'laugh', 'baka'
+        ];
+
         try {
-            const response = await fetch(`https://nekos.best/api/v2/${endpoint}`);
-            if (response.ok) {
-                const data = await response.json();
-                gifUrl = data?.results?.[0]?.url ?? null;
+            if (waifuPicsCategories.includes(endpoint)) {
+                // Fetch from Waifu.pics
+                const response = await fetch(`https://api.waifu.pics/sfw/${endpoint}`, {
+                    headers: { 'User-Agent': 'NishankaBot/2.0' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    gifUrl = data?.url ?? null;
+                }
+            } else if (otakuGifsCategories.includes(endpoint)) {
+                // Fetch from OtakuGIFs
+                const response = await fetch(`https://api.otakugifs.xyz/gif?reaction=${endpoint}&format=gif`, {
+                    headers: { 'User-Agent': 'NishankaBot/2.0' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    gifUrl = data?.url ?? null;
+                }
+            } else {
+                // General fallback for unsupported categories (like husbando, kitsune, etc.)
+                const response = await fetch(`https://api.waifu.pics/sfw/smile`, {
+                    headers: { 'User-Agent': 'NishankaBot/2.0' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    gifUrl = data?.url ?? null;
+                }
             }
         } catch (err) {
             console.warn(`[sendAnimeAction] Failed to fetch GIF for "${actionType}":`, err.message);
@@ -122,7 +159,7 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
         .setColor(color ?? 0x7289DA)
         .setTitle(`${emoji} ${actionType.charAt(0).toUpperCase() + actionType.slice(1)}!`)
         .setDescription(description)
-        .setFooter({ text: hardcodedGifs ? `Action!` : `Powered by Nekos.best`, iconURL: authorMember?.displayAvatarURL({ dynamic: true }) || author.displayAvatarURL({ dynamic: true }) })
+        .setFooter({ text: hardcodedGifs ? `Action!` : `Powered by Waifu.pics & OtakuGIFs`, iconURL: authorMember?.displayAvatarURL({ dynamic: true }) || author.displayAvatarURL({ dynamic: true }) })
         .setTimestamp();
 
     if (gifUrl) embed.setImage(gifUrl);

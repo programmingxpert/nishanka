@@ -90,10 +90,10 @@ const ITEMS = {
     },
     paintbrush: {
         id: 'paintbrush',
-        name: '🎨 Toxic Neon Highlighter',
+        name: '🎨 Profile Paintbrush',
         emoji: '🎨',
-        description: 'A highlighter filled with radioactive ink. Draw on someone\'s face to blind them for 15 minutes, blocking profiles/inv checks and robbing/dueling.',
-        useInfo: 'Blind another user (e.g. -use paintbrush @User) for 15 minutes.',
+        description: 'Cosmetic item used only for profile customization.',
+        useInfo: 'Unlocks banner customization in your profile editor.',
         basePrice: 80000,
         sellPrice: 40000,
         type: 'collectible',

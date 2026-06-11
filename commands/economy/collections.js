@@ -82,7 +82,7 @@ function buildCollectionsEmbed(baubleData, user) {
             if (hasItem) ownedCount++;
             
             const checkbox = hasItem ? '✅' : '❌';
-            itemLines.push(`${checkbox} **${item.name}** \`[${item.rarity}]\``);
+            itemLines.push(`${checkbox} **${item.name}** (\`${itemId}\`) \`[${item.rarity}]\``);
         }
 
         const isCompleted = completed.includes(colId);

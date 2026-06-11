@@ -133,7 +133,7 @@ function buildCategoryEmbed(targetUser, currentCategory, userUnlocked, unlockedI
                 : Math.floor(Date.now() / 1000);
             const unlockedTime = `<t:${unixTime}:f> (<t:${unixTime}:R>)`;
             const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
-            listLines.push(`**${ach.emoji} ${ach.name}** (${CATEGORIES[ach.category]?.label || ach.category})\n${ach.description}\n*Unlocked: ${unlockedTime} | Rarity: ${ach.rarity}% | ${typeLabel}*`);
+            listLines.push(`**${ach.emoji} ${ach.name}** (\`${ach.id}\` | ${CATEGORIES[ach.category]?.label || ach.category})\n${ach.description}\n*Unlocked: ${unlockedTime} | Rarity: ${ach.rarity}% | ${typeLabel}*`);
         }
 
         embed.setDescription(desc + (listLines.join('\n\n') || '_No achievements unlocked yet._'));
@@ -161,7 +161,7 @@ function buildCategoryEmbed(targetUser, currentCategory, userUnlocked, unlockedI
                 : Math.floor(Date.now() / 1000);
             const unlockedTime = `<t:${unixTime}:f> (<t:${unixTime}:R>)`;
             const typeLabel = ach.isBadge && ach.isAward ? 'Award & Badge' : ach.isBadge ? 'Badge' : 'Award';
-            listLines.push(`**${ach.emoji} ${ach.name}**\n${ach.description}\n*Unlocked: ${unlockedTime} | Rarity: ${ach.rarity}% | ${typeLabel}*`);
+            listLines.push(`**${ach.emoji} ${ach.name}** (\`${ach.id}\`)\n${ach.description}\n*Unlocked: ${unlockedTime} | Rarity: ${ach.rarity}% | ${typeLabel}*`);
         }
 
         embed.setDescription(descHeader + (listLines.join('\n\n') || '_No achievements unlocked in this category yet._'));

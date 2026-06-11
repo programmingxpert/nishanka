@@ -543,6 +543,7 @@ module.exports = {
 			embeds: [embed],
 			components: [buttons, row],
 			ephemeral: context.isPrefix ? false : true,
+			withResponse: true,
 		});
 
 		// Create a collector to listen to the dropdown selection

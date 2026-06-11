@@ -225,29 +225,7 @@ async function processItemUse(userId, itemId, targetUser, client, channel, conte
         color = 0x9B59B6;
 
     } else if (itemId === 'paintbrush') {
-        if (!targetUser) {
-            return { success: false, msg: '🎨 You must target someone to paint! Usage: `-use paintbrush @User`', ephemeral: true };
-        }
-        if (targetUser.id === userId) {
-            return { success: false, msg: '🎨 Why would you paint your own eyes? That is ridiculous.', ephemeral: true };
-        }
-
-        let targetData = await Bauble.findOne({ userId: targetUser.id });
-        if (!targetData) targetData = new Bauble({ userId: targetUser.id });
-
-        if (targetData.invisibilityExpiresAt && Date.now() < new Date(targetData.invisibilityExpiresAt).getTime()) {
-            return { success: false, msg: `❌ **${targetUser.username}** is invisible! You paint the air where they stood.`, ephemeral: true };
-        }
-        if (targetData.shieldExpiresAt && Date.now() < new Date(targetData.shieldExpiresAt).getTime()) {
-            return { success: false, msg: `🛡️ **${targetUser.username}** has a cardboard shield active! The neon paint splashes harmlessly off their Bubble Wrap Armor.`, ephemeral: true };
-        }
-
-        removeItem(baubleData, 'paintbrush', 1);
-        targetData.blindedExpiresAt = new Date(Date.now() + 900000); // 15 minutes
-        await targetData.save();
-
-        msg = `🎨 **SPLASH!** You drew all over **${targetUser.username}**'s face with the **🎨 Toxic Neon Highlighter**! \n\nThey are **blinded for 15 minutes** and cannot view their profile/inventory or use items!`;
-        color = 0x2ECC71;
+        return { success: false, msg: '🎨 The **Profile Paintbrush** cannot be used directly. Use `/profile edit` (or `-profile edit`) and select **Edit Banner** to customize your profile banner!', ephemeral: true };
 
     } else if (itemId === 'nugget') {
         removeItem(baubleData, 'nugget', 1);
