@@ -62,7 +62,7 @@ function romajiToKatakana(romaji) {
 }
 
 // ─── Trilingual Lyric Formatter ───────────────────────────────────────────────
-function formatLyrics(japaneseLines, romajiLines, englishLines, lang) {
+function formatLyricsForDisplay(japaneseLines, romajiLines, englishLines, lang) {
     const isJa = lang === 'ja';
     const lines = [];
     const maxLines = Math.max(japaneseLines.length, romajiLines.length, englishLines.length);
@@ -149,7 +149,121 @@ async function fetchWikiInfo(title, artist) {
     return null;
 }
 
-// ─── LRCLIB Lyrics Fetcher ────────────────────────────────────────────────────
+// ─── Genius Auto-Search ───────────────────────────────────────────────────────
+// Searches Genius for a song and returns metadata (title, artist, description, coverArt, url)
+// Uses the public Genius search endpoint — no API key required
+async function searchGenius(title, artist) {
+    try {
+        const query = artist ? `${title} ${artist}` : title;
+        const searchUrl = `https://genius.com/api/search/song?q=${encodeURIComponent(query)}&per_page=5`;
+        const res = await fetch(searchUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        if (!res.ok) return null;
+
+        const json = await res.json();
+        const hits = json?.response?.sections?.[0]?.hits || [];
+        if (hits.length === 0) return null;
+
+        // Pick best hit — prefer one where title matches closely
+        const lowerTitle = title.toLowerCase();
+        let best = hits.find(h => h.result?.title?.toLowerCase().includes(lowerTitle)) || hits[0];
+        const result = best.result;
+
+        return {
+            title: result.title || title,
+            artist: result.primary_artist?.name || artist,
+            coverArt: result.song_art_image_thumbnail_url || result.header_image_thumbnail_url || null,
+            url: result.url || null,
+            description: result.full_title || `${result.title} by ${result.primary_artist?.name}`,
+            sourceName: 'Genius'
+        };
+    } catch (e) {
+        console.error('[SongInfo] Genius search error:', e);
+        return null;
+    }
+}
+
+// ─── MusicBrainz Lookup ───────────────────────────────────────────────────────
+// Provides structured metadata: release date, album, genre for any song
+async function fetchMusicBrainz(title, artist) {
+    try {
+        const query = artist
+            ? `recording:"${title}" AND artist:"${artist}"`
+            : `recording:"${title}"`;
+        const res = await fetch(
+            `https://musicbrainz.org/ws/2/recording/?query=${encodeURIComponent(query)}&limit=1&fmt=json`,
+            {
+                headers: {
+                    'User-Agent': 'NishankaBot/1.0.0 (https://nishanka.zeyuki.app)',
+                    'Accept': 'application/json'
+                }
+            }
+        );
+        if (!res.ok) return null;
+
+        const json = await res.json();
+        const rec = json.recordings?.[0];
+        if (!rec) return null;
+
+        const release = rec.releases?.[0];
+        const genres = rec.genres?.map(g => g.name).slice(0, 3) || [];
+        const tags = rec.tags?.sort((a, b) => b.count - a.count).map(t => t.name).slice(0, 3) || [];
+
+        return {
+            title: rec.title,
+            artist: rec['artist-credit']?.[0]?.artist?.name || artist,
+            album: release?.title || null,
+            releaseDate: release?.date || null,
+            genres: genres.length > 0 ? genres : tags,
+            mbid: rec.id || null
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+// ─── Last.fm Lookup ───────────────────────────────────────────────────────────
+// Provides playcount, listeners, tags/genre, wiki summary — no key needed for basic track.getInfo
+async function fetchLastFm(title, artist) {
+    try {
+        // Use the public Last.fm API endpoint (no key required for basic read)
+        const url = `https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=dde09d4eed0fb9ce95994f2fa9c1aad8&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&format=json&autocorrect=1`;
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'NishankaBot/1.0.0 (https://nishanka.zeyuki.app)' }
+        });
+        if (!res.ok) return null;
+
+        const json = await res.json();
+        if (json.error) return null;
+
+        const track = json.track;
+        if (!track) return null;
+
+        const tags = track.toptags?.tag?.map(t => t.name).filter(t => t !== 'seen live').slice(0, 4) || [];
+        const wiki = track.wiki?.summary
+            ? track.wiki.summary.replace(/<[^>]*>/g, '').replace(/Read more on Last\.fm.*$/i, '').trim()
+            : null;
+
+        return {
+            title: track.name,
+            artist: track.artist?.name || artist,
+            album: track.album?.title || null,
+            playcount: track.playcount ? parseInt(track.playcount).toLocaleString() : null,
+            listeners: track.listeners ? parseInt(track.listeners).toLocaleString() : null,
+            tags,
+            wiki,
+            url: track.url || null
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+// ─── LRCLIB Lyrics Fetcher (for lyrics command, not used in songinfo display) ─
 async function fetchLyrics(title, artist) {
     try {
         const res = await fetch(
@@ -162,15 +276,14 @@ async function fetchLyrics(title, artist) {
         const match = results?.find(r => r.plainLyrics);
         if (match) {
             return {
-                lyrics: match.plainLyrics,
                 albumName: match.albumName,
                 trackName: match.trackName,
-                artistName: match.artistName
+                artistName: match.artistName,
+                duration: match.duration
             };
         }
         return null;
     } catch (err) {
-        console.error('[SongInfo] LRCLIB error:', err);
         return null;
     }
 }
@@ -190,7 +303,7 @@ async function parseFandomUrl(url) {
             { headers: { 'User-Agent': 'NishankaBot/1.0.0 (https://nishanka.zeyuki.app)' } })
     ]);
 
-    let description = '', lyrics = '', coverArt = 'https://i.imgur.com/Mt8W5pJ.png';
+    let description = '', coverArt = 'https://i.imgur.com/Mt8W5pJ.png';
     let trilingualData = null;
 
     if (parseRes.ok) {
@@ -227,24 +340,21 @@ async function parseFandomUrl(url) {
             trilingualData = { japanese: jpLines, romaji: rmLines, english: enLines };
         }
 
-        // Paragraphs for description and fallback lyrics
+        // Parse paragraphs for description
         const noiseWords = ['ranked on', 'Billboard', 'surpassed', 'views', 'uploaded', 'interpretation', 'music video', 'featured on', 'featured in'];
         const pMatches = [...html.matchAll(/<p>([\s\S]*?)<\/p>/gi)];
-        const descParagraphs = [], lyricParagraphs = [];
+        const descParagraphs = [];
 
         for (const pm of pMatches) {
             const pText = decodeHtml(pm[1].replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim());
             if (pText.length < 5) continue;
             const isNoise = noiseWords.some(n => pText.includes(n));
-            if (!trilingualData && pText.length > 200 && !isNoise) {
-                lyricParagraphs.push(pText);
-            } else if (!isNoise && descParagraphs.length < 5) {
+            if (!isNoise && descParagraphs.length < 4) {
                 descParagraphs.push(pText);
             }
         }
 
         description = descParagraphs.join('\n\n');
-        if (!trilingualData) lyrics = lyricParagraphs.join('\n\n');
     }
 
     if (imageRes.ok) {
@@ -260,7 +370,6 @@ async function parseFandomUrl(url) {
         title: cleanTitle,
         artist: `${wikiName} Wiki`,
         description: description || 'No summary available.',
-        lyrics: lyrics || null,
         trilingual: trilingualData,
         coverArt,
         url,
@@ -287,22 +396,19 @@ async function parseGeniusUrl(url) {
     const coverArt = getMeta('og:image') || 'https://i.imgur.com/Mt8W5pJ.png';
     const description = decodeHtml(getMeta('og:description') || '');
 
-    const lyricsMatches = [...html.matchAll(/<div[^>]*class=["']Lyrics__Container[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi)];
-    let lyrics = '';
-    if (lyricsMatches.length > 0) {
-        lyrics = decodeHtml(
-            lyricsMatches.map(m => m[1]).join('\n')
-                .replace(/<br\s*\/?>/gi, '\n')
-                .replace(/<[^>]*>/g, '')
-                .trim()
-        );
-    }
-
     let artist = 'Unknown Artist';
     if (cleanTitle.includes('–')) artist = cleanTitle.split('–')[0].trim();
     else if (cleanTitle.includes(' - ')) artist = cleanTitle.split(' - ')[0].trim();
 
-    return { title: cleanTitle, artist, description, lyrics: lyrics || null, trilingual: null, coverArt, url, sourceName: 'Genius' };
+    return {
+        title: cleanTitle,
+        artist,
+        description,
+        coverArt,
+        url,
+        sourceName: 'Genius',
+        trilingual: null
+    };
 }
 
 // ─── Module Export ────────────────────────────────────────────────────────────
@@ -311,7 +417,7 @@ module.exports = {
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('songinfo')
-        .setDescription('Displays info, lyrics, cover art, and links for a song.')
+        .setDescription('Displays rich info, cover art, and links for any song.')
         .addStringOption(option =>
             option.setName('query')
                 .setDescription('Song name or URL (optional if music is playing in voice channel)')
@@ -330,8 +436,6 @@ module.exports = {
     },
 
     async handleSongInfo(context, client, guildId, query, isSlash, locale = 'en-US') {
-        const langMode = locale.startsWith('ja') ? 'ja' : 'en';
-
         if (isSlash) {
             await context.deferReply();
         } else {
@@ -358,54 +462,17 @@ module.exports = {
                     return await reply('❌ Could not load data from the provided link.');
                 }
 
-                // Info embed
                 const embed1 = new EmbedBuilder()
                     .setColor(0x7c6cf0)
-                    .setTitle(`🎵 Song Info: ${parsed.title}`)
+                    .setTitle(`🎵 ${parsed.title}`)
                     .setThumbnail(parsed.coverArt)
                     .setDescription(
                         `**Artist:** ${parsed.artist}\n` +
                         `**Source:** ${parsed.sourceName}\n\n` +
                         `**About:**\n${(parsed.description || '*No summary available.*').substring(0, 1500)}`
                     )
+                    .setFooter({ text: `Use -lyrics <url> to see full lyrics` })
                     .setTimestamp();
-
-                const embeds = [embed1];
-
-                // Lyrics embed — prefer trilingual table
-                if (parsed.trilingual) {
-                    const { japanese, romaji, english } = parsed.trilingual;
-                    const formattedText = formatLyrics(japanese, romaji, english, langMode);
-
-                    if (formattedText) {
-                        const langNote = langMode === 'ja'
-                            ? 'Japanese + Katakana'
-                            : 'Romaji + English Translation';
-
-                        let lyricsPreview = formattedText;
-                        if (lyricsPreview.length > 3500) {
-                            lyricsPreview = lyricsPreview.substring(0, 3450) + '\n\n... *(use `-lyrics <url>` for full lyrics)*';
-                        }
-
-                        embeds.push(new EmbedBuilder()
-                            .setColor(0x9b59b6)
-                            .setTitle('🎤 Lyrics')
-                            .setDescription(lyricsPreview)
-                            .setFooter({ text: `${parsed.sourceName} • ${langNote}` })
-                        );
-                    }
-                } else if (parsed.lyrics) {
-                    let lyricsText = parsed.lyrics;
-                    if (lyricsText.length > 3500) {
-                        lyricsText = lyricsText.substring(0, 3450) + '\n\n... *(use `-lyrics <url>` for full lyrics)*';
-                    }
-                    embeds.push(new EmbedBuilder()
-                        .setColor(0x9b59b6)
-                        .setTitle('🎤 Lyrics')
-                        .setDescription(lyricsText)
-                        .setFooter({ text: `Lyrics provided by ${parsed.sourceName}` })
-                    );
-                }
 
                 const buttons = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
@@ -414,7 +481,7 @@ module.exports = {
                         .setURL(parsed.url)
                 );
 
-                return await reply({ embeds, components: [buttons] });
+                return await reply({ embeds: [embed1], components: [buttons] });
             } catch (e) {
                 console.error('[SongInfo] URL parse error:', e);
                 return await reply('❌ An error occurred while fetching data from that link.');
@@ -423,7 +490,7 @@ module.exports = {
 
         // ── Resolve title/artist/artwork from Lavalink ──────────────────────────
         let title = '', artist = '', coverArt = 'https://i.imgur.com/Mt8W5pJ.png';
-        let durationStr = 'Unknown', trackUri = null;
+        let durationMs = 0, trackUri = null;
 
         if (!query) {
             const player = client.activePlayers?.get(guildId);
@@ -437,9 +504,7 @@ module.exports = {
             artist = currentTrack.info.author || 'Unknown';
             coverArt = currentTrack.info.artworkUrl || currentTrack.info.thumbnail || coverArt;
             trackUri = currentTrack.info.uri;
-            if (currentTrack.info.length) {
-                durationStr = new Date(currentTrack.info.length).toISOString().substring(14, 19);
-            }
+            durationMs = currentTrack.info.length || 0;
         } else {
             const resolveQuery = query.startsWith('http') ? query : `ytsearch:${query}`;
             try {
@@ -453,9 +518,7 @@ module.exports = {
                 artist = track.info.author || 'Unknown';
                 coverArt = track.info.artworkUrl || track.info.thumbnail || coverArt;
                 trackUri = track.info.uri;
-                if (track.info.length) {
-                    durationStr = new Date(track.info.length).toISOString().substring(14, 19);
-                }
+                durationMs = track.info.length || 0;
             } catch (err) {
                 console.error('[SongInfo] Lavalink resolve failed:', err);
                 title = query;
@@ -463,52 +526,66 @@ module.exports = {
             }
         }
 
+        // Clean YouTube noise from title
         const cleanTitle = title
             .replace(/\((official|video|lyrics|audio|music|hd|4k|clip)\)/gi, '')
             .replace(/\[(official|video|lyrics|audio|music|hd|4k|clip)\]/gi, '')
+            .replace(/\s+/g, ' ')
             .trim();
 
-        // Fetch Wikipedia + LRCLIB concurrently
-        const [wikiData, lyricsData] = await Promise.all([
+        // Format duration
+        const durationStr = durationMs > 0
+            ? `${Math.floor(durationMs / 60000)}:${String(Math.floor((durationMs % 60000) / 1000)).padStart(2, '0')}`
+            : 'Unknown';
+
+        // ── Fetch all info sources concurrently ─────────────────────────────────
+        const [wikiData, lyricsData, lastFmData, geniusData] = await Promise.all([
             fetchWikiInfo(cleanTitle, artist),
-            fetchLyrics(cleanTitle, artist)
+            fetchLyrics(cleanTitle, artist),
+            fetchLastFm(cleanTitle, artist).catch(() => null),
+            searchGenius(cleanTitle, artist).catch(() => null)
         ]);
 
+        // Pick best cover art: track art > genius > wiki
         let displayCoverArt = coverArt;
-        if (displayCoverArt === 'https://i.imgur.com/Mt8W5pJ.png' && wikiData?.thumbnail) {
-            displayCoverArt = wikiData.thumbnail;
+        if (displayCoverArt === 'https://i.imgur.com/Mt8W5pJ.png') {
+            displayCoverArt = geniusData?.coverArt || wikiData?.thumbnail || coverArt;
         }
+
+        // ── Build description ────────────────────────────────────────────────────
+        const displayArtist = artist || lyricsData?.artistName || lastFmData?.artist || 'Unknown';
+        const displayAlbum = lyricsData?.albumName || lastFmData?.album || null;
+        const genres = lastFmData?.tags?.length > 0 ? lastFmData.tags : null;
+
+        let descLines = [];
+        descLines.push(`**Artist:** ${displayArtist}`);
+        descLines.push(`**Duration:** ${durationStr}`);
+        if (displayAlbum) descLines.push(`**Album:** ${displayAlbum}`);
+        if (genres) descLines.push(`**Genre:** ${genres.join(', ')}`);
+        if (lastFmData?.listeners) descLines.push(`**Listeners:** ${lastFmData.listeners}`);
+        if (lastFmData?.playcount) descLines.push(`**Plays:** ${lastFmData.playcount}`);
+
+        // About section: prefer Last.fm wiki, then Wikipedia, then Genius description
+        const aboutText = lastFmData?.wiki
+            || (wikiData?.summary ? wikiData.summary.substring(0, 1200) : null)
+            || (geniusData ? `*Found on Genius: **${geniusData.title}** by ${geniusData.artist}*` : null);
+
+        if (aboutText) {
+            descLines.push('');
+            descLines.push(`**About:**`);
+            descLines.push(aboutText.substring(0, 1200));
+        }
+
+        const description = descLines.join('\n');
 
         // ── Info Embed ──────────────────────────────────────────────────────────
         const embed1 = new EmbedBuilder()
             .setColor(0x7c6cf0)
-            .setTitle(`🎵 Song Info: ${cleanTitle}`)
+            .setTitle(`🎵 ${cleanTitle}`)
             .setThumbnail(displayCoverArt)
-            .setDescription(
-                `**Artist:** ${artist || lyricsData?.artistName || 'Unknown'}\n` +
-                `**Duration:** ${durationStr}\n` +
-                (lyricsData?.albumName ? `**Album:** ${lyricsData.albumName}\n` : '') +
-                (wikiData
-                    ? `\n**About the ${wikiData.type === 'artist' ? 'Artist' : 'Song'}:**\n${wikiData.summary.substring(0, 1500)}`
-                    : '\n*No Wikipedia summary found. Try using a Fandom or Genius link for more info.*')
-            )
+            .setDescription(description)
+            .setFooter({ text: `Use \`-lyrics ${cleanTitle}\` to see lyrics` })
             .setTimestamp();
-
-        const embeds = [embed1];
-
-        // ── Lyrics Embed ────────────────────────────────────────────────────────
-        if (lyricsData?.lyrics) {
-            let lyricsText = lyricsData.lyrics;
-            if (lyricsText.length > 3500) {
-                lyricsText = lyricsText.substring(0, 3450) + '\n\n... *(use `-lyrics` for full lyrics)*';
-            }
-            embeds.push(new EmbedBuilder()
-                .setColor(0x9b59b6)
-                .setTitle('🎤 Lyrics')
-                .setDescription(lyricsText)
-                .setFooter({ text: 'Lyrics provided by LRCLIB' })
-            );
-        }
 
         // ── Link Buttons ────────────────────────────────────────────────────────
         const buttons = new ActionRowBuilder();
@@ -519,15 +596,29 @@ module.exports = {
                 .setURL(trackUri)
             );
         }
+        if (geniusData?.url) {
+            buttons.addComponents(new ButtonBuilder()
+                .setLabel('🎤 Genius')
+                .setStyle(ButtonStyle.Link)
+                .setURL(geniusData.url)
+            );
+        }
         if (wikiData?.url) {
             buttons.addComponents(new ButtonBuilder()
-                .setLabel('📖 Wikipedia Article')
+                .setLabel('📖 Wikipedia')
                 .setStyle(ButtonStyle.Link)
                 .setURL(wikiData.url)
             );
         }
+        if (lastFmData?.url) {
+            buttons.addComponents(new ButtonBuilder()
+                .setLabel('🎵 Last.fm')
+                .setStyle(ButtonStyle.Link)
+                .setURL(lastFmData.url)
+            );
+        }
 
-        const payload = { embeds };
+        const payload = { embeds: [embed1] };
         if (buttons.components.length > 0) payload.components = [buttons];
 
         await reply(payload);
