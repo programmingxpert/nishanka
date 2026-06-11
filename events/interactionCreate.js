@@ -185,9 +185,21 @@ module.exports = {
             if (subCmd) fullCommandPath += ` ${subCmd}`;
         } catch (_) {}
 
-        const isDevOnly = command.category === 'admin' || command.category === 'developer' || command.devOnly === true;
+        const isDevOnly = command.category === 'developer' || command.devOnly === true;
         if (isDevOnly && interaction.user.id !== config.devId) {
             return interaction.reply({ content: '❌ This command is restricted to the bot developer only.', ephemeral: true });
+        }
+
+        // Admin-category commands require ManageGuild or Administrator
+        if (command.category === 'admin') {
+            const member = interaction.member;
+            const hasAdminPerms = member?.permissions?.has('Administrator') || member?.permissions?.has('ManageGuild');
+            if (!hasAdminPerms && interaction.user.id !== config.devId) {
+                return interaction.reply({
+                    content: '❌ You need the **Administrator** or **Manage Server** permission to use this command.',
+                    ephemeral: true
+                });
+            }
         }
 
         if (client.disabledCommands && client.disabledCommands.has(command.data.name)) {

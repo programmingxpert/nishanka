@@ -249,9 +249,18 @@ module.exports = {
             announcementText = sysConfig.announcement;
         }
 
-        const isDevOnly = command.category === 'admin' || command.category === 'developer' || command.devOnly === true;
+        const isDevOnly = command.category === 'developer' || command.devOnly === true;
         if (isDevOnly && message.author.id !== config.devId) {
             return message.reply('❌ This command is restricted to the bot developer only.').catch(() => {});
+        }
+
+        // Admin-category commands require ManageGuild or Administrator
+        if (command.category === 'admin') {
+            const member = message.member;
+            const hasAdminPerms = member?.permissions?.has('Administrator') || member?.permissions?.has('ManageGuild');
+            if (!hasAdminPerms && message.author.id !== config.devId) {
+                return message.reply('❌ You need the **Administrator** or **Manage Server** permission to use this command.').catch(() => {});
+            }
         }
 
         if (command.slashOnly) {
