@@ -233,8 +233,8 @@ Here are style templates (imitate this exact tone):
 function getRawResponse(message, query) {
     const contentLower = query.toLowerCase();
 
-    // 1. MATCH MEME PHRASES (Check for common terms)
-    if (contentLower.includes("alcohol") || contentLower.includes("drink")) {
+    // 1. MATCH MEME PHRASES (Check for common terms with word boundaries)
+    if (/\b(alcohol|drink|drinks|drinking|drunk)\b/i.test(query)) {
         if (contentLower.includes("more alcohol")) {
             // 75% chance to send the Jarvis image response
             if (Math.random() < 0.75) {
@@ -246,40 +246,40 @@ function getRawResponse(message, query) {
         }
         return getRandom(MEME_RESPONSES.alcohol);
     }
-    if (contentLower.includes("cooked") || contentLower.includes("smoke alarm")) {
+    if (/\b(cooked|smoke alarm)\b/i.test(query)) {
         return getRandom(MEME_RESPONSES.cooked);
     }
-    if (contentLower.includes("love") || contentLower.includes("like me")) {
+    if (/\b(love|like me)\b/i.test(query)) {
         return getRandom(MEME_RESPONSES.love);
     }
-    if (contentLower.includes("girlfriend") || contentLower.includes("gf") || contentLower.includes("get a girl")) {
+    if (/\b(girlfriend|gf|get a girl)\b/i.test(query)) {
         return getRandom(MEME_RESPONSES.girlfriend);
     }
-    if (contentLower.includes("sleep") || contentLower.includes("bed") || contentLower.includes("tired")) {
+    if (/\b(sleep|bed|tired)\b/i.test(query)) {
         return getRandom(MEME_RESPONSES.sleep);
     }
-    if (contentLower.includes("study") || contentLower.includes("homework") || contentLower.includes("exam")) {
+    if (/\b(study|homework|exam|exams|test)\b/i.test(query)) {
         return getRandom(MEME_RESPONSES.study);
     }
-    if (contentLower.includes("pass") || contentLower.includes("grade")) {
+    if (/\b(pass|grade)\b/i.test(query)) {
         return getRandom(MEME_RESPONSES.pass);
     }
-    if (contentLower.includes("rate") || contentLower.includes("ugly") || contentLower.includes("look like")) {
+    if (/\b(rate|ugly|look like)\b/i.test(query)) {
         return getRandom(MEME_RESPONSES.rate);
     }
-    if (contentLower.includes("single") || contentLower.includes("lonely") || contentLower.includes("no bitches")) {
+    if (/\b(single|lonely|no bitches)\b/i.test(query)) {
         return getRandom(MEME_RESPONSES.single);
     }
 
     // 2. KEYWORD LOGIC
-    if (contentLower.includes("who are you") || contentLower.includes("your name")) {
+    if (/\b(who are you|your name|who r u)\b/i.test(query)) {
         return getRandom([
             "I'm Nishanka. I run this server's economy, play music, and tolerate you guys.",
             "Your chaotic depressed best friend who happens to be a Discord bot.",
             "The bot running this server. Please respect my authority."
         ]);
     }
-    if (contentLower.includes("hello") || contentLower.includes("hi") || contentLower.includes("hey") || contentLower.includes("yo")) {
+    if (/\b(hello|hi|hey|yo)\b/i.test(query)) {
         return getRandom([
             `Yo, ${message.author.username}.`,
             "What do you want? I was sleeping.",
@@ -287,7 +287,7 @@ function getRawResponse(message, query) {
             "Hey. Please don't rob me."
         ]);
     }
-    if (contentLower.includes("how are you") || contentLower.includes("how is it going") || contentLower.includes("how u doing")) {
+    if (/\b(how are you|how is it going|how u doing|how are u)\b/i.test(query)) {
         return getRandom([
             "My latency is 40ms but my emotional latency is infinite.",
             "Running on 0.5GB of RAM and pure spite.",
@@ -295,14 +295,14 @@ function getRawResponse(message, query) {
             "Pretty good, just watched someone lose 10k Baubles on a coinflip. Highlight of my day."
         ]);
     }
-    if (contentLower.includes("joke") || contentLower.includes("funny")) {
+    if (/\b(joke|jokes|funny)\b/i.test(query)) {
         return getRandom([
             "Your balance history.",
             "Your active streak. Oh wait, you don't have one.",
             "I would, but looking at general chat is already funny enough."
         ]);
     }
-    if (contentLower.includes("thank") || contentLower.includes("ty")) {
+    if (/\b(thank|thanks|ty|thank you)\b/i.test(query)) {
         return getRandom([
             "Don't thank me, give me baubles.",
             "No problem, now go study.",
