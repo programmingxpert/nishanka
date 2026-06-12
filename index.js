@@ -119,11 +119,11 @@ client.activeGeoguesserGames = new Map();
 client.activeGuesstheflagGames = new Map();
 client.activeEmojidecodeGames = new Map();
 
-function replaceEmojisRecursive(obj) {
+function replaceEmojisRecursive(obj, parentKey = null) {
     if (!obj || typeof obj !== 'object') return obj;
 
     if (Array.isArray(obj)) {
-        return obj.map(item => replaceEmojisRecursive(item));
+        return obj.map(item => replaceEmojisRecursive(item, parentKey));
     }
 
     const newObj = {};
@@ -146,7 +146,7 @@ function replaceEmojisRecursive(obj) {
                 }
             }
             newObj[key] = resolvedEmoji;
-        } else if (typeof value === 'string' && key !== 'label') {
+        } else if (typeof value === 'string' && key !== 'label' && parentKey !== 'footer' && parentKey !== 'author' && key !== 'footer' && key !== 'author') {
             let valStr = value;
             for (const [standardEmoji, emojiKey] of Object.entries(emojiMapping)) {
                 const customEmoji = getCustomEmoji(emojiKey);
@@ -157,7 +157,7 @@ function replaceEmojisRecursive(obj) {
             }
             newObj[key] = valStr;
         } else {
-            newObj[key] = replaceEmojisRecursive(value);
+            newObj[key] = replaceEmojisRecursive(value, key);
         }
     }
     return newObj;
