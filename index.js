@@ -158,6 +158,7 @@ global.client = client;
 client.activeScrambleGames = new Map();
 client.activeWordbombGames = new Map();
 client.activeHangmanGames = new Map();
+client.aiResponseIds = new Set();
 client.activeGeoguesserGames = new Map();
 client.activeGuesstheflagGames = new Map();
 client.activeEmojidecodeGames = new Map();

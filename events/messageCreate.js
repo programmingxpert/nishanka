@@ -175,7 +175,23 @@ module.exports = {
         // --- AI Chat Logic ---
         if (!message.content.startsWith(prefix)) {
             const chatTriggerRegex = /\b(nishanka|nish)\b/i;
-            if (chatTriggerRegex.test(message.content)) {
+            let isAiReply = false;
+
+            if (message.reference && message.reference.messageId) {
+                try {
+                    const repliedMsg = message.channel.messages.cache.get(message.reference.messageId) || 
+                                       await message.channel.messages.fetch(message.reference.messageId);
+                    if (repliedMsg && repliedMsg.author.id === client.user.id) {
+                        if (client.aiResponseIds && client.aiResponseIds.has(repliedMsg.id)) {
+                            isAiReply = true;
+                        }
+                    }
+                } catch (err) {
+                    // ignore fetch errors
+                }
+            }
+
+            if (chatTriggerRegex.test(message.content) || isAiReply) {
                 const { consumeAPU } = require('../utils/aiManager');
                 const apuCheck = await consumeAPU(message.author.id, 1);
 
@@ -196,7 +212,14 @@ module.exports = {
                 
                 // Slight delay to feel like a real person typing
                 setTimeout(async () => {
-                    await message.reply(reply).catch(() => {});
+                    const sentMsg = await message.reply(reply).catch(() => {});
+                    if (sentMsg && client.aiResponseIds) {
+                        client.aiResponseIds.add(sentMsg.id);
+                        if (client.aiResponseIds.size > 500) {
+                            const firstKey = client.aiResponseIds.keys().next().value;
+                            client.aiResponseIds.delete(firstKey);
+                        }
+                    }
                 }, Math.floor(Math.random() * 800) + 600);
                 return;
             }
