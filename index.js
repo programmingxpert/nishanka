@@ -1066,6 +1066,10 @@ const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const REDIRECT_URI          = process.env.DISCORD_REDIRECT_URI || 'http://localhost:4000/auth/callback';
 const FRONTEND_URL          = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+app.get('/invite', (req, res) => {
+  res.redirect(`https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID || '1357752347643609198'}&permissions=8&scope=bot%20applications.commands`);
+});
+
 // Step 1: Redirect user to Discord OAuth
 app.get('/auth/discord', (req, res) => {
   const params = new URLSearchParams({
