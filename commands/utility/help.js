@@ -17,25 +17,50 @@ const categoryDetails = {
 		emoji: emoji('category.admin', '⚙️'),
 		description: 'Configure server settings, prefix, quotes, and triggers.',
 	},
-	moderation: {
-		label: 'Moderation Tools',
-		emoji: emoji('category.moderation', '🛡️'),
-		description: 'Manage members, warnings, mutes, bans, and auto-mod.',
+	mod_security: {
+		label: 'Moderation: AutoMod & Security',
+		emoji: emoji('category.mod_security', '🛡️'),
+		description: 'Setup antispam, censor words, media locks, and safety audits.',
+	},
+	mod_punish: {
+		label: 'Moderation: Punishments & Warns',
+		emoji: emoji('category.mod_punish', '🔨'),
+		description: 'Ban, unban, kick, timeout, and warn infractions.',
+	},
+	mod_staff: {
+		label: 'Moderation: Staff Tools & Tickets',
+		emoji: emoji('category.mod_staff', '🛠️'),
+		description: 'Purge, locks, ticket setup, role management, and stealer.',
 	},
 	giveaway: {
 		label: 'Giveaway Controls',
 		emoji: emoji('category.giveaway', '🎁'),
 		description: 'Schedule, run, draw, and end server giveaways.',
 	},
-	economy: {
-		label: 'Economy & Shop',
-		emoji: emoji('category.economy', '💵'),
-		description: 'Earn baubles, check shop/inventory, and view leaderboards.',
+	economy_balance: {
+		label: 'Economy: Balances & Stats',
+		emoji: emoji('category.economy_balance', '💳'),
+		description: 'Check baubles, inventory, passive mode, and stats.',
+	},
+	economy_earn: {
+		label: 'Economy: Work & Activities',
+		emoji: emoji('category.economy_earn', '💼'),
+		description: 'Daily work, scavenge, rob, crime, dig, fish, and expeditions.',
+	},
+	economy_shop: {
+		label: 'Economy: Shop & Trading',
+		emoji: emoji('category.economy_shop', '🛒'),
+		description: 'Browse items shop, sell, use, gift, or open gifts.',
+	},
+	economy_rank: {
+		label: 'Economy: Leaderboards',
+		emoji: emoji('category.economy_rank', '📈'),
+		description: 'View local server and global cross-server leaderboards.',
 	},
 	casino: {
 		label: 'Casino & Betting',
 		emoji: emoji('category.casino', '🎰'),
-		description: 'Play risk-reward games like gamble, blackjack, slots, and mines.',
+		description: 'Play gamble, coinflip, slots, blackjack, mines, and buckshot.',
 	},
 	marriage: {
 		label: 'Marriage & Family',
@@ -45,37 +70,57 @@ const categoryDetails = {
 	minigames: {
 		label: 'Minigames',
 		emoji: emoji('category.minigames', '🎮'),
-		description: 'Challenge others to wordbomb, scramble, hangman, and battles.',
+		description: 'Wordbomb, scramble, hangman, duels, flag-guessing, and trivia.',
 	},
 	fun: {
 		label: 'Humor & Entertainment',
 		emoji: emoji('category.fun', '🎭'),
-		description: 'Check your iq, get random excuses, vibecheck, and post memes.',
+		description: 'Meme generator, wanted posters, hack, iq, pp, and compatibility.',
 	},
 	profile: {
 		label: 'Profiles & Banners',
 		emoji: emoji('category.profile', '👤'),
-		description: 'Customize and show off your premium user profile cards.',
+		description: 'View profile banner card, reset, edit banners, equip titles and badges.',
 	},
 	music: {
 		label: 'Music Player',
 		emoji: emoji('category.music', '🎵'),
-		description: 'Music commands to stream audio tracks in voice channels.',
+		description: 'Stream audio tracks, manage queues, and fetch lyrics.',
 	},
-	actions: {
-		label: 'Social Actions',
-		emoji: emoji('category.actions', '🌸'),
-		description: 'Anime-style social action animations (hug, slap, pat).',
+	actions_affection: {
+		label: 'Social: Affectionate Actions',
+		emoji: emoji('category.actions_affection', '💖'),
+		description: 'Hug, kiss, cuddle, pat, peck, tickle, touch, and hold hands.',
+	},
+	actions_friendly: {
+		label: 'Social: Friendly & Celebration',
+		emoji: emoji('category.actions_friendly', '😄'),
+		description: 'Happy, yay, laugh, wave, wink, thumbsup, highfive, dance, and handshake.',
+	},
+	actions_sad: {
+		label: 'Social: Sad & Tired Expressions',
+		emoji: emoji('category.actions_sad', '😢'),
+		description: 'Cry, bored, pout, sleep, yawn, and lurk.',
+	},
+	actions_aggressive: {
+		label: 'Social: Aggressive Expressions',
+		emoji: emoji('category.actions_aggressive', '😡'),
+		description: 'Angry, slap, bite, punch, kick, shoot, yeet, and run.',
+	},
+	actions_expressive: {
+		label: 'Social: Expressions & Info',
+		emoji: emoji('category.actions_expressive', '🤔'),
+		description: 'Actions info, think, shrug, smug, baka, nom, nod, and waifu/neko art.',
 	},
 	ai: {
 		label: 'Artificial Intelligence',
 		emoji: emoji('category.ai', '🤖'),
-		description: 'Nish AI-powered assistants, games, and utilities.',
+		description: 'DeepSeek conversational assistant, APU status, and excuse maker.',
 	},
 	utility: {
 		label: 'Utility Tools',
 		emoji: emoji('category.utility', '🛠️'),
-		description: 'General utilities, reminders, AFK status, and server info.',
+		description: 'General bot help, ping latency, reminders, AFK status, and server info.',
 	},
 	developer: {
 		label: 'Developer Only',
@@ -86,16 +131,25 @@ const categoryDetails = {
 
 const categoryColors = {
 	admin: 0x2b2d42,
-	moderation: 0x2ecc71,
+	mod_security: 0x2ecc71,
+	mod_punish: 0x2ecc71,
+	mod_staff: 0x2ecc71,
 	giveaway: 0xe67e22,
-	economy: 0xf1c40f,
+	economy_balance: 0xf1c40f,
+	economy_earn: 0xf1c40f,
+	economy_shop: 0xf1c40f,
+	economy_rank: 0xf1c40f,
 	casino: 0xe74c3c,
 	marriage: 0xe84393,
 	minigames: 0x3498db,
 	fun: 0x9b59b6,
 	profile: 0x1abc9c,
 	music: 0x9b59b6,
-	actions: 0xe84393,
+	actions_affection: 0xe84393,
+	actions_friendly: 0xe84393,
+	actions_sad: 0xe84393,
+	actions_aggressive: 0xe84393,
+	actions_expressive: 0xe84393,
 	ai: 0x7c6cf0,
 	utility: 0x95a5a6,
 	developer: 0x2c3e50
@@ -369,71 +423,81 @@ const COMMAND_MAPPING = {
 	starboard: 'admin',
 	trigger: 'admin',
 
-	// Moderation
-	automod: 'moderation',
-	antispam: 'moderation',
-	censor: 'moderation',
-	mediaonly: 'moderation',
-	ban: 'moderation',
-	unban: 'moderation',
-	fakeban: 'moderation',
-	mkick: 'moderation',
-	timeout: 'moderation',
-	removetimeout: 'moderation',
-	warn: 'moderation',
-	warnings: 'moderation',
-	clearwarn: 'moderation',
-	clearwarnings: 'moderation',
-	purge: 'moderation',
-	defaultpurge: 'moderation',
-	lock: 'moderation',
-	unlock: 'moderation',
-	lockdown: 'moderation',
-	temprole: 'moderation',
-	role: 'moderation',
-	colorrole: 'moderation',
-	securitycheck: 'moderation',
-	ticket: 'moderation',
-	steal: 'moderation',
+	// Moderation - AutoMod & Security
+	automod: 'mod_security',
+	antispam: 'mod_security',
+	censor: 'mod_security',
+	mediaonly: 'mod_security',
+	securitycheck: 'mod_security',
+
+	// Moderation - Punishments & Warns
+	ban: 'mod_punish',
+	unban: 'mod_punish',
+	fakeban: 'mod_punish',
+	mkick: 'mod_punish',
+	timeout: 'mod_punish',
+	removetimeout: 'mod_punish',
+	warn: 'mod_punish',
+	warnings: 'mod_punish',
+	clearwarn: 'mod_punish',
+	clearwarnings: 'mod_punish',
+
+	// Moderation - Staff Tools & Tickets
+	purge: 'mod_staff',
+	defaultpurge: 'mod_staff',
+	lock: 'mod_staff',
+	unlock: 'mod_staff',
+	lockdown: 'mod_staff',
+	temprole: 'mod_staff',
+	role: 'mod_staff',
+	colorrole: 'mod_staff',
+	ticket: 'mod_staff',
+	steal: 'mod_staff',
 
 	// Giveaway
 	giveaway: 'giveaway',
 	giveawayend: 'giveaway',
 
-	// Economy
-	bauble: 'economy',
-	inventory: 'economy',
-	passive: 'economy',
-	work: 'economy',
-	scavenge: 'economy',
-	rob: 'economy',
-	daily: 'economy',
-	weekly: 'economy',
-	hourly: 'economy',
-	monthly: 'economy',
-	checklist: 'economy',
-	grab: 'economy',
-	shop: 'economy',
-	sell: 'economy',
-	use: 'economy',
-	give: 'economy',
-	gift: 'economy',
-	leaderboard: 'economy',
-	globalleaderboard: 'economy',
-	collections: 'economy',
-	crime: 'economy',
-	dig: 'economy',
-	dumpster: 'economy',
-	economy: 'economy',
-	expedition: 'economy',
-	fish: 'economy',
-	items: 'economy',
-	memehunt: 'economy',
-	gamestats: 'economy',
-	winloss: 'economy',
-	streak: 'economy',
-	baublerain: 'economy',
-	opengift: 'economy',
+	// Economy - Balances & Stats
+	bauble: 'economy_balance',
+	inventory: 'economy_balance',
+	passive: 'economy_balance',
+	collections: 'economy_balance',
+	economy: 'economy_balance',
+	gamestats: 'economy_balance',
+	winloss: 'economy_balance',
+	streak: 'economy_balance',
+
+	// Economy - Work & Activities
+	work: 'economy_earn',
+	scavenge: 'economy_earn',
+	rob: 'economy_earn',
+	daily: 'economy_earn',
+	weekly: 'economy_earn',
+	hourly: 'economy_earn',
+	monthly: 'economy_earn',
+	checklist: 'economy_earn',
+	grab: 'economy_earn',
+	crime: 'economy_earn',
+	dig: 'economy_earn',
+	dumpster: 'economy_earn',
+	expedition: 'economy_earn',
+	fish: 'economy_earn',
+	memehunt: 'economy_earn',
+	baublerain: 'economy_earn',
+
+	// Economy - Shop & Trading
+	shop: 'economy_shop',
+	sell: 'economy_shop',
+	use: 'economy_shop',
+	give: 'economy_shop',
+	gift: 'economy_shop',
+	opengift: 'economy_shop',
+	items: 'economy_shop',
+
+	// Economy - Leaderboards
+	leaderboard: 'economy_rank',
+	globalleaderboard: 'economy_rank',
 
 	// Casino
 	gamble: 'casino',
@@ -446,6 +510,28 @@ const COMMAND_MAPPING = {
 	mblackjack: 'casino',
 	duckrace: 'casino',
 
+	// Marriage
+	marry: 'marriage',
+	divorce: 'marriage',
+	proposals: 'marriage',
+	adopt: 'marriage',
+	disown: 'marriage',
+	family: 'marriage',
+	familytree: 'marriage',
+
+	// Minigames
+	wordbomb: 'minigames',
+	scramble: 'minigames',
+	hangman: 'minigames',
+	battle: 'minigames',
+	animebattle: 'minigames',
+	deathbattle: 'minigames',
+	gridduel: 'minigames',
+	emojidecode: 'minigames',
+	guesstheflag: 'minigames',
+	geoguesser: 'minigames',
+	truthordare: 'minigames',
+
 	// Profile
 	profile: 'profile',
 	'profile-edit': 'profile',
@@ -453,28 +539,6 @@ const COMMAND_MAPPING = {
 	title: 'profile',
 	achievements: 'profile',
 	'achievements-list': 'profile',
-
-	// Marriage
-	family: 'marriage',
-	familytree: 'marriage',
-	proposals: 'marriage',
-	marry: 'marriage',
-	divorce: 'marriage',
-	adopt: 'marriage',
-	disown: 'marriage',
-
-	// Minigames
-	wordbomb: 'minigames',
-	scramble: 'minigames',
-	emojidecode: 'minigames',
-	guesstheflag: 'minigames',
-	deathbattle: 'minigames',
-	geoguesser: 'minigames',
-	hangman: 'minigames',
-	truthordare: 'minigames',
-	battle: 'minigames',
-	animebattle: 'minigames',
-	gridduel: 'minigames',
 
 	// Fun
 	meme: 'fun',
@@ -491,9 +555,9 @@ const COMMAND_MAPPING = {
 	gta6: 'fun',
 
 	// AI
-	excuse: 'ai',
 	ai: 'ai',
 	apu: 'ai',
+	excuse: 'ai',
 
 	// Music
 	play: 'music',
@@ -510,6 +574,7 @@ const COMMAND_MAPPING = {
 	// Utility
 	help: 'utility',
 	ping: 'utility',
+	announce: 'utility',
 	remind: 'utility',
 	afk: 'utility',
 	server: 'utility',
@@ -521,180 +586,69 @@ const COMMAND_MAPPING = {
 	snipe: 'utility',
 	support: 'utility',
 	invite: 'utility',
-	announce: 'utility'
-};
 
-const commandGroups = {
-	admin: [
-		{
-			title: '⚙️ Server Configurations',
-			commands: ['config', 'welcome', 'autorole', 'logging', 'leveling', 'starboard', 'setquoteschannel', 'snipetoggle']
-		},
-		{
-			title: '🎭 Interactive & Utility Setup',
-			commands: ['reactionroles', 'trigger']
-		}
-	],
-	moderation: [
-		{
-			title: '🛡️ Automated Moderation & Security',
-			commands: ['automod', 'antispam', 'censor', 'mediaonly', 'securitycheck']
-		},
-		{
-			title: '🔨 Punishments',
-			commands: ['ban', 'unban', 'fakeban', 'mkick', 'timeout', 'removetimeout']
-		},
-		{
-			title: '⚠️ Warnings & Infractions',
-			commands: ['warn', 'warnings', 'clearwarn', 'clearwarnings']
-		},
-		{
-			title: '🛠️ Staff Tools & Systems',
-			commands: ['purge', 'defaultpurge', 'lock', 'unlock', 'lockdown', 'temprole', 'role', 'colorrole', 'ticket', 'steal']
-		}
-	],
-	giveaway: [
-		{
-			title: '🎁 Giveaway Control',
-			commands: ['giveaway', 'giveawayend']
-		}
-	],
-	economy: [
-		{
-			title: '💳 Balance & Stats',
-			commands: ['bauble', 'inventory', 'passive', 'collections', 'economy', 'gamestats', 'winloss', 'streak']
-		},
-		{
-			title: '💼 Earnings & Work',
-			commands: ['work', 'scavenge', 'rob', 'daily', 'weekly', 'hourly', 'monthly', 'checklist', 'grab', 'crime', 'dig', 'dumpster', 'expedition', 'fish', 'memehunt', 'baublerain']
-		},
-		{
-			title: '🛒 Market & Trading',
-			commands: ['shop', 'sell', 'use', 'give', 'gift', 'opengift', 'items']
-		},
-		{
-			title: '📈 Leaderboards',
-			commands: ['leaderboard', 'globalleaderboard']
-		}
-	],
-	casino: [
-		{
-			title: '🎰 Classic Casino Games',
-			commands: ['gamble', 'coinflip', 'slots', 'blackjack', 'mblackjack', 'duckrace']
-		},
-		{
-			title: '💣 Survival & Strategy',
-			commands: ['mines', 'buckshot']
-		}
-	],
-	marriage: [
-		{
-			title: '💍 Matrimony & Marriage',
-			commands: ['marry', 'divorce', 'proposals']
-		},
-		{
-			title: '👪 Family Dynamics',
-			commands: ['adopt', 'disown', 'family', 'familytree']
-		}
-	],
-	minigames: [
-		{
-			title: '🧠 Word & Vocabulary Games',
-			commands: ['wordbomb', 'scramble', 'hangman']
-		},
-		{
-			title: '⚔️ Battles & Duels',
-			commands: ['battle', 'animebattle', 'deathbattle', 'gridduel']
-		},
-		{
-			title: '🌐 Trivia & Logic',
-			commands: ['emojidecode', 'guesstheflag', 'geoguesser', 'truthordare']
-		}
-	],
-	profile: [
-		{
-			title: '👤 User Profile Customization',
-			commands: ['profile', 'profile-edit', 'profile-reset', 'title', 'achievements', 'achievements-list']
-		}
-	],
-	fun: [
-		{
-			title: '🎭 Humor & Interactive',
-			commands: ['meme', 'wanted', 'hack', 'iq', 'vibecheck', 'ship', 'pp', 'gayrate', '8ball', 'furry', 'gta6']
-		},
-		{
-			title: '💬 Attributions',
-			commands: ['quote']
-		}
-	],
-	ai: [
-		{
-			title: '🤖 Artificial Intelligence',
-			commands: ['ai', 'apu', 'excuse']
-		}
-	],
-	music: [
-		{
-			title: '🎵 Playback & Control',
-			commands: ['play', 'stop', 'pause', 'resume']
-		},
-		{
-			title: '📜 Queue Management',
-			commands: ['queue', 'skip', 'remove', 'clearmusic']
-		},
-		{
-			title: 'ℹ️ Song Information & Lyrics',
-			commands: ['songinfo', 'lyrics']
-		}
-	],
-	utility: [
-		{
-			title: '⚙️ System Commands',
-			commands: ['help', 'ping']
-		},
-		{
-			title: '📢 Broadcast & Announcements',
-			commands: ['announce']
-		},
-		{
-			title: '📅 Reminders & AFK',
-			commands: ['remind', 'afk']
-		},
-		{
-			title: 'ℹ️ Information Lookup',
-			commands: ['server', 'servericon', 'user', 'avatar', 'rep', 'rank', 'snipe', 'support', 'invite']
-		}
-	],
-	developer: [
-		{
-			title: '👑 Owner / Developer Commands',
-			commands: ['devinfo', 'eval', 'reload', 'add', 'take', 'reset', 'awardachievement', 'devban', 'devlogs', 'maintenance', 'taxfund', 'togglecmd', 'devpremium', 'devprofile', 'setpremium']
-		}
-	]
-};
+	// Actions - Affectionate
+	hug: 'actions_affection',
+	kiss: 'actions_affection',
+	cuddle: 'actions_affection',
+	pat: 'actions_affection',
+	peck: 'actions_affection',
+	tickle: 'actions_affection',
+	touch: 'actions_affection',
+	handhold: 'actions_affection',
 
-const actionGroups = [
-	{
-		title: '💖 Affectionate Actions',
-		commands: ['hug', 'kiss', 'cuddle', 'pat', 'peck', 'tickle', 'touch', 'handhold']
-	},
-	{
-		title: '😄 Friendly & Social',
-		commands: ['happy', 'yay', 'laugh', 'wave', 'wink', 'thumbsup', 'highfive', 'dance', 'handshake', 'cheer', 'whoop']
-	},
-	{
-		title: '😢 Sad & Tired',
-		commands: ['cry', 'bored', 'pout', 'sleep', 'yawn', 'lurk']
-	},
-	{
-		title: '😡 Aggressive / Action',
-		commands: ['angry', 'slap', 'bite', 'punch', 'kick', 'shoot', 'yeet', 'run']
-	},
-	{
-		title: '🤔 Expressive & Anime Info',
-		commands: ['action', 'think', 'shrug', 'smug', 'stare', 'blush', 'baka', 'nom', 'nod', 'nope', 'facepalm', 'feed', 'lewd', 'waifu', 'neko', 'kitsune', 'husbando', 'shocked', 'surprised']
-	}
-];
+	// Actions - Friendly
+	happy: 'actions_friendly',
+	yay: 'actions_friendly',
+	laugh: 'actions_friendly',
+	wave: 'actions_friendly',
+	wink: 'actions_friendly',
+	thumbsup: 'actions_friendly',
+	highfive: 'actions_friendly',
+	dance: 'actions_friendly',
+	handshake: 'actions_friendly',
+	cheer: 'actions_friendly',
+	whoop: 'actions_friendly',
+
+	// Actions - Sad & Tired
+	cry: 'actions_sad',
+	bored: 'actions_sad',
+	pout: 'actions_sad',
+	sleep: 'actions_sad',
+	yawn: 'actions_sad',
+	lurk: 'actions_sad',
+
+	// Actions - Aggressive
+	angry: 'actions_aggressive',
+	slap: 'actions_aggressive',
+	bite: 'actions_aggressive',
+	punch: 'actions_aggressive',
+	kick: 'actions_aggressive',
+	shoot: 'actions_aggressive',
+	yeet: 'actions_aggressive',
+	run: 'actions_aggressive',
+
+	// Actions - Expressive
+	action: 'actions_expressive',
+	think: 'actions_expressive',
+	shrug: 'actions_expressive',
+	smug: 'actions_expressive',
+	stare: 'actions_expressive',
+	blush: 'actions_expressive',
+	baka: 'actions_expressive',
+	nom: 'actions_expressive',
+	nod: 'actions_expressive',
+	nope: 'actions_expressive',
+	facepalm: 'actions_expressive',
+	feed: 'actions_expressive',
+	lewd: 'actions_expressive',
+	waifu: 'actions_expressive',
+	neko: 'actions_expressive',
+	kitsune: 'actions_expressive',
+	husbando: 'actions_expressive',
+	shocked: 'actions_expressive',
+	surprised: 'actions_expressive'
+};
 
 module.exports = {
 	category: 'utility',
@@ -741,7 +695,15 @@ module.exports = {
 		}
 
 		// Sort categories by predefined order
-		const categoryOrder = ['admin', 'moderation', 'giveaway', 'economy', 'casino', 'marriage', 'minigames', 'fun', 'profile', 'music', 'actions', 'ai', 'utility', 'developer'];
+		const categoryOrder = [
+			'admin', 
+			'mod_security', 'mod_punish', 'mod_staff', 
+			'giveaway', 
+			'economy_balance', 'economy_earn', 'economy_shop', 'economy_rank', 
+			'casino', 'marriage', 'minigames', 'fun', 'profile', 'music', 
+			'actions_affection', 'actions_friendly', 'actions_sad', 'actions_aggressive', 'actions_expressive', 
+			'ai', 'utility', 'developer'
+		];
 		const categories = Object.keys(grouped).sort((a, b) => {
 			const idxA = categoryOrder.indexOf(a);
 			const idxB = categoryOrder.indexOf(b);
@@ -832,48 +794,10 @@ module.exports = {
 				const selected = interaction.values[0];
 				const categoryCmds = grouped[selected] || {};
 				const formattedSections = [];
-				const formattedNames = new Set();
 
-				if (selected === 'actions') {
-					for (const group of actionGroups) {
-						const activeInGroup = group.commands.filter(name => categoryCmds[name] !== undefined);
-						if (activeInGroup.length > 0) {
-							activeInGroup.forEach(name => formattedNames.add(name));
-							const list = activeInGroup.map(name => {
-								const detail = COMMAND_DETAILS[name] || `\`-${name}\` • Description not available.`;
-								return detail;
-							}).join('\n\n');
-							formattedSections.push(`**${group.title}**\n${list}`);
-						}
-					}
-				} else {
-					const groups = commandGroups[selected] || [];
-					for (const group of groups) {
-						const activeInGroup = group.commands.filter(name => categoryCmds[name] !== undefined);
-						if (activeInGroup.length > 0) {
-							activeInGroup.forEach(name => formattedNames.add(name));
-							const list = activeInGroup.map(name => {
-								const detail = COMMAND_DETAILS[name] || `\`-${name}\` • Description not available.`;
-								return detail;
-							}).join('\n\n');
-							formattedSections.push(`**${group.title}**\n${list}`);
-						}
-					}
-				}
-
-				// Catch-all for any un-categorized commands in that category folder
-				const otherCmds = [];
 				for (const name in categoryCmds) {
-					if (!formattedNames.has(name)) {
-						otherCmds.push(name);
-					}
-				}
-				if (otherCmds.length > 0) {
-					const list = otherCmds.map(name => {
-						const detail = COMMAND_DETAILS[name] || `\`-${name}\` • Description not available.`;
-						return detail;
-					}).join('\n\n');
-					formattedSections.push(`**❓ Miscellaneous Commands**\n${list}`);
+					const detail = COMMAND_DETAILS[name] || `\`-${name}\` • Description not available.`;
+					formattedSections.push(detail);
 				}
 
 				const details = categoryDetails[selected] || { label: selected.toUpperCase(), description: "List of commands" };
