@@ -273,16 +273,146 @@ const commandsPath = path.join(__dirname, 'commands');
 console.log(`📦 Loaded ${client.commands.size} command(s)`);
 
 // ─── Load Events ──────────────────────────────────────────────────────────────
+client.events = new Collection();
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'));
 for (const file of eventFiles) {
     const event = require(path.join(eventsPath, file));
-    const handler = (...args) => event.execute(...args, client);
+    client.events.set(event.name, event);
+    
+    const handler = (...args) => {
+        const activeEvent = client.events.get(event.name);
+        if (activeEvent) {
+            activeEvent.execute(...args, client);
+        }
+    };
+    
     if (event.once) {
         client.once(event.name, handler);
     } else {
         client.on(event.name, handler);
     }
+}
+
+// Helper functions for global reloads
+function reloadAllCommands(client) {
+    const basePath = path.join(__dirname, 'commands');
+    const subfolders = fs.readdirSync(basePath).filter(f => fs.statSync(path.join(basePath, f)).isDirectory());
+    for (const sub of subfolders) {
+        const files = fs.readdirSync(path.join(basePath, sub)).filter(f => f.endsWith('.js'));
+        for (const file of files) {
+            const commandPath = path.join(basePath, sub, file);
+            try {
+                delete require.cache[require.resolve(commandPath)];
+                const newCommand = require(commandPath);
+                newCommand.category = sub;
+                const cmdName = newCommand.data?.name || newCommand.name;
+                if (cmdName) {
+                    client.commands.set(cmdName, newCommand);
+                }
+            } catch (e) {
+                console.error(`Error reloading command ${file} during global reload:`, e.message);
+            }
+        }
+    }
+    console.log('⚡ [Hot Reload] All commands reloaded successfully.');
+}
+
+function reloadAllEvents(client) {
+    const basePath = path.join(__dirname, 'events');
+    const files = fs.readdirSync(basePath).filter(f => f.endsWith('.js'));
+    for (const file of files) {
+        const eventPath = path.join(basePath, file);
+        try {
+            delete require.cache[require.resolve(eventPath)];
+            const newEvent = require(eventPath);
+            if (newEvent.name) {
+                client.events.set(newEvent.name, newEvent);
+            }
+        } catch (e) {
+            console.error(`Error reloading event ${file} during global reload:`, e.message);
+        }
+    }
+    console.log('⚡ [Hot Reload] All events reloaded successfully.');
+}
+
+// ─── Automatic Hot-Reloading Watcher ──────────────────────────────────────────
+if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+    const watchCommands = path.join(__dirname, 'commands');
+    fs.watch(watchCommands, { recursive: true }, (eventType, filename) => {
+        if (!filename || !filename.endsWith('.js')) return;
+        
+        const parts = filename.replace(/\\/g, '/').split('/');
+        const category = parts.length > 1 ? parts[0] : null;
+        const cmdBasename = parts[parts.length - 1];
+        
+        let commandPath = null;
+        let resolvedCategory = category;
+        
+        if (category) {
+            commandPath = path.join(watchCommands, category, cmdBasename);
+        } else {
+            const subfolders = fs.readdirSync(watchCommands).filter(f => fs.statSync(path.join(watchCommands, f)).isDirectory());
+            for (const sub of subfolders) {
+                const fullPath = path.join(watchCommands, sub, cmdBasename);
+                if (fs.existsSync(fullPath)) {
+                    commandPath = fullPath;
+                    resolvedCategory = sub;
+                    break;
+                }
+            }
+        }
+        
+        if (!commandPath || !fs.existsSync(commandPath)) return;
+        
+        try {
+            delete require.cache[require.resolve(commandPath)];
+            const newCommand = require(commandPath);
+            newCommand.category = resolvedCategory;
+            
+            const cmdName = newCommand.data?.name || newCommand.name;
+            if (cmdName) {
+                client.commands.set(cmdName, newCommand);
+                console.log(`⚡ [Hot Reload] Loaded/Reloaded command: ${cmdName} (${resolvedCategory})`);
+            }
+        } catch (e) {
+            console.error(`⚡ [Hot Reload] Error reloading command ${filename}:`, e.message);
+        }
+    });
+
+    const watchEvents = path.join(__dirname, 'events');
+    fs.watch(watchEvents, (eventType, filename) => {
+        if (!filename || !filename.endsWith('.js')) return;
+        const eventPath = path.join(watchEvents, filename);
+        
+        try {
+            delete require.cache[require.resolve(eventPath)];
+            const newEvent = require(eventPath);
+            if (newEvent.name) {
+                client.events.set(newEvent.name, newEvent);
+                console.log(`⚡ [Hot Reload] Loaded/Reloaded event: ${newEvent.name}`);
+            }
+        } catch (e) {
+            console.error(`⚡ [Hot Reload] Error reloading event ${filename}:`, e.message);
+        }
+    });
+
+    const watchUtils = path.join(__dirname, 'utils');
+    fs.watch(watchUtils, (eventType, filename) => {
+        if (!filename || !filename.endsWith('.js')) return;
+        const utilPath = path.join(watchUtils, filename);
+        
+        try {
+            delete require.cache[require.resolve(utilPath)];
+            console.log(`⚡ [Hot Reload] Utility changed: ${filename}. Refreshing all files...`);
+            reloadAllCommands(client);
+            reloadAllEvents(client);
+        } catch (e) {
+            console.error(`⚡ [Hot Reload] Error reloading utility ${filename}:`, e.message);
+        }
+    });
+    
+    console.log('⚡ [Hot Reload] Active. Watching commands/, events/, and utils/ directories...');
 }
 
 // ─── Lavalink / riffy ─────────────────────────────────────────────────────────

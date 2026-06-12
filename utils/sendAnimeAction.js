@@ -12,6 +12,32 @@ const FALLBACK_GIFS = {
 };
 const DEFAULT_FALLBACK = 'https://media.giphy.com/media/1136UBdSNn6yY0/giphy.gif';
 
+async function fetchGifukai(endpoint) {
+    const gifukaiCategories = [
+        'angry', 'bite', 'blowkiss', 'blush', 'bonk', 'carry', 'clap', 'cry',
+        'cuddle', 'dance', 'eat', 'facepalm', 'feed', 'happy', 'hi', 'highfive',
+        'hug', 'kick', 'kill', 'kiss', 'laugh', 'nod', 'nope', 'pat',
+        'peek', 'poke', 'pout', 'punch', 'run', 'shrug', 'shy', 'sip',
+        'slap', 'sleep', 'smile', 'smug', 'stare', 'taunt', 'think', 'thumbsup',
+        'tickle', 'wallslam', 'wave', 'wink'
+    ];
+    if (!gifukaiCategories.includes(endpoint)) return null;
+    try {
+        const response = await fetch(`https://api.gifukai.com/${endpoint}`, {
+            headers: { 'User-Agent': 'NishankaBot/2.0' },
+            signal: AbortSignal.timeout(4000)
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return {
+                url: data?.url ?? null,
+                anime: data?.anime ?? null
+            };
+        }
+    } catch (e) {}
+    return null;
+}
+
 async function fetchWaifuPics(endpoint) {
     const waifuPicsCategories = [
         'bite', 'blush', 'cry', 'cuddle', 'dance', 'handhold', 'happy', 'highfive', 
@@ -25,7 +51,7 @@ async function fetchWaifuPics(endpoint) {
         });
         if (response.ok) {
             const data = await response.json();
-            return data?.url ?? null;
+            return { url: data?.url ?? null, anime: null };
         }
     } catch (e) {}
     return null;
@@ -39,7 +65,7 @@ async function fetchOtakuGifs(endpoint) {
         });
         if (response.ok) {
             const data = await response.json();
-            return data?.url ?? null;
+            return { url: data?.url ?? null, anime: null };
         }
     } catch (e) {}
     return null;
@@ -53,7 +79,11 @@ async function fetchNekosBest(endpoint) {
         });
         if (response.ok) {
             const data = await response.json();
-            return data.results?.[0]?.url ?? null;
+            const result = data.results?.[0];
+            return {
+                url: result?.url ?? null,
+                anime: result?.anime_name ?? null
+            };
         }
     } catch (e) {}
     return null;
@@ -136,6 +166,9 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
     const phrases = actionPhrases[actionType] || { alone: actionType, targeted: `${actionType}s at {target}` };
 
     let gifUrl = null;
+    let animeSource = null;
+    let apiResultFrom = null;
+
     if (hardcodedGifs && hardcodedGifs.length > 0) {
         gifUrl = hardcodedGifs[Math.floor(Math.random() * hardcodedGifs.length)];
     } else {
@@ -152,27 +185,45 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
             'hug', 'kick', 'kiss', 'neko', 'nom', 'pat', 'slap', 'smug', 'waifu', 'wave', 'wink', 'yeet'
         ];
 
-        // Try sequentially: Primary API -> Secondary API -> nekos.best -> Local/CDN Fallback
-        const primaryAPI = waifuPicsCategories.includes(endpoint) ? 'waifu' : 'otaku';
-        if (primaryAPI === 'waifu') {
-            gifUrl = await fetchWaifuPics(endpoint);
-            if (!gifUrl) {
-                gifUrl = await fetchOtakuGifs(endpoint);
+        // 1. Try Gifukai first (often has anime source info and works great)
+        let result = await fetchGifukai(endpoint);
+        if (result && result.url) {
+            apiResultFrom = 'Gifukai';
+        }
+
+        // 2. Try Waifu.pics / OtakuGIFs if Gifukai failed
+        if (!result || !result.url) {
+            const primaryAPI = waifuPicsCategories.includes(endpoint) ? 'waifu' : 'otaku';
+            if (primaryAPI === 'waifu') {
+                result = await fetchWaifuPics(endpoint);
+                if (result && result.url) {
+                    apiResultFrom = 'WaifuPics';
+                } else {
+                    result = await fetchOtakuGifs(endpoint);
+                    if (result && result.url) apiResultFrom = 'OtakuGifs';
+                }
+            } else {
+                result = await fetchOtakuGifs(endpoint);
+                if (result && result.url) {
+                    apiResultFrom = 'OtakuGifs';
+                } else {
+                    result = await fetchWaifuPics(endpoint);
+                    if (result && result.url) apiResultFrom = 'WaifuPics';
+                }
             }
+        }
+
+        // 3. Try nekos.best as tertiary fallback
+        if (!result || !result.url) {
+            result = await fetchNekosBest(endpoint);
+            if (result && result.url) apiResultFrom = 'NekosBest';
+        }
+
+        // 4. Resolve URL and anime source
+        if (result && result.url) {
+            gifUrl = result.url;
+            animeSource = result.anime;
         } else {
-            gifUrl = await fetchOtakuGifs(endpoint);
-            if (!gifUrl) {
-                gifUrl = await fetchWaifuPics(endpoint);
-            }
-        }
-
-        // Tertiary fallback: nekos.best (tries in case Cloudflare isn't blocking it on the server)
-        if (!gifUrl) {
-            gifUrl = await fetchNekosBest(endpoint);
-        }
-
-        // Quaternary fallback: Hardcoded CDN fallback URLs (bulletproof)
-        if (!gifUrl) {
             gifUrl = FALLBACK_GIFS[endpoint] || FALLBACK_GIFS[actionType] || DEFAULT_FALLBACK;
             console.warn(`[sendAnimeAction] All API fetches failed. Used fallback GIF for "${actionType}"`);
         }
@@ -192,20 +243,30 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
         }
     }
 
-    let description;
+    let description = actionText;
     if (customMsg) {
-        description = `${actionText}\n*"${customMsg}"*`;
-    } else {
-        description = actionText;
+        description += `\n*"${customMsg}"*`;
+    }
+    if (animeSource) {
+        description += `\n\n🎬 **Anime:** *${animeSource}*`;
     }
 
     const authorMember = isSlash ? interaction.member : message.member;
+
+    let footerText = 'Action!';
+    if (!hardcodedGifs) {
+        if (apiResultFrom === 'Gifukai') footerText = 'Powered by Gifukai';
+        else if (apiResultFrom === 'WaifuPics') footerText = 'Powered by Waifu.pics';
+        else if (apiResultFrom === 'OtakuGifs') footerText = 'Powered by OtakuGIFs';
+        else if (apiResultFrom === 'NekosBest') footerText = 'Powered by nekos.best';
+        else footerText = 'Powered by Waifu.pics & OtakuGIFs';
+    }
 
     const embed = new EmbedBuilder()
         .setColor(color ?? 0x7289DA)
         .setTitle(`${emoji} ${actionType.charAt(0).toUpperCase() + actionType.slice(1)}!`)
         .setDescription(description)
-        .setFooter({ text: hardcodedGifs ? `Action!` : `Powered by Waifu.pics & OtakuGIFs`, iconURL: authorMember?.displayAvatarURL({ dynamic: true }) || author.displayAvatarURL({ dynamic: true }) })
+        .setFooter({ text: footerText, iconURL: authorMember?.displayAvatarURL({ dynamic: true }) || author.displayAvatarURL({ dynamic: true }) })
         .setTimestamp();
 
     if (gifUrl) embed.setImage(gifUrl);
