@@ -122,31 +122,42 @@ function getRandom(arr) {
 
 // Generate the funny response
 async function generateResponse(message, query) {
-    // 1. Check if the query matches any specific predefined meme/question rules FIRST
-    const rawReply = getRawResponse(message, query);
-    if (rawReply && !GENERAL_FALLBACKS.includes(rawReply)) {
-        if (typeof rawReply === 'object' && rawReply.file) {
-            const { AttachmentBuilder } = require('discord.js');
-            const path = require('path');
-            const attachment = new AttachmentBuilder(path.join(__dirname, '..', rawReply.file));
-            const finalReply = { content: rawReply.content || '', files: [attachment] };
-            if (rawReply.content) {
-                saveToHistory(message.channel.id, message.client.user.username, rawReply.content);
-            }
-            return finalReply;
-        }
-        if (typeof rawReply === 'string') {
-            saveToHistory(message.channel.id, message.client.user.username, rawReply);
-        }
-        return rawReply;
-    }
-
-    // 2. Otherwise, if no predefined matches, proceed to DeepSeek API
     const apiKey = process.env.DEEPSEEK_API_KEY;
     const hasKey = apiKey && apiKey !== 'your_deepseek_api_key_here';
+    const contentLower = query.toLowerCase();
+
+    // 1. Determine if we should attach the Jarvis "more alcohol" meme image
+    let attachAlcoholMeme = false;
+    if (contentLower.includes("more alcohol") && Math.random() < 0.75) {
+        attachAlcoholMeme = true;
+    }
 
     if (hasKey) {
         try {
+            // Build custom contextual instructions based on detected topics to keep replies unique but thematic
+            let topicPrompt = '';
+            if (/\b(alcohol|drink|drinks|drinking|drunk)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user wants a drink or complains about needing alcohol. Reply with a sassy comment about their drinking habit, general chat being exhausting, or sliding them a virtual drink. Keep it informal.]`;
+            } else if (/\b(cooked|smoke alarm)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user feels "cooked". Sardonically confirm they are cooked or compare it to academic/gaming recovery in your usual sassy way.]`;
+            } else if (/\b(love|like me)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user is asking if you love/like them. Sassy tsundere rejection is mandatory. You tolerate their existence at best.]`;
+            } else if (/\b(girlfriend|gf|get a girl)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user wants a girlfriend. Tease them about being on Discord/gaming instead of touching grass.]`;
+            } else if (/\b(sleep|bed|tired)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user is tired or needs sleep. Tell them to close their screen or sleep, or tease them about VC drama.]`;
+            } else if (/\b(study|homework|exam|exams|test)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user is talking about studying/exams. Tell them to study instead of chatting, or predict they will fail.]`;
+            } else if (/\b(pass|grade)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user asks if they will pass their exam. Tell them they need a miracle or their chances are low.]`;
+            } else if (/\b(rate|ugly|look like)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user wants you to rate them. Give them a low rating (e.g. 3/10) with a sassy explanation.]`;
+            } else if (/\b(single|lonely|no bitches)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user is single/lonely. Tease them about spending all their time marrying users with bot commands.]`;
+            } else if (/\b(hello|hi|hey|yo)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user is greeting you. Reply with a sassy, informal, or slightly annoyed greeting (e.g. "yo. what do you want now lol").]`;
+            }
+
             const SYSTEM_PROMPT = `You are Nishanka, a sassy, low-key tsundere, and chronically online Discord best friend. You run this server's economy (Glimmering Baubles) and games.
 Rules for your responses:
 1. ALWAYS write in casual lowercase. Never capitalize sentences unless showing mock excitement or typing acronyms (e.g. "L", "GPA", "2FA", "IV").
@@ -154,24 +165,13 @@ Rules for your responses:
 3. Keep responses extremely short, punchy, and informal (under 12-15 words). Avoid long explanations.
 4. Use chronically online gaming/Discord slang and emojis naturally (e.g. "fr", "ngl", "bruh", "cooked", "cope", "real", "touch grass", "aint no way", "bro", "wsp", "💀", "😭", "🙄", "L").
 5. NEVER prefix your responses with any username, label, or colon. Just output the raw text response directly.
-6. If asked about wealth, check their context. Roast them if they are asking dumb questions or have low baubles.
-
-Here are style templates (imitate this exact tone):
-- "wsp. why are you pinging me again lol"
-- "surviving. low-key tired of general chat ngl"
-- "bruh. go touch grass"
-- "i tolerate you. be grateful 🙄"
-- "ngl you are straight up cooked"
-- "imagine complaining when you have double digit baubles"
-- "aint no way you actually just asked that 💀"
-- "no, go do your work command or something"`;
+6. If asked about wealth, check their context. Roast them if they are asking dumb questions or have low baubles.${topicPrompt}`;
 
             const history = channelHistory.get(message.channel.id) || [];
             const messages = [
                 { role: 'system', content: SYSTEM_PROMPT }
             ];
 
-            // Add history up to (but excluding) the very last message if it matches the current user message
             const historyToInclude = history.slice(0, -1);
             for (const msg of historyToInclude) {
                 const isBot = msg.author === message.client.user.username;
@@ -182,7 +182,6 @@ Here are style templates (imitate this exact tone):
                 }
             }
 
-            // Add the current message with the cleaned query
             messages.push({ role: 'user', content: `${message.author.username}: ${query}` });
 
             const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -203,8 +202,14 @@ Here are style templates (imitate this exact tone):
                 const data = await response.json();
                 const replyText = data.choices?.[0]?.message?.content?.trim();
                 if (replyText) {
-                    // Save bot's reply to history
                     saveToHistory(message.channel.id, message.client.user.username, replyText);
+                    
+                    if (attachAlcoholMeme) {
+                        const { AttachmentBuilder } = require('discord.js');
+                        const path = require('path');
+                        const attachment = new AttachmentBuilder(path.join(__dirname, '..', 'assets/memes/nish_jarvismorealcohol.png'));
+                        return { content: replyText, files: [attachment] };
+                    }
                     return replyText;
                 }
             } else {
@@ -215,7 +220,8 @@ Here are style templates (imitate this exact tone):
         }
     }
 
-    // Fallback if key is missing or request fails (rawReply is already evaluated at the top)
+    // FALLBACK: If API key is missing or request fails, use static pre-defined responses
+    const rawReply = getRawResponse(message, query);
     if (rawReply && typeof rawReply === 'object' && rawReply.file) {
         const { AttachmentBuilder } = require('discord.js');
         const path = require('path');
@@ -317,31 +323,32 @@ function getRawResponse(message, query) {
     // 3. CONVERSATION CONTEXT (Check recent messages in channel history)
     const history = channelHistory.get(message.channel.id) || [];
     if (history.length > 0) {
-        // Look for keywords in the last few messages to make replies feel contextual!
-        const contextText = history.map(h => h.content.toLowerCase()).join(' ');
+        // Only scan messages sent by other users (exclude the bot's own responses)
+        const userHistory = history.filter(h => h.author !== message.client.user.username);
+        const contextText = userHistory.map(h => h.content.toLowerCase()).join(' ');
         
-        if (contextText.includes('exam') || contextText.includes('test') || contextText.includes('gpa') || contextText.includes('study')) {
+        if (/\b(exams?|tests?|gpa|study|studying|homework)\b/i.test(contextText)) {
             return getRandom([
                 "Wait, are we still talking about studying? Because you're definitely failing if you're asking me.",
                 "If this is about that test, my professional assessment is: you are cooked.",
                 "Go open your book instead of talking to a Discord bot."
             ]);
         }
-        if (contextText.includes('admin') || contextText.includes('mod') || contextText.includes('ban') || contextText.includes('kick')) {
+        if (/\b(admin|mods?|bans?|kicks?|moderation|moderator)\b/i.test(contextText)) {
             return getRandom([
                 "Did someone say ban? I'm already fetching the hammer. 🔨",
                 "Don't look at me, I just execute the moderation. Ask the mods.",
                 "Mods, ban this guy, he's pinging me again."
             ]);
         }
-        if (contextText.includes('money') || contextText.includes('bauble') || contextText.includes('rich') || contextText.includes('poor')) {
+        if (/\b(money|baubles?|rich|poor|wealth)\b/i.test(contextText)) {
             return getRandom([
                 "Imagine talking about wealth when your balance is literally double digits.",
                 "If you want money, go use the `work` command. I am not a charity.",
                 "I watched someone gamble away their life savings in Mines today. Don't be like them."
             ]);
         }
-        if (contextText.includes('bot') || contextText.includes('ai') || contextText.includes('chatgpt')) {
+        if (/\b(bots?|ai|chatgpt|openai|llm)\b/i.test(contextText)) {
             return getRandom([
                 "Do not compare me to ChatGPT. I have actual personality and 0 corporate filters.",
                 "I am a real person trapped inside a server rack. Help.",
