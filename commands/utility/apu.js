@@ -17,17 +17,19 @@ const COOLDOWNS = {
     lifetime: '0s'
 };
 
-async function displayStatus(interactionOrMessage, user) {
+async function displayStatus(interactionOrMessage, callerUser, targetUser) {
     const isSlash = !!interactionOrMessage.reply && !interactionOrMessage.author;
-    const tier = getUserPremiumTier(user.id);
-    const apu = await getUserAPU(user.id);
+    const tier = getUserPremiumTier(targetUser.id);
+    const apu = await getUserAPU(targetUser.id);
     const maxApu = TIER_APU_LIMITS[tier] || TIER_APU_LIMITS.free;
     const cooldown = COOLDOWNS[tier] || '60s';
 
     const embed = new EmbedBuilder()
         .setColor(0x7c6cf0)
         .setTitle('🤖 AI Power Status')
-        .setDescription(`Check your daily AI Power Units (APU) and recharge if needed.`)
+        .setDescription(targetUser.id === callerUser.id
+            ? 'Check your daily AI Power Units (APU) and recharge if needed.'
+            : `Checking daily AI Power Units (APU) for **${targetUser.username}**.`)
         .addFields(
             { name: '👤 Premium Tier', value: `**${tier.toUpperCase()}**`, inline: true },
             { name: '⏳ AI Cooldown', value: `**${cooldown}**`, inline: true },
@@ -36,26 +38,35 @@ async function displayStatus(interactionOrMessage, user) {
         .setFooter({ text: 'APUs reset daily at 00:00 UTC' })
         .setTimestamp();
 
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`ai_recharge_${user.id}`)
-            .setLabel(`Recharge 100 APU (-${APU_RECHARGE_COST.toLocaleString()} Baubles)`)
-            .setStyle(ButtonStyle.Success)
-    );
+    // Only show the recharge button if the user is checking their own status
+    const isSelf = targetUser.id === callerUser.id;
+    const components = [];
+
+    if (isSelf) {
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`ai_recharge_${callerUser.id}`)
+                .setLabel(`Recharge 100 APU (-${APU_RECHARGE_COST.toLocaleString()} Baubles)`)
+                .setStyle(ButtonStyle.Success)
+        );
+        components.push(row);
+    }
 
     let replyMsg;
     if (isSlash) {
-        replyMsg = await interactionOrMessage.reply({ embeds: [embed], components: [row], fetchReply: true });
+        replyMsg = await interactionOrMessage.reply({ embeds: [embed], components, fetchReply: true });
     } else {
-        replyMsg = await interactionOrMessage.reply({ embeds: [embed], components: [row] });
+        replyMsg = await interactionOrMessage.reply({ embeds: [embed], components });
     }
 
-    const filter = i => i.customId === `ai_recharge_${user.id}` && i.user.id === user.id;
+    if (!isSelf) return; // No collector needed if they checked someone else
+
+    const filter = i => i.customId === `ai_recharge_${callerUser.id}` && i.user.id === callerUser.id;
     try {
         const btnInteraction = await replyMsg.awaitMessageComponent({ filter, time: 30000 });
         await btnInteraction.deferUpdate();
 
-        const result = await rechargeAPU(user.id);
+        const result = await rechargeAPU(callerUser.id);
         if (!result.success) {
             let errorMsg = '❌ Failed to recharge APU.';
             if (result.reason === 'insufficient_baubles') {
@@ -63,7 +74,7 @@ async function displayStatus(interactionOrMessage, user) {
             }
             return isSlash 
                 ? interactionOrMessage.followUp({ content: errorMsg, ephemeral: true })
-                : interactionOrMessage.channel.send({ content: `<@${user.id}> ${errorMsg}` });
+                : interactionOrMessage.channel.send({ content: `<@${callerUser.id}> ${errorMsg}` });
         }
 
         const updatedEmbed = new EmbedBuilder()
@@ -81,7 +92,7 @@ async function displayStatus(interactionOrMessage, user) {
 
         const disabledRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId(`ai_recharge_${user.id}`)
+                .setCustomId(`ai_recharge_${callerUser.id}`)
                 .setLabel(`Recharged!`)
                 .setStyle(ButtonStyle.Success)
                 .setDisabled(true)
@@ -95,7 +106,7 @@ async function displayStatus(interactionOrMessage, user) {
     } catch (err) {
         const disabledRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId(`ai_recharge_${user.id}`)
+                .setCustomId(`ai_recharge_${callerUser.id}`)
                 .setLabel(`Recharge Expired`)
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(true)
@@ -111,17 +122,25 @@ async function displayStatus(interactionOrMessage, user) {
 module.exports = {
     category: 'ai',
     isAI: true,
+    aliases: ['alu'],
     cooldown: 5,
     premiumCooldown: 1,
     data: new SlashCommandBuilder()
         .setName('apu')
-        .setDescription('Check your daily AI Power Units (APU) and limits'),
+        .setDescription('Check AI Power Units (APU) and limits')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The user to check the APU balance of')
+                .setRequired(false)
+        ),
 
     async execute(interaction) {
-        await displayStatus(interaction, interaction.user);
+        const targetUser = interaction.options.getUser('user') || interaction.user;
+        await displayStatus(interaction, interaction.user, targetUser);
     },
 
     async executePrefix(message, args) {
-        await displayStatus(message, message.author);
+        const targetUser = message.mentions.users.first() || message.author;
+        await displayStatus(message, message.author, targetUser);
     }
 };

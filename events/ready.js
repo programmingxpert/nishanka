@@ -4,7 +4,7 @@ const Reminder = require('../models/Reminder');
 const { loadPremiumUsers } = require('../utils/premiumPromo');
 
 module.exports = {
-    name: 'clientReady',
+    name: 'ready',
     once: true,
 
     async execute(client) {

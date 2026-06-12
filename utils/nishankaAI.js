@@ -235,6 +235,15 @@ function getRawResponse(message, query) {
 
     // 1. MATCH MEME PHRASES (Check for common terms)
     if (contentLower.includes("alcohol") || contentLower.includes("drink")) {
+        if (contentLower.includes("more alcohol")) {
+            // 75% chance to send the Jarvis image response
+            if (Math.random() < 0.75) {
+                return getRandom([
+                    { file: 'assets/memes/nish_jarvismorealcohol.png', content: 'Jarvis, I’m running low on alcohol.' },
+                    { file: 'assets/memes/nish_jarvismorealcohol.png', content: '' }
+                ]);
+            }
+        }
         return getRandom(MEME_RESPONSES.alcohol);
     }
     if (contentLower.includes("cooked") || contentLower.includes("smoke alarm")) {
