@@ -111,6 +111,7 @@ module.exports = {
 
         // Handle autocomplete interactions
         if (interaction.isAutocomplete()) {
+            if (!interaction.guildId) return;
             const { resolveGroupedCommand } = require('../utils/slashCommandsBundler');
             const command = resolveGroupedCommand(interaction, client);
             if (command && typeof command.autocomplete === 'function') {
@@ -125,6 +126,10 @@ module.exports = {
 
         // Only handle slash/chat-input commands
         if (!interaction.isChatInputCommand()) return;
+
+        if (!interaction.guildId) {
+            return interaction.reply({ content: '❌ Commands are disabled in DMs. Only the conversational AI feature ("Nish, <question>") works in DMs/groups.', ephemeral: true });
+        }
 
         const { resolveGroupedCommand } = require('../utils/slashCommandsBundler');
         const command = resolveGroupedCommand(interaction, client);

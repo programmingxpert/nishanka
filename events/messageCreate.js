@@ -7,7 +7,67 @@ module.exports = {
     name: 'messageCreate',
 
     async execute(message, client) {
-        if (!message.guild) return;
+        if (!message.guild) {
+            // Ignore bot messages
+            if (message.author.bot) return;
+
+            const chatTriggerRegex = /\b(nishanka|nish)\b/i;
+            let isAiReply = false;
+
+            if (message.reference && message.reference.messageId) {
+                try {
+                    const repliedMsg = message.channel.messages.cache.get(message.reference.messageId) || 
+                                       await message.channel.messages.fetch(message.reference.messageId);
+                    if (repliedMsg && repliedMsg.author.id === client.user.id) {
+                        if (client.aiResponseIds && client.aiResponseIds.has(repliedMsg.id)) {
+                            isAiReply = true;
+                        }
+                    }
+                } catch (err) {
+                    // ignore fetch errors
+                }
+            }
+
+            if (chatTriggerRegex.test(message.content) || isAiReply) {
+                const { consumeAPU } = require('../utils/aiManager');
+                const apuCheck = await consumeAPU(message.author.id, 1);
+
+                if (!apuCheck.success) {
+                    const nextReset = new Date();
+                    nextReset.setUTCHours(24, 0, 0, 0);
+                    const resetUnix = Math.floor(nextReset.getTime() / 1000);
+                    return message.reply(`❌ I'm literally out of battery to answer your silly questions today. My APUs reset <t:${resetUnix}:R> (00:00 UTC), or you could stop being poor and buy premium for a cheap price at https://nishanka.zeyuki.app/premium 🙄`).catch(() => {});
+                }
+
+                // Save to channel history for AI context
+                try {
+                    const { saveToHistory } = require('../utils/nishankaAI');
+                    saveToHistory(message.channel.id, message.author.username, message.content);
+                } catch (e) {
+                    console.error('Error saving message to AI history:', e);
+                }
+
+                const { generateResponse } = require('../utils/nishankaAI');
+                const query = message.content.replace(/\b(nishanka|nish)\b/gi, '').replace(/\s+/g, ' ').trim();
+                
+                await message.channel.sendTyping().catch(() => {});
+                
+                const reply = await generateResponse(message, query);
+                
+                // Slight delay to feel like a real person typing
+                setTimeout(async () => {
+                    const sentMsg = await message.reply(reply).catch(() => {});
+                    if (sentMsg && client.aiResponseIds) {
+                        client.aiResponseIds.add(sentMsg.id);
+                        if (client.aiResponseIds.size > 500) {
+                            const firstKey = client.aiResponseIds.keys().next().value;
+                            client.aiResponseIds.delete(firstKey);
+                        }
+                    }
+                }, Math.floor(Math.random() * 800) + 600);
+            }
+            return;
+        }
 
         // Record ticket message transcripts
         try {
