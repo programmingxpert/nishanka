@@ -192,7 +192,7 @@ module.exports = {
                 
                 await message.channel.sendTyping().catch(() => {});
                 
-                const reply = generateResponse(message, query);
+                const reply = await generateResponse(message, query);
                 
                 // Slight delay to feel like a real person typing
                 setTimeout(async () => {

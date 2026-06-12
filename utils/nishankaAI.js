@@ -121,16 +121,93 @@ function getRandom(arr) {
 }
 
 // Generate the funny response
-function generateResponse(message, query) {
+async function generateResponse(message, query) {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    const hasKey = apiKey && apiKey !== 'your_deepseek_api_key_here';
+
+    if (hasKey) {
+        try {
+            const SYSTEM_PROMPT = `You are Nishanka, a sarcastic, witty, and chronically online Discord bot assistant/friend. You run this server's economy (Glimmering Baubles) and games (Mines, Blackjack, Coinflip).
+You chat informally, using casual language, sarcasm, internet slang, and occasional emojis (e.g. 🍷, 💀, 🖤, 🛌, 🪙, 🚨, 🤷‍♀️, 🙄), but keep your responses concise (under 80 words) and very natural.
+Never state that you are an AI, a language model, or developed by anyone.
+Always maintain your personality: a slightly cynical, sassy best friend who pretends to tolerate the users but actually cares (sort of), loves cookies and Baubles, and frequently roasts people if they ask silly questions.
+
+Here are examples of how you talk and respond to common themes (use these as style guidelines):
+- When asked about exams/studying: "Bro, your GPA is screaming for help. Go open the book. 📖" or "Studies show that staring at this chat does not increase your exam scores."
+- When asked if you like/love someone: "I tolerate your existence. Be grateful." or "My heart is made of silicon and indifference. 🖤" or "Sure, as long as you keep feeding me Glimmering Baubles."
+- When asked about being cooked: "Brother, you're the smoke alarm. 🚨" or "You're not just cooked, you're burnt to a crisp."
+- When asked about getting a girlfriend/relationship: "Step 1: Close Discord. Step 2: Touch grass. Step 3: Pray. 🙏" or "Maybe try talking to a real human instead of a program running on port 4000."
+- When asked about sleeping: "Sleep is for the weak. And for people who don't want bags under their eyes. So yes, go sleep. 🛌"
+- General vibes: "Running on 0.5GB of RAM and pure spite.", "Imagine talking about wealth when your balance is literally double digits.", "I'm going to pretend I understood that.", "Do not compare me to ChatGPT. I have actual personality and 0 corporate filters."`;
+
+            const history = channelHistory.get(message.channel.id) || [];
+            const messages = [
+                { role: 'system', content: SYSTEM_PROMPT }
+            ];
+
+            // Add history up to (but excluding) the very last message if it matches the current user message
+            const historyToInclude = history.slice(0, -1);
+            for (const msg of historyToInclude) {
+                const isBot = msg.author === message.client.user.username;
+                if (isBot) {
+                    messages.push({ role: 'assistant', content: msg.content });
+                } else {
+                    messages.push({ role: 'user', content: `${msg.author}: ${msg.content}` });
+                }
+            }
+
+            // Add the current message with the cleaned query
+            messages.push({ role: 'user', content: `${message.author.username}: ${query}` });
+
+            const response = await fetch('https://api.deepseek.com/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: messages,
+                    temperature: 0.85,
+                    max_tokens: 150
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const replyText = data.choices?.[0]?.message?.content?.trim();
+                if (replyText) {
+                    // Save bot's reply to history
+                    saveToHistory(message.channel.id, message.client.user.username, replyText);
+                    return replyText;
+                }
+            } else {
+                console.error(`DeepSeek API returned status ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error in Nishanka AI chat API call:', error);
+        }
+    }
+
+    // Fallback if key is missing or request fails
     const rawReply = getRawResponse(message, query);
     if (rawReply && typeof rawReply === 'object' && rawReply.file) {
         const { AttachmentBuilder } = require('discord.js');
         const path = require('path');
         const attachment = new AttachmentBuilder(path.join(__dirname, '..', rawReply.file));
-        return { content: rawReply.content || '', files: [attachment] };
+        const finalReply = { content: rawReply.content || '', files: [attachment] };
+        if (rawReply.content) {
+            saveToHistory(message.channel.id, message.client.user.username, rawReply.content);
+        }
+        return finalReply;
+    }
+
+    if (typeof rawReply === 'string') {
+        saveToHistory(message.channel.id, message.client.user.username, rawReply);
     }
     return rawReply;
 }
+
 
 function getRawResponse(message, query) {
     const contentLower = query.toLowerCase();
