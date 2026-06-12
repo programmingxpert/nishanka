@@ -48,6 +48,10 @@ module.exports = {
             return interaction.reply({ content: `❌ Invalid action type. Choose from: ${actionsList.join(', ')}`, ephemeral: true });
         }
 
+        if (actionType === 'lewd' && (!interaction.channel || !interaction.channel.nsfw)) {
+            return interaction.reply({ content: '❌ The `lewd` action can only be used in **NSFW channels**!', ephemeral: true });
+        }
+
         const actionColors = {
             angry: 0xd32f2f,
             cry: 0x1976d2,

@@ -22,11 +22,22 @@ module.exports = {
     async execute(context) {
         const user = context.options?.getUser?.('user') || context.mentions?.users.first();
         const customMsg = context.options?.getString?.('message') || context.args?.slice(1).join(' ');
-			const reply = (msg) => context.reply ? context.reply(msg) : context.message.reply(msg);
-			const selfResponses = ["Aww, let me do that for you! *But you still need to mention someone else...*","Doing that to yourself? How lonely... Mention someone!","I'm here for you! But seriously, mention another user for this command.","You can't target yourself, silly! Mention a friend!","Hold on there, you need another person for this to work right. Mention them!"];
-			const randomResponse = selfResponses[Math.floor(Math.random() * selfResponses.length)];
-			if (!user) return reply('❗ Please mention a user to lewd.');
-			if (user.id === (context.user?.id || context.author?.id)) return reply(randomResponse);
+			
+        const reply = (msg) => {
+            if (typeof msg === 'string') {
+                return context.reply ? context.reply({ content: msg, ephemeral: true }) : context.message.reply(msg);
+            }
+            return context.reply ? context.reply(msg) : context.message.reply(msg);
+        };
+
+        if (!context.channel || !context.channel.nsfw) {
+            return reply('❌ This command can only be used in **NSFW channels**!');
+        }
+
+        const selfResponses = ["Aww, let me do that for you! *But you still need to mention someone else...*","Doing that to yourself? How lonely... Mention someone!","I'm here for you! But seriously, mention another user for this command.","You can't target yourself, silly! Mention a friend!","Hold on there, you need another person for this to work right. Mention them!"];
+        const randomResponse = selfResponses[Math.floor(Math.random() * selfResponses.length)];
+        if (!user) return reply('❗ Please mention a user to lewd.');
+        if (user.id === (context.user?.id || context.author?.id)) return reply(randomResponse);
 
         // Select a random GIF
         const randomGif = lewdGifs[Math.floor(Math.random() * lewdGifs.length)];
