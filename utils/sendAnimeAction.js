@@ -1,6 +1,65 @@
 /* eslint-disable */
 const { EmbedBuilder } = require('discord.js');
 
+const FALLBACK_GIFS = {
+    hug: 'https://media.giphy.com/media/lrr9rHuoJOE0w/giphy.gif',
+    pat: 'https://media.giphy.com/media/5tmQbXY89uS84A6NM5/giphy.gif',
+    kiss: 'https://media.giphy.com/media/K7o1n1rvhQypy/giphy.gif',
+    slap: 'https://media.giphy.com/media/IYg0Z4S74L49Q/giphy.gif',
+    happy: 'https://media.giphy.com/media/1136UBdSNn6yY0/giphy.gif',
+    dance: 'https://media.giphy.com/media/13CoXDiaCcC2EA/giphy.gif',
+    cry: 'https://media.giphy.com/media/X3Gb6WWdm2T60/giphy.gif'
+};
+const DEFAULT_FALLBACK = 'https://media.giphy.com/media/1136UBdSNn6yY0/giphy.gif';
+
+async function fetchWaifuPics(endpoint) {
+    const waifuPicsCategories = [
+        'bite', 'blush', 'cry', 'cuddle', 'dance', 'handhold', 'happy', 'highfive', 
+        'hug', 'kick', 'kiss', 'neko', 'nom', 'pat', 'slap', 'smug', 'waifu', 'wave', 'wink', 'yeet', 'smile'
+    ];
+    if (!waifuPicsCategories.includes(endpoint)) return null;
+    try {
+        const response = await fetch(`https://api.waifu.pics/sfw/${endpoint}`, {
+            headers: { 'User-Agent': 'NishankaBot/2.0' },
+            signal: AbortSignal.timeout(4000)
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return data?.url ?? null;
+        }
+    } catch (e) {}
+    return null;
+}
+
+async function fetchOtakuGifs(endpoint) {
+    try {
+        const response = await fetch(`https://api.otakugifs.xyz/gif?reaction=${endpoint}&format=gif`, {
+            headers: { 'User-Agent': 'NishankaBot/2.0' },
+            signal: AbortSignal.timeout(4000)
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return data?.url ?? null;
+        }
+    } catch (e) {}
+    return null;
+}
+
+async function fetchNekosBest(endpoint) {
+    try {
+        const response = await fetch(`https://nekos.best/api/v2/${endpoint}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+            signal: AbortSignal.timeout(4000)
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return data.results?.[0]?.url ?? null;
+        }
+    } catch (e) {}
+    return null;
+}
+
+
 /**
  * Fetches an anime action GIF from the Nekos.best API and sends an embed.
  *
@@ -93,42 +152,29 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
             'hug', 'kick', 'kiss', 'neko', 'nom', 'pat', 'slap', 'smug', 'waifu', 'wave', 'wink', 'yeet'
         ];
 
-        const otakuGifsCategories = [
-            'angry', 'facepalm', 'pout', 'shrug', 'sleep', 'stare', 'thumbsup', 'yawn',
-            'punch', 'run', 'shoot', 'tickle', 'nod', 'nope', 'feed', 'laugh', 'baka'
-        ];
-
-        try {
-            if (waifuPicsCategories.includes(endpoint)) {
-                // Fetch from Waifu.pics
-                const response = await fetch(`https://api.waifu.pics/sfw/${endpoint}`, {
-                    headers: { 'User-Agent': 'NishankaBot/2.0' }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    gifUrl = data?.url ?? null;
-                }
-            } else if (otakuGifsCategories.includes(endpoint)) {
-                // Fetch from OtakuGIFs
-                const response = await fetch(`https://api.otakugifs.xyz/gif?reaction=${endpoint}&format=gif`, {
-                    headers: { 'User-Agent': 'NishankaBot/2.0' }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    gifUrl = data?.url ?? null;
-                }
-            } else {
-                // General fallback for unsupported categories (like husbando, kitsune, etc.)
-                const response = await fetch(`https://api.waifu.pics/sfw/smile`, {
-                    headers: { 'User-Agent': 'NishankaBot/2.0' }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    gifUrl = data?.url ?? null;
-                }
+        // Try sequentially: Primary API -> Secondary API -> nekos.best -> Local/CDN Fallback
+        const primaryAPI = waifuPicsCategories.includes(endpoint) ? 'waifu' : 'otaku';
+        if (primaryAPI === 'waifu') {
+            gifUrl = await fetchWaifuPics(endpoint);
+            if (!gifUrl) {
+                gifUrl = await fetchOtakuGifs(endpoint);
             }
-        } catch (err) {
-            console.warn(`[sendAnimeAction] Failed to fetch GIF for "${actionType}":`, err.message);
+        } else {
+            gifUrl = await fetchOtakuGifs(endpoint);
+            if (!gifUrl) {
+                gifUrl = await fetchWaifuPics(endpoint);
+            }
+        }
+
+        // Tertiary fallback: nekos.best (tries in case Cloudflare isn't blocking it on the server)
+        if (!gifUrl) {
+            gifUrl = await fetchNekosBest(endpoint);
+        }
+
+        // Quaternary fallback: Hardcoded CDN fallback URLs (bulletproof)
+        if (!gifUrl) {
+            gifUrl = FALLBACK_GIFS[endpoint] || FALLBACK_GIFS[actionType] || DEFAULT_FALLBACK;
+            console.warn(`[sendAnimeAction] All API fetches failed. Used fallback GIF for "${actionType}"`);
         }
     }
 

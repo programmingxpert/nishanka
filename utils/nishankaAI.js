@@ -122,6 +122,26 @@ function getRandom(arr) {
 
 // Generate the funny response
 async function generateResponse(message, query) {
+    // 1. Check if the query matches any specific predefined meme/question rules FIRST
+    const rawReply = getRawResponse(message, query);
+    if (rawReply && !GENERAL_FALLBACKS.includes(rawReply)) {
+        if (typeof rawReply === 'object' && rawReply.file) {
+            const { AttachmentBuilder } = require('discord.js');
+            const path = require('path');
+            const attachment = new AttachmentBuilder(path.join(__dirname, '..', rawReply.file));
+            const finalReply = { content: rawReply.content || '', files: [attachment] };
+            if (rawReply.content) {
+                saveToHistory(message.channel.id, message.client.user.username, rawReply.content);
+            }
+            return finalReply;
+        }
+        if (typeof rawReply === 'string') {
+            saveToHistory(message.channel.id, message.client.user.username, rawReply);
+        }
+        return rawReply;
+    }
+
+    // 2. Otherwise, if no predefined matches, proceed to DeepSeek API
     const apiKey = process.env.DEEPSEEK_API_KEY;
     const hasKey = apiKey && apiKey !== 'your_deepseek_api_key_here';
 
@@ -191,8 +211,7 @@ Here are style templates (imitate this exact tone):
         }
     }
 
-    // Fallback if key is missing or request fails
-    const rawReply = getRawResponse(message, query);
+    // Fallback if key is missing or request fails (rawReply is already evaluated at the top)
     if (rawReply && typeof rawReply === 'object' && rawReply.file) {
         const { AttachmentBuilder } = require('discord.js');
         const path = require('path');

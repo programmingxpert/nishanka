@@ -13,7 +13,12 @@ process.emitWarning = function(warning, ...args) {
 
 // Global process error handlers to prevent unhandled rejection/exception crashes
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+    const msg = reason?.message || String(reason);
+    if (msg.includes('Node Request') || msg.includes('fetch failed') || reason?.code === 'ETIMEDOUT' || reason?.code === 'ECONNRESET') {
+        console.warn(`⚠️ [Network Warning] Unhandled Rejection (Lavalink/Network issue): ${msg}`);
+    } else {
+        console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+    }
 });
 process.on('uncaughtException', (err) => {
     console.error('💥 Uncaught Exception thrown:', err);
