@@ -257,14 +257,32 @@ module.exports = {
             const pfpUrl = (profileData.pfpUrl && !profileData.pfpUrl.endsWith('.gif'))
                 ? profileData.pfpUrl
                 : (targetMember ? targetMember.displayAvatarURL({ extension: 'png', size: 256 }) : targetUser.displayAvatarURL({ extension: 'png', size: 256 }));
-            const avatar = await Canvas.loadImage(pfpUrl);
+            
+            let avatar;
+            try {
+                avatar = await Canvas.loadImage(pfpUrl);
+            } catch (err) {
+                console.error(`[profile] Failed to load avatar: ${err.message}`);
+                avatar = null;
+            }
+
             const avatarSize = 128;
             ctx.save();
             ctx.beginPath();
             ctx.arc(80, 325, avatarSize / 2, 0, Math.PI * 2, true);
             ctx.closePath();
             ctx.clip();
-            ctx.drawImage(avatar, 16, 261, avatarSize, avatarSize);
+            if (avatar) {
+                ctx.drawImage(avatar, 16, 261, avatarSize, avatarSize);
+            } else {
+                ctx.fillStyle = '#7c6cf0';
+                ctx.fillRect(16, 261, avatarSize, avatarSize);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 50px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(targetUser.username[0].toUpperCase(), 80, 325);
+            }
             ctx.restore();
 
             if (hasCrown) {
@@ -451,8 +469,12 @@ module.exports = {
             try {
                 avatar = await Canvas.loadImage(pfpUrl);
             } catch (err) {
-                // Fallback to default Discord avatar if custom URL or primary avatar 404s
-                avatar = await Canvas.loadImage(targetUser.defaultAvatarURL);
+                console.error(`[profile] Failed to load avatar: ${err.message}`);
+                try {
+                    avatar = await Canvas.loadImage(targetUser.defaultAvatarURL);
+                } catch (e) {
+                    avatar = null;
+                }
             }
 
             const avatarSize = 128;
@@ -461,7 +483,17 @@ module.exports = {
             ctx.arc(80, 325, avatarSize / 2, 0, Math.PI * 2, true);
             ctx.closePath();
             ctx.clip();
-            ctx.drawImage(avatar, 16, 261, avatarSize, avatarSize);
+            if (avatar) {
+                ctx.drawImage(avatar, 16, 261, avatarSize, avatarSize);
+            } else {
+                ctx.fillStyle = '#7c6cf0';
+                ctx.fillRect(16, 261, avatarSize, avatarSize);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 50px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(targetUser.username[0].toUpperCase(), 80, 325);
+            }
             ctx.restore();
 
             if (hasCrown) {

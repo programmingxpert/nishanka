@@ -78,6 +78,52 @@ function drawMeter(ctx, score, x, y, width = 500, height = 30) {
 	ctx.fillText(`${score}%`, x + width / 2, y + height / 2);
 }
 
+async function loadOverlay(score) {
+	const overlayUrl = getOverlayEmoji(score);
+	if (overlayUrl === emojiURLs.heart) {
+		try {
+			const path = require('path');
+			const localHeartPath = path.join(__dirname, '../../assets/emojis/png/heart.png');
+			return await loadImage(localHeartPath);
+		} catch (err) {
+			// ignore local load error and try remote URL
+		}
+	}
+	return await loadImage(overlayUrl);
+}
+
+function drawVectorHeart(ctx, x, y, width, height, color = '#FF4F7A') {
+	ctx.save();
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.moveTo(x + width / 2, y + height / 5);
+	ctx.bezierCurveTo(x + width / 2, y, x, y, x, y + height * 2 / 5);
+	ctx.bezierCurveTo(x, y + height * 7 / 10, x + width / 2, y + height, x + width / 2, y + height);
+	ctx.bezierCurveTo(x + width / 2, y + height, x + width, y + height * 7 / 10, x + width, y + height * 2 / 5);
+	ctx.bezierCurveTo(x + width, y, x + width / 2, y, x + width / 2, y + height / 5);
+	ctx.fill();
+	ctx.restore();
+}
+
+function drawVectorBrokenHeart(ctx, x, y, width, height) {
+	drawVectorHeart(ctx, x, y, width, height, '#FF5E87');
+
+	ctx.save();
+	ctx.strokeStyle = '#2b2d31';
+	ctx.lineWidth = 6;
+	ctx.lineCap = 'round';
+	ctx.lineJoin = 'round';
+	ctx.beginPath();
+	ctx.moveTo(x + width / 2, y + height / 5);
+	ctx.lineTo(x + width / 2 - 5, y + height / 3);
+	ctx.lineTo(x + width / 2 + 7, y + height / 2);
+	ctx.lineTo(x + width / 2 - 8, y + height * 2 / 3);
+	ctx.lineTo(x + width / 2 + 2, y + height * 4 / 5);
+	ctx.lineTo(x + width / 2, y + height);
+	ctx.stroke();
+	ctx.restore();
+}
+
 async function generateShipImage(user1, user2, score) {
 	const canvas = createCanvas(600, 320);
 	const ctx = canvas.getContext('2d');
@@ -86,11 +132,20 @@ async function generateShipImage(user1, user2, score) {
 	ctx.fillStyle = '#2b2d31'; // modern discord dark background
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-	// Load avatars and emoji
+	// Load avatars and emoji safely using .catch()
 	const [avatar1, avatar2, emojiOverlay] = await Promise.all([
-		loadImage(user1.displayAvatarURL({ extension: 'png', size: 256 })),
-		loadImage(user2.displayAvatarURL({ extension: 'png', size: 256 })),
-		loadImage(getOverlayEmoji(score))
+		loadImage(user1.displayAvatarURL({ extension: 'png', size: 256 })).catch((err) => {
+			console.error(`[ship] Failed to load avatar1: ${err.message}`);
+			return null;
+		}),
+		loadImage(user2.displayAvatarURL({ extension: 'png', size: 256 })).catch((err) => {
+			console.error(`[ship] Failed to load avatar2: ${err.message}`);
+			return null;
+		}),
+		loadOverlay(score).catch((err) => {
+			console.error(`[ship] Failed to load overlay: ${err.message}`);
+			return null;
+		})
 	]);
 
 	// Draw avatars (circular clipping)
@@ -99,7 +154,21 @@ async function generateShipImage(user1, user2, score) {
 	ctx.arc(150, 130, 95, 0, Math.PI * 2, true);
 	ctx.closePath();
 	ctx.clip();
-	ctx.drawImage(avatar1, 55, 35, 190, 190);
+	if (avatar1) {
+		ctx.drawImage(avatar1, 55, 35, 190, 190);
+	} else {
+		const grad = ctx.createLinearGradient(55, 35, 245, 225);
+		grad.addColorStop(0, '#FF4F7A');
+		grad.addColorStop(1, '#ff85a7');
+		ctx.fillStyle = grad;
+		ctx.fillRect(55, 35, 190, 190);
+
+		ctx.fillStyle = '#ffffff';
+		ctx.font = 'bold 80px sans-serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(user1.username[0].toUpperCase(), 150, 130);
+	}
 	ctx.restore();
 
 	// Avatar 1 border
@@ -114,7 +183,21 @@ async function generateShipImage(user1, user2, score) {
 	ctx.arc(450, 130, 95, 0, Math.PI * 2, true);
 	ctx.closePath();
 	ctx.clip();
-	ctx.drawImage(avatar2, 355, 35, 190, 190);
+	if (avatar2) {
+		ctx.drawImage(avatar2, 355, 35, 190, 190);
+	} else {
+		const grad = ctx.createLinearGradient(355, 35, 545, 225);
+		grad.addColorStop(0, '#4f46e5');
+		grad.addColorStop(1, '#818cf8');
+		ctx.fillStyle = grad;
+		ctx.fillRect(355, 35, 190, 190);
+
+		ctx.fillStyle = '#ffffff';
+		ctx.font = 'bold 80px sans-serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(user2.username[0].toUpperCase(), 450, 130);
+	}
 	ctx.restore();
 
 	// Avatar 2 border
@@ -125,7 +208,21 @@ async function generateShipImage(user1, user2, score) {
 	ctx.stroke();
 
 	// Draw emoji in the center
-	ctx.drawImage(emojiOverlay, 260, 85, 80, 80);
+	if (emojiOverlay) {
+		ctx.drawImage(emojiOverlay, 260, 85, 80, 80);
+	} else {
+		if (score >= 50) {
+			drawVectorHeart(ctx, 260, 85, 80, 80, '#FF4F7A');
+		} else if (score >= 20) {
+			drawVectorBrokenHeart(ctx, 260, 85, 80, 80);
+		} else {
+			ctx.fillStyle = '#ffffff';
+			ctx.font = '64px sans-serif';
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			ctx.fillText('💀', 300, 125);
+		}
+	}
 
 	// Draw percentage meter
 	drawMeter(ctx, score, 50, 260, 500, 30);
