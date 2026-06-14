@@ -185,38 +185,45 @@ async function sendAnimeAction({ interaction, message, targetUser, actionType, e
             'hug', 'kick', 'kiss', 'neko', 'nom', 'pat', 'slap', 'smug', 'waifu', 'wave', 'wink', 'yeet'
         ];
 
-        // 1. Try Gifukai first (often has anime source info and works great)
-        let result = await fetchGifukai(endpoint);
-        if (result && result.url) {
-            apiResultFrom = 'Gifukai';
-        }
-
-        // 2. Try Waifu.pics / OtakuGIFs if Gifukai failed
-        if (!result || !result.url) {
-            const primaryAPI = waifuPicsCategories.includes(endpoint) ? 'waifu' : 'otaku';
-            if (primaryAPI === 'waifu') {
-                result = await fetchWaifuPics(endpoint);
-                if (result && result.url) {
-                    apiResultFrom = 'WaifuPics';
-                } else {
-                    result = await fetchOtakuGifs(endpoint);
-                    if (result && result.url) apiResultFrom = 'OtakuGifs';
-                }
-            } else {
-                result = await fetchOtakuGifs(endpoint);
-                if (result && result.url) {
-                    apiResultFrom = 'OtakuGifs';
-                } else {
-                    result = await fetchWaifuPics(endpoint);
-                    if (result && result.url) apiResultFrom = 'WaifuPics';
-                }
+        // Shuffling priority list for slap to ensure variety across APIs
+        let result = null;
+        let providers = ['gifukai', 'primary', 'nekosbest'];
+        if (endpoint === 'slap') {
+            for (let i = providers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [providers[i], providers[j]] = [providers[j], providers[i]];
             }
         }
 
-        // 3. Try nekos.best as tertiary fallback
-        if (!result || !result.url) {
-            result = await fetchNekosBest(endpoint);
-            if (result && result.url) apiResultFrom = 'NekosBest';
+        for (const provider of providers) {
+            if (result && result.url) break;
+
+            if (provider === 'gifukai') {
+                result = await fetchGifukai(endpoint);
+                if (result && result.url) apiResultFrom = 'Gifukai';
+            } else if (provider === 'primary') {
+                const primaryAPI = waifuPicsCategories.includes(endpoint) ? 'waifu' : 'otaku';
+                if (primaryAPI === 'waifu') {
+                    result = await fetchWaifuPics(endpoint);
+                    if (result && result.url) {
+                        apiResultFrom = 'WaifuPics';
+                    } else {
+                        result = await fetchOtakuGifs(endpoint);
+                        if (result && result.url) apiResultFrom = 'OtakuGifs';
+                    }
+                } else {
+                    result = await fetchOtakuGifs(endpoint);
+                    if (result && result.url) {
+                        apiResultFrom = 'OtakuGifs';
+                    } else {
+                        result = await fetchWaifuPics(endpoint);
+                        if (result && result.url) apiResultFrom = 'WaifuPics';
+                    }
+                }
+            } else if (provider === 'nekosbest') {
+                result = await fetchNekosBest(endpoint);
+                if (result && result.url) apiResultFrom = 'NekosBest';
+            }
         }
 
         // 4. Resolve URL and anime source
