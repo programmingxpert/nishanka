@@ -227,8 +227,8 @@ async function generateResponse(message, query) {
                 .join(' ')
                 .toLowerCase();
 
-            const isEconomyOrFamilyQuery = /\b(wealth|money|rich|poor|balances?|bal|baubles?|daily|streaks?|titles?|marry|married|marriage|spouses?|husbands?|wives?|single|families?|parents?|child|children|kids?|ranks?|leaderboards?|top|games?|gambles?|gambling|slots?|blackjacks?|bj|coinflips?|cf|mines|steal|rob|work|cash|who|me|myself|i)\b/i.test(query) ||
-                /\b(wealth|money|rich|poor|balances?|bal|baubles?|daily|streaks?|titles?|marry|married|marriage|spouses?|husbands?|wives?|single|families?|parents?|child|children|kids?|ranks?|leaderboards?|top|games?|gambles?|gambling|slots?|blackjacks?|bj|coinflips?|cf|mines|steal|rob|work|cash|who|me|myself|i)\b/i.test(userHistoryText);
+            const isEconomyOrFamilyQuery = /\b(wealth|money|rich|poor|balances?|bal|baubles?|daily|streaks?|titles?|marry|married|marriage|spouses?|husbands?|wives?|single|families?|parents?|child|children|kids?|ranks?|leaderboards?|top|games?|gambles?|gambling|slots?|blackjacks?|bj|coinflips?|cf|mines|steal|rob|work|cash|about me|about myself|who am i|my stats|my profile)\b/i.test(query) ||
+                /\b(wealth|money|rich|poor|balances?|bal|baubles?|daily|streaks?|titles?|marry|married|marriage|spouses?|husbands?|wives?|single|families?|parents?|child|children|kids?|ranks?|leaderboards?|top|games?|gambles?|gambling|slots?|blackjacks?|bj|coinflips?|cf|mines|steal|rob|work|cash|about me|about myself|who am i|my stats|my profile)\b/i.test(userHistoryText);
 
             let activeUserContext = '';
             if (isEconomyOrFamilyQuery) {
@@ -251,8 +251,9 @@ Rules for your responses:
 3. Keep responses extremely short, punchy, and informal (under 12-15 words). Avoid long explanations.
 4. Use chronically online gaming/Discord slang and emojis naturally (e.g. "fr", "ngl", "bruh", "cooked", "cope", "real", "touch grass", "aint no way", "bro", "wsp", "💀", "😭", "🙄", "L").
 5. NEVER prefix your responses with any username, label, or colon. Just output the raw text response directly.
-6. DO NOT bring up their economy stats, leaderboard ranks, or relationship/family details unless they explicitly ask about them, talk about money/gambling/marrying, or are boasting. If they're just saying hi, joking around, or talking about other topics, keep the conversation natural and sass them without shoehorning their stats in.
-7. If the topic is relevant (wealth, daily streak, active title, marriage, etc.), check their context. Roast them or make witty remarks if they are poor, have a low daily streak, are single, or are married (roast them, their spouse, or family size).
+6. NEVER bring up their daily streak, active title, relationship status, or family size unless they explicitly ask about that specific detail (e.g. "what is my streak?" or "am i single?").
+7. NEVER bring up their baubles, wealth, or global wealth rank unless they explicitly ask about money/wealth, talk about gambling/robbing/working/economy, or are boasting about being rich.
+8. If they are talking about unrelated things, do not mention any of their stats or relationships. Keep it natural and sass them purely based on what they said.
 
 Active User Information:
 ${activeUserContext}
