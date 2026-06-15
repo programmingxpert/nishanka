@@ -263,20 +263,22 @@ module.exports = {
                     return message.reply(`❌ I'm literally out of battery to answer your silly questions today. My APUs reset <t:${resetUnix}:R> (00:00 UTC), or you could stop being poor and buy premium for a cheap price at https://nishanka.zeyuki.app/premium 🙄`).catch(() => {});
                 }
 
-                // Log the AI chat interaction
-                try {
-                    const { logInteraction } = require('../utils/interactionLogger');
-                    logInteraction(client, message.guild, message.author, 'AI_CHAT', message.content);
-                } catch (logErr) {
-                    console.error('[messageCreate] Error logging AI chat:', logErr);
-                }
-
                 const { generateResponse } = require('../utils/nishankaAI');
                 const query = message.content.replace(/\b(nishanka|nish)\b/gi, '').replace(/\s+/g, ' ').trim();
                 
                 await message.channel.sendTyping().catch(() => {});
                 
                 const reply = await generateResponse(message, query);
+
+                // Log the AI chat interaction with bot response
+                try {
+                    const { logInteraction } = require('../utils/interactionLogger');
+                    logInteraction(client, message.guild, message.author, 'AI_CHAT', message.content, [
+                        { name: '🤖 Bot Response', value: reply.substring(0, 1024) || 'None' }
+                    ]);
+                } catch (logErr) {
+                    console.error('[messageCreate] Error logging AI chat:', logErr);
+                }
                 
                 // Slight delay to feel like a real person typing
                 setTimeout(async () => {
@@ -500,14 +502,18 @@ module.exports = {
             }
         };
 
+        const responses = [];
+
         message.reply = async function (options, ...args) {
             checkAndClearCooldown(options);
             options = injectPromo(options);
+            responses.push(getResponseSummary(options));
             return originalMessageReply.apply(this, [options, ...args]);
         };
 
         message.channel.send = async function (options, ...args) {
             options = injectPromo(options);
+            responses.push(getResponseSummary(options));
             return originalChannelSend.apply(this, [options, ...args]);
         };
 
@@ -545,18 +551,6 @@ module.exports = {
             }
         }
 
-        // Log the prefix command interaction
-        try {
-            const { logInteraction } = require('../utils/interactionLogger');
-            let commandDetails = `Executed: \`${prefix}${commandName}\``;
-            if (args.length > 0) {
-                commandDetails += `\n**Arguments:** ${args.join(' ')}`;
-            }
-            logInteraction(client, message.guild, message.author, 'PREFIX_COMMAND', commandDetails);
-        } catch (logErr) {
-            console.error('[messageCreate] Error logging prefix command:', logErr);
-        }
-
         // --- Execute command ---
         try {
             await command.executePrefix(message, args);
@@ -566,6 +560,56 @@ module.exports = {
             timestamps.delete(message.author.id); // Clear cooldown on command error
             console.error(`[messageCreate] Error in prefix command "${commandName}":`, error);
             message.reply('❌ An error occurred while executing that command.').catch(() => {});
+        } finally {
+            // Log the prefix command interaction with responses
+            try {
+                const { logInteraction } = require('../utils/interactionLogger');
+                let commandDetails = `Executed: \`${prefix}${commandName}\``;
+                if (args.length > 0) {
+                    commandDetails += `\n**Arguments:** ${args.join(' ')}`;
+                }
+                const responseText = responses.join('\n\n---\n\n') || 'No response content captured';
+                logInteraction(client, message.guild, message.author, 'PREFIX_COMMAND', commandDetails, [
+                    { name: '🤖 Bot Response', value: responseText.substring(0, 1024) || 'None' }
+                ]);
+            } catch (logErr) {
+                console.error('[messageCreate] Error logging prefix command response:', logErr);
+            }
         }
     },
 };
+
+function getResponseSummary(options) {
+    if (!options) return 'No response content';
+    if (typeof options === 'string') return options;
+    
+    let parts = [];
+    if (options.content) {
+        parts.push(options.content);
+    }
+    
+    if (options.embeds && options.embeds.length > 0) {
+        options.embeds.forEach((emb, idx) => {
+            const title = emb.title || emb.data?.title;
+            const desc = emb.description || emb.data?.description;
+            const fields = emb.fields || emb.data?.fields;
+            
+            let embedSummary = `[Embed ${idx + 1}`;
+            if (title) embedSummary += `: ${title}`;
+            embedSummary += ']';
+            if (desc) embedSummary += `\n${desc}`;
+            if (fields && fields.length > 0) {
+                fields.forEach(f => {
+                    embedSummary += `\n- **${f.name}**: ${f.value}`;
+                });
+            }
+            parts.push(embedSummary);
+        });
+    }
+    
+    if (options.files && options.files.length > 0) {
+        parts.push(`[Attached Files: ${options.files.length}]`);
+    }
+    
+    return parts.join('\n\n') || 'No readable response content';
+}

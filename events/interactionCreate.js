@@ -360,41 +360,27 @@ module.exports = {
             }
         };
 
+        const responses = [];
+
         interaction.reply = async function (options, ...args) {
             checkAndClearCooldown(options);
             options = injectPromo(options);
+            responses.push(getResponseSummary(options));
             return originalReply.apply(this, [options, ...args]);
         };
 
         interaction.followUp = async function (options, ...args) {
             checkAndClearCooldown(options);
             options = injectPromo(options);
+            responses.push(getResponseSummary(options));
             return originalFollowUp.apply(this, [options, ...args]);
         };
 
         interaction.editReply = async function (options, ...args) {
             options = injectPromo(options);
+            responses.push(getResponseSummary(options));
             return originalEditReply.apply(this, [options, ...args]);
         };
-
-        // Log the slash command interaction
-        try {
-            const { logInteraction } = require('../utils/interactionLogger');
-            let optionsDetail = `Executed: \`${fullCommandPath}\``;
-            if (interaction.options?.data?.length > 0) {
-                const formattedOpts = interaction.options.data.map(opt => {
-                    if (opt.value !== undefined) return `${opt.name}: \`${opt.value}\``;
-                    if (opt.options) {
-                        return `${opt.name} (${opt.options.map(o => `${o.name}: \`${o.value}\``).join(', ')})`;
-                    }
-                    return opt.name;
-                }).join(', ');
-                optionsDetail += `\n**Arguments:** ${formattedOpts}`;
-            }
-            logInteraction(client, interaction.guild, interaction.user, 'SLASH_COMMAND', optionsDetail);
-        } catch (logErr) {
-            console.error('[interactionCreate] Error logging slash command:', logErr);
-        }
 
         // --- Execute command ---
         try {
@@ -409,6 +395,29 @@ module.exports = {
                 await interaction.followUp(msg).catch(() => {});
             } else {
                 await interaction.reply(msg).catch(() => {});
+            }
+        } finally {
+            // Log interaction with the captured responses
+            try {
+                const { logInteraction } = require('../utils/interactionLogger');
+                let optionsDetail = `Executed: \`${fullCommandPath}\``;
+                if (interaction.options?.data?.length > 0) {
+                    const formattedOpts = interaction.options.data.map(opt => {
+                        if (opt.value !== undefined) return `${opt.name}: \`${opt.value}\``;
+                        if (opt.options) {
+                            return `${opt.name} (${opt.options.map(o => `${o.name}: \`${o.value}\``).join(', ')})`;
+                        }
+                        return opt.name;
+                    }).join(', ');
+                    optionsDetail += `\n**Arguments:** ${formattedOpts}`;
+                }
+                
+                const responseText = responses.join('\n\n---\n\n') || 'No response content captured (deferred/empty)';
+                logInteraction(client, interaction.guild, interaction.user, 'SLASH_COMMAND', optionsDetail, [
+                    { name: '🤖 Bot Response', value: responseText.substring(0, 1024) || 'None' }
+                ]);
+            } catch (logErr) {
+                console.error('[interactionCreate] Error logging slash command response:', logErr);
             }
         }
     },
@@ -625,4 +634,39 @@ async function handleBaubleRainGrab(interaction, client, rainId) {
     } catch (e) {
         console.error('Error in handleBaubleRainGrab:', e);
     }
+}
+
+function getResponseSummary(options) {
+    if (!options) return 'No response content';
+    if (typeof options === 'string') return options;
+    
+    let parts = [];
+    if (options.content) {
+        parts.push(options.content);
+    }
+    
+    if (options.embeds && options.embeds.length > 0) {
+        options.embeds.forEach((emb, idx) => {
+            const title = emb.title || emb.data?.title;
+            const desc = emb.description || emb.data?.description;
+            const fields = emb.fields || emb.data?.fields;
+            
+            let embedSummary = `[Embed ${idx + 1}`;
+            if (title) embedSummary += `: ${title}`;
+            embedSummary += ']';
+            if (desc) embedSummary += `\n${desc}`;
+            if (fields && fields.length > 0) {
+                fields.forEach(f => {
+                    embedSummary += `\n- **${f.name}**: ${f.value}`;
+                });
+            }
+            parts.push(embedSummary);
+        });
+    }
+    
+    if (options.files && options.files.length > 0) {
+        parts.push(`[Attached Files: ${options.files.length}]`);
+    }
+    
+    return parts.join('\n\n') || 'No readable response content';
 }
