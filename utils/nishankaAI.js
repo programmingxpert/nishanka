@@ -132,6 +132,27 @@ async function generateResponse(message, query) {
         attachAlcoholMeme = true;
     }
 
+    // Fetch user details for context
+    const authorId = message.author.id;
+    const authorUsername = message.author.username;
+    const authorDisplayName = message.member?.displayName || message.author.username;
+
+    let baubles = 0;
+    let dailyStreak = 0;
+    let activeTitle = 'None';
+
+    try {
+        const Bauble = require('../models/baubleSchema');
+        const dbUser = await Bauble.findOne({ userId: authorId });
+        if (dbUser) {
+            baubles = dbUser.baubles || 0;
+            dailyStreak = dbUser.dailyStreak || 0;
+            activeTitle = dbUser.activeTitle || 'None';
+        }
+    } catch (err) {
+        console.error(`[AI Context] Error fetching user balance:`, err);
+    }
+
     if (hasKey) {
         try {
             // Build custom contextual instructions based on detected topics to keep replies unique but thematic
@@ -165,7 +186,16 @@ Rules for your responses:
 3. Keep responses extremely short, punchy, and informal (under 12-15 words). Avoid long explanations.
 4. Use chronically online gaming/Discord slang and emojis naturally (e.g. "fr", "ngl", "bruh", "cooked", "cope", "real", "touch grass", "aint no way", "bro", "wsp", "💀", "😭", "🙄", "L").
 5. NEVER prefix your responses with any username, label, or colon. Just output the raw text response directly.
-6. If asked about wealth, check their context. Roast them if they are asking dumb questions or have low baubles.${topicPrompt}`;
+6. If asked about wealth, check their context. Roast them if they are asking dumb questions or have low baubles.
+
+Active User Information:
+- Current Interlocutor: ${authorUsername} (displayName: "${authorDisplayName}")
+- Their Bauble Balance: ${baubles.toLocaleString()} Glimmering Baubles
+- Their Daily Streak: ${dailyStreak}
+- Their Active Title: "${activeTitle}"
+- Important: Make sure to distinguish ${authorUsername} from any other users in the chat history. Only reference their own stats and actions, and do not confuse them with bets, commands, or losses made by other users in the channel.
+
+${topicPrompt}`;
 
             const history = channelHistory.get(message.channel.id) || [];
             const messages = [
@@ -221,7 +251,7 @@ Rules for your responses:
     }
 
     // FALLBACK: If API key is missing or request fails, use static pre-defined responses
-    const rawReply = getRawResponse(message, query);
+    const rawReply = getRawResponse(message, query, baubles);
     if (rawReply && typeof rawReply === 'object' && rawReply.file) {
         const { AttachmentBuilder } = require('discord.js');
         const path = require('path');
@@ -240,7 +270,7 @@ Rules for your responses:
 }
 
 
-function getRawResponse(message, query) {
+function getRawResponse(message, query, baubles = 0) {
     const contentLower = query.toLowerCase();
 
     // 1. MATCH MEME PHRASES (Check for common terms with word boundaries)
@@ -278,7 +308,15 @@ function getRawResponse(message, query) {
         return getRandom(MEME_RESPONSES.rate);
     }
     if (/\b(single|lonely|no bitches)\b/i.test(query)) {
-        return getRandom(MEME_RESPONSES.single);
+        return getRandom([
+            "You're asking a Discord bot. That's why.",
+            `Your standards are too high for someone with ${baubles.toLocaleString()} Baubles in their balance.`,
+            "Because you spend all your time marrying people using `-marry` instead of going outside.",
+            "The universe is saving you from yourself.",
+            "It's a feature, not a bug.",
+            "Have you looked in a mirror? Just kidding, it's definitely your personality. 😉",
+            "Because you tell people you're a Minesweeper God."
+        ]);
     }
 
     // 2. KEYWORD LOGIC
