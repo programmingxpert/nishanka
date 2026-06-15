@@ -140,17 +140,57 @@ async function generateResponse(message, query) {
     let baubles = 0;
     let dailyStreak = 0;
     let activeTitle = 'None';
+    let globalWealthRank = 'N/A';
+    let globalDailyStreakRank = 'N/A';
+    let totalUsers = 0;
+    let spouseUsername = 'None';
+    let spouseId = null;
+    let parentsCount = 0;
+    let childrenCount = 0;
 
     try {
         const Bauble = require('../models/baubleSchema');
-        const dbUser = await Bauble.findOne({ userId: authorId });
+        const Family = require('../models/familySchema');
+        const [dbUser, familyRecord] = await Promise.all([
+            Bauble.findOne({ userId: authorId }),
+            Family.findOne({ userId: authorId })
+        ]);
+
         if (dbUser) {
             baubles = dbUser.baubles || 0;
             dailyStreak = dbUser.dailyStreak || 0;
             activeTitle = dbUser.activeTitle || 'None';
         }
+
+        const [wealthRankCount, streakRankCount, totalUsersCount] = await Promise.all([
+            dbUser ? Bauble.countDocuments({ baubles: { $gt: baubles } }) : Promise.resolve(null),
+            dbUser ? Bauble.countDocuments({ dailyStreak: { $gt: dailyStreak } }) : Promise.resolve(null),
+            Bauble.countDocuments()
+        ]);
+
+        if (dbUser) {
+            globalWealthRank = wealthRankCount !== null ? wealthRankCount + 1 : 'N/A';
+            globalDailyStreakRank = streakRankCount !== null ? streakRankCount + 1 : 'N/A';
+        }
+        totalUsers = totalUsersCount || 0;
+
+        if (familyRecord) {
+            parentsCount = (familyRecord.parents || []).length;
+            childrenCount = (familyRecord.children || []).length;
+            if (familyRecord.spouseId) {
+                spouseId = familyRecord.spouseId;
+                try {
+                    const spouseUser = await message.client.users.fetch(spouseId).catch(() => null);
+                    if (spouseUser) {
+                        spouseUsername = spouseUser.username;
+                    }
+                } catch (spouseErr) {
+                    console.error(`[AI Context] Error fetching spouse:`, spouseErr);
+                }
+            }
+        }
     } catch (err) {
-        console.error(`[AI Context] Error fetching user balance:`, err);
+        console.error(`[AI Context] Error fetching user stats:`, err);
     }
 
     if (hasKey) {
@@ -186,13 +226,15 @@ Rules for your responses:
 3. Keep responses extremely short, punchy, and informal (under 12-15 words). Avoid long explanations.
 4. Use chronically online gaming/Discord slang and emojis naturally (e.g. "fr", "ngl", "bruh", "cooked", "cope", "real", "touch grass", "aint no way", "bro", "wsp", "💀", "😭", "🙄", "L").
 5. NEVER prefix your responses with any username, label, or colon. Just output the raw text response directly.
-6. If asked about wealth, check their context. Roast them if they are asking dumb questions or have low baubles.
+6. If asked about wealth, daily streak, active title, or relationship/marriage status, check their context. Roast them or make witty remarks if they are poor, have a low daily streak, are single, or are married (roast them, their spouse, or family size).
 
 Active User Information:
 - Current Interlocutor: ${authorUsername} (displayName: "${authorDisplayName}")
-- Their Bauble Balance: ${baubles.toLocaleString()} Glimmering Baubles
-- Their Daily Streak: ${dailyStreak}
+- Their Bauble Balance: ${baubles.toLocaleString()} Glimmering Baubles (Global Wealth Rank: #${globalWealthRank} out of ${totalUsers} users)
+- Their Daily Streak: ${dailyStreak} days (Global Streak Rank: #${globalDailyStreakRank} out of ${totalUsers} users)
 - Their Active Title: "${activeTitle}"
+- Relationship Status: ${spouseId ? `Married to ${spouseUsername} (ID: ${spouseId})` : 'Single (0 bitches)'}
+- Family Members: ${parentsCount} parents, ${childrenCount} children
 - Important: Make sure to distinguish ${authorUsername} from any other users in the chat history. Only reference their own stats and actions, and do not confuse them with bets, commands, or losses made by other users in the channel.
 
 ${topicPrompt}`;
