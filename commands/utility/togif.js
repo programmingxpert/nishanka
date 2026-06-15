@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const GIFEncoder = require('gif-encoder-2');
 
@@ -19,17 +19,27 @@ async function loadImageSafe(url) {
     }
 }
 
-async function createGifBuffer(images, delay, effect) {
+async function createGifBuffer(images, delay) {
     const firstImage = images[0];
     let width = firstImage.width;
     let height = firstImage.height;
 
-    // Constrain dimensions to keep encoding fast and memory usage low
-    const maxDimension = 300;
-    if (width > maxDimension || height > maxDimension) {
-        const ratio = Math.min(maxDimension / width, maxDimension / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
+    if (images.length === 1) {
+        // Single static image: keep original size but cap at a reasonable maximum
+        const maxDimension = 2000;
+        if (width > maxDimension || height > maxDimension) {
+            const ratio = Math.min(maxDimension / width, maxDimension / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+        }
+    } else {
+        // Multiple images: resize to fit max 500px for animation efficiency
+        const maxDimension = 500;
+        if (width > maxDimension || height > maxDimension) {
+            const ratio = Math.min(maxDimension / width, maxDimension / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+        }
     }
 
     const encoder = new GIFEncoder(width, height, 'neuquant', true);
@@ -50,43 +60,11 @@ async function createGifBuffer(images, delay, effect) {
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    const validEffects = ['spin', 'shake', 'bounce', 'fade'];
-    const activeEffect = validEffects.includes(effect) ? effect : null;
-
-    if (images.length === 1 && activeEffect) {
-        const totalFrames = activeEffect === 'shake' || activeEffect === 'fade' ? 10 : 18;
-        for (let i = 0; i < totalFrames; i++) {
-            ctx.clearRect(0, 0, width, height);
-            ctx.save();
-
-            if (activeEffect === 'spin') {
-                ctx.translate(width / 2, height / 2);
-                ctx.rotate((2 * Math.PI * i) / totalFrames);
-                ctx.drawImage(images[0], -width / 2, -height / 2, width, height);
-            } else if (activeEffect === 'shake') {
-                const dx = (Math.random() - 0.5) * (width * 0.08);
-                const dy = (Math.random() - 0.5) * (height * 0.08);
-                ctx.drawImage(images[0], dx, dy, width, height);
-            } else if (activeEffect === 'bounce') {
-                const offset = Math.sin((i / totalFrames) * 2 * Math.PI) * (height * 0.15);
-                const squish = Math.max(0, -offset * 0.25);
-                ctx.drawImage(images[0], squish / 2, offset + squish, width - squish, height - squish);
-            } else if (activeEffect === 'fade') {
-                const alpha = 0.15 + 0.85 * Math.abs(Math.cos((i / totalFrames) * Math.PI));
-                ctx.globalAlpha = alpha;
-                ctx.drawImage(images[0], 0, 0, width, height);
-            }
-
-            ctx.restore();
-            encoder.addFrame(ctx);
-        }
-    } else {
-        // Sequentially render images (either multiple, or single with no effect)
-        for (const img of images) {
-            ctx.clearRect(0, 0, width, height);
-            ctx.drawImage(img, 0, 0, width, height);
-            encoder.addFrame(ctx);
-        }
+    // Render each image into the encoder
+    for (const img of images) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        encoder.addFrame(ctx);
     }
 
     encoder.finish();
@@ -94,73 +72,62 @@ async function createGifBuffer(images, delay, effect) {
 }
 
 module.exports = {
-    category: 'fun',
-    cooldown: 8,
+    category: 'utility',
+    cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('togif')
-        .setDescription('Convert images or apply effects to create an animated GIF!')
+        .setDescription('Convert static images (PNG/JPG/WebP) directly into GIF format!')
         .addAttachmentOption(option =>
             option.setName('image1')
-                .setDescription('The first image to convert or apply effect to')
+                .setDescription('The image to convert to GIF')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('delay')
-                .setDescription('Delay between frames in milliseconds (default: 500ms)')
+                .setDescription('Delay between frames in milliseconds (only for multiple images, default: 500ms)')
                 .setRequired(false)
                 .setMinValue(50)
                 .setMaxValue(2000))
-        .addStringOption(option =>
-            option.setName('effect')
-                .setDescription('Effect to apply if converting a single image')
-                .setRequired(false)
-                .addChoices(
-                    { name: 'Spin', value: 'spin' },
-                    { name: 'Shake', value: 'shake' },
-                    { name: 'Bounce', value: 'bounce' },
-                    { name: 'Fade', value: 'fade' }
-                ))
         .addAttachmentOption(option =>
             option.setName('image2')
-                .setDescription('The second image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image3')
-                .setDescription('The third image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image4')
-                .setDescription('The fourth image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image5')
-                .setDescription('The fifth image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image6')
-                .setDescription('The sixth image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image7')
-                .setDescription('The seventh image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image8')
-                .setDescription('The eighth image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image9')
-                .setDescription('The ninth image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image10')
-                .setDescription('The tenth image (optional)')
+                .setDescription('Additional image for animated GIF (optional)')
                 .setRequired(false)),
 
     async execute(interaction) {
         await interaction.deferReply();
         
         const delay = interaction.options.getInteger('delay') || 500;
-        const effect = interaction.options.getString('effect');
         
         const urls = [];
         const imageOptions = ['image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'image8', 'image9', 'image10'];
@@ -186,16 +153,11 @@ module.exports = {
                 return interaction.editReply('❌ Failed to load the specified images.');
             }
 
-            const gifBuffer = await createGifBuffer(images, delay, effect);
-            const attachment = new AttachmentBuilder(gifBuffer, { name: 'rendered.gif' });
+            const gifBuffer = await createGifBuffer(images, delay);
+            const attachment = new AttachmentBuilder(gifBuffer, { name: 'converted.gif' });
             
-            let followUp = '';
-            if (images.length === 1 && !effect) {
-                followUp = '\n*Tip: Specify an effect (`spin`, `shake`, `bounce`, `fade`) to animate a single image!*';
-            }
-
             await interaction.editReply({ 
-                content: `✅ Generated GIF with ${images.length} frame(s) (delay: ${delay}ms).${followUp}`, 
+                content: `✅ Converted image(s) to GIF format successfully.`, 
                 files: [attachment] 
             });
         } catch (err) {
@@ -205,28 +167,12 @@ module.exports = {
     },
 
     async executePrefix(message, args) {
-        // Parse arguments: e.g. -togif [delay] [effect]
+        // Parse arguments: e.g. -togif [delay]
         let delay = 500;
-        let effect = null;
-        
-        const delayArg = args[0];
-        const effectArg = args[1];
-
-        if (delayArg) {
-            const parsed = parseInt(delayArg);
+        if (args[0]) {
+            const parsed = parseInt(args[0]);
             if (!isNaN(parsed)) {
                 delay = Math.max(50, Math.min(2000, parsed));
-                if (effectArg) {
-                    effect = effectArg.toLowerCase();
-                }
-            } else {
-                effect = delayArg.toLowerCase();
-                if (effectArg) {
-                    const parsed2 = parseInt(effectArg);
-                    if (!isNaN(parsed2)) {
-                        delay = Math.max(50, Math.min(2000, parsed2));
-                    }
-                }
             }
         }
 
@@ -285,7 +231,7 @@ module.exports = {
             urls.push(message.author.displayAvatarURL({ extension: 'png', size: 256 }));
         }
 
-        const statusMsg = await message.reply('🎞️ Generating GIF... please wait.');
+        const statusMsg = await message.reply('🎞️ Converting image to GIF... please wait.');
 
         try {
             const images = [];
@@ -298,17 +244,12 @@ module.exports = {
                 return statusMsg.edit('❌ Failed to load any images from input.');
             }
 
-            const gifBuffer = await createGifBuffer(images, delay, effect);
-            const attachment = new AttachmentBuilder(gifBuffer, { name: 'rendered.gif' });
-
-            let followUp = '';
-            if (images.length === 1 && !effect) {
-                followUp = '\n*Tip: Specify an effect (`spin`, `shake`, `bounce`, `fade`) to animate a single image!*';
-            }
+            const gifBuffer = await createGifBuffer(images, delay);
+            const attachment = new AttachmentBuilder(gifBuffer, { name: 'converted.gif' });
 
             await statusMsg.delete().catch(() => {});
             await message.reply({
-                content: `✅ Generated GIF with ${images.length} frame(s) (delay: ${delay}ms).${followUp}`,
+                content: `✅ Converted image(s) to GIF format successfully.`,
                 files: [attachment]
             });
         } catch (err) {
