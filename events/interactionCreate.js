@@ -366,20 +366,23 @@ module.exports = {
             checkAndClearCooldown(options);
             options = injectPromo(options);
             responses.push(getResponseSummary(options));
-            return originalReply.apply(this, [options, ...args]);
+            const res = await originalReply.apply(this, [options, ...args]);
+            return wrapResponse(res);
         };
 
         interaction.followUp = async function (options, ...args) {
             checkAndClearCooldown(options);
             options = injectPromo(options);
             responses.push(getResponseSummary(options));
-            return originalFollowUp.apply(this, [options, ...args]);
+            const res = await originalFollowUp.apply(this, [options, ...args]);
+            return wrapResponse(res);
         };
 
         interaction.editReply = async function (options, ...args) {
             options = injectPromo(options);
             responses.push(getResponseSummary(options));
-            return originalEditReply.apply(this, [options, ...args]);
+            const res = await originalEditReply.apply(this, [options, ...args]);
+            return wrapResponse(res);
         };
 
         // --- Execute command ---
@@ -669,4 +672,37 @@ function getResponseSummary(options) {
     }
     
     return parts.join('\n\n') || 'No readable response content';
+}
+
+function wrapResponse(response) {
+    if (!response) return response;
+    try {
+        const { InteractionCallbackResponse } = require('discord.js');
+        if (response instanceof InteractionCallbackResponse) {
+            return new Proxy(response, {
+                get(target, prop, receiver) {
+                    if (prop in target) {
+                        const val = Reflect.get(target, prop, receiver);
+                        return typeof val === 'function' ? val.bind(target) : val;
+                    }
+                    const message = target.resource?.message;
+                    if (message && prop in message) {
+                        const val = Reflect.get(message, prop, message);
+                        return typeof val === 'function' ? val.bind(message) : val;
+                    }
+                    return undefined;
+                },
+                set(target, prop, value, receiver) {
+                    const message = target.resource?.message;
+                    if (message && prop in message) {
+                        return Reflect.set(message, prop, value, message);
+                    }
+                    return Reflect.set(target, prop, value, receiver);
+                }
+            });
+        }
+    } catch (e) {
+        console.error('[wrapResponse] Error wrapping response:', e);
+    }
+    return response;
 }
