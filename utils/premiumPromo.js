@@ -105,14 +105,24 @@ async function getGuildPremiumTier(guildId) {
     if (liteGuilds.includes(guildId)) return 'lite';
     if (generalGuilds.includes(guildId)) return 'pro'; // default general to pro
 
-    // 2. Check guild owner's tier
+    // 2. Check guild owner's tier and if they selected this guild for premium
     try {
         const botClient = global.client;
         if (botClient) {
             const guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId).catch(() => null);
             if (guild && guild.ownerId) {
                 const ownerTier = getUserPremiumTier(guild.ownerId);
-                if (ownerTier !== 'free') return ownerTier;
+                if (ownerTier !== 'free') {
+                    const config = require('../config.json');
+                    if (guild.ownerId === config.devId) {
+                        return 'lifetime';
+                    }
+                    const PremiumUser = require('../models/premiumUserSchema');
+                    const premUser = await PremiumUser.findOne({ userId: guild.ownerId }).lean();
+                    if (premUser && premUser.premiumGuilds && premUser.premiumGuilds.includes(guildId)) {
+                        return ownerTier;
+                    }
+                }
             }
         }
     } catch (e) {}

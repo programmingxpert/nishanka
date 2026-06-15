@@ -377,6 +377,25 @@ module.exports = {
             return originalEditReply.apply(this, [options, ...args]);
         };
 
+        // Log the slash command interaction
+        try {
+            const { logInteraction } = require('../utils/interactionLogger');
+            let optionsDetail = `Executed: \`${fullCommandPath}\``;
+            if (interaction.options?.data?.length > 0) {
+                const formattedOpts = interaction.options.data.map(opt => {
+                    if (opt.value !== undefined) return `${opt.name}: \`${opt.value}\``;
+                    if (opt.options) {
+                        return `${opt.name} (${opt.options.map(o => `${o.name}: \`${o.value}\``).join(', ')})`;
+                    }
+                    return opt.name;
+                }).join(', ');
+                optionsDetail += `\n**Arguments:** ${formattedOpts}`;
+            }
+            logInteraction(client, interaction.guild, interaction.user, 'SLASH_COMMAND', optionsDetail);
+        } catch (logErr) {
+            console.error('[interactionCreate] Error logging slash command:', logErr);
+        }
+
         // --- Execute command ---
         try {
             await command.execute(interaction);

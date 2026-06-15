@@ -67,6 +67,32 @@ async function handleSetPremium(interactionOrMessage, targetUser, tier, duration
         // Reload premium cache in memory
         await loadPremiumUsers();
 
+        // Send DM to target user notifying their premium ended
+        try {
+            const discordUser = await (interactionOrMessage.client || interactionOrMessage.guild?.client)?.users.fetch(userId).catch(() => null);
+            if (discordUser) {
+                await discordUser.send({
+                    content: `🔴 **Your Nishanka Premium subscription has ended.** We hope you enjoyed the benefits! Support us again anytime at: https://nishanka.zeyuki.app/premium 💜`
+                }).catch(dmErr => console.warn(`Failed to send premium-end DM to user ${userId}:`, dmErr));
+            }
+        } catch (dmErr) {
+            console.error('Error sending DM on premium removal:', dmErr);
+        }
+
+        // Send removal Webhook alert
+        try {
+            const { sendPremiumStatusAlert } = require('../../utils/webhookDispatcher');
+            sendPremiumStatusAlert({
+                client: interactionOrMessage.client || interactionOrMessage.guild?.client,
+                userId,
+                action: 'end',
+                tier: 'free',
+                reason: 'Premium status removed by Developer'
+            }).catch(err => console.error('[Webhook Alert Error]', err));
+        } catch (hookErr) {
+            console.error('Failed to dispatch removal webhook:', hookErr);
+        }
+
         const embed = new EmbedBuilder()
             .setTitle('🔴 Premium Removed')
             .setDescription(`Successfully removed all premium status from <@${userId}>.`)
@@ -112,6 +138,32 @@ async function handleSetPremium(interactionOrMessage, targetUser, tier, duration
 
     // Reload premium cache in memory
     await loadPremiumUsers();
+
+    // Send DM to target user notifying their premium activated
+    try {
+        const discordUser = await (interactionOrMessage.client || interactionOrMessage.guild?.client)?.users.fetch(userId).catch(() => null);
+        if (discordUser) {
+            await discordUser.send({
+                content: `✨ **Nishanka Premium Activated!** You have been granted **${tier.toUpperCase()}** premium status. Go to the dashboard to select your Premium servers: https://nishanka.zeyuki.app/premium 💜`
+            }).catch(dmErr => console.warn(`Failed to send premium-activation DM to user ${userId}:`, dmErr));
+        }
+    } catch (dmErr) {
+        console.error('Error sending DM on premium grant:', dmErr);
+    }
+
+    // Send activation Webhook alert
+    try {
+        const { sendPremiumStatusAlert } = require('../../utils/webhookDispatcher');
+        sendPremiumStatusAlert({
+            client: interactionOrMessage.client || interactionOrMessage.guild?.client,
+            userId,
+            action: 'start',
+            tier,
+            reason: `Granted/Updated manually by Developer (Duration: ${durationStr || 'Permanent'})`
+        }).catch(err => console.error('[Webhook Alert Error]', err));
+    } catch (hookErr) {
+        console.error('Failed to dispatch activation webhook:', hookErr);
+    }
 
     const expiresText = expiresAt ? `<t:${Math.floor(expiresAt.getTime() / 1000)}:f> (<t:${Math.floor(expiresAt.getTime() / 1000)}:R>)` : 'Never (Lifetime)';
     const embed = new EmbedBuilder()

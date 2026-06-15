@@ -7,7 +7,8 @@ const premiumUserSchema = new Schema({
     activatedAt: { type: Date, default: Date.now },
     orderId: { type: String, default: '' },
     paymentId: { type: String, default: '' },
-    lifetimeBaublesClaimed: { type: Number, default: 0 }
+    lifetimeBaublesClaimed: { type: Number, default: 0 },
+    premiumGuilds: { type: [String], default: [] }
 });
 
 const mongoose = require('mongoose');

@@ -85,7 +85,9 @@ const guildSettingsSchema = new mongoose.Schema({
         threshold: { type: Number, default: 3 }
     },
     isPremium: { type: Boolean, default: false },
-    lastSecurityCheck: { type: Date, default: null }
+    lastSecurityCheck: { type: Date, default: null },
+    interactionLogChannelId: { type: String, default: null },
+    interactionLogWebhookUrl: { type: String, default: null }
 });
 
 module.exports = mongoose.models.GuildSettings || mongoose.model('GuildSettings', guildSettingsSchema);

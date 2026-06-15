@@ -263,6 +263,14 @@ module.exports = {
                     return message.reply(`❌ I'm literally out of battery to answer your silly questions today. My APUs reset <t:${resetUnix}:R> (00:00 UTC), or you could stop being poor and buy premium for a cheap price at https://nishanka.zeyuki.app/premium 🙄`).catch(() => {});
                 }
 
+                // Log the AI chat interaction
+                try {
+                    const { logInteraction } = require('../utils/interactionLogger');
+                    logInteraction(client, message.guild, message.author, 'AI_CHAT', message.content);
+                } catch (logErr) {
+                    console.error('[messageCreate] Error logging AI chat:', logErr);
+                }
+
                 const { generateResponse } = require('../utils/nishankaAI');
                 const query = message.content.replace(/\b(nishanka|nish)\b/gi, '').replace(/\s+/g, ' ').trim();
                 
@@ -535,6 +543,18 @@ module.exports = {
                     }
                 }
             }
+        }
+
+        // Log the prefix command interaction
+        try {
+            const { logInteraction } = require('../utils/interactionLogger');
+            let commandDetails = `Executed: \`${prefix}${commandName}\``;
+            if (args.length > 0) {
+                commandDetails += `\n**Arguments:** ${args.join(' ')}`;
+            }
+            logInteraction(client, message.guild, message.author, 'PREFIX_COMMAND', commandDetails);
+        } catch (logErr) {
+            console.error('[messageCreate] Error logging prefix command:', logErr);
         }
 
         // --- Execute command ---

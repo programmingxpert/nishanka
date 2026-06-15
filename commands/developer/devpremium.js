@@ -52,6 +52,8 @@ module.exports = {
         const envNetwork = (process.env.PREMIUM_USERS_NETWORK || "").split(",").map(id => id.trim()).filter(Boolean);
         const envLifetime = (process.env.PREMIUM_USERS_LIFETIME || "").split(",").map(id => id.trim()).filter(Boolean);
 
+        const config = require('../../config.json');
+
         const list = [];
         dbUsers.forEach(u => {
             list.push(`• <@${u.userId}> (\`${u.userId}\`) - **${u.tier.toUpperCase()}** (DB)`);
@@ -60,6 +62,11 @@ module.exports = {
         envPro.forEach(id => list.push(`• <@${id}> (\`${id}\`) - **PRO** (ENV)`));
         envNetwork.forEach(id => list.push(`• <@${id}> (\`${id}\`) - **NETWORK** (ENV)`));
         envLifetime.forEach(id => list.push(`• <@${id}> (\`${id}\`) - **LIFETIME** (ENV)`));
+
+        const hasDev = list.some(item => item.includes(config.devId));
+        if (!hasDev) {
+            list.unshift(`• <@${config.devId}> (\`${config.devId}\`) - **LIFETIME** (DEV CONFIG)`);
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('📋 Premium Users List')
@@ -109,6 +116,11 @@ module.exports = {
         envPro.forEach(id => list.push(`• <@${id}> (\`${id}\`) - **PRO** (ENV)`));
         envNetwork.forEach(id => list.push(`• <@${id}> (\`${id}\`) - **NETWORK** (ENV)`));
         envLifetime.forEach(id => list.push(`• <@${id}> (\`${id}\`) - **LIFETIME** (ENV)`));
+
+        const hasDev = list.some(item => item.includes(config.devId));
+        if (!hasDev) {
+            list.unshift(`• <@${config.devId}> (\`${config.devId}\`) - **LIFETIME** (DEV CONFIG)`);
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('📋 Premium Users List')

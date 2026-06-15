@@ -211,6 +211,32 @@ module.exports = {
                         // Remove from database
                         await PremiumUser.deleteOne({ userId: u.userId });
                         console.log(`[Premium] Expired subscription removed for user ${u.userId} (tier: ${u.tier})`);
+                        
+                        // Send expiration DM
+                        try {
+                            const discordUser = await client.users.fetch(u.userId).catch(() => null);
+                            if (discordUser) {
+                                await discordUser.send({
+                                    content: `🔴 **Your Nishanka Premium subscription has ended.** We hope you enjoyed the benefits! Support us again anytime at: https://nishanka.zeyuki.app/premium 💜`
+                                }).catch(dmErr => console.warn(`Failed to send premium-end DM to user ${u.userId}:`, dmErr));
+                            }
+                        } catch (dmErr) {
+                            console.error(`Error sending expired DM to ${u.userId}:`, dmErr);
+                        }
+
+                        // Send expiration Webhook alert
+                        try {
+                            const { sendPremiumStatusAlert } = require('../utils/webhookDispatcher');
+                            sendPremiumStatusAlert({
+                                client,
+                                userId: u.userId,
+                                action: 'end',
+                                tier: u.tier,
+                                reason: 'Premium Plan expired (30-day term ended)'
+                            }).catch(err => console.error('[Webhook Alert Error]', err));
+                        } catch (hookErr) {
+                            console.error('Failed to dispatch expiration webhook:', hookErr);
+                        }
                     }
                     console.log(`[Premium] Cleaned up ${expired.length} expired subscription(s)`);
                 }

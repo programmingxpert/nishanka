@@ -47,7 +47,7 @@ async function getUserInfo(client, userId) {
 /**
  * Send payment alerts (Premium or Support donations).
  */
-async function sendPaymentAlert({ client, userId, gateway, paymentId, orderId, tier, amount, currency, isSupport }) {
+async function sendPaymentAlert({ client, userId, gateway, paymentId, orderId, tier, amount, currency, isSupport, note }) {
     const userInfo = await getUserInfo(client, userId);
     
     let embed;
@@ -66,6 +66,9 @@ async function sendPaymentAlert({ client, userId, gateway, paymentId, orderId, t
             ],
             timestamp: new Date().toISOString()
         };
+        if (note) {
+            embed.fields.push({ name: '📝 Message to Developer', value: note, inline: false });
+        }
     } else {
         embed = {
             title: '⭐ Premium Plan Upgrade / Subscription!',
@@ -206,10 +209,37 @@ async function sendGameSolutionAlert({ type, userId, username, bet, details, sol
     await postToWebhook(WEBHOOK_GAME_SOLUTIONS, { embeds: [embed] });
 }
 
+/**
+ * Send premium status change alerts (starts / ends / changes).
+ */
+async function sendPremiumStatusAlert({ client, userId, action, tier, reason }) {
+    const userInfo = await getUserInfo(client, userId);
+    
+    const embed = {
+        title: action === 'start' ? '🎉 Premium Status Activated' : '🔴 Premium Status Ended',
+        color: action === 'start' ? 0x16a34a : 0xef4444, // Green or Red
+        description: `Premium status was updated for user ${userInfo.mention || `User (${userId})`}.`,
+        fields: [
+            { name: '👤 User', value: userInfo.name || userId, inline: true },
+            { name: '🆔 User ID', value: userId, inline: true },
+            { name: '💎 Premium Tier', value: tier?.toUpperCase() || 'N/A', inline: true },
+            { name: '📝 Reason/Context', value: reason || 'N/A', inline: false }
+        ],
+        timestamp: new Date().toISOString()
+    };
+
+    if (userInfo.avatar) {
+        embed.thumbnail = { url: userInfo.avatar };
+    }
+
+    await postToWebhook(WEBHOOK_ANNOUNCEMENTS, { embeds: [embed] });
+}
+
 module.exports = {
     sendPaymentAlert,
     sendExploitAlert,
     sendBanAlert,
     sendSecurityAuditAlert,
-    sendGameSolutionAlert
+    sendGameSolutionAlert,
+    sendPremiumStatusAlert
 };

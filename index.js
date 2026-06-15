@@ -1275,6 +1275,7 @@ app.get('/api/premium/status', async (req, res) => {
   try {
     const { isUserPremium, getUserPremiumTier } = require('./utils/premiumPromo');
     const userIsPremium = isUserPremium(req.session.user.id);
+    const tier = getUserPremiumTier(req.session.user.id);
 
     if (userIsPremium) {
       try {
@@ -1298,6 +1299,33 @@ app.get('/api/premium/status', async (req, res) => {
       }
     }
     
+    let premiumGuilds = [];
+    let maxPremiumGuilds = 0;
+    let planActivatedAt = null;
+    let planExpiresAt = null;
+    let lifetimeBaublesClaimed = 0;
+
+    if (userIsPremium) {
+      const config = require('./config.json');
+      if (req.session.user.id === config.devId) {
+        maxPremiumGuilds = 100;
+      } else {
+        const PREMIUM_SLOTS_BY_TIER = { lite: 1, pro: 3, network: 10, lifetime: 1, free: 0 };
+        maxPremiumGuilds = PREMIUM_SLOTS_BY_TIER[tier] || 0;
+      }
+
+      try {
+        const PremiumUser = require('./models/premiumUserSchema');
+        const premUser = await PremiumUser.findOne({ userId: req.session.user.id }).lean();
+        if (premUser) {
+          planActivatedAt = premUser.activatedAt || null;
+          planExpiresAt = premUser.expiresAt || null;
+          lifetimeBaublesClaimed = premUser.lifetimeBaublesClaimed || 0;
+          premiumGuilds = premUser.premiumGuilds || [];
+        }
+      } catch (e) {}
+    }
+
     let userGuilds = req.session.guilds;
     if (!userGuilds) {
       const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
@@ -1318,9 +1346,16 @@ app.get('/api/premium/status', async (req, res) => {
       const isOwner = g.owner === true;
       const hasAdmin = (BigInt(g.permissions) & 0x20n) === 0x20n;
       
-      // A guild is premium if it's in the whitelisted guilds list OR if the owner is premium
+      // A guild is premium if it's in the whitelisted guilds list OR if the owner is premium and selected it
       let isPrem = premiumGuildsList.includes(g.id);
-      if (!isPrem && isOwner && userIsPremium) isPrem = true;
+      if (!isPrem && isOwner && userIsPremium) {
+        const config = require('./config.json');
+        if (req.session.user.id === config.devId) {
+          isPrem = true;
+        } else {
+          isPrem = premiumGuilds.includes(g.id);
+        }
+      }
       
       // Fallback: check database flag
       if (!isPrem) {
@@ -1334,31 +1369,16 @@ app.get('/api/premium/status', async (req, res) => {
         name: g.name,
         icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=128` : null,
         isPremium: isPrem,
-        hasAdmin
+        hasAdmin,
+        isOwner
       };
     }));
 
     const { getUserAPU, TIER_APU_LIMITS } = require('./utils/aiManager');
     const apuBalance = await getUserAPU(req.session.user.id);
-    const tier = getUserPremiumTier(req.session.user.id);
     const maxApu = TIER_APU_LIMITS[tier] || TIER_APU_LIMITS.free;
 
-    // Fetch plan dates from DB for "Your Plan" card
     const DAILY_BAUBLES_BY_TIER = { lite: 1000, pro: 2500, network: 5000, lifetime: 0, free: 0 };
-    let planActivatedAt = null;
-    let planExpiresAt = null;
-    let lifetimeBaublesClaimed = 0;
-    if (userIsPremium && tier !== 'free') {
-      try {
-        const PremiumUser = require('./models/premiumUserSchema');
-        const premUser = await PremiumUser.findOne({ userId: req.session.user.id }).lean();
-        if (premUser) {
-          planActivatedAt = premUser.activatedAt || null;
-          planExpiresAt = premUser.expiresAt || null;
-          lifetimeBaublesClaimed = premUser.lifetimeBaublesClaimed || 0;
-        }
-      } catch (e) {}
-    }
 
     res.json({
       userIsPremium,
@@ -1369,10 +1389,83 @@ app.get('/api/premium/status', async (req, res) => {
       planExpiresAt,
       planDailyBaubles: DAILY_BAUBLES_BY_TIER[tier] || 0,
       lifetimeBaublesClaimed,
-      guilds: enrichedGuilds
+      guilds: enrichedGuilds,
+      premiumGuilds,
+      maxPremiumGuilds
     });
   } catch (err) {
     console.error('Failed to fetch premium status:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/premium/select-guilds', express.json(), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  
+  const { guildIds } = req.body;
+  if (!Array.isArray(guildIds)) {
+    return res.status(400).json({ error: 'guildIds must be an array' });
+  }
+
+  try {
+    const { isUserPremium, getUserPremiumTier } = require('./utils/premiumPromo');
+    const userIsPremium = isUserPremium(req.session.user.id);
+    if (!userIsPremium) {
+      return res.status(403).json({ error: 'You do not have active premium status' });
+    }
+
+    const tier = getUserPremiumTier(req.session.user.id);
+    const config = require('./config.json');
+    let maxPremiumGuilds = 0;
+    if (req.session.user.id === config.devId) {
+      maxPremiumGuilds = 100;
+    } else {
+      const PREMIUM_SLOTS_BY_TIER = { lite: 1, pro: 3, network: 10, lifetime: 1, free: 0 };
+      maxPremiumGuilds = PREMIUM_SLOTS_BY_TIER[tier] || 0;
+    }
+
+    if (guildIds.length > maxPremiumGuilds) {
+      return res.status(400).json({ error: `You can only select up to ${maxPremiumGuilds} premium servers` });
+    }
+
+    // Verify they actually own or have admin permission in the selected guilds to prevent exploit
+    let userGuilds = req.session.guilds;
+    if (!userGuilds) {
+      const discordRes = await fetch('https://discord.com/api/users/@me/guilds', {
+        headers: { Authorization: `Bearer ${req.session.accessToken}` },
+      });
+      if (discordRes.ok) {
+        userGuilds = await discordRes.json();
+        req.session.guilds = userGuilds;
+        req.session.save();
+      } else {
+        userGuilds = [];
+      }
+    }
+
+    const allowedGuildIds = userGuilds
+      .filter(g => g.owner === true || (BigInt(g.permissions) & 0x20n) === 0x20n)
+      .map(g => g.id);
+
+    const invalidGuilds = guildIds.filter(id => !allowedGuildIds.includes(id));
+    if (invalidGuilds.length > 0) {
+      return res.status(400).json({ error: 'You can only select premium status for servers you own or manage (Admin).' });
+    }
+
+    const PremiumUser = require('./models/premiumUserSchema');
+    await PremiumUser.findOneAndUpdate(
+      { userId: req.session.user.id },
+      { 
+        $set: { 
+          premiumGuilds: guildIds
+        } 
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true, premiumGuilds: guildIds });
+  } catch (err) {
+    console.error('Failed to update premium guilds:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1542,6 +1635,18 @@ app.post('/api/premium/verify-payment', express.json(), async (req, res) => {
     // Update in-memory cache immediately
     const { dbPremiumUsersCache } = require('./utils/premiumPromo');
     dbPremiumUsersCache.set(req.session.user.id, { tier: tier.toLowerCase(), expiresAt });
+
+    // Send DM to user notifying their premium activated
+    try {
+      const discordUser = await client.users.fetch(req.session.user.id).catch(() => null);
+      if (discordUser) {
+        await discordUser.send({
+          content: `✨ **Nishanka Premium Activated!** You have been granted **${tier.toUpperCase()}** premium status. Go to the dashboard to select your Premium servers: https://nishanka.zeyuki.app/premium 💜`
+        }).catch(dmErr => console.warn(`Failed to send premium-activation DM to user ${req.session.user.id}:`, dmErr));
+      }
+    } catch (dmErr) {
+      console.error('Error sending DM on premium purchase:', dmErr);
+    }
 
     // Grant premium achievements and starter rewards if first time
     try {
@@ -3845,7 +3950,7 @@ app.post('/api/support/create-order', express.json(), async (req, res) => {
 app.post('/api/support/verify-payment', express.json(), async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
 
-  const { gateway, amount, currency } = req.body;
+  const { gateway, amount, currency, note } = req.body;
   if (!gateway || !amount || !currency) {
     return res.status(400).json({ error: 'Missing gateway, amount, or currency for verification' });
   }
@@ -3902,7 +4007,8 @@ app.post('/api/support/verify-payment', express.json(), async (req, res) => {
       amount: parseFloat(amount),
       currency: currency,
       gateway: gateway,
-      paymentId: paymentId
+      paymentId: paymentId,
+      note: note || ''
     });
     await newDonation.save();
 
@@ -3916,7 +4022,8 @@ app.post('/api/support/verify-payment', express.json(), async (req, res) => {
         orderId: orderId || null,
         amount: parseFloat(amount),
         currency,
-        isSupport: true
+        isSupport: true,
+        note: note || null
       }).catch(err => console.error('[Webhook Alert Error]', err));
     } catch (hookErr) {
       console.error('Failed to trigger webhook payment alert:', hookErr);

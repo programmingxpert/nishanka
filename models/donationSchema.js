@@ -6,7 +6,8 @@ const donationSchema = new Schema({
     currency: { type: String, required: true },
     gateway: { type: String, required: true }, // 'razorpay' | 'paypal'
     paymentId: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    note: { type: String, default: '' }
 });
 
 const mongoose = require('mongoose');
