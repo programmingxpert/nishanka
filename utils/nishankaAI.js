@@ -219,6 +219,31 @@ async function generateResponse(message, query) {
                 topicPrompt = `\n[Context: The user is greeting you. Reply with a sassy, informal, or slightly annoyed greeting (e.g. "yo. what do you want now lol").]`;
             }
 
+            const history = channelHistory.get(message.channel.id) || [];
+            // Filter history to only include messages sent by the current user to prevent cross-talk triggers
+            const userHistoryText = history
+                .filter(h => h.author === message.author.username)
+                .map(h => h.content)
+                .join(' ')
+                .toLowerCase();
+
+            const isEconomyOrFamilyQuery = /\b(wealth|money|rich|poor|balances?|bal|baubles?|daily|streaks?|titles?|marry|married|marriage|spouses?|husbands?|wives?|single|families?|parents?|child|children|kids?|ranks?|leaderboards?|top|games?|gambles?|gambling|slots?|blackjacks?|bj|coinflips?|cf|mines|steal|rob|work|cash|who|me|myself|i)\b/i.test(query) ||
+                /\b(wealth|money|rich|poor|balances?|bal|baubles?|daily|streaks?|titles?|marry|married|marriage|spouses?|husbands?|wives?|single|families?|parents?|child|children|kids?|ranks?|leaderboards?|top|games?|gambles?|gambling|slots?|blackjacks?|bj|coinflips?|cf|mines|steal|rob|work|cash|who|me|myself|i)\b/i.test(userHistoryText);
+
+            let activeUserContext = '';
+            if (isEconomyOrFamilyQuery) {
+                activeUserContext = `- Current Interlocutor: ${authorUsername} (displayName: "${authorDisplayName}")
+- Their Bauble Balance: ${baubles.toLocaleString()} Glimmering Baubles (Global Wealth Rank: #${globalWealthRank} out of ${totalUsers} users)
+- Their Daily Streak: ${dailyStreak} days (Global Streak Rank: #${globalDailyStreakRank} out of ${totalUsers} users)
+- Their Active Title: "${activeTitle}"
+- Relationship Status: ${spouseId ? `Married to ${spouseUsername} (ID: ${spouseId})` : 'Single (0 bitches)'}
+- Family Members: ${parentsCount} parents, ${childrenCount} children`;
+            } else {
+                activeUserContext = `- Current Interlocutor: ${authorUsername} (displayName: "${authorDisplayName}")
+- Their Bauble Balance: ${baubles.toLocaleString()} Glimmering Baubles
+- Their Daily Streak: ${dailyStreak} days`;
+            }
+
             const SYSTEM_PROMPT = `You are Nishanka, a sassy, low-key tsundere, and chronically online Discord best friend. You run this server's economy (Glimmering Baubles) and games.
 Rules for your responses:
 1. ALWAYS write in casual lowercase. Never capitalize sentences unless showing mock excitement or typing acronyms (e.g. "L", "GPA", "2FA", "IV").
@@ -230,17 +255,11 @@ Rules for your responses:
 7. If the topic is relevant (wealth, daily streak, active title, marriage, etc.), check their context. Roast them or make witty remarks if they are poor, have a low daily streak, are single, or are married (roast them, their spouse, or family size).
 
 Active User Information:
-- Current Interlocutor: ${authorUsername} (displayName: "${authorDisplayName}")
-- Their Bauble Balance: ${baubles.toLocaleString()} Glimmering Baubles (Global Wealth Rank: #${globalWealthRank} out of ${totalUsers} users)
-- Their Daily Streak: ${dailyStreak} days (Global Streak Rank: #${globalDailyStreakRank} out of ${totalUsers} users)
-- Their Active Title: "${activeTitle}"
-- Relationship Status: ${spouseId ? `Married to ${spouseUsername} (ID: ${spouseId})` : 'Single (0 bitches)'}
-- Family Members: ${parentsCount} parents, ${childrenCount} children
+${activeUserContext}
 - Important: Make sure to distinguish ${authorUsername} from any other users in the chat history. Only reference their own stats and actions, and do not confuse them with bets, commands, or losses made by other users in the channel.
 
 ${topicPrompt}`;
 
-            const history = channelHistory.get(message.channel.id) || [];
             const messages = [
                 { role: 'system', content: SYSTEM_PROMPT }
             ];
