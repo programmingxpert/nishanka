@@ -12,7 +12,7 @@ const GROUP_CONFIGS = {
 
 // Helpers to identify relationship and game commands for the /fun category grouping
 const RELATIONSHIP_CMDS = ['adopt', 'divorce', 'family', 'familytree', 'marry', 'proposals', 'ship'];
-const GAME_CMDS = ['blackjack', 'geoguesser', 'hangman', 'scramble', 'wordbomb', 'emojidecode', 'guesstheflag', 'truthordare', 'animebattle', 'battle', 'deathbattle'];
+const GAME_CMDS = ['blackjack', 'geoguesser', 'hangman', 'scramble', 'wordbomb', 'emojidecode', 'guesstheflag', 'truthordare', 'animebattle', 'battle', 'deathbattle', 'mafia'];
 
 function scanDir(dir, commandList = []) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
