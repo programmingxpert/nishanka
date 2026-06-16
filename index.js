@@ -467,6 +467,7 @@ mongoose
 // ─── Web Server ─────────────────────────────────────────────────────────────────
 const express    = require("express");
 const session    = require('express-session');
+const { MongoStore } = require('connect-mongo');
 const https      = require('https');
 const app        = express();
 const AutoMod       = require('./models/autoModSchema');
@@ -504,6 +505,10 @@ app.use(session({
   secret: process.env.BOT_API_TOKEN || 'nishanka_session_secret',
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    collectionName: 'sessions'
+  }),
   cookie: { 
     secure: isProd,
     httpOnly: true, 

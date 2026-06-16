@@ -39,28 +39,24 @@ async function fetchGifukai(endpoint) {
 }
 
 async function fetchWaifuPics(endpoint) {
-    const waifuPicsCategories = [
-        'bite', 'blush', 'cry', 'cuddle', 'dance', 'handhold', 'happy', 'highfive', 
-        'hug', 'kick', 'kiss', 'neko', 'nom', 'pat', 'slap', 'smug', 'waifu', 'wave', 'wink', 'yeet', 'smile'
-    ];
-    if (!waifuPicsCategories.includes(endpoint)) return null;
-    try {
-        const response = await fetch(`https://api.waifu.pics/sfw/${endpoint}`, {
-            headers: { 'User-Agent': 'NishankaBot/2.0' },
-            signal: AbortSignal.timeout(4000)
-        });
-        if (response.ok) {
-            const data = await response.json();
-            return { url: data?.url ?? null, anime: null };
-        }
-    } catch (e) {}
+    // waifu.pics is permanently offline / domain expired
     return null;
 }
 
 async function fetchOtakuGifs(endpoint) {
+    const otakuGifsCategories = [
+        'airkiss', 'angrystare', 'bite', 'bleh', 'blush', 'brofist', 'celebrate', 'cheers', 'clap', 'confused',
+        'cool', 'cry', 'cuddle', 'dance', 'drool', 'evillaugh', 'facepalm', 'handhold', 'happy', 'headbang',
+        'hug', 'huh', 'kiss', 'laugh', 'lick', 'love', 'mad', 'nervous', 'no', 'nom', 'nosebleed', 'nuzzle',
+        'nyah', 'pat', 'peek', 'pinch', 'poke', 'pout', 'punch', 'roll', 'run', 'sad', 'scared', 'shout',
+        'shrug', 'shy', 'sigh', 'sing', 'sip', 'slap', 'sleep', 'slowclap', 'smack', 'smile', 'smug', 'sneeze',
+        'sorry', 'stare', 'stop', 'surprised', 'sweat', 'thumbsup', 'tickle', 'tired', 'wave', 'wink', 'woah',
+        'yawn', 'yay', 'yes'
+    ];
+    if (!otakuGifsCategories.includes(endpoint)) return null;
     try {
         const response = await fetch(`https://api.otakugifs.xyz/gif?reaction=${endpoint}&format=gif`, {
-            headers: { 'User-Agent': 'NishankaBot/2.0' },
+            headers: { 'User-Agent': 'Nishanka/2.0 (https://nishanka.xyz)' },
             signal: AbortSignal.timeout(4000)
         });
         if (response.ok) {
@@ -74,7 +70,7 @@ async function fetchOtakuGifs(endpoint) {
 async function fetchNekosBest(endpoint) {
     try {
         const response = await fetch(`https://nekos.best/api/v2/${endpoint}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+            headers: { 'User-Agent': 'Nishanka/2.0 (https://nishanka.xyz)' },
             signal: AbortSignal.timeout(4000)
         });
         if (response.ok) {
