@@ -399,6 +399,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
         client.activeWordbombGames = new Map();
     }
 
+    let gameStopped = false;
     try {
         const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
         const gameState = shuffledPlayers.map(p => ({
@@ -430,6 +431,7 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
         await new Promise(resolve => setTimeout(resolve, 5000));
 
         while (true) {
+            if (gameStopped) break;
             const activePlayers = gameState.filter(p => p.lives > 0);
             if (activePlayers.length <= 1) {
                 break;
@@ -495,7 +497,10 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
 
             const turnMsg = await channel.send({ content: `${activePlayer.user}`, embeds: [turnEmbed] });
 
-            const filter = m => m.author.id === activePlayer.user.id && !m.author.bot;
+            const filter = m => {
+                if (m.author.bot) return false;
+                return m.author.id === activePlayer.user.id || m.author.id === host.id;
+            };
             let turnActive = true;
             const turnStartTime = Date.now();
             let errorMsg = null;
@@ -531,6 +536,24 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
 
                     const msg = collected.first();
                     const word = msg.content.trim().toLowerCase();
+
+                    // Check for manual stop by host
+                    if (msg.author.id === host.id && (word === 'stop' || word === 'cancel' || word === '-stop' || word === '-cancel')) {
+                        let isWordGuess = false;
+                        if (msg.author.id === activePlayer.user.id && word.includes(prompt.toLowerCase())) {
+                            isWordGuess = true;
+                        }
+                        if (!isWordGuess) {
+                            gameStopped = true;
+                            turnActive = false;
+                            const stopEmbed = new EmbedBuilder()
+                                .setColor(0xe74c3c)
+                                .setTitle('🛑 Word Bomb Canceled')
+                                .setDescription(`**${msg.author.username}** stopped the game.`);
+                            await channel.send({ embeds: [stopEmbed] });
+                            break;
+                        }
+                    }
 
                     if (!word.includes(prompt.toLowerCase())) {
                         if (errorMsg) {
@@ -603,6 +626,10 @@ async function runWordBombGame(initialMessageOrInteraction, channel, host) {
             
             roundCount++;
             currentTurnIdx = (currentTurnIdx + 1) % gameState.length;
+        }
+
+        if (gameStopped) {
+            return;
         }
 
         const winnerData = gameState.find(p => p.lives > 0);

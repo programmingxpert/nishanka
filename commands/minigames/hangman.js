@@ -370,7 +370,7 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
 
                     // Check for manual stop
                     if (guess === 'stop' || guess === 'cancel' || guess === '-stop' || guess === '-cancel') {
-                        if (m.author.id === hostId || joinedPlayers.has(m.author.id)) {
+                        if (m.author.id === hostId) {
                             if (guess !== word) {
                                 roundOver = true;
                                 gameStopped = true;

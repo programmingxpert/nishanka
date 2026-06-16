@@ -245,8 +245,11 @@ module.exports = {
                 // Wait, if they want 5 rounds solo, why not let them? Let's allow multi-round solo.
             }
 
+            let gameStopped = false;
+
             // Game Loop
             for (let currentRound = 1; currentRound <= rounds; currentRound++) {
+                if (gameStopped) break;
                 let loc = await fetchRandomLocation();
                 if (!loc) {
                     let validFallbacks = fallbackLocations.filter(f => !recentLocations.includes(f.capital));
@@ -308,6 +311,21 @@ module.exports = {
                 guessCollector.on('collect', async (m) => {
                     const guess = m.content.toLowerCase().trim();
 
+                    // Check for manual stop by host
+                    if (m.author.id === authorId && (guess === 'stop' || guess === 'cancel' || guess === '-stop' || guess === '-cancel')) {
+                        if (guess !== loc.capital && guess !== loc.country) {
+                            winner = null;
+                            gameStopped = true;
+                            guessCollector.stop('stopped');
+                            const stopEmbed = new EmbedBuilder()
+                                .setColor(0xe74c3c)
+                                .setTitle('🛑 GeoGuesser Canceled')
+                                .setDescription(`**${m.author.username}** stopped the game.`);
+                            await channel.send({ embeds: [stopEmbed] });
+                            return;
+                        }
+                    }
+
                     if (guess === 'hint') {
                         if (hintsUsed > 0) {
                             await channel.send("❌ You already used your hint!");
@@ -338,6 +356,8 @@ module.exports = {
                                 .setDescription(`<@${winner}> correctly identified **${loc.display}**!\n\n**${p.tag}** now has **${p.score} points**.`);
                             
                             await channel.send({ embeds: [winEmbed] });
+                        } else if (reason === 'stopped') {
+                            // Do nothing
                         } else {
                             const loseEmbed = new EmbedBuilder()
                                 .setColor(0xff0000)
@@ -351,10 +371,14 @@ module.exports = {
                 });
 
                 // Wait 5 seconds before next round, if not last round
-                if (currentRound < rounds) {
+                if (currentRound < rounds && !gameStopped) {
                     await channel.send(`*Get ready for the next round in 5 seconds...*`);
                     await new Promise(r => setTimeout(r, 5000));
                 }
+            }
+
+            if (gameStopped) {
+                return;
             }
 
             // End of game payouts & leaderboard

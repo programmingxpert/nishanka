@@ -63,6 +63,8 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
     const scores = new Map(); // userId -> { name: string, points: number }
     const flagEntries = Object.entries(FLAGS);
     const client = channel.client;
+    const hostId = initialMessageOrInteraction.user?.id || initialMessageOrInteraction.author?.id;
+    let gameStopped = false;
     
     if (!client.activeGuesstheflagGames) {
         client.activeGuesstheflagGames = new Map();
@@ -105,7 +107,9 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
         }
 
         for (let round = 1; round <= totalRounds; round++) {
+            if (gameStopped) break;
             await delay(5000);
+            if (gameStopped) break;
             
             const [countryCode, validAnswers] = selectedFlags[round - 1];
             const flagUrl = `https://flagcdn.com/w320/${countryCode}.png`;
@@ -134,12 +138,28 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
             const filter = m => {
                 if (m.author.bot) return false;
                 const content = m.content.trim().toLowerCase();
+                if (m.author.id === hostId && (content === 'stop' || content === 'cancel' || content === '-stop' || content === '-cancel')) {
+                    return true;
+                }
                 return validAnswers.includes(content);
             };
 
             try {
                 const collected = await channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
                 const winner = collected.first();
+                const text = winner.content.trim().toLowerCase();
+
+                if (winner.author.id === hostId && (text === 'stop' || text === 'cancel' || text === '-stop' || text === '-cancel')) {
+                    if (!validAnswers.includes(text)) {
+                        gameStopped = true;
+                        const stopEmbed = new EmbedBuilder()
+                            .setColor(0xe74c3c)
+                            .setTitle('🛑 Guess The Flag Canceled')
+                            .setDescription(`**${winner.author.username}** stopped the game.`);
+                        await channel.send({ embeds: [stopEmbed] });
+                        break;
+                    }
+                }
                 
                 const uId = winner.author.id;
                 if (!scores.has(uId)) {
@@ -177,6 +197,10 @@ async function runFlagGame(initialMessageOrInteraction, channel) {
                     await channel.send({ content: '*Next round starting in 5 seconds...*' });
                 }
             }
+        }
+
+        if (gameStopped) {
+            return;
         }
         
         if (scores.size === 0) {

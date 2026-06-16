@@ -2,10 +2,10 @@ const { ChannelType, PermissionsBitField } = require('discord.js');
 const { getOrCreateLogChannel } = require('../utils/interactionLogger');
 
 const WELCOME_MESSAGES = [
-    "Ugh, who invited me to this place? 🙄 Fine, I guess I'll stay. But don't expect me to be nice to you. Type `/help` or use prefix `-` if you actually want to do something useful. 💀",
-    "Great, another server filled with people who need to touch grass. 🙄 Don't get any ideas, I'm only here because someone added me. Use `/help` or `-help` to see what I can do, and don't ping me unless you have a good reason! 👀",
-    "Oh great, another server. Did you guys run out of real friends or something? 💀 Fine, I'm here now. Try `/help` or prefix commands with `-` if you want. Just don't bother me while I'm counting my cookies. 🍪",
-    "Fine, I'm here. Don't make it weird. 🙄 You can check my commands with `/help` or `-help`. And no, I won't give you free Glimmering Baubles, so don't even ask. 🪙"
+    "Ugh, who invited me to this place? 🙄 Fine, I guess I'll stay. But don't expect me to be nice to you.\n\nType `/help` or use prefix `-` if you actually want to do something useful. 💀",
+    "Great, another server filled with people who need to touch grass. 🙄 Don't get any ideas, I'm only here because someone added me.\n\nUse `/help` or `-help` to see what I can do, and don't ping me unless you have a good reason! 👀",
+    "Oh great, another server. Did you guys run out of real friends or something? 💀 Fine, I'm here now.\n\nTry `/help` or prefix commands with `-` if you want. Just don't bother me while I'm counting my cookies. 🍪",
+    "Fine, I'm here. Don't make it weird. 🙄\n\nYou can check my commands with `/help` or `-help`. And no, I won't give you free Glimmering Baubles, so don't even ask. 🪙"
 ];
 
 module.exports = {

@@ -132,6 +132,8 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
     const totalRounds = 5;
     const scores = new Map(); // userId -> { name: string, points: number }
     const client = channel.client;
+    const hostId = initialMessageOrInteraction.user?.id || initialMessageOrInteraction.author?.id;
+    let gameStopped = false;
     if (!client.activeScrambleGames) {
         client.activeScrambleGames = new Map();
     }
@@ -165,14 +167,17 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
         }).catch(() => {});
 
         for (let round = 1; round <= totalRounds; round++) {
+            if (gameStopped) break;
             if (round === 1) {
                 const startTime = Date.now();
                 const gameWords = await gameWordsPromise;
                 const elapsed = Date.now() - startTime;
                 const remainingDelay = Math.max(0, 5000 - elapsed);
                 await delay(remainingDelay);
+                if (gameStopped) break;
             } else {
                 await delay(5000);
+                if (gameStopped) break;
             }
             
             const gameWords = await gameWordsPromise;
@@ -201,12 +206,29 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
             
             const filter = m => {
                 if (m.author.bot) return false;
-                return m.content.trim().toLowerCase() === word.toLowerCase();
+                const text = m.content.trim().toLowerCase();
+                if (m.author.id === hostId && (text === 'stop' || text === 'cancel' || text === '-stop' || text === '-cancel')) {
+                    return true;
+                }
+                return text === word.toLowerCase();
             };
 
             try {
                 const collected = await channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
                 const winner = collected.first();
+                const text = winner.content.trim().toLowerCase();
+
+                if (winner.author.id === hostId && (text === 'stop' || text === 'cancel' || text === '-stop' || text === '-cancel')) {
+                    if (text !== word.toLowerCase()) {
+                        gameStopped = true;
+                        const stopEmbed = new EmbedBuilder()
+                            .setColor(0xe74c3c)
+                            .setTitle('🛑 Scramble Canceled')
+                            .setDescription(`**${winner.author.username}** stopped the game.`);
+                        await channel.send({ embeds: [stopEmbed] });
+                        break;
+                    }
+                }
                 
                 const reactionTime = Date.now() - roundStartTime;
                 if (reactionTime < 400) {
@@ -251,6 +273,10 @@ async function runScrambleGame(initialMessageOrInteraction, channel) {
         }
         
         activeGames.delete(channel.id);
+
+        if (gameStopped) {
+            return;
+        }
         
         if (scores.size === 0) {
             return channel.send({ content: '🏁 The game has ended! Nobody scored any points.' });

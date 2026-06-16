@@ -229,6 +229,9 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
     const multiplier = await getGlobalMultiplier();
     const reward     = Math.floor((Math.floor(Math.random() * 76) + 25) * multiplier);
 
+    const hostId = respondable.user?.id || respondable.author?.id;
+    let gameStopped = false;
+
     // Send game embed
     const gameEmbed = new EmbedBuilder()
       .setColor(0x7c6cf0)
@@ -247,12 +250,33 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
 
     // Collector
     const collector = channel.createMessageCollector({
-      filter: m => !m.author.bot && question.answers.includes(m.content.trim().toLowerCase()),
+      filter: m => {
+        if (m.author.bot) return false;
+        const text = m.content.trim().toLowerCase();
+        if (m.author.id === hostId && (text === 'stop' || text === 'cancel' || text === '-stop' || text === '-cancel')) {
+          return true;
+        }
+        return question.answers.includes(text);
+      },
       max:  1,
       time: 45_000,
     });
 
     collector.on('collect', async m => {
+      const text = m.content.trim().toLowerCase();
+      if (m.author.id === hostId && (text === 'stop' || text === 'cancel' || text === '-stop' || text === '-cancel')) {
+        if (!question.answers.includes(text)) {
+          gameStopped = true;
+          collector.stop('stopped');
+          const stopEmbed = new EmbedBuilder()
+            .setColor(0xe74c3c)
+            .setTitle('🛑 Emoji Decode Canceled')
+            .setDescription(`**${m.author.username}** stopped the game.`);
+          await channel.send({ embeds: [stopEmbed] });
+          return;
+        }
+      }
+
       try {
         let record = await Bauble.findOne({ userId: m.author.id });
         if (!record) record = new Bauble({ userId: m.author.id, baubles: 0 });
@@ -298,12 +322,12 @@ async function startGame(channelId, respondable, replyFn, followUpFn) {
       }
     });
 
-    collector.on('end', async collected => {
+    collector.on('end', async (collected, reason) => {
       activeGames.delete(channelId);
       if (client && client.activeEmojidecodeGames) {
         client.activeEmojidecodeGames.delete(channelId);
       }
-      if (collected.size === 0) {
+      if (collected.size === 0 && !gameStopped) {
         await followUpFn({
           embeds: [
             new EmbedBuilder()
