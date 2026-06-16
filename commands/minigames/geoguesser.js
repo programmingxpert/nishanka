@@ -8,13 +8,7 @@ const recentLocations = []; // Track recent locations to prevent repeats
 
 async function fetchRandomLocation() {
     try {
-        const res = await fetch('https://restcountries.com/v3.1/all?fields=name,capital,region,subregion,capitalInfo');
-        const countries = await res.json();
-
-        if (!Array.isArray(countries)) {
-            console.error('[GeoGuesser] Unexpected response from restcountries:', countries);
-            return null;
-        }
+        const countries = require('../../utils/countries.json');
 
         for (let i = 0; i < 15; i++) {
             const country = countries[Math.floor(Math.random() * countries.length)];

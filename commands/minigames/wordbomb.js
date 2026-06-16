@@ -76,10 +76,10 @@ async function fetchRandomWords() {
         })(),
 
         // REST Countries API
-        (async () => {
-            const res = await fetch('https://restcountries.com/v3.1/all');
-            if (res.ok) {
-                const data = await res.json();
+        // Local Countries Data
+        (() => {
+            try {
+                const data = require('../../utils/countries.json');
                 const words = [];
                 if (Array.isArray(data)) {
                     for (const country of data.slice(0, 50)) {
@@ -88,8 +88,10 @@ async function fetchRandomWords() {
                     }
                 }
                 return words;
+            } catch (err) {
+                console.error('[WordBomb] Error reading local countries data:', err);
+                return [];
             }
-            return [];
         })(),
 
         // RAWG Video Games API

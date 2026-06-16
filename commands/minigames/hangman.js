@@ -375,7 +375,7 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                         updateActiveState();
                         
                         // Delete single letter guess
-                        if (canDelete) {
+                        if (canDeleteMessages(channel)) {
                             m.delete().catch(() => {});
                         }
 
@@ -427,7 +427,7 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                             _awardPoint(scores, m.author.id, m.author.username);
                             
                             // Delete correct word guess
-                            if (canDelete) {
+                            if (canDeleteMessages(channel)) {
                                 m.delete().catch(() => {});
                             }
                             

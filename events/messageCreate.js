@@ -508,7 +508,15 @@ module.exports = {
             checkAndClearCooldown(options);
             options = injectPromo(options);
             responses.push(getResponseSummary(options));
-            return originalMessageReply.apply(this, [options, ...args]);
+            try {
+                return await originalMessageReply.apply(this, [options, ...args]);
+            } catch (err) {
+                if (err.code === 50035 && err.message?.toLowerCase().includes('message_reference')) {
+                    // Fallback to sending in channel if reply target was deleted
+                    return message.channel.send(options).catch(() => {});
+                }
+                throw err;
+            }
         };
 
         message.channel.send = async function (options, ...args) {
