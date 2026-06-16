@@ -261,14 +261,18 @@ async function runSoloGame({ context, channel, author, isSlash, reply, gameId })
         if (customId.startsWith('mafia_action_select_')) {
             if (userChoiceResolve) {
                 userNightActionTarget = value;
-                await menuInteraction.update({ content: `✅ **Target Locked!** You selected <@${value === author.id ? author.id : value}>. Waiting for night to resolve...`, components: [] });
+                const targetPlayer = players.find(p => p.id === value);
+                const displayName = targetPlayer ? (targetPlayer.isBot ? `**${targetPlayer.name}**` : `<@${targetPlayer.id}>`) : 'Nobody';
+                await menuInteraction.update({ content: `✅ **Target Locked!** You selected ${displayName}. Waiting for night to resolve...`, components: [] });
                 userChoiceResolve(value);
             } else {
                 await menuInteraction.reply({ content: '❌ Action time expired.', ephemeral: true });
             }
         } else if (customId.startsWith('mafia_vote_select_')) {
             if (userChoiceResolve) {
-                await menuInteraction.update({ content: `✅ **Vote Registered!** You voted for ${value === 'skip' ? 'Skipping' : `<@${value}>`}.`, components: [] });
+                const targetPlayer = players.find(p => p.id === value);
+                const displayName = value === 'skip' ? 'Skipping' : (targetPlayer ? (targetPlayer.isBot ? `**${targetPlayer.name}**` : `<@${targetPlayer.id}>`) : 'Nobody');
+                await menuInteraction.update({ content: `✅ **Vote Registered!** You voted for ${displayName}.`, components: [] });
                 userChoiceResolve(value);
             } else {
                 await menuInteraction.reply({ content: '❌ Voting time expired.', ephemeral: true });

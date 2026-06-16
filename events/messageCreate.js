@@ -48,7 +48,15 @@ module.exports = {
                 }
 
                 const { generateResponse } = require('../utils/nishankaAI');
-                const query = message.content.replace(/\b(nishanka|nish)\b/gi, '').replace(/\s+/g, ' ').trim();
+                let query = message.content;
+                const leadingPingRegex = /^[\s,.:;!?-]*(nishanka|nish)[\s,.:;!?-]*/i;
+                if (leadingPingRegex.test(query)) {
+                    query = query.replace(leadingPingRegex, '');
+                }
+                if (!query.trim()) {
+                    query = message.content;
+                }
+                query = query.replace(/\s+/g, ' ').trim();
                 
                 await message.channel.sendTyping().catch(() => {});
                 
@@ -264,7 +272,15 @@ module.exports = {
                 }
 
                 const { generateResponse } = require('../utils/nishankaAI');
-                const query = message.content.replace(/\b(nishanka|nish)\b/gi, '').replace(/\s+/g, ' ').trim();
+                let query = message.content;
+                const leadingPingRegex = /^[\s,.:;!?-]*(nishanka|nish)[\s,.:;!?-]*/i;
+                if (leadingPingRegex.test(query)) {
+                    query = query.replace(leadingPingRegex, '');
+                }
+                if (!query.trim()) {
+                    query = message.content;
+                }
+                query = query.replace(/\s+/g, ' ').trim();
                 
                 await message.channel.sendTyping().catch(() => {});
                 

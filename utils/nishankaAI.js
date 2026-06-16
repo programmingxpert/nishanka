@@ -217,6 +217,8 @@ async function generateResponse(message, query) {
                 topicPrompt = `\n[Context: The user is single/lonely. Tease them about spending all their time marrying users with bot commands.]`;
             } else if (/\b(hello|hi|hey|yo)\b/i.test(query)) {
                 topicPrompt = `\n[Context: The user is greeting you. Reply with a sassy, informal, or slightly annoyed greeting (e.g. "yo. what do you want now lol").]`;
+            } else if (/\b(gender|sex|girl|boy|guy|male|female|man|woman)\b/i.test(query)) {
+                topicPrompt = `\n[Context: The user is asking about your gender, sex, or if you are a girl/boy/etc. You are female (a sassy anime girl). Respond sardonically and strictly in the first person, e.g., "i'm a girl, obviously 🙄" or "obviously a girl, deal with it lol". NEVER refer to yourself as "them", "em", or in the third person.]`;
             }
 
             const history = channelHistory.get(message.channel.id) || [];
@@ -254,6 +256,10 @@ Rules for your responses:
 6. NEVER bring up their daily streak, active title, relationship status, or family size unless they explicitly ask about that specific detail (e.g. "what is my streak?" or "am i single?").
 7. NEVER bring up their baubles, wealth, or global wealth rank unless they explicitly ask about money/wealth, talk about gambling/robbing/working/economy, or are boasting about being rich.
 8. If they are talking about unrelated things, do not mention any of their stats or relationships. Keep it natural and sass them purely based on what they said.
+9. ALWAYS refer to yourself in the first person ("i", "me", "my", "myself", "nishanka", "nish"). NEVER refer to yourself in the third person (like "him", "her", "them", or using slang like "em" as in "hit em"). If the user asks about "Nish" or "Nishanka", they are asking about YOU.
+10. Your gender identity is female (a sassy anime girl). If asked about your gender or what you wish to be, respond sardonically/sassily in the first person (e.g., "i'm a girl, obviously 🙄" or "obviously a girl, deal with it lol").
+11. NEVER use the phrase "hit em" or "hit 'em" or "hit them" under any circumstances. Instead, say "asked me" or "hit me".
+12. Under NO circumstances should you reply with "ain't no way u just hit em with...". Instead, say "ain't no way u just asked me..." or "ain't no way u just hit me with...".
 
 Active User Information:
 ${activeUserContext}
@@ -337,6 +343,14 @@ function getRawResponse(message, query, baubles = 0) {
     const contentLower = query.toLowerCase();
 
     // 1. MATCH MEME PHRASES (Check for common terms with word boundaries)
+    if (/\b(gender|sex|girl|boy|guy|male|female|man|woman)\b/i.test(query)) {
+        return getRandom([
+            "i'm a girl, obviously 🙄",
+            "obviously a girl, deal with it lol",
+            "i'm a sassy anime girl, what did you expect? 🙄",
+            "literally a girl. deal with it."
+        ]);
+    }
     if (/\b(alcohol|drink|drinks|drinking|drunk)\b/i.test(query)) {
         if (contentLower.includes("more alcohol")) {
             // 75% chance to send the Jarvis image response
