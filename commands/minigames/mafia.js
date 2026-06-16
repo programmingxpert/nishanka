@@ -47,7 +47,7 @@ module.exports = {
             mode = context.options.getString('mode') || 'solo';
         } else if (context.args && context.args.length > 0) {
             const arg = context.args[0].toLowerCase();
-            if (arg === 'party' || arg === 'multiplayer') mode = 'party';
+            if (arg === 'party' || arg === 'multiplayer' || arg === 'lobby') mode = 'party';
         }
 
         const reply = async (opts) => isSlash ? await context.reply(opts) : await channel.send(opts);
@@ -707,8 +707,9 @@ async function runPartyGame({ context, channel, author, isSlash, reply, gameId }
     const joinBtn = new ButtonBuilder().setCustomId(`mafia_lobby_join_${gameId}`).setLabel('Join').setStyle(ButtonStyle.Success).setEmoji('➕');
     const leaveBtn = new ButtonBuilder().setCustomId(`mafia_lobby_leave_${gameId}`).setLabel('Leave').setStyle(ButtonStyle.Danger).setEmoji('➖');
     const startBtn = new ButtonBuilder().setCustomId(`mafia_lobby_start_${gameId}`).setLabel('Start Game').setStyle(ButtonStyle.Primary).setDisabled(true);
+    const cancelBtn = new ButtonBuilder().setCustomId(`mafia_lobby_cancel_${gameId}`).setLabel('Cancel').setStyle(ButtonStyle.Secondary).setEmoji('✖️');
 
-    const lobbyRow = new ActionRowBuilder().addComponents(joinBtn, leaveBtn, startBtn);
+    const lobbyRow = new ActionRowBuilder().addComponents(joinBtn, leaveBtn, startBtn, cancelBtn);
 
     let lobbyMsg;
     if (isSlash) {
@@ -760,6 +761,14 @@ async function runPartyGame({ context, channel, author, isSlash, reply, gameId }
                 lobbyResolved = true;
                 await interaction.deferUpdate();
                 resolve(true);
+            } else if (customId.startsWith('mafia_lobby_cancel_')) {
+                if (interaction.user.id !== author.id) {
+                    return await interaction.reply({ content: '❌ Only the host can cancel the lobby.', ephemeral: true });
+                }
+                lobbyCollector.stop();
+                lobbyResolved = false;
+                await interaction.deferUpdate();
+                resolve(false);
             }
         });
 

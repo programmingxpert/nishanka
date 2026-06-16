@@ -230,6 +230,7 @@ function canDeleteMessages(channel) {
 async function runHangmanGame(channel, hostId, joinedPlayers) {
     const TOTAL_ROUNDS = 5;
     const POINTS_PER_ROUND = 500;
+    let gameStopped = false;
 
     // ── Scores map: userId → { name, points } ──────────────────────────────
     const scores = new Map();
@@ -275,7 +276,11 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
 
         // ─────────────────────────────────────────────────────────────────────────
         for (let round = 1; round <= TOTAL_ROUNDS; round++) {
-            if (round > 1) await delay(5000);
+            if (gameStopped) break;
+            if (round > 1) {
+                await delay(5000);
+                if (gameStopped) break;
+            }
 
             const word = gameWords[round - 1];
             let mistakes = 0;
@@ -362,6 +367,23 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
             await new Promise(resolve => {
                 collector.on('collect', async m => {
                     const guess = m.content.trim().toLowerCase();
+
+                    // Check for manual stop
+                    if (guess === 'stop' || guess === 'cancel' || guess === '-stop' || guess === '-cancel') {
+                        if (m.author.id === hostId || joinedPlayers.has(m.author.id)) {
+                            if (guess !== word) {
+                                roundOver = true;
+                                gameStopped = true;
+                                collector.stop('stopped');
+                                const stopEmbed = new EmbedBuilder()
+                                    .setColor(0xe74c3c)
+                                    .setTitle('🛑 Hangman Canceled')
+                                    .setDescription(`**${m.author.username}** stopped the game.`);
+                                await channel.send({ embeds: [stopEmbed] });
+                                return;
+                            }
+                        }
+                    }
 
                     if (guess.length === 1) {
                         // ── Single letter guess ────────────────────────────────
@@ -480,6 +502,10 @@ async function runHangmanGame(channel, hostId, joinedPlayers) {
                     await channel.send({ content: '*No scores yet. Next round in 5 seconds...*' });
                 }
             }
+        }
+
+        if (gameStopped) {
+            return;
         }
 
         // ── Game over ──────────────────────────────────────────────────────────

@@ -348,7 +348,8 @@ function getRawResponse(message, query, baubles = 0) {
             "i'm a girl, obviously 🙄",
             "obviously a girl, deal with it lol",
             "i'm a sassy anime girl, what did you expect? 🙄",
-            "literally a girl. deal with it."
+            "literally a girl. deal with it.",
+            "aint no way u just hit me with the gender existential crisis 💀"
         ]);
     }
     if (/\b(alcohol|drink|drinks|drinking|drunk)\b/i.test(query)) {
