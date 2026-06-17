@@ -892,7 +892,8 @@ module.exports = {
         let baubleData = await Bauble.findOne({ userId });
         const balance = baubleData?.baubles ?? 0;
 
-        const betStr = interaction.options.getString('bet');
+        const betVal = interaction.options.get('bet')?.value;
+        const betStr = betVal !== undefined ? String(betVal) : null;
         let betAmount = null;
         if (betStr) {
             const { parseAmount } = require('../../utils/economyEngine');

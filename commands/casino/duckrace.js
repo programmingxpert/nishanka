@@ -45,7 +45,8 @@ module.exports = {
     async execute(interaction) {
         const userId = interaction.user.id;
         const baubleData = await require('../../models/baubleSchema').findOne({ userId });
-        const betStr = interaction.options.getString('bet');
+        const betVal = interaction.options.get('bet')?.value;
+        const betStr = betVal !== undefined ? String(betVal) : '';
         const bet = require('../../utils/economyEngine').parseAmount(betStr, baubleData?.baubles ?? 0);
         if (isNaN(bet) || bet < 10) {
             return interaction.reply({ content: '❌ Please specify a valid bet amount of at least **10 Baubles**. Use a number, `all`, `half`, or `50%`.', ephemeral: true });

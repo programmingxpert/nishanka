@@ -135,7 +135,8 @@ module.exports = {
     async execute(interaction) {
         const userId = interaction.user.id;
         const baubleData = await require('../../models/baubleSchema').findOne({ userId });
-        const amountStr = interaction.options.getString('amount');
+        const amountVal = interaction.options.get('amount')?.value;
+        const amountStr = amountVal !== undefined ? String(amountVal) : '';
         const amount = require('../../utils/economyEngine').parseAmount(amountStr, baubleData?.baubles ?? 0);
         if (isNaN(amount) || amount < 500) {
             return interaction.reply({ content: '❌ The minimum amount to stake is **500** Baubles. Use a number, `all`, `half`, or `50%`.', ephemeral: true });
