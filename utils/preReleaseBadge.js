@@ -4,6 +4,7 @@ const Achievement = require('../models/achievementSchema');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 async function checkAndPromptPreReleaseBadge(client, user, channelOrInteraction) {
+    return; // Feature disabled: no longer giving away pre-release badges to new users
     try {
         if (!user || user.bot || !channelOrInteraction) return;
 
