@@ -196,6 +196,8 @@ function bundleSlashCommands() {
             }
         }
 
+        topLevelCmd.integration_types = [0, 1];
+        topLevelCmd.contexts = [0, 1, 2];
         finalJSON.push(topLevelCmd);
     }
 
@@ -205,6 +207,8 @@ function bundleSlashCommands() {
     if (actionCmd) {
         const actionJson = actionCmd.data.toJSON();
         actionJson.name = 'actions';
+        actionJson.integration_types = [0, 1];
+        actionJson.contexts = [0, 1, 2];
         finalJSON.push(actionJson);
     }
 
@@ -221,7 +225,10 @@ function bundleSlashCommands() {
         }
 
         if (cmd.data && typeof cmd.data.toJSON === 'function') {
-            finalJSON.push(cmd.data.toJSON());
+            const cmdJson = cmd.data.toJSON();
+            cmdJson.integration_types = [0, 1];
+            cmdJson.contexts = [0, 1, 2];
+            finalJSON.push(cmdJson);
         }
     }
 

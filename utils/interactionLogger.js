@@ -104,17 +104,17 @@ async function getOrCreateLogChannel(client, guild) {
  * This runs asynchronously to prevent blocking the bot's execution speed.
  */
 function logInteraction(client, guild, user, type, detail, additionalFields = []) {
-    if (!guild) return; // Ignores DMs
+    const targetGuild = guild || { id: 'dms', name: 'Direct Messages' };
 
     // Fire-and-forget: run asynchronously to not affect bot performance
     (async () => {
         try {
-            const logInfo = await getOrCreateLogChannel(client, guild);
+            const logInfo = await getOrCreateLogChannel(client, targetGuild);
             if (!logInfo || !logInfo.webhookUrl) return;
 
             const fields = [
                 { name: '👤 User', value: `${user.tag} (\`${user.id}\`)`, inline: true },
-                { name: '🏰 Server', value: `${guild.name} (\`${guild.id}\`)`, inline: true },
+                { name: '🏰 Server', value: `${targetGuild.name} (\`${targetGuild.id}\`)`, inline: true },
                 { name: '⚙️ Type', value: type, inline: true }
             ];
 

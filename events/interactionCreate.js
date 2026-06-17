@@ -127,14 +127,69 @@ module.exports = {
         // Only handle slash/chat-input commands
         if (!interaction.isChatInputCommand()) return;
 
-        if (!interaction.guildId) {
-            return interaction.reply({ content: '❌ Commands are disabled in DMs. Only the conversational AI feature ("Nish, <question>") works in DMs/groups.', ephemeral: true });
-        }
-
         const { resolveGroupedCommand } = require('../utils/slashCommandsBundler');
         const command = resolveGroupedCommand(interaction, client);
         if (!command) {
             return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });
+        }
+
+        // Mock guild and member in DMs/groups for compatible command types
+        if (!interaction.guildId) {
+            const guildRequiredCategories = ['admin', 'moderation', 'music'];
+            if (guildRequiredCategories.includes(command.category)) {
+                return interaction.reply({ content: '❌ This command is only available inside servers, not in DMs or group chats.', ephemeral: true });
+            }
+
+            const { Collection } = require('discord.js');
+            const mockCollection = new Collection();
+            const mockMe = {
+                permissions: { has: () => false },
+                roles: { highest: { position: 0 } }
+            };
+
+            Object.defineProperty(interaction, 'guild', {
+                value: {
+                    id: null,
+                    name: 'Direct Messages',
+                    ownerId: null,
+                    members: {
+                        cache: mockCollection,
+                        fetch: async () => null,
+                        me: mockMe
+                    },
+                    channels: {
+                        cache: mockCollection,
+                        fetch: async () => null
+                    },
+                    roles: {
+                        cache: mockCollection,
+                        fetch: async () => null
+                    }
+                },
+                writable: true,
+                configurable: true
+            });
+
+            Object.defineProperty(interaction, 'member', {
+                value: {
+                    id: interaction.user.id,
+                    user: interaction.user,
+                    displayName: interaction.user.username,
+                    nickname: null,
+                    manageable: false,
+                    setNickname: async () => {},
+                    roles: {
+                        cache: mockCollection,
+                        highest: { position: 0 }
+                    },
+                    permissions: {
+                        has: () => false
+                    },
+                    displayAvatarURL: () => interaction.user.displayAvatarURL({ dynamic: true })
+                },
+                writable: true,
+                configurable: true
+            });
         }
 
         // ─── Global Ban & Soft-Ban Guards ──────────────────────────────────────────

@@ -1,11 +1,10 @@
 const GuildSettings = require('../models/guildSettingsSchema');
 
 const PROMO_TIPS = [
-    "Enjoying Nishanka? Support us for as low as $1.99/mo (VERY CHEAP!!)",
-    "Enjoying the games? Support development for as low as $1.99/mo!",
-    "Unlock unlimited triggers, giveaways, and 24/7 music starting at $1.99/mo!",
-    "Unlock achievements, badges, and server perks starting at $1.99/mo (VERY CHEAP!!)",
-    "Support Nishanka for as low as $1.99/mo. Check the dashboard!"
+    "enjoying nishanka? supporting yuki genuinely helps so much and means a lot to him fr 💖 https://nishanka.zeyuki.app/support",
+    "enjoying the games? support development for as low as $1.99/mo, it genuinely helps me keep this bot alive! — yuki",
+    "unlock premium perks starting at $1.99/mo (very cheap!!) and support my creator yuki at https://nishanka.zeyuki.app/support",
+    "supporting yuki genuinely means a lot to him. check out our premium benefits at https://nishanka.zeyuki.app/premium 💜"
 ];
 
 const DASHBOARD_TIPS = [
