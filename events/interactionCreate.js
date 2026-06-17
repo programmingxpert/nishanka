@@ -135,9 +135,8 @@ module.exports = {
 
         // Mock guild and member in DMs/groups for compatible command types
         if (!interaction.guildId) {
-            const guildRequiredCategories = ['admin', 'moderation', 'music'];
-            if (guildRequiredCategories.includes(command.category)) {
-                return interaction.reply({ content: '❌ This command is only available inside servers, not in DMs or group chats.', ephemeral: true });
+            if (command.data.name !== 'ai') {
+                return interaction.reply({ content: '❌ Only the Nish AI feature (`/ai`) works in DMs and group chats. All other commands are server-only!', ephemeral: true });
             }
 
             const { Collection } = require('discord.js');
