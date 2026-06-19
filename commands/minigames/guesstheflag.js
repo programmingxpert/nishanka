@@ -55,7 +55,23 @@ const FLAGS = {
     'ke': ['kenya']
 };
 
-const activeGames = new Set();
+const activeGames = {
+    has: (channelId) => {
+        if (!global.client) return false;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        return global.client.activeMinigames.has(channelId);
+    },
+    add: (channelId) => {
+        if (!global.client) return;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        global.client.activeMinigames.add(channelId);
+    },
+    delete: (channelId) => {
+        if (!global.client) return;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        global.client.activeMinigames.delete(channelId);
+    }
+};
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
 async function runFlagGame(initialMessageOrInteraction, channel) {

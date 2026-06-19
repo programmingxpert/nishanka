@@ -85,26 +85,41 @@ module.exports = {
 
         if (!enforceSpam) return;
 
+        // Ignore antispam checks if a minigame is actively running in the channel
+        const activeMinigames = client.activeMinigames || (global.client && global.client.activeMinigames);
+        if (activeMinigames && activeMinigames.has(message.channel.id)) {
+            return;
+        }
+
         const trackerKey = `${userId}-${guildId}`;
 
         // --- Repetition Detection ---
-        if (settings.repetitionEnabled) {
+        if (settings.repetitionEnabled === true) {
             const isRepetitionIgnored = settings.ignoredUsers?.includes(userId);
             if (isRepetitionIgnored || !isMod) {
                 const content = message.content.trim().toLowerCase();
                 if (content.length > 0) {
-                    const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, lastTimestamp: 0 };
+                    const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, firstTimestamp: 0, lastTimestamp: 0 };
+                    const now = Date.now();
                     
-                    if (repData.content === content && (Date.now() - repData.lastTimestamp) < 30000) {
-                        repData.count++;
+                    if (repData.content === content && (now - repData.lastTimestamp) < 5000) {
+                        if (now - repData.firstTimestamp < 5000) {
+                            repData.count++;
+                        } else {
+                            repData.count = 2;
+                            repData.firstTimestamp = repData.lastTimestamp;
+                        }
+                        repData.lastTimestamp = now;
                     } else {
                         repData.content = content;
                         repData.count = 1;
+                        repData.firstTimestamp = now;
+                        repData.lastTimestamp = now;
                     }
-                    repData.lastTimestamp = Date.now();
                     client.repetitionTracker.set(trackerKey, repData);
 
                     if (repData.count >= settings.repetitionThreshold) {
+                        client.repetitionTracker.delete(trackerKey); // Reset repetition tracker
                         await handleViolation(message, client, trackerKey, 'Repetitive Spam', 'repetition', settings);
                         return;
                     }
@@ -124,6 +139,7 @@ module.exports = {
                 if (fastTimestamps.length > settings.fastSpam.threshold) fastTimestamps.shift();
 
                 if (fastTimestamps.length === settings.fastSpam.threshold && (Date.now() - fastTimestamps[0]) < settings.fastSpam.window) {
+                    client.spamTracker.delete(trackerKey); // Reset fast spam timestamps sliding window
                     await handleViolation(message, client, trackerKey, 'Fast Spam', 'fastSpam', settings);
                     return; // Stop processing further for this message if caught
                 }
@@ -143,6 +159,7 @@ module.exports = {
                 if (slowTimestamps.length > settings.slowSpam.threshold) slowTimestamps.shift();
 
                 if (slowTimestamps.length === settings.slowSpam.threshold && (Date.now() - slowTimestamps[0]) < settings.slowSpam.window) {
+                    client.spamTracker.delete(slowTrackerKey); // Reset slow spam timestamps sliding window
                     await handleViolation(message, client, trackerKey, 'Slow Spam', 'slowSpam', settings);
                 }
             }
@@ -212,6 +229,17 @@ async function handleViolation(message, client, trackerKey, type, moduleKey, set
     const timeoutDuration = moduleConfig.timeoutDuration !== undefined ? moduleConfig.timeoutDuration : settings.timeoutDuration;
 
     try {
+        // Warning cooldown: avoid spamming warn/timeout embeds within 10 seconds for the same user
+        client.lastSpamWarn = client.lastSpamWarn || new Map();
+        const lastWarnTime = client.lastSpamWarn.get(trackerKey) || 0;
+        if (Date.now() - lastWarnTime < 10000) {
+            if (deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
+                await message.delete().catch(() => {});
+            }
+            return;
+        }
+        client.lastSpamWarn.set(trackerKey, Date.now());
+
         // Retroactive Deletion / Deletion
         if (deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
             // Delete the current message

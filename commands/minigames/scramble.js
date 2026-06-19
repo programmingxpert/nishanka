@@ -14,7 +14,23 @@ const WORDS = [
     'crystal', 'beacon', 'shield', 'trophy', 'badge'
 ];
 
-const activeGames = new Set();
+const activeGames = {
+    has: (channelId) => {
+        if (!global.client) return false;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        return global.client.activeMinigames.has(channelId);
+    },
+    add: (channelId) => {
+        if (!global.client) return;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        global.client.activeMinigames.add(channelId);
+    },
+    delete: (channelId) => {
+        if (!global.client) return;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        global.client.activeMinigames.delete(channelId);
+    }
+};
 const recentWords = [];
 
 async function generateAIScrambleWords(apiKey, totalRounds) {

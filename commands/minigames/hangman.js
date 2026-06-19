@@ -36,7 +36,23 @@ const FALLBACK_WORDS = [
 const usedWordsGlobal = new Set();
 
 // ─── Active game tracking ─────────────────────────────────────────────────────
-const activeGames = new Set();
+const activeGames = {
+    has: (channelId) => {
+        if (!global.client) return false;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        return global.client.activeMinigames.has(channelId);
+    },
+    add: (channelId) => {
+        if (!global.client) return;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        global.client.activeMinigames.add(channelId);
+    },
+    delete: (channelId) => {
+        if (!global.client) return;
+        if (!global.client.activeMinigames) global.client.activeMinigames = new Set();
+        global.client.activeMinigames.delete(channelId);
+    }
+};
 
 // ─── Hangman ASCII art stages ─────────────────────────────────────────────────
 const HANGMAN_STAGES = [

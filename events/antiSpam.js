@@ -39,24 +39,39 @@ module.exports = {
 
         const trackerKey = `${userId}-${guildId}`;
 
+        // Ignore antispam checks if a minigame is actively running in the channel
+        const activeMinigames = client.activeMinigames || (global.client && global.client.activeMinigames);
+        if (activeMinigames && activeMinigames.has(message.channel.id)) {
+            return;
+        }
+
         // --- Repetition Detection ---
-        const isRepEnabled = settings.repetitionEnabled !== false;
+        const isRepEnabled = settings.repetitionEnabled === true;
         if (isRepEnabled) {
             const content = message.content.trim().toLowerCase();
             if (content.length > 0) {
-                const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, lastTimestamp: 0 };
+                const repData = client.repetitionTracker.get(trackerKey) || { content: '', count: 0, firstTimestamp: 0, lastTimestamp: 0 };
+                const now = Date.now();
                 
-                if (repData.content === content && (Date.now() - repData.lastTimestamp) < 15000) {
-                    repData.count++;
+                if (repData.content === content && (now - repData.lastTimestamp) < 5000) {
+                    if (now - repData.firstTimestamp < 5000) {
+                        repData.count++;
+                    } else {
+                        repData.count = 2;
+                        repData.firstTimestamp = repData.lastTimestamp;
+                    }
+                    repData.lastTimestamp = now;
                 } else {
                     repData.content = content;
                     repData.count = 1;
+                    repData.firstTimestamp = now;
+                    repData.lastTimestamp = now;
                 }
-                repData.lastTimestamp = Date.now();
                 client.repetitionTracker.set(trackerKey, repData);
 
-                const repThreshold = settings.repetitionThreshold || 4;
+                const repThreshold = settings.repetitionThreshold || 5;
                 if (repData.count >= repThreshold) {
+                    client.repetitionTracker.delete(trackerKey); // Reset repetition tracker
                     await handleSpam(message, client, trackerKey, 'Repetitive Spam', settings);
                     return;
                 }
@@ -66,8 +81,8 @@ module.exports = {
         // --- Fast Spam Tracking ---
         const isFastEnabled = settings.fastSpam?.enabled !== false;
         if (isFastEnabled) {
-            const fastThreshold = settings.fastSpam?.threshold || 5;
-            const fastWindow = settings.fastSpam?.window || 3000;
+            const fastThreshold = settings.fastSpam?.threshold || 6;
+            const fastWindow = settings.fastSpam?.window || 2000;
             
             if (!client.spamTracker.has(trackerKey)) {
                 client.spamTracker.set(trackerKey, []);
@@ -77,6 +92,7 @@ module.exports = {
             if (fastTimestamps.length > fastThreshold) fastTimestamps.shift();
 
             if (fastTimestamps.length === fastThreshold && (Date.now() - fastTimestamps[0]) < fastWindow) {
+                client.spamTracker.delete(trackerKey); // Reset fast spam timestamps sliding window
                 await handleSpam(message, client, trackerKey, 'Fast Spam', settings);
                 return; // Stop processing further for this message if caught
             }
@@ -85,8 +101,8 @@ module.exports = {
         // --- Slow Spam Tracking ---
         const isSlowEnabled = settings.slowSpam?.enabled !== false;
         if (isSlowEnabled) {
-            const slowThreshold = settings.slowSpam?.threshold || 10;
-            const slowWindow = settings.slowSpam?.window || 12000;
+            const slowThreshold = settings.slowSpam?.threshold || 15;
+            const slowWindow = settings.slowSpam?.window || 10000;
             
             const slowTrackerKey = `slow-${trackerKey}`;
             if (!client.spamTracker.has(slowTrackerKey)) {
@@ -97,6 +113,7 @@ module.exports = {
             if (slowTimestamps.length > slowThreshold) slowTimestamps.shift();
 
             if (slowTimestamps.length === slowThreshold && (Date.now() - slowTimestamps[0]) < slowWindow) {
+                client.spamTracker.delete(slowTrackerKey); // Reset slow spam timestamps sliding window
                 await handleSpam(message, client, trackerKey, 'Slow Spam', settings);
             }
         }
@@ -106,6 +123,19 @@ module.exports = {
 async function handleSpam(message, client, trackerKey, type, settings) {
     const userId = message.author.id;
     try {
+        // Warning cooldown: avoid spamming warn/timeout embeds within 10 seconds for the same user
+        client.lastSpamWarn = client.lastSpamWarn || new Map();
+        const lastWarnTime = client.lastSpamWarn.get(trackerKey) || 0;
+        if (Date.now() - lastWarnTime < 10000) {
+            // Already warned/handled in the last 10 seconds.
+            // Just delete the message silently if deleteMessages is enabled.
+            if (settings.deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
+                await message.delete().catch(() => {});
+            }
+            return;
+        }
+        client.lastSpamWarn.set(trackerKey, Date.now());
+
         // Retroactive Deletion (Bulk Delete)
         if (settings.deleteMessages && message.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)) {
             // Delete the current message
