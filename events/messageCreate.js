@@ -1,7 +1,24 @@
-/* eslint-disable */
 const { Collection } = require('discord.js');
 const GuildSettings = require('../models/guildSettingsSchema');
 const config = require('../config.json');
+
+function expectsUserOption(command) {
+    if (!command || !command.data) return false;
+    const json = typeof command.data.toJSON === 'function' ? command.data.toJSON() : command.data;
+    if (!json || !json.options) return false;
+
+    const checkOptions = (opts) => {
+        for (const opt of opts) {
+            if (opt.type === 6 || opt.type === 9) return true;
+            if ((opt.type === 1 || opt.type === 2) && opt.options) {
+                if (checkOptions(opt.options)) return true;
+            }
+        }
+        return false;
+    };
+
+    return checkOptions(json.options);
+}
 
 module.exports = {
     name: 'messageCreate',
@@ -540,6 +557,28 @@ module.exports = {
             responses.push(getResponseSummary(options));
             return originalChannelSend.apply(this, [options, ...args]);
         };
+
+        // --- Resolve raw User IDs as mentions if the command expects a user ---
+        if (message.mentions.users.size === 0 && expectsUserOption(command)) {
+            const idPattern = /^\d{17,20}$/;
+            const targetId = args.find(arg => idPattern.test(arg));
+            if (targetId) {
+                try {
+                    const targetUser = client.users.cache.get(targetId) || await client.users.fetch(targetId);
+                    if (targetUser) {
+                        message.mentions.users.set(targetId, targetUser);
+                        if (message.guild) {
+                            const targetMember = message.guild.members.cache.get(targetId) || await message.guild.members.fetch(targetId).catch(() => null);
+                            if (targetMember && message.mentions.members) {
+                                message.mentions.members.set(targetId, targetMember);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`[messageCreate] Failed to resolve target user ID ${targetId} for prefix command:`, err.message);
+                }
+            }
+        }
 
         // --- Prioritize text mentions over reply mentions ---
         if (message.reference && message.reference.messageId) {
