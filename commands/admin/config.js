@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionsBitField, ChannelType, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField, ChannelType, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
 const AutoMod = require('../../models/autoModSchema');
 const Censor = require('../../models/censorSchema');
@@ -28,6 +28,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('config')
         .setDescription('Configure server settings and dashboard permissions.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(sub =>
             sub.setName('view')
                 .setDescription('View current server configuration overview.'))

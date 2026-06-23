@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, ChannelType, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, ChannelType, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
 const { checkCommandPermission } = require('../../utils/permissions');
 
@@ -9,6 +9,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('starboard')
         .setDescription('Configure the Starboard system for this server.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(sub =>
             sub.setName('view')
                 .setDescription('View the current starboard settings.'))

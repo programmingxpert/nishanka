@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
 const { checkCommandPermission } = require('../../utils/permissions');
 
@@ -9,6 +9,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('setquoteschannel')
         .setDescription('Set or clear the designated channel where all server quotes will be sent!')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addChannelOption(option =>
             option.setName('channel')
                 .setDescription('The quotes channel (leave empty to disable)')

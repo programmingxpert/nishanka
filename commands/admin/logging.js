@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionsBitField, ChannelType, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField, ChannelType, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
 const { checkCommandPermission } = require('../../utils/permissions');
 
@@ -8,6 +8,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('logging')
         .setDescription('Configure server action log tracking.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(sub =>
             sub.setName('view')
                 .setDescription('View current action logs configuration.'))

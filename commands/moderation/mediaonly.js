@@ -62,7 +62,7 @@ module.exports = {
 
     async executePrefix(message, args) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
-            return message.reply('❌ You require `ManageChannels` permission.');
+            return message.reply('❌ You require `Manage Channels` permission.');
         }
 
         const channel = message.mentions.channels.first() || message.channel;

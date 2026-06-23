@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField, PermissionFlagsBits } = require('discord.js');
 const ms = require('ms');
 const Giveaway = require('../../models/Giveaway'); // Import the Giveaway model
 
@@ -9,6 +9,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('giveaway')
         .setDescription('Create a giveaway!')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('create')

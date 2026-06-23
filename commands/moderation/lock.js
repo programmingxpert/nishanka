@@ -5,7 +5,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('lock')
 		.setDescription('Locks a channel for a specific role.')
-		.setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+		.setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
 		.addChannelOption(option =>
 			option.setName('channel')
 				.setDescription('The channel to lock (defaults to current)')
@@ -54,12 +54,12 @@ module.exports = {
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error(error);
-			await interaction.reply({ content: `❌ Failed to lock channel ${targetChannel}. Make sure I have "Manage Channels" permission.`, ephemeral: true });
+			await interaction.reply({ content: `❌ Failed to lock channel ${targetChannel}. Make sure I have "Manage Roles" permission.`, ephemeral: true });
 		}
 	},
 
 	async executePrefix(message, args) {
-		if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
+		if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
 			return message.reply('❌ You don’t have permission to use this command.');
 		}
 
@@ -135,7 +135,7 @@ module.exports = {
 			await message.channel.send({ embeds: [embed] });
 		} catch (error) {
 			console.error(error);
-			await message.reply(`❌ Failed to lock channel ${targetChannel}. Make sure I have "Manage Channels" permission.`);
+			await message.reply(`❌ Failed to lock channel ${targetChannel}. Make sure I have "Manage Roles" permission.`);
 		}
 	}
 };

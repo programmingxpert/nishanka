@@ -9,6 +9,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('reactionroles')
         .setDescription('Manage interactive reaction roles on the server.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(sub =>
             sub.setName('setup')
                 .setDescription('Start the interactive step-by-step setup wizard.')

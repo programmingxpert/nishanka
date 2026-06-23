@@ -78,6 +78,10 @@ module.exports = {
 
 	// ------------------ Prefix command ------------------
 	async executePrefix(message, args) {
+		if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+			return message.reply('❌ You don’t have permission to use this command.');
+		}
+
 		const user = message.mentions.users.first() || message.guild.members.cache.get(args[0])?.user;
 
 		if (!user) {

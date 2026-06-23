@@ -1,5 +1,5 @@
 /* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField, PermissionFlagsBits } = require('discord.js');
 const Giveaway = require('../../models/Giveaway'); // Import the Giveaway model
 
 module.exports = {
@@ -8,6 +8,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('giveawayend')
         .setDescription('Ends a giveaway early.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addStringOption(option =>
             option.setName('message-id')
                 .setDescription('The ID of the giveaway message to end.')

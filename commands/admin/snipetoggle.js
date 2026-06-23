@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField, PermissionFlagsBits } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
 const { checkCommandPermission } = require('../../utils/permissions');
 
@@ -8,6 +8,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('snipetoggle')
         .setDescription('Enable or disable the snipe feature in the server.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addBooleanOption(opt => opt.setName('enabled').setDescription('Enable?').setRequired(true)),
 
     async execute(interaction) {
