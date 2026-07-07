@@ -4,7 +4,7 @@ const config = require('../config.json');
 const { getUserPremiumTier } = require('./premiumPromo');
 
 const TIER_APU_LIMITS = {
-    free: 100,
+    free: 20,
     lite: 500,
     pro: 1500,
     network: 5000,

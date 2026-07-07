@@ -22,13 +22,19 @@ module.exports = {
 			.setFooter({ text: 'Thank you for supporting Nishanka!' })
 			.setTimestamp();
 
-		const button = new ButtonBuilder()
+		const inviteButton = new ButtonBuilder()
 			.setLabel('Invite Bot')
 			.setURL(INVITE_LINK)
 			.setStyle(ButtonStyle.Link)
 			.setEmoji('🤖');
 
-		const row = new ActionRowBuilder().addComponents(button);
+		const shopButton = new ButtonBuilder()
+			.setLabel('Premium Shop')
+			.setURL('https://nishanka.zeyuki.app/premium')
+			.setStyle(ButtonStyle.Link)
+			.setEmoji('✨');
+
+		const row = new ActionRowBuilder().addComponents(inviteButton, shopButton);
 
 		await interaction.reply({ embeds: [embed], components: [row] });
 	},
@@ -46,13 +52,19 @@ module.exports = {
 			.setFooter({ text: 'Thank you for supporting Nishanka!' })
 			.setTimestamp();
 
-		const button = new ButtonBuilder()
+		const inviteButton = new ButtonBuilder()
 			.setLabel('Invite Bot')
 			.setURL(INVITE_LINK)
 			.setStyle(ButtonStyle.Link)
 			.setEmoji('🤖');
 
-		const row = new ActionRowBuilder().addComponents(button);
+		const shopButton = new ButtonBuilder()
+			.setLabel('Premium Shop')
+			.setURL('https://nishanka.zeyuki.app/premium')
+			.setStyle(ButtonStyle.Link)
+			.setEmoji('✨');
+
+		const row = new ActionRowBuilder().addComponents(inviteButton, shopButton);
 
 		await message.reply({ embeds: [embed], components: [row] });
 	}

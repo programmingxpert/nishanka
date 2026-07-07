@@ -721,11 +721,13 @@ module.exports = {
 			.setTitle('✦ Nishanka')
 			.setDescription(
 				[
-			'**Economy • Games • Moderation • Utility**',
-			'',
-			'A complete Discord experience built around progression, fun, and community.',
-			'',
-			'> Select a category below to explore commands.'
+					'**Economy • Games • Moderation • Utility**',
+					'',
+					'A complete Discord experience built around progression, fun, and community.',
+					'',
+					'✨ **Premium Store & Web Dashboard:** [nishanka.zeyuki.app](https://nishanka.zeyuki.app/)',
+					'',
+					'> Select a category below to explore commands.'
 				].join('\n')
 			)
 			.setFooter({
@@ -766,11 +768,17 @@ module.exports = {
 					.setURL('https://discord.gg/tkPfDP4n7D'),
 
 				new ButtonBuilder()
-					.setLabel('Dashboard / Server Config')
+					.setLabel('Premium Shop')
+					.setStyle(ButtonStyle.Link)
+					.setURL('https://nishanka.zeyuki.app/premium'),
+
+				new ButtonBuilder()
+					.setLabel('Dashboard')
 					.setStyle(ButtonStyle.Link)
 					.setURL('https://nishanka.zeyuki.app/'),
+
 				new ButtonBuilder()
-					.setLabel('🗎 Docs')
+					.setLabel('Docs')
 					.setStyle(ButtonStyle.Link)
 					.setURL('https://nishanka.zeyuki.app/docs')
 			);
