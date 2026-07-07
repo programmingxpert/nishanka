@@ -61,7 +61,7 @@ async function runExcuseGame(initialData, channel, user, mode) {
 
     const apuResult = await consumeAPU(user.id, cost, isPrem);
     if (!apuResult.success) {
-        const msg = `❌ **Insufficient AI Power Units (APU)!**\nHosting an **Excuse game (${mode})** costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to unlock higher limits!`;
+        const msg = `❌ **Insufficient AI Power Units (APU)!**\nHosting an **Excuse game (${mode})** costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Supporting yuki with premium helps unlock higher daily limits! 💜 https://nishanka.zeyuki.app/premium`;
         if (isSlash) {
             return initialData.reply({ content: msg, ephemeral: true });
         } else {

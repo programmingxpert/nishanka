@@ -146,7 +146,7 @@ async function handleAsk(interactionOrMessage, user, prompt) {
     const cost = 15;
     const apuResult = await consumeAPU(user.id, cost);
     if (!apuResult.success) {
-        const msg = `❌ **Insufficient AI Power Units (APU)!**\nUsing AI ask costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to unlock higher limits!`;
+        const msg = `❌ **Insufficient AI Power Units (APU)!**\nUsing AI ask costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Supporting yuki with premium helps unlock higher daily limits! 💜 https://nishanka.zeyuki.app/premium`;
         return isSlash ? interactionOrMessage.reply({ content: msg, ephemeral: true }) : interactionOrMessage.reply(msg);
     }
 
@@ -226,7 +226,7 @@ async function handleRoast(interactionOrMessage, user, targetUser) {
     const cost = 20;
     const apuResult = await consumeAPU(user.id, cost);
     if (!apuResult.success) {
-        const msg = `❌ **Insufficient AI Power Units (APU)!**\nRoasting a user costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to unlock higher limits!`;
+        const msg = `❌ **Insufficient AI Power Units (APU)!**\nRoasting a user costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Supporting yuki with premium helps unlock higher daily limits! 💜 https://nishanka.zeyuki.app/premium`;
         return isSlash ? interactionOrMessage.reply({ content: msg, ephemeral: true }) : interactionOrMessage.reply(msg);
     }
 
@@ -298,7 +298,7 @@ async function handleAdventureStart(interactionOrMessage, user, scenario, charNa
     const cost = 20;
     const apuResult = await consumeAPU(user.id, cost);
     if (!apuResult.success) {
-        const msg = `❌ **Insufficient AI Power Units (APU)!**\nStarting an adventure costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to unlock higher limits!`;
+        const msg = `❌ **Insufficient AI Power Units (APU)!**\nStarting an adventure costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Supporting yuki with premium helps unlock higher daily limits! 💜 https://nishanka.zeyuki.app/premium`;
         return isSlash ? interactionOrMessage.reply({ content: msg, ephemeral: true }) : interactionOrMessage.reply(msg);
     }
 
@@ -401,7 +401,7 @@ async function handleAdventureChoose(interactionOrMessage, user, choice) {
     const cost = 15;
     const apuResult = await consumeAPU(user.id, cost);
     if (!apuResult.success) {
-        const msg = `❌ **Insufficient AI Power Units (APU)!**\nContinuing your adventure costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to unlock higher limits!`;
+        const msg = `❌ **Insufficient AI Power Units (APU)!**\nContinuing your adventure costs **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Supporting yuki with premium helps unlock higher daily limits! 💜 https://nishanka.zeyuki.app/premium`;
         return isSlash ? interactionOrMessage.reply({ content: msg, ephemeral: true }) : interactionOrMessage.reply(msg);
     }
 
@@ -518,7 +518,7 @@ async function handleTarot(interactionOrMessage, user, question) {
     const cost = 20;
     const apuResult = await consumeAPU(user.id, cost);
     if (!apuResult.success) {
-        const msg = `❌ **Insufficient AI Power Units (APU)!**\nTarot readings cost **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to unlock higher limits!`;
+        const msg = `❌ **Insufficient AI Power Units (APU)!**\nTarot readings cost **${cost} APU**.\nYou have **${apuResult.remaining}/${apuResult.max} APU** left.\n\nUse \`/ai status\` to check/recharge your APUs using Baubles. Supporting yuki with premium helps unlock higher daily limits! 💜 https://nishanka.zeyuki.app/premium`;
         return isSlash ? interactionOrMessage.reply({ content: msg, ephemeral: true }) : interactionOrMessage.reply(msg);
     }
 

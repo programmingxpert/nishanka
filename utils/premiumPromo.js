@@ -2,16 +2,17 @@ const GuildSettings = require('../models/guildSettingsSchema');
 
 const PROMO_TIPS = [
     "enjoying nishanka? supporting yuki genuinely helps so much and means a lot to him fr 💖 https://nishanka.zeyuki.app/support",
-    "enjoying the games? support development for as low as $1.99/mo, it genuinely helps me keep this bot alive! — yuki",
-    "unlock premium perks starting at $1.99/mo (very cheap!!) and support my creator yuki at https://nishanka.zeyuki.app/support",
-    "supporting yuki genuinely means a lot to him. check out our premium benefits at https://nishanka.zeyuki.app/premium 💜"
+    "hey, if you're enjoying my games, maybe buy yuki a coffee? it really helps keep my server hosting alive :') 💜 https://nishanka.zeyuki.app/support",
+    "supporting yuki genuinely means a lot to him. check out our premium benefits at https://nishanka.zeyuki.app/premium 💜",
+    "yuki is working really hard to build new features for me! if you want to support him, you can upgrade to premium or donate here: https://nishanka.zeyuki.app/support",
+    "ty to everyone who supports me! you guys genuinely keep this project alive and it means the world to us 🥺"
 ];
 
 const DASHBOARD_TIPS = [
-    "Configure auto-roles, server logging, and welcome cards visually on our clean Web Dashboard! ⚙️ https://nishanka.zeyuki.app/",
-    "Tired of typing? Check item leaderboards, trophies, and player stats in real-time on our Web App! 📖 https://nishanka.zeyuki.app/",
-    "Customize your profile backgrounds, bio, and showcase titles directly on the Web Dashboard! 🎨 https://nishanka.zeyuki.app/",
-    "Manage auto-triggers, active giveaways, and server settings in a beautiful visual interface! 🖥️ https://nishanka.zeyuki.app/"
+    "did you know we have a web dashboard? you can configure auto-roles and welcome cards visually there! ⚙️ https://nishanka.zeyuki.app/",
+    "check out the website to view item leaderboards, trophies, and stats in real-time! 📖 https://nishanka.zeyuki.app/",
+    "you can customize your profile card backgrounds, bio, and showcase titles on the website! 🎨 https://nishanka.zeyuki.app/",
+    "managing auto-triggers and server settings is way easier on our web dashboard! 🖥️ https://nishanka.zeyuki.app/"
 ];
 
 async function isGuildPremium(guildId) {

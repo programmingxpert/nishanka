@@ -1646,7 +1646,7 @@ app.post('/api/premium/verify-payment', express.json(), async (req, res) => {
       const discordUser = await client.users.fetch(req.session.user.id).catch(() => null);
       if (discordUser) {
         await discordUser.send({
-          content: `✨ **Nishanka Premium Activated!** You have been granted **${tier.toUpperCase()}** premium status. Go to the dashboard to select your Premium servers: https://nishanka.zeyuki.app/premium 💜`
+          content: `✨ **nishanka premium activated!**\n\noh my god... you actually supported me? thank you so, so much for keeping this bot alive! it genuinely means the world to both me and yuki :')) 💜\n\nyour **${tier.toUpperCase()}** status is now active! head over to the dashboard to activate it for your server: https://nishanka.zeyuki.app/premium`
         }).catch(dmErr => console.warn(`Failed to send premium-activation DM to user ${req.session.user.id}:`, dmErr));
       }
     } catch (dmErr) {
@@ -2078,7 +2078,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
         ? leveling.roleRewards.map(r => ({ level: Number(r.level), roleId: String(r.roleId) }))
         : [];
       if (!isPrem && rewards.length > 10) {
-        return res.status(403).json({ error: 'Free servers are limited to 10 leveling role rewards. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock unlimited!' });
+        return res.status(403).json({ error: 'Free servers are limited to 10 leveling role rewards. Supporting yuki with premium helps unlock unlimited slots! 💜' });
       }
       settingsUpdates.leveling = {
         enabled: leveling.enabled !== false,
@@ -2181,7 +2181,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
       else if (guildTier === 'network' || guildTier === 'lifetime') censorLimit = Infinity;
 
       if (totalWords > censorLimit) {
-        return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${censorLimit} censored words. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock higher limits!` });
+        return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${censorLimit} censored words. Supporting yuki with premium helps unlock higher limits! 💜` });
       }
       await Censor.findOneAndUpdate({ guildId }, { ...censor }, { upsert: true, new: true });
       if (client.censorCache) client.censorCache.delete(guildId);
@@ -2675,7 +2675,7 @@ app.post('/api/guilds/:guildId/giveaways', express.json(), async (req, res) => {
     else if (guildTier === 'network' || guildTier === 'lifetime') giveawayLimit = Infinity;
 
     if (activeCount >= giveawayLimit) {
-      return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${giveawayLimit} active giveaways. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock higher limits!` });
+      return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${giveawayLimit} active giveaways. Supporting yuki with premium helps unlock higher limits! 💜` });
     }
 
     const guild = client.guilds.cache.get(guildId);
@@ -2881,7 +2881,7 @@ app.post('/api/guilds/:guildId/triggers', express.json(), async (req, res) => {
       else if (guildTier === 'network' || guildTier === 'lifetime') triggerLimit = Infinity;
 
       if (count >= triggerLimit) {
-        return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${triggerLimit} custom triggers. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock higher limits!` });
+        return res.status(403).json({ error: `Your server's tier (${guildTier.toUpperCase()}) is limited to ${triggerLimit} custom triggers. Supporting yuki with premium helps unlock higher limits! 💜` });
       }
     }
 
@@ -3031,7 +3031,7 @@ app.post('/api/guilds/:guildId/media-only-channels', express.json(), async (req,
     if (!existing) {
       const count = await MediaOnly.countDocuments({ guildId });
       if (count >= 1 && !isPrem) {
-        return res.status(403).json({ error: 'Free servers are limited to 1 media-only channel. Get Premium starting as low as $1.99/mo (VERY CHEAP!) to unlock unlimited!' });
+        return res.status(403).json({ error: 'Free servers are limited to 1 media-only channel. Supporting yuki with premium helps unlock unlimited slots! 💜' });
       }
     }
     
@@ -4032,6 +4032,18 @@ app.post('/api/support/verify-payment', express.json(), async (req, res) => {
       }).catch(err => console.error('[Webhook Alert Error]', err));
     } catch (hookErr) {
       console.error('Failed to trigger webhook payment alert:', hookErr);
+    }
+
+    // Send DM to user notifying their support is verified
+    try {
+      const discordUser = await client.users.fetch(req.session.user.id).catch(() => null);
+      if (discordUser) {
+        await discordUser.send({
+          content: `💖 **thank you so much!**\n\nyour support donation of **${currency.toUpperCase()} ${amount}** was successfully received! yuki and i are seriously so grateful for your support :'))\n\npeople like you genuinely keep this project running. thank you for being a part of my journey! 🥺💜`
+        }).catch(dmErr => console.warn(`Failed to send donation DM to user ${req.session.user.id}:`, dmErr));
+      }
+    } catch (dmErr) {
+      console.error('Error sending DM on donation:', dmErr);
     }
 
     return res.json({ success: true, message: '🎉 Thank you so much for your financial support!' });

@@ -309,7 +309,7 @@ module.exports = {
                 const timestampId = Math.floor(expiry / 1000);
                 let contentText = `⏳ Please wait, you can use \`${fullCommandPath}\` again <t:${timestampId}:R>.`;
                 if (!isPrem) {
-                    contentText += `\n💡 *Get Premium for as low as **$1.99/mo** (VERY CHEAP!) to reduce/remove cooldowns!*`;
+                    contentText += `\n💡 *supporting yuki with premium helps remove cooldowns and keeps our hosting alive! 💜 https://nishanka.zeyuki.app/premium*`;
                 }
                 return interaction.reply({
                     content: contentText,
