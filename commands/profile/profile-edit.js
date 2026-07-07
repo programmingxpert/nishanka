@@ -164,7 +164,7 @@ module.exports = {
                   }
               } else if (selection === 'edit_pfp') {
                   // Using Message component instead of modal for ease of use.
-                  await i.reply({content: "Please send the picture you want to use as your profile picture. (GIFs are not supported) or enter a URL", ephemeral: true});
+                  await i.reply({content: "Please send the **image URL** you want to use as your profile picture (no Discord CDN links — they expire!)\n\n💡 **Need an image link?** Upload your photo to **https://postimages.org** or **https://imgbb.com** and copy the *Direct Link*. You can also right-click any image on Google Images or Pinterest → Copy Image Address.\n\n*(GIFs are not supported. URL must end in `.png`, `.jpg`, or `.webp`.)*", ephemeral: true});
 
                   const filter = m => m.author.id === userId;
                   const pfpCollector = interaction.channel.createMessageCollector({
@@ -207,7 +207,7 @@ module.exports = {
                   }
 
                    // Using Message component instead of modal for ease of use.
-                  await i.reply({content: "Please send the picture you want to use as your banner. (GIFs are not supported) or enter a URL or a hex color code (e.g. #FF0000)", ephemeral: true});
+                  await i.reply({content: "Please send the **image URL** or **hex color code** (e.g. `#FF5733`) to use as your banner.\n\n💡 **Need a permanent image link?** Upload your image to **https://postimages.org** or **https://imgbb.com** and copy the *Direct Link*. Avoid Discord CDN links — they expire within 24h!\n\n*(GIFs are not supported. For image URLs, must end in `.png`, `.jpg`, or `.webp`.)*", ephemeral: true});
 
                   const filter = m => m.author.id === userId;
                   const bannerCollector = interaction.channel.createMessageCollector({
