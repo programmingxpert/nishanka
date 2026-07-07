@@ -4054,6 +4054,195 @@ app.post('/api/support/verify-payment', express.json(), async (req, res) => {
   }
 });
 
+// ─── Top.gg Vote Webhook ──────────────────────────────────────────────────────
+// Set TOPGG_WEBHOOK_AUTH in .env to match the "Authorization" field in Top.gg's
+// webhook settings (Bot → Edit → Webhooks → Authorization).
+// Webhook URL to paste in Top.gg: https://<your-server>:4000/api/topgg/vote
+const Vote   = require('./models/voteSchema');
+
+function buildVoteRewards(voteData) {
+    const streak = (voteData.voteStreak || 0) + 1;
+    const total  = (voteData.totalVotes || 0) + 1;
+
+    let baubles = 400;
+    const bonusItems = [];
+    let titleUnlock  = null;
+
+    // Streak multiplier: +25% per consecutive vote, capped at 5×
+    const streakMult = Math.min(1 + (streak - 1) * 0.25, 5);
+    baubles = Math.round(baubles * streakMult);
+
+    // Milestone bonus items (VERY rare — only on exact milestones)
+    if (streak === 7)   { bonusItems.push({ itemId: 'luck_potion', quantity: 1 }); }
+    if (streak === 30)  { bonusItems.push({ itemId: 'mystery_box', quantity: 2 }); titleUnlock = '🗳️ Loyal Voter'; }
+    if (streak === 100) { bonusItems.push({ itemId: 'paintbrush',  quantity: 1 }); titleUnlock = '🏅 Top Supporter'; }
+
+    // First vote ever — welcome gift
+    if (total === 1) bonusItems.push({ itemId: 'mystery_box', quantity: 1 });
+
+    // Every 50th total vote — jackpot drop
+    if (total % 50 === 0) { bonusItems.push({ itemId: 'mystery_box', quantity: 1 }); baubles += 500; }
+
+    return { baubles, bonusItems, titleUnlock, streakMult, streak, total };
+}
+
+app.post('/api/topgg/vote', express.json(), async (req, res) => {
+    // 1. Verify authorization header matches our secret
+    const auth = req.headers['authorization'];
+    if (!process.env.TOPGG_WEBHOOK_AUTH || auth !== process.env.TOPGG_WEBHOOK_AUTH) {
+        console.warn('[Top.gg Webhook] Unauthorized vote webhook received.');
+        return res.sendStatus(401);
+    }
+
+    const { user: userId, type, isWeekend } = req.body;
+
+    // type can be 'upvote' or 'test' — treat test as real so you can verify
+    if (!userId) return res.sendStatus(400);
+
+    console.log(`[Top.gg] Vote received from user ${userId} | weekend=${isWeekend} | type=${type}`);
+
+    try {
+        // ── 1. Load / upsert vote record ──────────────────────────────────────
+        let voteData = await Vote.findOne({ userId }) || new Vote({ userId });
+
+        // Reset streak if they missed their window (> 24h since last vote)
+        const now      = new Date();
+        const lastVote = voteData.lastVotedAt;
+        const hoursSinceLast = lastVote ? (now - lastVote) / (1000 * 60 * 60) : Infinity;
+
+        if (hoursSinceLast > 24) {
+            voteData.voteStreak = 0; // missed the window — streak resets
+        }
+
+        // ── 2. Compute rewards ────────────────────────────────────────────────
+        const { baubles, bonusItems, titleUnlock, streakMult, streak, total } = buildVoteRewards(voteData);
+
+        // Weekend double-baubles (top.gg gives 2× weight on weekends)
+        const finalBaubles = isWeekend ? baubles * 2 : baubles;
+
+        // ── 3. Update vote record ─────────────────────────────────────────────
+        voteData.totalVotes  = total;
+        voteData.voteStreak  = streak;
+        voteData.maxVoteStreak = Math.max(voteData.maxVoteStreak || 0, streak);
+        voteData.lastVotedAt = now;
+        // Next vote available in 12 hours (top.gg's cooldown)
+        voteData.nextVoteAt  = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+        if (isWeekend) voteData.weekendVotes = (voteData.weekendVotes || 0) + 1;
+        await voteData.save();
+
+        // ── 4. Award baubles ──────────────────────────────────────────────────
+        const baubleData = await Bauble.findOneAndUpdate(
+            { userId },
+            { $inc: { baubles: finalBaubles } },
+            { upsert: true, new: true }
+        );
+
+        // ── 5. Award bonus items ──────────────────────────────────────────────
+        for (const item of bonusItems) {
+            const existing = baubleData.inventory?.find(i => i.itemId === item.itemId);
+            if (existing) {
+                await Bauble.updateOne(
+                    { userId, 'inventory.itemId': item.itemId },
+                    { $inc: { 'inventory.$.quantity': item.quantity } }
+                );
+            } else {
+                await Bauble.updateOne(
+                    { userId },
+                    { $push: { inventory: { itemId: item.itemId, quantity: item.quantity } } }
+                );
+            }
+        }
+
+        // ── 6. Unlock title milestone ─────────────────────────────────────────
+        if (titleUnlock) {
+            await Bauble.updateOne(
+                { userId, titles: { $ne: titleUnlock } },
+                { $push: { titles: titleUnlock } }
+            );
+        }
+
+        // ── 7. Send DM to the voter ───────────────────────────────────────────
+        try {
+            const user = await client.users.fetch(userId).catch(() => null);
+            if (user) {
+                const streakBar = '█'.repeat(Math.min(streak, 10)) + '░'.repeat(Math.max(0, 10 - Math.min(streak, 10)));
+                const shouldAskReview = total >= 3 && !voteData.reviewConfirmed && !voteData.reviewPrompted;
+
+                const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+                const embed = new EmbedBuilder()
+                    .setColor(isWeekend ? 0xFF6B6B : 0x5865F2)
+                    .setTitle(isWeekend ? '🌟 Weekend Vote — Double Baubles!' : '🗳️ Thanks for voting!')
+                    .setDescription([
+                        `Your vote for **Nishanka** just went through — and we noticed. 💙`,
+                        '',
+                        `${isWeekend ? '🌟 **Weekend bonus active — baubles doubled!**' : ''}`,
+                    ].filter(Boolean).join('\n'))
+                    .addFields(
+                        {
+                            name: '💰 Rewards Earned',
+                            value: [
+                                `+**${finalBaubles.toLocaleString()} Baubles** ${isWeekend ? '_(2× weekend!)_' : `_(${streakMult.toFixed(2)}× streak)_`}`,
+                                ...bonusItems.map(i => `+**${i.quantity}× ${i.itemId.replace(/_/g, ' ')}** 📦`),
+                                titleUnlock ? `🏷️ Title unlocked: **${titleUnlock}**` : '',
+                            ].filter(Boolean).join('\n'),
+                            inline: true,
+                        },
+                        {
+                            name: '🔥 Vote Streak',
+                            value: [
+                                `\`${streakBar}\``,
+                                `**${streak}** consecutive vote${streak !== 1 ? 's' : ''}`,
+                                `Total: **${total}** all-time`,
+                            ].join('\n'),
+                            inline: true,
+                        }
+                    )
+                    .setFooter({ text: 'Vote every 12h to keep your streak alive! · /vote for status' });
+
+                if (streak === 7 || streak === 30 || streak === 100) {
+                    embed.setDescription(embed.data.description + `\n\n🎉 **Milestone reached — streak ${streak}!** Bonus items added to your inventory.`);
+                }
+
+                const buttons = [
+                    new ButtonBuilder()
+                        .setLabel('🗳️ Vote Again in 12h')
+                        .setURL(`https://top.gg/bot/1357752347643609198/vote`)
+                        .setStyle(ButtonStyle.Link),
+                ];
+
+                if (shouldAskReview) {
+                    buttons.push(
+                        new ButtonBuilder()
+                            .setLabel('⭐ Leave a Review (earn 250 Baubles!)')
+                            .setURL(`https://top.gg/bot/1357752347643609198#reviews`)
+                            .setStyle(ButtonStyle.Link)
+                    );
+
+                    // Mark as prompted so we don't spam them every vote
+                    await Vote.updateOne({ userId }, { $set: { reviewPrompted: true } });
+
+                    embed.addFields({
+                        name: '⭐ One small ask',
+                        value: `You\'ve voted ${total} times — that tells us you actually like Nishanka!\nIf you have 30 seconds, a review on Top.gg genuinely helps others discover us.\nUse \`/vote\` and click **"I just left a review"** to claim **+250 Baubles** as a thanks. 💙`,
+                        inline: false,
+                    });
+                }
+
+                const row = new ActionRowBuilder().addComponents(...buttons);
+                await user.send({ embeds: [embed], components: [row] }).catch(() => {});
+            }
+        } catch (dmErr) {
+            console.error('[Top.gg] Failed to send vote DM:', dmErr.message);
+        }
+
+        return res.sendStatus(200);
+    } catch (err) {
+        console.error('[Top.gg] Vote webhook error:', err);
+        return res.sendStatus(500);
+    }
+});
+
 const PORT = process.env.BOT_PORT || 4000;
 
 app.listen(PORT, () => {
