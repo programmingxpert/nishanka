@@ -1375,7 +1375,8 @@ app.get('/api/premium/status', async (req, res) => {
         icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=128` : null,
         isPremium: isPrem,
         hasAdmin,
-        isOwner
+        isOwner,
+        botInGuild: client.guilds.cache.has(g.id)
       };
     }));
 
