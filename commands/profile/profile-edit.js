@@ -163,8 +163,22 @@ module.exports = {
                       console.error('Modal error:', err);
                   }
               } else if (selection === 'edit_pfp') {
-                  // Using Message component instead of modal for ease of use.
-                  await i.reply({content: "Please send the **image URL** you want to use as your profile picture (no Discord CDN links — they expire!)\n\n💡 **Need an image link?** Upload your photo to **https://postimages.org** or **https://imgbb.com** and copy the *Direct Link*. You can also right-click any image on Google Images or Pinterest → Copy Image Address.\n\n*(GIFs are not supported. URL must end in `.png`, `.jpg`, or `.webp`.)*", ephemeral: true});
+                  const isDiscordCdn = (url) => url.includes('cdn.discordapp.com') || url.includes('media.discordapp.net');
+
+                  await i.reply({
+                      content: [
+                          '📸 **Set your profile picture!**',
+                          '',
+                          'You can:',
+                          '• **Upload an image directly** right here in chat',
+                          '• **Paste an image URL** (must end in `.png`, `.jpg`, or `.webp`)',
+                          '',
+                          '> ⚠️ **Heads up:** If you upload a file or paste a Discord link, it works — but Discord deletes those links after **~24 hours**, so your picture will disappear. For something permanent, host it at **postimages.org** or **imgbb.com** and paste the *Direct Link* instead.',
+                          '',
+                          '*(GIFs not supported)*'
+                      ].join('\n'),
+                      ephemeral: true
+                  });
 
                   const filter = m => m.author.id === userId;
                   const pfpCollector = interaction.channel.createMessageCollector({
@@ -175,16 +189,22 @@ module.exports = {
                   pfpCollector.on('collect', async m => {
                       if (m.author.id !== userId) return;
                       try {
-                          let newPfp = m.attachments.size > 0 ? m.attachments.first().url : m.content;
+                          let newPfp = m.attachments.size > 0 ? m.attachments.first().url : m.content.trim();
                           if (newPfp.endsWith('.gif')) {
                               return m.reply({ content: '❌ GIFs are not supported for profile pictures.', ephemeral: true });
                           }
                           profileData.pfpUrl = newPfp;
                           await profileData.save();
+
+                          const isCdn = m.attachments.size > 0 || isDiscordCdn(newPfp);
                           const replyEmbed = new EmbedBuilder()
-                              .setColor(0x00AE86)
-                              .setTitle('Profile Picture Updated')
-                              .setDescription(`Your custom profile picture has been updated.`)
+                              .setColor(isCdn ? 0xF59E0B : 0x00AE86)
+                              .setTitle(isCdn ? '📸 Profile Picture Updated (Temporary)' : '📸 Profile Picture Updated')
+                              .setDescription(
+                                  isCdn
+                                      ? `Your profile picture has been set! \n\n⏳ **Just so you know:** Discord-hosted images expire in ~24 hours, so this will stop showing after that. For a permanent picture, re-set it using a link from **postimages.org** or **imgbb.com**.`
+                                      : `Your custom profile picture has been saved permanently!`
+                              )
                               .setTimestamp();
                           await m.reply({ embeds: [replyEmbed], ephemeral: true });
                       } catch (err) {
@@ -206,8 +226,23 @@ module.exports = {
                       return i.reply({ content: '❌ You need a 🎨 **Profile Paintbrush** in your inventory to customize your profile banner! Buy one from the `/shop`.', ephemeral: true });
                   }
 
-                   // Using Message component instead of modal for ease of use.
-                  await i.reply({content: "Please send the **image URL** or **hex color code** (e.g. `#FF5733`) to use as your banner.\n\n💡 **Need a permanent image link?** Upload your image to **https://postimages.org** or **https://imgbb.com** and copy the *Direct Link*. Avoid Discord CDN links — they expire within 24h!\n\n*(GIFs are not supported. For image URLs, must end in `.png`, `.jpg`, or `.webp`.)*", ephemeral: true});
+                   const isDiscordCdn = (url) => url.includes('cdn.discordapp.com') || url.includes('media.discordapp.net');
+
+                  await i.reply({
+                      content: [
+                          '🎨 **Set your banner!**',
+                          '',
+                          'You can:',
+                          '• **Upload an image directly** right here in chat',
+                          '• **Paste an image URL** (must end in `.png`, `.jpg`, or `.webp`)',
+                          '• **Paste a hex color** (e.g. `#7C6CF0`) for a solid color banner',
+                          '',
+                          '> ⚠️ **Heads up:** If you upload a file or paste a Discord link, it works — but Discord deletes those links after **~24 hours**, so your banner will disappear. For something permanent, host your image at **postimages.org** or **imgbb.com** and paste the *Direct Link* instead.',
+                          '',
+                          '*(GIFs not supported)*'
+                      ].join('\n'),
+                      ephemeral: true
+                  });
 
                   const filter = m => m.author.id === userId;
                   const bannerCollector = interaction.channel.createMessageCollector({
@@ -219,23 +254,37 @@ module.exports = {
                   bannerCollector.on('collect', async m => {
                       if (m.author.id !== userId) return;
                       try {
-                          let newBanner = m.attachments.size > 0 ? m.attachments.first().url : m.content;
+                          let newBanner = m.attachments.size > 0 ? m.attachments.first().url : m.content.trim();
 
                           if (newBanner.startsWith('#')) {
-                              profileData.bannerUrl = "";
+                              profileData.bannerUrl = '';
                               profileData.bannerColor = newBanner;
-                          } else {
-                              if (newBanner.endsWith('.gif')) {
-                                  return m.reply({ content: '❌ GIFs are not supported for banners.', ephemeral: true });
-                              }
-                              profileData.bannerUrl = newBanner;
-                              profileData.bannerColor = "";
+                              await profileData.save();
+                              const replyEmbed = new EmbedBuilder()
+                                  .setColor(0x00AE86)
+                                  .setTitle('🎨 Banner Color Updated')
+                                  .setDescription(`Your banner color has been set to **${newBanner}**.`)
+                                  .setTimestamp();
+                              return m.reply({ embeds: [replyEmbed], ephemeral: true });
                           }
+
+                          if (newBanner.endsWith('.gif')) {
+                              return m.reply({ content: '❌ GIFs are not supported for banners.', ephemeral: true });
+                          }
+
+                          profileData.bannerUrl = newBanner;
+                          profileData.bannerColor = '';
                           await profileData.save();
+
+                          const isCdn = m.attachments.size > 0 || isDiscordCdn(newBanner);
                           const replyEmbed = new EmbedBuilder()
-                              .setColor(0x00AE86)
-                              .setTitle('Banner Updated')
-                              .setDescription(`Your banner has been updated.`)
+                              .setColor(isCdn ? 0xF59E0B : 0x00AE86)
+                              .setTitle(isCdn ? '🎨 Banner Updated (Temporary)' : '🎨 Banner Updated')
+                              .setDescription(
+                                  isCdn
+                                      ? `Your banner has been set! \n\n⏳ **Just so you know:** Discord-hosted images expire in ~24 hours, so this will stop showing after that. For a permanent banner, re-set it using a link from **postimages.org** or **imgbb.com**.`
+                                      : `Your banner has been saved permanently!`
+                              )
                               .setTimestamp();
                           await m.reply({ embeds: [replyEmbed], ephemeral: true });
                       } catch (err) {
