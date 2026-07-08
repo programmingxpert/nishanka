@@ -13,6 +13,13 @@ const guildSettingsSchema = new mongoose.Schema({
         announceSongs: { type: Boolean, default: true },
         twentyFourSeven: { type: Boolean, default: false }
     },
+    tts: {
+        enabled: { type: Boolean, default: false },
+        voice: { type: String, default: 'en' },
+        maxLength: { type: Number, default: 120 },
+        cooldown: { type: Number, default: 4 }, // in seconds
+        allowedRoles: { type: [String], default: [] }
+    },
     bot: {
         prefix: { type: String, default: '' }, // empty string means it will fallback to process.env.PREFIX
         nickname: { type: String, default: '' },

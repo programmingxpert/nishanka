@@ -380,6 +380,18 @@ client.riffy.on('nodeError',      (node, err)     => {
     }
 });
 client.riffy.on('trackStart', async (player, track) => {
+    if (track?.info?.isTTS) {
+        return; // Don't announce TTS tracks
+    }
+
+    if (player.resumePosition) {
+        const resumePos = player.resumePosition;
+        player.resumePosition = null;
+        setTimeout(() => {
+            player.seek(resumePos);
+        }, 800); // 800ms delay to let Lavalink start streaming the track first
+    }
+
     const channel = client.channels.cache.get(player.textChannel);
     if (!channel) return;
     
@@ -411,7 +423,36 @@ client.riffy.on('trackStart', async (player, track) => {
         channel.send(`▶️ Now playing: **${track.info.title}** — *${track.info.author}*`).catch(() => {});
     }
 });
-client.riffy.on('trackEnd',       async (player)        => {
+client.riffy.on('trackEnd',       async (player, track, payload)        => {
+    // Check if the track that ended was a TTS track
+    if (track?.info?.isTTS) {
+        const { guildTtsQueues, processTtsQueue } = require('./utils/ttsManager');
+        const guildQueue = guildTtsQueues.get(player.guildId);
+        if (guildQueue) {
+            guildQueue.playing = false;
+        }
+
+        // Process next TTS if any
+        if (guildQueue && guildQueue.queue.length > 0) {
+            processTtsQueue(client, player.guildId);
+            return;
+        }
+
+        // Resume interrupted track
+        if (player.interruptedTrack) {
+            const interrupted = player.interruptedTrack;
+            player.interruptedTrack = null;
+            player.queue.unshift(interrupted.track);
+            player.resumePosition = interrupted.position;
+            try {
+                await player.play();
+            } catch (err) {
+                console.error("Error resuming track after TTS:", err);
+            }
+            return;
+        }
+    }
+
     if (!player.queue.size && !player.queue.current) {
         setTimeout(async () => {
             if (!player.playing) {

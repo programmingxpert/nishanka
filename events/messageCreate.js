@@ -255,6 +255,50 @@ module.exports = {
             }
         }
 
+        // --- TTS Voice Channel Chat Reader ---
+        if (!message.author.bot && client.activePlayers) {
+            const player = client.activePlayers.get(message.guild.id);
+            if (player && player.voiceChannel && message.channel.id === player.voiceChannel) {
+                const prefix = settings?.bot?.prefix || process.env.PREFIX || '-';
+                const chatTriggerRegex = /\b(nishanka|nish)\b/i;
+                if (!message.content.startsWith(prefix) && !chatTriggerRegex.test(message.content)) {
+                    if (settings?.tts?.enabled) {
+                        const member = message.member;
+                        if (member?.voice?.channel?.id === player.voiceChannel) {
+                            const allowedRoles = settings.tts.allowedRoles || [];
+                            let isAllowed = allowedRoles.length === 0;
+                            if (!isAllowed) {
+                                isAllowed = member.roles.cache.some(role => allowedRoles.includes(role.id));
+                            }
+
+                            if (isAllowed) {
+                                const { ttsCooldowns, cleanTextForTTS, queueTTS } = require('../utils/ttsManager');
+                                const cooldownSeconds = settings.tts.cooldown ?? 4;
+                                const cooldownKey = `${message.guild.id}-${message.author.id}`;
+                                const now = Date.now();
+                                const lastUsed = ttsCooldowns.get(cooldownKey) || 0;
+
+                                if (now - lastUsed >= cooldownSeconds * 1000) {
+                                    ttsCooldowns.set(cooldownKey, now);
+                                    const maxLength = settings.tts.maxLength ?? 120;
+                                    let contentToClean = message.content;
+                                    if (contentToClean.length > maxLength) {
+                                        contentToClean = contentToClean.substring(0, maxLength);
+                                    }
+                                    const textToSpeak = cleanTextForTTS(contentToClean, client, message.guild);
+                                    if (textToSpeak && textToSpeak.length > 0) {
+                                        const voice = settings.tts.voice || 'en';
+                                        queueTTS(client, message.guild.id, textToSpeak, voice, member.displayName);
+                                        return; // Intercepted as TTS, stop further processing
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         const prefix = settings?.bot?.prefix || process.env.PREFIX || '-';
 
         // --- AI Chat Logic ---
