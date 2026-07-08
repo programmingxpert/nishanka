@@ -4059,6 +4059,7 @@ app.post('/api/support/verify-payment', express.json(), async (req, res) => {
 // Top.gg's new webhook UI has no Authorization field, so we accept all POSTs
 // to this endpoint and log the source IP for visibility.
 const Vote   = require('./models/voteSchema');
+const Bauble = require('./models/baubleSchema');
 
 function buildVoteRewards(voteData) {
     const streak = (voteData.voteStreak || 0) + 1;
