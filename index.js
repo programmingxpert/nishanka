@@ -4061,30 +4061,81 @@ app.post('/api/support/verify-payment', express.json(), async (req, res) => {
 const Vote   = require('./models/voteSchema');
 const Bauble = require('./models/baubleSchema');
 
-function buildVoteRewards(voteData) {
+function getRandomVoteItem() {
+    const roll = Math.random() * 100;
+    if (roll < 5) {
+        // Rare/Epic pool (5%)
+        const items = ['shield', 'rabbits_feet', 'golden_fish', 'treasure_chest', 'ancient_artifact', 't_rex_skull'];
+        return items[Math.floor(Math.random() * items.length)];
+    } else if (roll < 20) {
+        // Uncommon pool (15%)
+        const items = ['clover', 'padlock', 'fossil_shell', 'ancient_bone'];
+        return items[Math.floor(Math.random() * items.length)];
+    } else {
+        // Common pool (80%)
+        const items = ['broken_keyboard', 'rotten_banana', 'fish', 'adoption_papers', 'coffee', 'ring_silver', 'mystery_box'];
+        return items[Math.floor(Math.random() * items.length)];
+    }
+}
+
+function buildVoteRewards(voteData, isWeekend = false) {
     const streak = (voteData.voteStreak || 0) + 1;
     const total  = (voteData.totalVotes || 0) + 1;
 
-    let baubles = 400;
+    let baubles = 1000; // Boosted base baubles
     const bonusItems = [];
     let titleUnlock  = null;
 
-    // Streak multiplier: +25% per consecutive vote, capped at 5×
-    const streakMult = Math.min(1 + (streak - 1) * 0.25, 5);
+    // Streak multiplier: +25% per consecutive vote, capped at 8×
+    const streakMult = Math.min(1 + (streak - 1) * 0.25, 8);
     baubles = Math.round(baubles * streakMult);
 
-    // Milestone bonus items (VERY rare — only on exact milestones)
-    if (streak === 7)   { bonusItems.push({ itemId: 'luck_potion', quantity: 1 }); }
-    if (streak === 30)  { bonusItems.push({ itemId: 'mystery_box', quantity: 2 }); titleUnlock = '🗳️ Loyal Voter'; }
-    if (streak === 100) { bonusItems.push({ itemId: 'paintbrush',  quantity: 1 }); titleUnlock = '🏅 Top Supporter'; }
+    // Apply weekend double baubles bonus
+    const finalBaubles = isWeekend ? baubles * 2 : baubles;
+
+    // ── Random Item Drop Chance ──────────────────────────────────────────────
+    // 50% chance on weekdays, 100% chance (guaranteed) on weekends!
+    const itemDropChance = isWeekend ? 1.0 : 0.50;
+    if (Math.random() < itemDropChance) {
+        bonusItems.push({ itemId: getRandomVoteItem(), quantity: 1 });
+    }
+
+    // ── Milestone Rewards ────────────────────────────────────────────────────
+    if (streak === 7) {
+        bonusItems.push({ itemId: 'luck_potion', quantity: 1 });
+        bonusItems.push({ itemId: 'mystery_box', quantity: 1 });
+        baubles += 2500;
+    } else if (streak === 30) {
+        bonusItems.push({ itemId: 'mystery_box', quantity: 5 });
+        bonusItems.push({ itemId: 'crown', quantity: 1 });
+        baubles += 15000;
+        titleUnlock = '🗳️ Loyal Voter';
+    } else if (streak === 100) {
+        bonusItems.push({ itemId: 'paintbrush', quantity: 3 });
+        bonusItems.push({ itemId: 'mystery_box', quantity: 10 });
+        baubles += 50000;
+        titleUnlock = '🏅 Top Supporter';
+    } else if (streak === 365) {
+        bonusItems.push({ itemId: 'crown', quantity: 3 });
+        bonusItems.push({ itemId: 'paintbrush', quantity: 5 });
+        baubles += 250000;
+        titleUnlock = '👑 Immortal Voter';
+    }
 
     // First vote ever — welcome gift
-    if (total === 1) bonusItems.push({ itemId: 'mystery_box', quantity: 1 });
+    if (total === 1) {
+        bonusItems.push({ itemId: 'mystery_box', quantity: 2 });
+        baubles += 1000;
+    }
 
     // Every 50th total vote — jackpot drop
-    if (total % 50 === 0) { bonusItems.push({ itemId: 'mystery_box', quantity: 1 }); baubles += 500; }
+    if (total % 50 === 0) {
+        bonusItems.push({ itemId: 'mystery_box', quantity: 3 });
+        baubles += 5000;
+        titleUnlock = '🌌 Milestone Voter';
+    }
 
-    return { baubles, bonusItems, titleUnlock, streakMult, streak, total };
+    return { baubles: finalBaubles, bonusItems, titleUnlock, streakMult, streak, total };
 }
 
 app.post('/api/topgg/vote', express.json(), async (req, res) => {
@@ -4130,10 +4181,7 @@ app.post('/api/topgg/vote', express.json(), async (req, res) => {
         }
 
         // ── 2. Compute rewards ────────────────────────────────────────────────
-        const { baubles, bonusItems, titleUnlock, streakMult, streak, total } = buildVoteRewards(voteData);
-
-        // Weekend double-baubles (top.gg gives 2× weight on weekends)
-        const finalBaubles = isWeekend ? baubles * 2 : baubles;
+        const { baubles, bonusItems, titleUnlock, streakMult, streak, total } = buildVoteRewards(voteData, isWeekend);
 
         // ── 3. Update vote record ─────────────────────────────────────────────
         voteData.totalVotes  = total;
@@ -4148,7 +4196,7 @@ app.post('/api/topgg/vote', express.json(), async (req, res) => {
         // ── 4. Award baubles ──────────────────────────────────────────────────
         const baubleData = await Bauble.findOneAndUpdate(
             { userId },
-            { $inc: { baubles: finalBaubles } },
+            { $inc: { baubles: baubles } },
             { upsert: true, new: true }
         );
 
@@ -4273,7 +4321,7 @@ app.post('/api/topgg/vote', express.json(), async (req, res) => {
                     },
                     {
                         title: '🗳️ Vote confirmed. Streak intact.',
-                        desc:  `Clean. **${user.username}** kept the streak alive — and the rewards are stacking.\n\nThe higher your streak, the more baubles you get per vote (up to 5× base). Keep it up. 📈`,
+                        desc:  `Clean. **${user.username}** kept the streak alive — and the rewards are stacking.\n\nThe higher your streak, the more baubles you get per vote (up to 8× base). Keep it up. 📈`,
                     },
                 ];
                 // Deterministic rotation based on total votes (not random — consistent per user)
@@ -4293,7 +4341,7 @@ app.post('/api/topgg/vote', express.json(), async (req, res) => {
                     {
                         name: '💸 Rewards Added',
                         value: [
-                            `> \`+${finalBaubles.toLocaleString()} Baubles\`  ${isWeekend ? '*(2× weekend bonus)*' : streak > 1 ? `*(${streakMult.toFixed(2)}× streak)*` : ''}`,
+                            `> \`+${baubles.toLocaleString()} Baubles\`  ${isWeekend ? '*(2× weekend bonus)*' : streak > 1 ? `*(${streakMult.toFixed(2)}× streak)*` : ''}`,
                             ...bonusItems.map(i => `> \`+${i.quantity}× ${i.itemId.replace(/_/g, ' ')}\`  📦`),
                             titleUnlock ? `> 🏷️ **New title:** \`${titleUnlock}\`` : null,
                         ].filter(Boolean).join('\n'),
@@ -4335,7 +4383,7 @@ app.post('/api/topgg/vote', express.json(), async (req, res) => {
                         ``,
                         `If you have 30 seconds, leaving a review on Top.gg is one of the most impactful things you can do for a small indie bot. Real people read those before inviting a bot.`,
                         ``,
-                        `After you leave one, use \`/vote\` → **"I just left a review!"** to claim **+250 Baubles** as a thank-you from us.`,
+                        `After you leave one, use \`/vote\` → **"I just left a review!"** to claim **+5,000 Baubles, 3× Mystery Boxes, and the "⭐ Critic" title!**`,
                     ].join('\n'),
                     inline: false,
                 });
