@@ -4092,11 +4092,21 @@ app.post('/api/topgg/vote', express.json(), async (req, res) => {
     // Log the full raw body so we can see exactly what Top.gg sends
     console.log(`[Top.gg] Raw body from ${sourceIp}:`, JSON.stringify(req.body));
 
-    // Top.gg's new webhook format uses different field names — handle both old and new
+    // Top.gg NEW format: { type: 'vote.create'|'webhook.test', data: { user: { id, platform_id, name, avatar_url }, ... } }
+    // Top.gg OLD format: { user: '<discord_id>', type: 'upvote'|'test', isWeekend: bool }
     const body = req.body || {};
-    const userId    = body.user || body.userId || body.id || body.query?.user || body.data?.user;
-    const type      = body.type || body.event || 'upvote';
-    const isWeekend = body.isWeekend ?? body.is_weekend ?? false;
+    const type = body.type || body.event || 'upvote';
+
+    let userId, isWeekend;
+    if (body.data && body.data.user) {
+        // New format — platform_id is the actual Discord user ID
+        userId    = body.data.user.platform_id || body.data.user.id;
+        isWeekend = false; // new format doesn't send weekend flag
+    } else {
+        // Old format fallback
+        userId    = body.user || body.userId;
+        isWeekend = body.isWeekend ?? body.is_weekend ?? false;
+    }
 
     console.log(`[Top.gg] Parsed — user=${userId} | type=${type} | weekend=${isWeekend}`);
 
