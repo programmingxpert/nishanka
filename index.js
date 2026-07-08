@@ -4055,9 +4055,9 @@ app.post('/api/support/verify-payment', express.json(), async (req, res) => {
 });
 
 // ─── Top.gg Vote Webhook ──────────────────────────────────────────────────────
-// Set TOPGG_WEBHOOK_AUTH in .env to match the "Authorization" field in Top.gg's
-// webhook settings (Bot → Edit → Webhooks → Authorization).
-// Webhook URL to paste in Top.gg: https://<your-server>:4000/api/topgg/vote
+// Webhook URL in Top.gg: http://168.144.148.157:4000/api/topgg/vote
+// Top.gg's new webhook UI has no Authorization field, so we accept all POSTs
+// to this endpoint and log the source IP for visibility.
 const Vote   = require('./models/voteSchema');
 
 function buildVoteRewards(voteData) {
@@ -4087,17 +4087,14 @@ function buildVoteRewards(voteData) {
 }
 
 app.post('/api/topgg/vote', express.json(), async (req, res) => {
-    // 1. Verify authorization header matches our secret
-    const auth = req.headers['authorization'];
-    if (!process.env.TOPGG_WEBHOOK_AUTH || auth !== process.env.TOPGG_WEBHOOK_AUTH) {
-        console.warn('[Top.gg Webhook] Unauthorized vote webhook received.');
-        return res.sendStatus(401);
-    }
+    const sourceIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
 
     const { user: userId, type, isWeekend } = req.body;
 
-    // type can be 'upvote' or 'test' — treat test as real so you can verify
-    if (!userId) return res.sendStatus(400);
+    console.log(`[Top.gg] Incoming vote webhook from IP ${sourceIp} | user=${userId} | type=${type} | weekend=${isWeekend}`);
+
+    // type can be 'upvote' or 'test' — treat test as real so you can verify it
+    if (!userId) { console.warn('[Top.gg] Rejected: missing userId in body'); return res.sendStatus(400); }
 
     console.log(`[Top.gg] Vote received from user ${userId} | weekend=${isWeekend} | type=${type}`);
 
