@@ -4089,11 +4089,18 @@ function buildVoteRewards(voteData) {
 app.post('/api/topgg/vote', express.json(), async (req, res) => {
     const sourceIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
 
-    const { user: userId, type, isWeekend } = req.body;
+    // Log the full raw body so we can see exactly what Top.gg sends
+    console.log(`[Top.gg] Raw body from ${sourceIp}:`, JSON.stringify(req.body));
 
-    console.log(`[Top.gg] Incoming vote webhook from IP ${sourceIp} | user=${userId} | type=${type} | weekend=${isWeekend}`);
+    // Top.gg's new webhook format uses different field names — handle both old and new
+    const body = req.body || {};
+    const userId    = body.user || body.userId || body.id || body.query?.user || body.data?.user;
+    const type      = body.type || body.event || 'upvote';
+    const isWeekend = body.isWeekend ?? body.is_weekend ?? false;
 
-    // type can be 'upvote' or 'test' — treat test as real so you can verify it
+    console.log(`[Top.gg] Parsed — user=${userId} | type=${type} | weekend=${isWeekend}`);
+
+    // type can be 'upvote', 'test', or 'webhook.test' — treat all as real for verification
     if (!userId) { console.warn('[Top.gg] Rejected: missing userId in body'); return res.sendStatus(400); }
 
     console.log(`[Top.gg] Vote received from user ${userId} | weekend=${isWeekend} | type=${type}`);
