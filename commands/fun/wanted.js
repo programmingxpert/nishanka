@@ -8,7 +8,7 @@ const CRIMES = [
     "Robbing server administrators",
     "Being excessively cute on chat",
     "Stealing coffee cooldown boosts",
-    "Causing Lavalink node disconnects",
+    "Causing music node disconnects",
     "Using light theme in dashboard",
     "Attempting to cheat at Mines",
     "Refusing to claim daily rewards",

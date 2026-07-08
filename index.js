@@ -60,7 +60,7 @@ process.emitWarning = function(warning, ...args) {
 process.on('unhandledRejection', (reason, promise) => {
     const msg = reason?.message || String(reason);
     if (msg.includes('Node Request') || msg.includes('fetch failed') || reason?.code === 'ETIMEDOUT' || reason?.code === 'ECONNRESET') {
-        console.warn(`⚠️ [Network Warning] Unhandled Rejection (Lavalink/Network issue): ${msg}`);
+        console.warn(`⚠️ [Network Warning] Unhandled Rejection (Music Node/Network issue): ${msg}`);
     } else {
         console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
     }
@@ -369,14 +369,14 @@ client.riffy = new Riffy(client, lavalinkNodes, {
 client.on('raw', (data) => client.riffy.updateVoiceState(data));
 
 // Riffy events
-client.riffy.on('nodeConnect',    (node)          => console.log(`🎵 Lavalink node "${node.name}" connected`));
+client.riffy.on('nodeConnect',    (node)          => console.log(`🎵 Music node "${node.name}" connected`));
 const lastNodeErrors = new Map();
 client.riffy.on('nodeError',      (node, err)     => {
     const lastError = lastNodeErrors.get(node.name);
     const now = Date.now();
     if (!lastError || lastError.message !== err.message || (now - lastError.time) > 5 * 60 * 1000) {
         lastNodeErrors.set(node.name, { message: err.message, time: now });
-        console.error(`🎵 Lavalink node "${node.name}" error:`, err.message);
+        console.error(`🎵 Music node "${node.name}" error:`, err.message);
     }
 });
 client.riffy.on('trackStart', async (player, track) => {

@@ -78,10 +78,10 @@ module.exports = {
             }
         });
 
-        // Initialize Lavalink nodes (riffy)
+        // Initialize Music Nodes (riffy)
         if (client.riffy) {
             client.riffy.init(client.user.id);
-            console.log('🎵 Lavalink (riffy) initialised');
+            console.log('🎵 Music Nodes (riffy) initialised');
         }
 
         // Initialize Disabled Commands cache
