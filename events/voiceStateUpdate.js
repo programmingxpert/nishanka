@@ -13,6 +13,33 @@ module.exports = {
         const oldChannel = oldState.channel;
         const newChannel = newState.channel;
 
+        // Auto-leave if the voice channel is empty of human users
+        if (oldChannel) {
+            const player = client.activePlayers?.get(guild.id);
+            if (player && player.voiceChannel === oldChannel.id) {
+                const humanMembers = oldChannel.members.filter(m => !m.user.bot);
+                if (humanMembers.size === 0) {
+                    const GuildSettings = require('../models/guildSettingsSchema');
+                    const settings = await GuildSettings.findOne({ guildId: guild.id }).lean();
+                    if (!settings?.music?.twentyFourSeven) {
+                        try {
+                            const textChannelId = player.textChannel;
+                            if (textChannelId) {
+                                const channel = client.channels.cache.get(textChannelId);
+                                channel?.send('🚪 Left the voice channel because it was empty.').catch(() => {});
+                            }
+                            player.destroy();
+                            client.activePlayers.delete(guild.id);
+                            const { guildTtsQueues } = require('../utils/ttsManager');
+                            guildTtsQueues.delete(guild.id);
+                        } catch (err) {
+                            console.error(`Error destroying player on empty voice channel in guild ${guild.id}:`, err);
+                        }
+                    }
+                }
+            }
+        }
+
         // Determine the action
         let title = '';
         let description = '';
