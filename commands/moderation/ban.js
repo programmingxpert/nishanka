@@ -84,6 +84,9 @@ module.exports = {
 				return;
 			}
 
+			// Defer update to prevent interaction timeout during the ban/DM process
+			await i.deferUpdate();
+
 			const deleteSeconds = parseInt(selection);
 
 			// Try DM before banning
@@ -130,10 +133,10 @@ module.exports = {
 				.setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
 				.setTimestamp();
 
-			await i.update({
+			await i.editReply({
 				embeds: [successEmbed],
 				components: []
-			});
+			}).catch(err => console.error('Failed to edit reply after ban:', err));
 
 			collector.stop();
 		});
@@ -216,6 +219,9 @@ module.exports = {
 				return;
 			}
 
+			// Defer update to prevent interaction timeout during the ban/DM process
+			await i.deferUpdate();
+
 			const deleteSeconds = parseInt(selection);
 
 			// Try DM before banning
@@ -262,10 +268,10 @@ module.exports = {
 				.setThumbnail(user.displayAvatarURL({ dynamic: true }))
 				.setTimestamp();
 
-			await i.update({
+			await i.editReply({
 				embeds: [successEmbed],
 				components: []
-			});
+			}).catch(err => console.error('Failed to edit reply after ban:', err));
 
 			collector.stop();
 		});
