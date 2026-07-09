@@ -21,11 +21,7 @@ module.exports = {
 		const reason = interaction.options.getString('reason') || 'No reason provided.';
 		const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
-		if (!member) {
-			return interaction.reply({ content: '⚠️ Could not find that user in the guild.', ephemeral: true });
-		}
-
-		if (!member.bannable) {
+		if (member && !member.bannable) {
 			return interaction.reply({ content: '🚫 I cannot ban that user. Check my role position and permissions.', ephemeral: true });
 		}
 
@@ -157,14 +153,33 @@ module.exports = {
 			return message.reply('❌ You don’t have permission to use this command.');
 		}
 
-		const user = message.mentions.users.first();
-		if (!user) return message.reply('⚠️ Please mention a user to ban.');
+		let user = message.mentions.users.first();
+		let userId = null;
+
+		if (user) {
+			userId = user.id;
+		} else if (args[0]) {
+			// Extract ID from mention format <@12345...> or raw ID
+			const idMatch = args[0].match(/^<@!?(\d+)>$/) || [null, args[0]];
+			userId = idMatch[1];
+		}
+
+		if (!userId || !/^\d{17,20}$/.test(userId)) {
+			return message.reply('⚠️ Please mention a user or provide a valid user ID to ban.');
+		}
+
+		try {
+			user = await message.client.users.fetch(userId);
+		} catch (err) {
+			return message.reply('❌ Could not find a Discord user with that ID.');
+		}
 
 		const reason = args.slice(1).join(' ') || 'No reason provided.';
-		const member = message.guild.members.cache.get(user.id);
+		const member = await message.guild.members.fetch(user.id).catch(() => null);
 
-		if (!member) return message.reply('⚠️ User not found in the guild.');
-		if (!member.bannable) return message.reply('🚫 I cannot ban that user. Check my role position and permissions.');
+		if (member && !member.bannable) {
+			return message.reply('🚫 I cannot ban that user. Check my role position and permissions.');
+		}
 
 		const confirmEmbed = new EmbedBuilder()
 			.setTitle('🔨 Ban Confirmation')
