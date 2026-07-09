@@ -197,6 +197,12 @@ async function handleTtsCommand(client, guild, member, subcommand, options, sett
             return { content: '❌ You must be in a voice channel to use this command.' };
         }
 
+        // Enable TTS automatically if currently disabled
+        if (!settings.tts.enabled) {
+            settings.tts.enabled = true;
+            await settings.save();
+        }
+
         // Check if the bot is already in a VC in this server
         let player = client.activePlayers.get(guild.id);
         if (player) {

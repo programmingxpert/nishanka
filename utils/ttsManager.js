@@ -79,9 +79,25 @@ async function processTtsQueue(client, guildId) {
     try {
         // Construct standard Google Translate TTS API URL
         const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(`${nextTts.author} says: ${nextTts.text}`)}&tl=${nextTts.voice}&client=tw-ob`;
-        const res = await client.riffy.resolve({ query: ttsUrl, requester: client.user });
+        
+        let res = null;
+        const connectedNodes = [...client.riffy.nodeMap.values()].filter(node => node.connected);
+        
+        // Iterate through connected nodes to find one that resolves the HTTP stream successfully (skipping broken nodes)
+        for (const node of connectedNodes) {
+            try {
+                const tempRes = await client.riffy.resolve({ query: ttsUrl, requester: client.user, node: node });
+                if (tempRes && tempRes.tracks && tempRes.tracks.length > 0 && tempRes.loadType !== 'error') {
+                    res = tempRes;
+                    break;
+                }
+            } catch (resolveErr) {
+                console.error(`[TTS Manager] Node "${node.name}" failed to resolve TTS URL:`, resolveErr.message);
+            }
+        }
 
         if (!res || !res.tracks || res.tracks.length === 0) {
+            console.error(`[TTS Manager] Failed to resolve TTS URL on all connected Lavalink nodes.`);
             guildQueue.playing = false;
             setTimeout(() => processTtsQueue(client, guildId), 500);
             return;
@@ -93,17 +109,31 @@ async function processTtsQueue(client, guildId) {
         ttsTrack.info.title = `TTS: ${nextTts.text.substring(0, 30)}`;
         ttsTrack.info.author = nextTts.author;
 
+        const isCurrentActive = player.current && (player.playing || player.paused);
+
         // If there's already a track playing (and it's not a TTS track itself), interrupt it
-        if (player.current && !player.current.info.isTTS) {
+        const isCurrentTTS = player.current?.info?.isTTS || (player.current?.info?.uri && player.current.info.uri.includes('translate.google.com/translate_tts'));
+        if (isCurrentActive && !isCurrentTTS) {
             player.interruptedTrack = {
                 track: player.current,
                 position: player.position
             };
         }
 
-        // Put TTS track at the front of the queue and stop current track to force immediate play
+        // Put TTS track at the front of the queue
         player.queue.unshift(ttsTrack);
-        player.stop();
+
+        if (isCurrentActive) {
+            player.stop();
+        } else {
+            try {
+                await player.play();
+            } catch (playErr) {
+                console.error("[TTS Manager] Error playing TTS track directly:", playErr);
+                guildQueue.playing = false;
+                setTimeout(() => processTtsQueue(client, guildId), 500);
+            }
+        }
 
     } catch (err) {
         console.error(`[TTS Manager] Error playing TTS track for guild ${guildId}:`, err);
@@ -123,7 +153,8 @@ function skipTTS(client, guildId) {
         guildQueue.playing = false;
     }
 
-    if (player.current && player.current.info.isTTS) {
+    const isCurrentTTS = player.current?.info?.isTTS || (player.current?.info?.uri && player.current.info.uri.includes('translate.google.com/translate_tts'));
+    if (player.current && isCurrentTTS) {
         player.stop(); // Stops the current TTS track. Riffy's trackEnd will trigger the music restore.
         return true;
     }

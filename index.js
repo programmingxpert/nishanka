@@ -380,7 +380,8 @@ client.riffy.on('nodeError',      (node, err)     => {
     }
 });
 client.riffy.on('trackStart', async (player, track) => {
-    if (track?.info?.isTTS) {
+    const isTTS = track?.info?.isTTS || (track?.info?.uri && track.info.uri.includes('translate.google.com/translate_tts'));
+    if (isTTS) {
         return; // Don't announce TTS tracks
     }
 
@@ -423,35 +424,44 @@ client.riffy.on('trackStart', async (player, track) => {
         channel.send(`▶️ Now playing: **${track.info.title}** — *${track.info.author}*`).catch(() => {});
     }
 });
-client.riffy.on('trackEnd',       async (player, track, payload)        => {
-    // Check if the track that ended was a TTS track
-    if (track?.info?.isTTS) {
-        const { guildTtsQueues, processTtsQueue } = require('./utils/ttsManager');
-        const guildQueue = guildTtsQueues.get(player.guildId);
-        if (guildQueue) {
-            guildQueue.playing = false;
-        }
+// Helper function to handle TTS lifecycle completion and resumption
+async function handleTtsLifecycleEnd(player, track) {
+    const isTTS = track?.info?.isTTS || (track?.info?.uri && track.info.uri.includes('translate.google.com/translate_tts'));
+    if (!isTTS) return false;
 
-        // Process next TTS if any
-        if (guildQueue && guildQueue.queue.length > 0) {
-            processTtsQueue(client, player.guildId);
-            return;
-        }
-
-        // Resume interrupted track
-        if (player.interruptedTrack) {
-            const interrupted = player.interruptedTrack;
-            player.interruptedTrack = null;
-            player.queue.unshift(interrupted.track);
-            player.resumePosition = interrupted.position;
-            try {
-                await player.play();
-            } catch (err) {
-                console.error("Error resuming track after TTS:", err);
-            }
-            return;
-        }
+    const { guildTtsQueues, processTtsQueue } = require('./utils/ttsManager');
+    const guildQueue = guildTtsQueues.get(player.guildId);
+    if (guildQueue) {
+        guildQueue.playing = false;
     }
+
+    // Process next TTS if any
+    if (guildQueue && guildQueue.queue.length > 0) {
+        processTtsQueue(client, player.guildId);
+        return true;
+    }
+
+    // Resume interrupted track
+    if (player.interruptedTrack) {
+        const interrupted = player.interruptedTrack;
+        player.interruptedTrack = null;
+        player.queue.unshift(interrupted.track);
+        player.resumePosition = interrupted.position;
+        try {
+            await player.play();
+        } catch (err) {
+            console.error("Error resuming track after TTS:", err);
+        }
+        return true;
+    }
+
+    return true;
+}
+
+client.riffy.on('trackEnd',       async (player, track, payload)        => {
+    // Check if the track that ended was a TTS track and handle it
+    const wasTts = await handleTtsLifecycleEnd(player, track);
+    if (wasTts) return;
 
     if (!player.queue.size && !player.queue.current) {
         setTimeout(async () => {
@@ -466,6 +476,11 @@ client.riffy.on('trackEnd',       async (player, track, payload)        => {
     }
 });
 client.riffy.on('queueEnd',       async (player)        => {
+    // Check if queueEnd was triggered by the end of a TTS track
+    const endedTrack = player.previous;
+    const wasTts = await handleTtsLifecycleEnd(player, endedTrack);
+    if (wasTts) return; // Skip normal queue finish/disconnect if TTS handled resumption or next track
+
     const channel = client.channels.cache.get(player.textChannel);
     const settings = await require('./models/guildSettingsSchema').findOne({ guildId: player.guildId }).lean();
     const is24hr = settings?.music?.twentyFourSeven;
