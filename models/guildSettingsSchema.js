@@ -20,6 +20,11 @@ const guildSettingsSchema = new mongoose.Schema({
         cooldown: { type: Number, default: 4 }, // in seconds
         allowedRoles: { type: [String], default: [] }
     },
+    intro: {
+        channelId: { type: String, default: null },
+        format: { type: String, default: '' },
+        enabled: { type: Boolean, default: false }
+    },
     bot: {
         prefix: { type: String, default: '' }, // empty string means it will fallback to process.env.PREFIX
         nickname: { type: String, default: '' },

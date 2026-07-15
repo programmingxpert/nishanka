@@ -93,7 +93,13 @@ module.exports = {
                     { name: 'Remove permission role', value: 'remove' },
                     { name: 'View configuration', value: 'view' }
                 ))
-                .addRoleOption(opt => opt.setName('role').setDescription('Role (required for add/remove).'))),
+                .addRoleOption(opt => opt.setName('role').setDescription('Role (required for add/remove).')))
+        .addSubcommand(sub =>
+            sub.setName('intro')
+                .setDescription('Configure the AI-based introduction channel.')
+                .addChannelOption(opt => opt.setName('channel').setDescription('The designated introductions channel.').addChannelTypes(ChannelType.GuildText))
+                .addBooleanOption(opt => opt.setName('enabled').setDescription('Toggle introduction channel processing.'))
+                .addStringOption(opt => opt.setName('format').setDescription('Custom layout template (use placeholders like {user}, {name}, {interests}, etc.).'))),
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
@@ -139,6 +145,13 @@ module.exports = {
             const isDev = interaction.user.id === config.devId;
             if (!isOwner && !isAdmin && !isDev) {
                 return interaction.reply({ content: '❌ Only server Owners or Administrators can modify Dashboard Permissions.', ephemeral: true });
+            }
+        } else if (sub === 'intro') {
+            const isOwner = guild.ownerId === interaction.user.id;
+            const isAdmin = interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
+            const isDev = interaction.user.id === config.devId;
+            if (!isOwner && !isAdmin && !isDev) {
+                return interaction.reply({ content: '❌ Only server Owners or Administrators can modify the AI Introduction Channel.', ephemeral: true });
             }
         }
 
@@ -201,6 +214,12 @@ module.exports = {
                                    `• **Triggers:** ${settings.dashboardPermissions?.triggers?.map(r => `<@&${r}>`).join(', ') || 'Only Admins'}\n` +
                                    `• **Giveaways:** ${settings.dashboardPermissions?.giveaways?.map(r => `<@&${r}>`).join(', ') || 'Only Admins'}\n` +
                                    `• **Embed:** ${settings.dashboardPermissions?.embed?.map(r => `<@&${r}>`).join(', ') || 'Only Admins'}`
+                        },
+                        {
+                            name: '📝 AI Intro Channel (`/config intro`)',
+                            value: `• **Status:** ${settings.intro?.enabled ? '🟢 Enabled' : '🔴 Disabled'}\n` +
+                                   `• **Channel:** ${settings.intro?.channelId ? `<#${settings.intro.channelId}>` : 'None'}\n` +
+                                   `• **Format:** ${settings.intro?.format ? '🟢 Custom' : '⚪ Default'}`
                         }
                     );
 
@@ -435,6 +454,56 @@ module.exports = {
                 }
             }
 
+            if (sub === 'intro') {
+                let settings = await GuildSettings.findOne({ guildId });
+                if (!settings) settings = new GuildSettings({ guildId });
+                if (!settings.intro) {
+                    settings.intro = { enabled: false, channelId: null, format: '' };
+                }
+
+                const channel = interaction.options.getChannel('channel');
+                const enabled = interaction.options.getBoolean('enabled');
+                const format = interaction.options.getString('format');
+
+                let updated = [];
+                if (channel !== null) {
+                    settings.intro.channelId = channel ? channel.id : null;
+                    updated.push(`channel: ${channel ? channel : 'Disabled'}`);
+                }
+                if (enabled !== null) {
+                    settings.intro.enabled = enabled;
+                    updated.push(`enabled: \`${enabled}\``);
+                }
+                if (format !== null) {
+                    settings.intro.format = format;
+                    updated.push(`format: \`${format ? 'Custom format set' : 'Reset to default'}\``);
+                }
+
+                if (updated.length > 0) {
+                    settings.markModified('intro');
+                    await settings.save();
+                }
+
+                const { getUserPremiumTier } = require('../../utils/premiumPromo');
+                const ownerId = guild.ownerId;
+                const tier = getUserPremiumTier(ownerId);
+                const maxApu = require('../../utils/aiManager').TIER_APU_LIMITS[tier] || 20;
+
+                const embed = new EmbedBuilder()
+                    .setColor(0x7c6cf0)
+                    .setTitle('📝 AI Introduction Channel Configuration')
+                    .setDescription(updated.length > 0 ? `✅ **Settings Updated:**\n${updated.map(u => `• ${u}`).join('\n')}` : 'Here is the current AI Introduction Channel setup:')
+                    .addFields(
+                        { name: 'Status', value: settings.intro.enabled ? '🟢 Enabled' : '🔴 Disabled', inline: true },
+                        { name: 'Channel', value: settings.intro.channelId ? `<#${settings.intro.channelId}>` : 'None', inline: true },
+                        { name: 'Custom Format', value: settings.intro.format ? '```\n' + settings.intro.format.substring(0, 200) + '...```' : 'Default (Aesthetic)', inline: false },
+                        { name: '⚡ APU & How It Works', value: `• Each introduction processed costs **1 APU** credit.\n• APUs are consumed from the **server owner** (<@${ownerId}>).\n• The owner\'s current tier is **${tier.toUpperCase()}** which provides **${maxApu} APU** daily (resets 00:00 UTC).\n• If the owner runs out of APUs, introductions cannot be formatted. Recharge or upgrade via \`/ai status\`.`, inline: false }
+                    )
+                    .setTimestamp();
+
+                return interaction.reply({ embeds: [embed] });
+            }
+
             if (sub === 'permissions') {
                 let settings = await GuildSettings.findOne({ guildId });
                 if (!settings) settings = new GuildSettings({ guildId });
@@ -533,6 +602,13 @@ module.exports = {
             if (!isOwner && !isAdmin && !isDev) {
                 return message.reply('❌ Only server Owners or Administrators can modify Dashboard Permissions.');
             }
+        } else if (sub === 'intro') {
+            const isOwner = guild.ownerId === message.author.id;
+            const isAdmin = message.member.permissions.has(PermissionsBitField.Flags.Administrator);
+            const isDev = message.author.id === config.devId;
+            if (!isOwner && !isAdmin && !isDev) {
+                return message.reply('❌ Only server Owners or Administrators can modify the AI Introduction Channel.');
+            }
         }
 
         try {
@@ -594,6 +670,12 @@ module.exports = {
                                    `• **Triggers:** ${settings.dashboardPermissions?.triggers?.map(r => `<@&${r}>`).join(', ') || 'Only Admins'}\n` +
                                    `• **Giveaways:** ${settings.dashboardPermissions?.giveaways?.map(r => `<@&${r}>`).join(', ') || 'Only Admins'}\n` +
                                    `• **Embed:** ${settings.dashboardPermissions?.embed?.map(r => `<@&${r}>`).join(', ') || 'Only Admins'}`
+                        },
+                        {
+                            name: '📝 AI Intro Channel (`-config intro`)',
+                            value: `• **Status:** ${settings.intro?.enabled ? '🟢 Enabled' : '🔴 Disabled'}\n` +
+                                   `• **Channel:** ${settings.intro?.channelId ? `<#${settings.intro.channelId}>` : 'None'}\n` +
+                                   `• **Format:** ${settings.intro?.format ? '🟢 Custom' : '⚪ Default'}`
                         }
                     );
 
@@ -926,6 +1008,77 @@ module.exports = {
                 } else {
                     return message.reply('❌ Action must be `add`, `remove`, or `view`.');
                 }
+            }
+
+            if (sub === 'intro') {
+                let settings = await GuildSettings.findOne({ guildId });
+                if (!settings) settings = new GuildSettings({ guildId });
+                if (!settings.intro) {
+                    settings.intro = { enabled: false, channelId: null, format: '' };
+                }
+
+                const key = args[1]?.toLowerCase();
+                const value = args.slice(2).join(' ');
+
+                if (!key) {
+                    return message.reply('⚠️ Specify parameter to configure: `channel`, `enable`, `disable`, or `format`.\nExample: `-config intro channel #introductions`');
+                }
+
+                let updated = [];
+                if (key === 'channel') {
+                    if (value.toLowerCase() === 'none' || value.toLowerCase() === 'disable') {
+                        settings.intro.channelId = null;
+                        updated.push('channel: Disabled');
+                    } else {
+                        const chanId = value.replace(/[<#&>]/g, '');
+                        const chan = guild.channels.cache.get(chanId);
+                        if (!chan || chan.type !== ChannelType.GuildText) {
+                            return message.reply('❌ Please specify a valid text channel.');
+                        }
+                        settings.intro.channelId = chan.id;
+                        updated.push(`channel: ${chan}`);
+                    }
+                } else if (key === 'enable' || key === 'enabled') {
+                    settings.intro.enabled = true;
+                    updated.push('enabled: `true`');
+                } else if (key === 'disable' || key === 'disabled') {
+                    settings.intro.enabled = false;
+                    updated.push('enabled: `false`');
+                } else if (key === 'format') {
+                    if (value.toLowerCase() === 'default' || value.toLowerCase() === 'none') {
+                        settings.intro.format = '';
+                        updated.push('format: Reset to default');
+                    } else {
+                        settings.intro.format = value;
+                        updated.push('format: Custom format set');
+                    }
+                } else {
+                    return message.reply(`❌ Unknown parameter: \`${key}\`.`);
+                }
+
+                if (updated.length > 0) {
+                    settings.markModified('intro');
+                    await settings.save();
+                }
+
+                const { getUserPremiumTier } = require('../../utils/premiumPromo');
+                const ownerId = guild.ownerId;
+                const tier = getUserPremiumTier(ownerId);
+                const maxApu = require('../../utils/aiManager').TIER_APU_LIMITS[tier] || 20;
+
+                const embed = new EmbedBuilder()
+                    .setColor(0x7c6cf0)
+                    .setTitle('📝 AI Introduction Channel Configuration')
+                    .setDescription(updated.length > 0 ? `✅ **Settings Updated:**\n${updated.map(u => `• ${u}`).join('\n')}` : 'Here is the current AI Introduction Channel setup:')
+                    .addFields(
+                        { name: 'Status', value: settings.intro.enabled ? '🟢 Enabled' : '🔴 Disabled', inline: true },
+                        { name: 'Channel', value: settings.intro.channelId ? `<#${settings.intro.channelId}>` : 'None', inline: true },
+                        { name: 'Custom Format', value: settings.intro.format ? '```\n' + settings.intro.format.substring(0, 200) + '...```' : 'Default (Aesthetic)', inline: false },
+                        { name: '⚡ APU & How It Works', value: `• Each introduction processed costs **1 APU** credit.\n• APUs are consumed from the **server owner** (<@${ownerId}>).\n• The owner\'s current tier is **${tier.toUpperCase()}** which provides **${maxApu} APU** daily (resets 00:00 UTC).\n• If the owner runs out of APUs, introductions cannot be formatted. Recharge or upgrade via \`/ai status\`.`, inline: false }
+                    )
+                    .setTimestamp();
+
+                return message.reply({ embeds: [embed] });
             }
         } catch (err) {
             console.error(err);

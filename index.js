@@ -2054,6 +2054,27 @@ app.get('/api/guilds/:guildId', async (req, res) => {
         memberJoin: true,
         memberLeave: true
       },
+      intro: guildConfig?.intro || {
+        enabled: false,
+        channelId: null,
+        format: ''
+      },
+      ownerApu: await (async () => {
+        if (!guild) return null;
+        const ownerId = guild.ownerId;
+        const { getUserPremiumTier } = require('./utils/premiumPromo');
+        const { getOrCreateUsage, TIER_APU_LIMITS } = require('./utils/aiManager');
+        const usage = await getOrCreateUsage(ownerId);
+        const tier = ownerId === config.devId ? 'lifetime' : getUserPremiumTier(ownerId);
+        const maxApu = TIER_APU_LIMITS[tier] || 20;
+        return {
+          ownerId,
+          tier,
+          maxApu,
+          usedToday: usage.usedToday,
+          remaining: Math.max(0, maxApu - usage.usedToday)
+        };
+      })(),
       dashboardPermissions: dbPerms,
       userPermissions,
       guildName,
@@ -2075,7 +2096,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
-  const { autoMod, censor, economy, music, bot, leveling, welcome, autoRole, logging, dashboardPermissions, tickets } = req.body;
+  const { autoMod, censor, economy, music, bot, leveling, welcome, autoRole, logging, dashboardPermissions, tickets, intro } = req.body;
 
   try {
     const guild = client.guilds.cache.get(guildId);
@@ -2194,6 +2215,17 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
         return res.status(403).json({ error: 'Only server Owners or Administrators can modify Ticket settings.' });
       }
       settingsUpdates.tickets = tickets;
+    }
+
+    if (intro) {
+      if (!canEdit('bot')) {
+        return res.status(403).json({ error: 'You do not have permission to modify Intro settings.' });
+      }
+      settingsUpdates.intro = {
+        enabled: intro.enabled !== false,
+        channelId: intro.channelId || null,
+        format: intro.format || ''
+      };
     }
 
     // Save GuildSettings

@@ -125,6 +125,13 @@ module.exports = {
         let settings = null;
         try {
             settings = await GuildSettings.findOne({ guildId: message.guild.id });
+
+            // --- AI Intro Channel Handler ---
+            if (settings?.intro?.enabled && settings.intro.channelId === message.channel.id) {
+                const { handleIntroMessage } = require('../utils/introManager');
+                await handleIntroMessage(message, settings);
+                return; // Intercepted, stop processing
+            }
             
             const MemberStats = require('../models/MemberStats');
             let stats = await MemberStats.findOne({ guildId: message.guild.id, userId: message.author.id });
