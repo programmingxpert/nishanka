@@ -2,7 +2,7 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { consumeAPU } = require('./aiManager');
 const GuildSettings = require('../models/guildSettingsSchema');
 
-// Default introduction layout template
+// Default introduction layout template (used as a fallback placeholder in configurations)
 const DEFAULT_INTRO_TEMPLATE = `✨ **Member Introduction** ✨
 ━━━━━━━━━━━━━━━━━━━━━━━━
 👤 **User:** {user}
@@ -13,36 +13,31 @@ const DEFAULT_INTRO_TEMPLATE = `✨ **Member Introduction** ✨
 ━━━━━━━━━━━━━━━━━━━━━━━━`;
 
 /**
- * Validates and formats the user's introduction using the DeepSeek API.
+ * Validates and extracts introduction details using the DeepSeek API.
  * Consumes 1 APU credit from the server owner's balance.
  */
-async function processIntroWithAI(ownerId, userInput, customFormat, userMention) {
+async function processIntroWithAI(ownerId, userInput) {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     const hasKey = apiKey && apiKey !== 'your_deepseek_api_key_here';
     if (!hasKey) {
         throw new Error('DeepSeek API key is not configured.');
     }
 
-    const formatTemplate = customFormat || DEFAULT_INTRO_TEMPLATE;
+    const systemPrompt = `You are a parser that processes user self-introductions for a Discord server.
 
-    const systemPrompt = `You are an assistant that processes user self-introductions for a Discord server. Your task is to analyze the user's input.
-
+Analyze the user's input.
 A message is considered low-effort/generic ONLY if it is extremely short (e.g., under 15 characters), or consists solely of simple greetings (e.g., "hi", "wsp", "hello", "yo", "wsg", "test", "wup", "sup"), or general questions (e.g., "what is this channel"), without providing any personal details (like name, age, location, hobbies, interests, or about me).
 If the input is indeed low-effort/generic, reply with the exact word: GENERIC
 
-If the input contains ANY meaningful personal details (such as their name, age, interests, hobbies, games they play, or a short description of themselves, e.g., "Hi, I'm Yuki. I'm 19 years old and I'm from Angul, odisha. I like to watch anime, code, game, cosplay"), it is a VALID introduction. In this case, you MUST format it into a beautiful, neat, aesthetic introduction layout based on the requested template. Do NOT reply with GENERIC for such messages.
+If the input is a valid introduction containing personal details (such as name, age, interests, hobbies, games, or description), extract the key details and return a raw JSON object with the following keys. Do NOT include markdown code blocks, do NOT write anything else, just return the JSON:
+{
+  "name": "extracted name or alias (fallback to 'Not specified')",
+  "age": "extracted age, pronouns, or gender (fallback to 'Not specified')",
+  "interests": "extracted interests, hobbies, games, or things they like (fallback to 'Not specified')",
+  "about": "a clean, well-written, 2-3 sentence summary of their introduction in first person (e.g., 'I am a 19-year-old developer from Odisha. I enjoy anime, coding, and gaming.')"
+}
 
-The format to use is:
-${formatTemplate}
-
-Extract the information from the user's input and replace the placeholders:
-- {user} with the user's mention: ${userMention}
-- {name} with their name/alias (or "Not specified")
-- {age} with their age/pronouns/gender (or "Not specified")
-- {interests} with their interests/hobbies/games (or "Not specified")
-- {about} with a clean, well-written summary of their introduction.
-
-Ensure all fields are extracted from the user's input, cleaned up, and formatted nicely. Do not add any extra commentary or conversational text outside the formatted introduction. Keep the exact styling, emojis, and structure of the layout.`;
+Do not return any conversational text. Return only the JSON object or the word GENERIC.`;
 
     try {
         const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -58,7 +53,7 @@ Ensure all fields are extracted from the user's input, cleaned up, and formatted
                     { role: 'user', content: userInput }
                 ],
                 temperature: 0.7,
-                max_tokens: 400
+                max_tokens: 450
             })
         });
 
@@ -107,7 +102,7 @@ async function handleIntroMessage(message, settings) {
     await message.channel.sendTyping().catch(() => {});
 
     try {
-        const result = await processIntroWithAI(ownerId, userInput, customFormat, userMention);
+        const result = await processIntroWithAI(ownerId, userInput);
 
         if (result === 'GENERIC' || result.startsWith('GENERIC')) {
             // Delete generic message
@@ -124,11 +119,48 @@ async function handleIntroMessage(message, settings) {
                 }, 8000);
             }
         } else {
-            // Valid introduction! Delete the raw message
+            // Parse the JSON returned by AI
+            let introData;
+            try {
+                // Remove potential markdown code block formatting like ```json ... ```
+                const cleanJson = result.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+                introData = JSON.parse(cleanJson);
+            } catch (jsonErr) {
+                console.error('[Intro Manager] Failed to parse JSON:', result, jsonErr);
+                throw new Error('AI output was not in valid JSON format.');
+            }
+
+            // Delete original message
             await message.delete().catch(() => {});
 
-            // Post formatted introduction, ensuring the user is mentioned
-            await message.channel.send(`<@${message.author.id}>\n${result}`).catch(() => {});
+            if (customFormat) {
+                // Apply custom format template
+                const formattedText = customFormat
+                    .replace(/{user}/g, userMention)
+                    .replace(/{name}/g, introData.name || 'Not specified')
+                    .replace(/{age}/g, introData.age || 'Not specified')
+                    .replace(/{interests}/g, introData.interests || 'Not specified')
+                    .replace(/{about}/g, introData.about || 'Not specified');
+
+                await message.channel.send(`${userMention}\n${formattedText}`).catch(() => {});
+            } else {
+                // Beautiful default rich Discord Embed layout!
+                const embed = new EmbedBuilder()
+                    .setColor('#7c6cf0') // Premium purple theme
+                    .setTitle('✨ New Member Introduction ✨')
+                    .setThumbnail(message.author.displayAvatarURL({ extension: 'png', size: 128 }))
+                    .setDescription(introData.about || 'No description provided.')
+                    .addFields(
+                        { name: '👤 Member', value: userMention, inline: true },
+                        { name: '🏷️ Name/Alias', value: introData.name || 'Not specified', inline: true },
+                        { name: '🎂 Age/Pronouns', value: introData.age || 'Not specified', inline: true },
+                        { name: '🎮 Interests & Hobbies', value: introData.interests || 'Not specified', inline: false }
+                    )
+                    .setFooter({ text: `Welcome to the family! 💜`, iconURL: guild.iconURL() })
+                    .setTimestamp();
+
+                await message.channel.send({ content: userMention, embeds: [embed] }).catch(() => {});
+            }
 
             // Lock channel for the user by setting SendMessages: false overwrite
             try {
