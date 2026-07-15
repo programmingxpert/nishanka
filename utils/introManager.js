@@ -2,13 +2,10 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { consumeAPU } = require('./aiManager');
 const GuildSettings = require('../models/guildSettingsSchema');
 
-// Default introduction layout template - styled using the cute kaomojis, symbol packs, and separators requested by the user
+// Default introduction layout template (used as a fallback placeholder in configurations)
 const DEFAULT_INTRO_TEMPLATE = `╭────── ౨ৎ ──────╮
    ✨ 𝖬𝖤𝖬𝖡𝖤𝖱  𝖨𝖭𝖳𝖱𝖮𝖣𝖴𝖢𝖳𝖨𝖮𝖭 ✨
 ╰────── ౨ৎ ──────╯
-  𑁥 _ 灬 _ 𑁥  
- 𐔌˶ ❛ ᴗ < ⋆𐦯 ♡ 
- Ⳋ/ づ *welcome here!!*
 
 ────── 🎀༘⋆──𐀔˚˖♡ ──────
 ✦ 👤 **Nickname:** {name}
@@ -20,23 +17,92 @@ const DEFAULT_INTRO_TEMPLATE = `╭────── ౨ৎ ──────�
 ────── ⋆˚𝜗𝜚˚⋆🥥⑅⁺₊ ──────`;
 
 /**
- * Validates and extracts introduction details using the DeepSeek API.
- * Consumes 1 APU credit from the server owner's balance.
+ * Generates a dynamic-field layout directly from AI.
  */
-async function processIntroWithAI(ownerId, userInput) {
+async function processDefaultIntroWithAI(ownerId, userInput) {
     const apiKey = process.env.DEEPSEEK_API_KEY;
-    const hasKey = apiKey && apiKey !== 'your_deepseek_api_key_here';
-    if (!hasKey) {
+    if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
         throw new Error('DeepSeek API key is not configured.');
     }
 
     const systemPrompt = `You are a parser that processes user self-introductions for a Discord server.
 
 Analyze the user's input.
-A message is considered low-effort/generic ONLY if it is extremely short (e.g., under 15 characters), or consists solely of simple greetings (e.g., "hi", "wsp", "hello", "yo", "wsg", "test", "wup", "sup"), or general questions (e.g., "what is this channel"), without providing any personal details (like name, age, location, hobbies, interests, or about me).
+A message is considered low-effort/generic ONLY if it is extremely short (e.g., under 15 characters), or consists solely of simple greetings (e.g., "hi", "wsp", "hello", "yo", "wsg", "test", "wup", "sup"), or general questions (e.g., "what is this channel"), without providing any personal details.
 If the input is indeed low-effort/generic, reply with the exact word: GENERIC
 
-If the input is a valid introduction containing personal details (such as name, age, interests, hobbies, games, or description), extract the key details and return a raw JSON object with the following keys. Do NOT include markdown code blocks, do NOT write anything else, just return the JSON:
+If the input is a valid introduction containing personal details, you must format it into a cute, aesthetic, non-boring Discord post.
+Structure the introduction exactly as follows:
+
+╭────── ౨ৎ ──────╮
+   ✨ 𝖬𝖤𝖬𝖡𝖤𝖱  𝖨𝖭𝖳𝖱𝖮𝖣𝖴𝖢𝖳𝖨𝖮𝖭 ✨
+╰────── ౨ৎ ──────╯
+
+────── 🎀༘⋆──𐀔˚˖♡ ──────
+[DYNAMIC FIELDS]
+────── 𓂃✿𓈒𓏸 ──────
+📝 **About Me:**
+[ABOUT ME PARAGRAPH]
+────── ⋆˚𝜗𝜚˚⋆🥥⑅⁺₊ ──────
+
+For [DYNAMIC FIELDS]:
+Extract all details the user shared (e.g., name/alias, age/pronouns, location, hobbies, favorite games, music, study/profession, etc.).
+Format each extracted detail on a new line using this format:
+✦ [emoji] **[Field Title]:** [Value]
+Choose an appropriate emoji for the field (e.g. 👤 for Name, 🎂 for Age/Pronouns, 📍 for Location, 🎮 for Games, 🎵 for Music, 📚 for Studies, etc.). Do not include empty or "Not specified" fields. Only include fields they actually provided details for.
+
+For [ABOUT ME PARAGRAPH]:
+Write a clean, cohesive, 2-3 sentence summary of their introduction in first person (e.g., "I am Yuki from Odisha...").
+
+Do not return any other text, greetings, or markdown code block syntax. Return only the formatted introduction starting with ╭────── ౨ৎ ──────╮.`;
+
+    try {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userInput }
+                ],
+                temperature: 0.7,
+                max_tokens: 500
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`DeepSeek API returned status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const replyText = data.choices?.[0]?.message?.content?.trim();
+        return replyText || 'GENERIC';
+    } catch (error) {
+        console.error('[Intro Manager] DeepSeek API Error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Extracts structured JSON for custom format template replacements.
+ */
+async function processIntroJSONWithAI(ownerId, userInput) {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || apiKey === 'your_deepseek_api_key_here') {
+        throw new Error('DeepSeek API key is not configured.');
+    }
+
+    const systemPrompt = `You are a parser that processes user self-introductions for a Discord server.
+
+Analyze the user's input.
+A message is considered low-effort/generic ONLY if it is extremely short (e.g., under 15 characters), or consists solely of simple greetings (e.g., "hi", "wsp", "hello", "yo", "wsg", "test", "wup", "sup"), or general questions (e.g., "what is this channel"), without providing any personal details.
+If the input is indeed low-effort/generic, reply with the exact word: GENERIC
+
+If the input is a valid introduction containing personal details, extract the key details and return a raw JSON object with the following keys. Do NOT include markdown code blocks, do NOT write anything else, just return the JSON:
 {
   "name": "extracted name or alias (fallback to 'Not specified')",
   "age": "extracted age, pronouns, or gender (fallback to 'Not specified')",
@@ -109,59 +175,84 @@ async function handleIntroMessage(message, settings) {
     await message.channel.sendTyping().catch(() => {});
 
     try {
-        const result = await processIntroWithAI(ownerId, userInput);
+        if (customFormat) {
+            // Process using JSON extraction for custom format template
+            const result = await processIntroJSONWithAI(ownerId, userInput);
 
-        if (result === 'GENERIC' || result.startsWith('GENERIC')) {
-            // Delete generic message
-            await message.delete().catch(() => {});
+            if (result === 'GENERIC' || result.startsWith('GENERIC')) {
+                // Delete generic message
+                await message.delete().catch(() => {});
 
-            // Send temporary warning
-            const replyMsg = await message.channel.send(
-                `❌ ${userMention}, please write a proper, meaningful introduction about yourself! (e.g. your name, age, interests, hobbies). Simple greetings like "hi" or "wsp" are not allowed.`
-            ).catch(() => null);
+                // Send temporary warning
+                const replyMsg = await message.channel.send(
+                    `❌ ${userMention}, please write a proper, meaningful introduction about yourself! (e.g. your name, age, interests, hobbies). Simple greetings like "hi" or "wsp" are not allowed.`
+                ).catch(() => null);
 
-            if (replyMsg) {
-                setTimeout(() => {
-                    replyMsg.delete().catch(() => {});
-                }, 8000);
+                if (replyMsg) {
+                    setTimeout(() => {
+                        replyMsg.delete().catch(() => {});
+                    }, 8000);
+                }
+            } else {
+                // Parse JSON
+                let introData;
+                try {
+                    const cleanJson = result.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+                    introData = JSON.parse(cleanJson);
+                } catch (jsonErr) {
+                    console.error('[Intro Manager] Failed to parse JSON:', result, jsonErr);
+                    throw new Error('AI output was not in valid JSON format.');
+                }
+
+                // Delete original message
+                await message.delete().catch(() => {});
+
+                const formattedText = customFormat
+                    .replace(/{user}/g, userMention)
+                    .replace(/{name}/g, introData.name || 'Not specified')
+                    .replace(/{age}/g, introData.age || 'Not specified')
+                    .replace(/{interests}/g, introData.interests || 'Not specified')
+                    .replace(/{about}/g, introData.about || 'Not specified');
+
+                // Send formatted custom introduction
+                await message.channel.send(`${userMention}\n${formattedText}`).catch(() => {});
             }
         } else {
-            // Parse the JSON returned by AI
-            let introData;
-            try {
-                // Remove potential markdown code block formatting like ```json ... ```
-                const cleanJson = result.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-                introData = JSON.parse(cleanJson);
-            } catch (jsonErr) {
-                console.error('[Intro Manager] Failed to parse JSON:', result, jsonErr);
-                throw new Error('AI output was not in valid JSON format.');
-            }
+            // Process using gorgeous default dynamic-fields layout directly from AI
+            const result = await processDefaultIntroWithAI(ownerId, userInput);
 
-            // Delete original message
-            await message.delete().catch(() => {});
+            if (result === 'GENERIC' || result.startsWith('GENERIC')) {
+                // Delete generic message
+                await message.delete().catch(() => {});
 
-            // Get format template (custom or default)
-            const template = customFormat || DEFAULT_INTRO_TEMPLATE;
-            const formattedText = template
-                .replace(/{user}/g, userMention)
-                .replace(/{name}/g, introData.name || 'Not specified')
-                .replace(/{age}/g, introData.age || 'Not specified')
-                .replace(/{interests}/g, introData.interests || 'Not specified')
-                .replace(/{about}/g, introData.about || 'Not specified');
+                // Send temporary warning
+                const replyMsg = await message.channel.send(
+                    `❌ ${userMention}, please write a proper, meaningful introduction about yourself! (e.g. your name, age, interests, hobbies). Simple greetings like "hi" or "wsp" are not allowed.`
+                ).catch(() => null);
 
-            // Send formatted introduction
-            await message.channel.send(`${userMention}\n${formattedText}`).catch(() => {});
-
-            // Lock channel for the user by setting SendMessages: false overwrite
-            try {
-                if (guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles) || guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
-                    await message.channel.permissionOverwrites.create(message.author.id, {
-                        SendMessages: false
-                    }, { reason: 'Introduction submitted successfully.' });
+                if (replyMsg) {
+                    setTimeout(() => {
+                        replyMsg.delete().catch(() => {});
+                    }, 8000);
                 }
-            } catch (permError) {
-                console.error(`[Intro Manager] Failed to lock channel for user ${message.author.id}:`, permError);
+            } else {
+                // Delete original message
+                await message.delete().catch(() => {});
+
+                // Send formatted dynamic introduction
+                await message.channel.send(`${userMention}\n${result}`).catch(() => {});
             }
+        }
+
+        // Lock channel for the user by setting SendMessages: false overwrite
+        try {
+            if (guild.members.me.permissions.has(PermissionFlagsBits.ManageRoles) || guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+                await message.channel.permissionOverwrites.create(message.author.id, {
+                    SendMessages: false
+                }, { reason: 'Introduction submitted successfully.' });
+            }
+        } catch (permError) {
+            console.error(`[Intro Manager] Failed to lock channel for user ${message.author.id}:`, permError);
         }
     } catch (error) {
         console.error('[Intro Manager] Error processing introduction:', error);
@@ -181,6 +272,7 @@ async function handleIntroMessage(message, settings) {
 
 module.exports = {
     handleIntroMessage,
-    processIntroWithAI,
+    processDefaultIntroWithAI,
+    processIntroJSONWithAI,
     DEFAULT_INTRO_TEMPLATE
 };
