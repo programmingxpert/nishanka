@@ -127,8 +127,8 @@ async function handleIntroMessage(message, settings) {
             // Valid introduction! Delete the raw message
             await message.delete().catch(() => {});
 
-            // Post formatted introduction
-            await message.channel.send(result).catch(() => {});
+            // Post formatted introduction, ensuring the user is mentioned
+            await message.channel.send(`<@${message.author.id}>\n${result}`).catch(() => {});
 
             // Lock channel for the user by setting SendMessages: false overwrite
             try {
