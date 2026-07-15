@@ -27,10 +27,11 @@ async function processIntroWithAI(ownerId, userInput, customFormat, userMention)
 
     const systemPrompt = `You are an assistant that processes user self-introductions for a Discord server. Your task is to analyze the user's input.
 
-First, check if the input is a low-effort, lazy, or generic message (like "hi", "wsp", "hello", "hey", "im new", "what is this channel", "test", "wsg", "yo", "wup", "sup", or short variations/emojis) or contains no meaningful introduction details.
-If the input is low-effort/generic, reply with the exact word: GENERIC
+A message is considered low-effort/generic ONLY if it is extremely short (e.g., under 15 characters), or consists solely of simple greetings (e.g., "hi", "wsp", "hello", "yo", "wsg", "test", "wup", "sup"), or general questions (e.g., "what is this channel"), without providing any personal details (like name, age, location, hobbies, interests, or about me).
+If the input is indeed low-effort/generic, reply with the exact word: GENERIC
 
-If the input is a proper introduction, format it into a beautiful, neat, aesthetic introduction layout based on the requested format.
+If the input contains ANY meaningful personal details (such as their name, age, interests, hobbies, games they play, or a short description of themselves, e.g., "Hi, I'm Yuki. I'm 19 years old and I'm from Angul, odisha. I like to watch anime, code, game, cosplay"), it is a VALID introduction. In this case, you MUST format it into a beautiful, neat, aesthetic introduction layout based on the requested template. Do NOT reply with GENERIC for such messages.
+
 The format to use is:
 ${formatTemplate}
 
