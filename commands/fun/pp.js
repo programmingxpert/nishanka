@@ -18,8 +18,8 @@ module.exports = {
             || context.user 
             || context.author;
 
-		// Calculate a random size between 0 and 15
-		const size = Math.floor(Math.random() * 16);
+		// Calculate a random size between 0 and 200
+		const size = Math.floor(Math.random() * 201);
 		const shaft = '='.repeat(size);
 		const pp = `8${shaft}D`;
 
