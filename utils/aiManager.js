@@ -107,6 +107,7 @@ module.exports = {
     getUserAPU,
     consumeAPU,
     rechargeAPU,
+    getOrCreateUsage,
     TIER_APU_LIMITS,
     FREE_DAILY_APU: TIER_APU_LIMITS.free,
     PREMIUM_DAILY_APU: TIER_APU_LIMITS.pro, // compatibility

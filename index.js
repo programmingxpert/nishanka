@@ -166,7 +166,14 @@ client.activeEmojidecodeGames = new Map();
 function replaceEmojisRecursive(obj, parentKey = null) {
     if (!obj || typeof obj !== 'object') return obj;
 
-    if (Array.isArray(obj)) {
+    // Check if it's a plain object or array to avoid breaking classes (e.g. Permission bitfields containing BigInts)
+    const proto = Object.getPrototypeOf(obj);
+    const isPlainObject = proto === null || proto === Object.prototype;
+    const isArray = Array.isArray(obj);
+
+    if (!isPlainObject && !isArray) return obj;
+
+    if (isArray) {
         return obj.map(item => replaceEmojisRecursive(item, parentKey));
     }
 
