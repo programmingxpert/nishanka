@@ -2,15 +2,22 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { consumeAPU } = require('./aiManager');
 const GuildSettings = require('../models/guildSettingsSchema');
 
-// Default introduction layout template (used as a fallback placeholder in configurations)
-const DEFAULT_INTRO_TEMPLATE = `✨ **Member Introduction** ✨
-━━━━━━━━━━━━━━━━━━━━━━━━
-👤 **User:** {user}
-🏷️ **Name/Alias:** {name}
-🎂 **Age/Pronouns:** {age}
-🎮 **Interests:** {interests}
-📝 **About Me:** {about}
-━━━━━━━━━━━━━━━━━━━━━━━━`;
+// Default introduction layout template - styled using the cute kaomojis, symbol packs, and separators requested by the user
+const DEFAULT_INTRO_TEMPLATE = `╭────── ౨ৎ ──────╮
+   ✨ 𝖬𝖤𝖬𝖡𝖤𝖱  𝖨𝖭𝖳𝖱𝖮𝖣𝖴𝖢𝖳𝖨𝖮𝖭 ✨
+╰────── ౨ৎ ──────╯
+  𑁥 _ 灬 _ 𑁥  
+ 𐔌˶ ❛ ᴗ < ⋆𐦯 ♡ 
+ Ⳋ/ づ *welcome here!!*
+
+────── 🎀༘⋆──𐀔˚˖♡ ──────
+✦ 👤 **Nickname:** {name}
+✦ 🎂 **Age/Pronouns:** {age}
+✦ 🎮 **Interests:** {interests}
+────── 𓂃✿𓈒𓏸 ──────
+📝 **About Me:**
+{about}
+────── ⋆˚𝜗𝜚˚⋆🥥⑅⁺₊ ──────`;
 
 /**
  * Validates and extracts introduction details using the DeepSeek API.
@@ -133,34 +140,17 @@ async function handleIntroMessage(message, settings) {
             // Delete original message
             await message.delete().catch(() => {});
 
-            if (customFormat) {
-                // Apply custom format template
-                const formattedText = customFormat
-                    .replace(/{user}/g, userMention)
-                    .replace(/{name}/g, introData.name || 'Not specified')
-                    .replace(/{age}/g, introData.age || 'Not specified')
-                    .replace(/{interests}/g, introData.interests || 'Not specified')
-                    .replace(/{about}/g, introData.about || 'Not specified');
+            // Get format template (custom or default)
+            const template = customFormat || DEFAULT_INTRO_TEMPLATE;
+            const formattedText = template
+                .replace(/{user}/g, userMention)
+                .replace(/{name}/g, introData.name || 'Not specified')
+                .replace(/{age}/g, introData.age || 'Not specified')
+                .replace(/{interests}/g, introData.interests || 'Not specified')
+                .replace(/{about}/g, introData.about || 'Not specified');
 
-                await message.channel.send(`${userMention}\n${formattedText}`).catch(() => {});
-            } else {
-                // Beautiful default rich Discord Embed layout!
-                const embed = new EmbedBuilder()
-                    .setColor('#7c6cf0') // Premium purple theme
-                    .setTitle('✨ New Member Introduction ✨')
-                    .setThumbnail(message.author.displayAvatarURL({ extension: 'png', size: 128 }))
-                    .setDescription(introData.about || 'No description provided.')
-                    .addFields(
-                        { name: '👤 Member', value: userMention, inline: true },
-                        { name: '🏷️ Name/Alias', value: introData.name || 'Not specified', inline: true },
-                        { name: '🎂 Age/Pronouns', value: introData.age || 'Not specified', inline: true },
-                        { name: '🎮 Interests & Hobbies', value: introData.interests || 'Not specified', inline: false }
-                    )
-                    .setFooter({ text: `Welcome to the family! 💜`, iconURL: guild.iconURL() })
-                    .setTimestamp();
-
-                await message.channel.send({ content: userMention, embeds: [embed] }).catch(() => {});
-            }
+            // Send formatted introduction
+            await message.channel.send(`${userMention}\n${formattedText}`).catch(() => {});
 
             // Lock channel for the user by setting SendMessages: false overwrite
             try {
