@@ -6,8 +6,6 @@ module.exports = {
         // Ignore bots
         if (user.bot) return;
 
-        console.log(`[ReactionRoles DEBUG] messageReactionRemove entry - User: ${user.tag}, Emoji: ${reaction.emoji.name}, Msg ID: ${reaction.message.id}`);
-
         // If the reaction is partial, fetch it
         if (reaction.partial) {
             try {
@@ -162,19 +160,15 @@ module.exports = {
 
             // Fetch role
             const role = guild.roles.cache.get(mapping.roleId);
-            console.log(`[ReactionRoles DEBUG] Unreact - User: ${user.tag}, Emoji: ${emojiKey}, Role: ${role ? role.name : 'null'}`);
             if (!role) return;
 
             // Check if the bot can remove this role
             const botMember = guild.members.me;
-            console.log(`[ReactionRoles DEBUG] Positions check - Role Pos: ${role.position}, Bot Highest Pos: ${botMember.roles.highest.position}`);
             if (!botMember.permissions.has('ManageRoles') || role.position >= botMember.roles.highest.position) {
-                console.log(`[ReactionRoles DEBUG] Bot lacks permission or role is too high!`);
                 return;
             }
 
             // Remove the role
-            console.log(`[ReactionRoles DEBUG] Member has role: ${member.roles.cache.has(role.id)}`);
             if (member.roles.cache.has(role.id)) {
                 await member.roles.remove(role);
                 
