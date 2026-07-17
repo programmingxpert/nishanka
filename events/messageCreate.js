@@ -138,6 +138,40 @@ module.exports = {
             if (!stats) {
                 stats = new MemberStats({ guildId: message.guild.id, userId: message.author.id });
             }
+
+            // Custom level check for Utkala Sangathan server
+            if (message.guild.id === '1159902452649316432') {
+                const userLevel = stats.level || 0;
+                const isStaff = message.member?.permissions.has('ManageMessages') || message.member?.permissions.has('Administrator');
+                
+                if (!isStaff) {
+                    // 1. Links & Attachments check (Level 10+)
+                    const hasLink = /https?:\/\/[^\s]+/i.test(message.content);
+                    const hasAttachment = message.attachments.size > 0;
+                    if ((hasLink || hasAttachment) && userLevel < 10) {
+                        await message.delete().catch(() => {});
+                        const warning = await message.channel.send(
+                            `❌ <@${message.author.id}>, you must be **Level 10** or higher to send links or attachments! Please check the <#1527619751084425306> channel for more info.`
+                        ).catch(() => null);
+                        if (warning) {
+                            setTimeout(() => warning.delete().catch(() => {}), 8000);
+                        }
+                        return;
+                    }
+
+                    // 2. Polls check (Level 15+)
+                    if (message.poll && userLevel < 15) {
+                        await message.delete().catch(() => {});
+                        const warning = await message.channel.send(
+                            `❌ <@${message.author.id}>, you must be **Level 15** or higher to send polls! Please check the <#1527619751084425306> channel for more info.`
+                        ).catch(() => null);
+                        if (warning) {
+                            setTimeout(() => warning.delete().catch(() => {}), 8000);
+                        }
+                        return;
+                    }
+                }
+            }
             
             stats.messagesCount += 1;
 
