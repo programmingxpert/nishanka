@@ -157,6 +157,48 @@ module.exports = {
             const role = guild.roles.cache.get(mapping.roleId);
             if (!role) return;
 
+            // Custom name color level check & exclusivity for Utkala Sangathan
+            if (guild.id === '1159902452649316432') {
+                const COLOR_ROLES = [
+                    '1159929637963567154', // Red
+                    '1159929778321760336', // Lime
+                    '1159929875994521610', // Green
+                    '1159930034417578106', // Pink
+                    '1159930132300058714', // Purple
+                    '1159930391751311360', // Blue
+                    '1159930460579823728', // Sky Blue
+                    '1159930661264699502', // Yellow
+                    '1159930725001330741', // Black
+                    '1159931011048681511'  // Orange
+                ];
+
+                if (COLOR_ROLES.includes(role.id)) {
+                    // Fetch user level from DB
+                    const MemberStats = require('../models/MemberStats');
+                    const stats = await MemberStats.findOne({ guildId: guild.id, userId: user.id });
+                    const level = stats ? (stats.level || 0) : 0;
+
+                    if (level < 15) {
+                        // User is below Level 15! Remove their reaction and send a temporary warning message
+                        await reaction.users.remove(user.id).catch(() => {});
+                        const tempMsg = await reaction.message.channel.send(
+                            `❌ <@${user.id}>, you must be **Level 15** or higher to unlock name colors! (Your current level: **${level}**)`
+                        ).catch(() => null);
+                        
+                        if (tempMsg) {
+                            setTimeout(() => tempMsg.delete().catch(() => {}), 8000);
+                        }
+                        return;
+                    }
+
+                    // User is Level 15+. Remove all other color roles they currently have
+                    const currentColors = member.roles.cache.filter(r => COLOR_ROLES.includes(r.id) && r.id !== role.id);
+                    if (currentColors.size > 0) {
+                        await member.roles.remove(currentColors, 'Swapping custom name colors.');
+                    }
+                }
+            }
+
             // Check if the bot can assign this role
             const botMember = guild.members.me;
             if (!botMember.permissions.has('ManageRoles') || role.position >= botMember.roles.highest.position) {
