@@ -6,6 +6,8 @@ module.exports = {
         // Ignore bots
         if (user.bot) return;
 
+        console.log(`[ReactionRoles DEBUG] messageReactionRemove entry - User: ${user.tag}, Emoji: ${reaction.emoji.name}, Msg ID: ${reaction.message.id}`);
+
         // If the reaction is partial, fetch it
         if (reaction.partial) {
             try {
