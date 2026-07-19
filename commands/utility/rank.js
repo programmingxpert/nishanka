@@ -1,3 +1,5 @@
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const MemberStats = require('../../models/MemberStats');
 const GuildSettings = require('../../models/guildSettingsSchema');
 const { getVoteXpStatus } = require('../../utils/voteManager');
 
