@@ -2110,7 +2110,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
 
-    const isOwner = guild.ownerId === req.session.user.id;
+    let isOwner = guild.ownerId === req.session.user.id;
     let isAdmin = false;
     let userRoles = [];
     try {
