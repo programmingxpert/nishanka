@@ -183,7 +183,20 @@ module.exports = {
                 const lastXpTime = stats.lastXpEarnedAt ? new Date(stats.lastXpEarnedAt).getTime() : 0;
                 
                 if (now - lastXpTime >= xpCooldown) {
-                    const xpGained = Math.floor(Math.random() * 11) + 15; // 15 to 25 XP
+                    const baseXp = Math.floor(Math.random() * 11) + 15; // 15 to 25 XP
+                    
+                    // Voting XP Multiplier check
+                    const isVotingXpEnabled = settings?.leveling?.votingXpBoostEnabled ?? true;
+                    let voteMult = 1;
+                    if (isVotingXpEnabled) {
+                        const { getVoteXpStatus } = require('../utils/voteManager');
+                        const voteStatus = await getVoteXpStatus(message.author.id);
+                        if (voteStatus.active) {
+                            voteMult = voteStatus.multiplier;
+                        }
+                    }
+                    
+                    const xpGained = Math.floor(baseXp * voteMult);
                     const oldXp = stats.xp || 0;
                     const newXp = oldXp + xpGained;
                     

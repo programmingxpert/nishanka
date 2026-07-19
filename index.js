@@ -2038,6 +2038,7 @@ app.get('/api/guilds/:guildId', async (req, res) => {
       },
       leveling: guildConfig?.leveling || {
         enabled: true,
+        votingXpBoostEnabled: true,
         levelUpChannelId: null,
         announceLevelUps: true,
         roleRewards: [],
@@ -2167,6 +2168,7 @@ app.post('/api/guilds/:guildId', express.json(), async (req, res) => {
       }
       settingsUpdates.leveling = {
         enabled: leveling.enabled !== false,
+        votingXpBoostEnabled: leveling.votingXpBoostEnabled !== false,
         announceLevelUps: leveling.announceLevelUps !== false,
         levelUpChannelId: leveling.levelUpChannelId || null,
         baublesMultiplier: typeof leveling.baublesMultiplier === 'number' ? leveling.baublesMultiplier : 100,
@@ -4440,6 +4442,15 @@ app.post('/api/topgg/vote', express.json(), async (req, res) => {
                             ...bonusItems.map(i => `> \`+${i.quantity}× ${i.itemId.replace(/_/g, ' ')}\`  📦`),
                             titleUnlock ? `> 🏷️ **New title:** \`${titleUnlock}\`` : null,
                         ].filter(Boolean).join('\n'),
+                        inline: false,
+                    },
+                    {
+                        name: '⚡ Leveling XP Boost Activated!',
+                        value: [
+                            `> 🔥 **3× Chat XP** for the next **20 minutes**!`,
+                            `> ⚡ **2× Chat XP** for the following **3 hours & 40 minutes**!`,
+                            `*(Automatically active in all servers where Voting XP Boost is enabled by admins!)*`
+                        ].join('\n'),
                         inline: false,
                     },
                     {

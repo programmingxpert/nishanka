@@ -23,7 +23,11 @@ module.exports = {
         .addSubcommand(sub =>
             sub.setName('multiplier')
                 .setDescription('Set the leveling baubles multiplier.')
-                .addNumberOption(opt => opt.setName('value').setDescription('Multiplier value (e.g. 100)').setRequired(true))),
+                .addNumberOption(opt => opt.setName('value').setDescription('Multiplier value (e.g. 100)').setRequired(true)))
+        .addSubcommand(sub =>
+            sub.setName('vote-xp')
+                .setDescription('Enable or disable voting XP boost in this server.')
+                .addBooleanOption(opt => opt.setName('enabled').setDescription('Enable voting XP boost?').setRequired(true))),
 
     async execute(interaction) {
         if (!await checkCommandPermission(interaction, 'bot')) {
@@ -39,11 +43,13 @@ module.exports = {
             }
 
             if (sub === 'view') {
+                const isVotingXpEnabled = settings.leveling?.votingXpBoostEnabled !== false;
                 const embed = new EmbedBuilder()
                     .setColor(0x2ecc71)
                     .setTitle('📈 Leveling Settings')
                     .setDescription(
                         `⚙️ **Status:** ${settings.leveling.enabled ? '🟢 Enabled' : '🔴 Disabled'}\n` +
+                        `🗳️ **Voting XP Boost:** ${isVotingXpEnabled ? '🟢 Enabled (3x/2x XP for voters)' : '🔴 Disabled'}\n` +
                         `📢 **Level Up Channel:** ${settings.leveling.levelUpChannelId ? `<#${settings.leveling.levelUpChannelId}>` : 'Announce in current channel (System Default)'}\n` +
                         `⭐ **Baubles Multiplier:** \`${settings.leveling.baublesMultiplier ?? 100}\`x`
                     );
@@ -56,6 +62,15 @@ module.exports = {
                 await settings.save();
                 return interaction.reply(
                     (enabled ? '🟢' : '🔴') + ` Leveling system has been **${enabled ? 'enabled' : 'disabled'}**.`
+                );
+            }
+
+            if (sub === 'vote-xp' || sub === 'votexp') {
+                const enabled = interaction.options.getBoolean('enabled');
+                settings.leveling.votingXpBoostEnabled = enabled;
+                await settings.save();
+                return interaction.reply(
+                    (enabled ? '🟢' : '🔴') + ` Voting XP boost reward has been **${enabled ? 'enabled' : 'disabled'}** for this server.`
                 );
             }
 
@@ -102,14 +117,16 @@ module.exports = {
             }
 
             if (!sub || sub === 'view') {
+                const isVotingXpEnabled = settings.leveling?.votingXpBoostEnabled !== false;
                 const embed = new EmbedBuilder()
                     .setColor(0x2ecc71)
                     .setTitle('📈 Leveling Settings')
                     .setDescription(
                         `⚙️ **Status:** ${settings.leveling.enabled ? '🟢 Enabled' : '🔴 Disabled'}\n` +
+                        `🗳️ **Voting XP Boost:** ${isVotingXpEnabled ? '🟢 Enabled (3x/2x XP for voters)' : '🔴 Disabled'}\n` +
                         `📢 **Level Up Channel:** ${settings.leveling.levelUpChannelId ? `<#${settings.leveling.levelUpChannelId}>` : 'Announce in current channel (System Default)'}\n` +
                         `⭐ **Baubles Multiplier:** \`${settings.leveling.baublesMultiplier ?? 100}\`x\n\n` +
-                        `*Use prefix command: \`-leveling toggle <on/off>\`, \`-leveling channel <#channel/off>\`, or \`-leveling multiplier <number>\`*`
+                        `*Use prefix command: \`-leveling toggle <on/off>\`, \`-leveling vote-xp <on/off>\`, \`-leveling channel <#channel/off>\`, or \`-leveling multiplier <number>\`*`
                     );
                 return message.reply({ embeds: [embed] });
             }
@@ -125,6 +142,19 @@ module.exports = {
                 settings.leveling.enabled = enabled;
                 await settings.save();
                 return message.reply((enabled ? '🟢' : '🔴') + ` Leveling system has been **${enabled ? 'enabled' : 'disabled'}**.`);
+            }
+
+            if (sub === 'vote-xp' || sub === 'votexp' || sub === 'votingxp') {
+                const arg = args[1]?.toLowerCase();
+                let enabled;
+                if (arg === 'on' || arg === 'true' || arg === 'yes' || arg === 'enable') enabled = true;
+                else if (arg === 'off' || arg === 'false' || arg === 'no' || arg === 'disable') enabled = false;
+                else {
+                    return message.reply('❌ Specify `on` or `off`. Example: `-leveling vote-xp on`');
+                }
+                settings.leveling.votingXpBoostEnabled = enabled;
+                await settings.save();
+                return message.reply((enabled ? '🟢' : '🔴') + ` Voting XP boost reward has been **${enabled ? 'enabled' : 'disabled'}** for this server.`);
             }
 
             if (sub === 'channel') {
@@ -155,7 +185,7 @@ module.exports = {
                 return message.reply(`✅ Leveling baubles multiplier has been set to \`${value}\`x.`);
             }
 
-            return message.reply('❌ Unknown leveling subcommand. Use: `view`, `toggle`, `channel`, or `multiplier`.');
+            return message.reply('❌ Unknown leveling subcommand. Use: `view`, `toggle`, `vote-xp`, `channel`, or `multiplier`.');
         } catch (err) {
             console.error(err);
             return message.reply('❌ Failed to update leveling settings.');

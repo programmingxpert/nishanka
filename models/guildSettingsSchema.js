@@ -36,6 +36,7 @@ const guildSettingsSchema = new mongoose.Schema({
     },
     leveling: {
         enabled: { type: Boolean, default: true },
+        votingXpBoostEnabled: { type: Boolean, default: true },
         levelUpChannelId: { type: String, default: null },
         announceLevelUps: { type: Boolean, default: true },
         roleRewards: {

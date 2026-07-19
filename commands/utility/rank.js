@@ -1,10 +1,10 @@
-/* eslint-disable */
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const MemberStats = require('../../models/MemberStats');
+const GuildSettings = require('../../models/guildSettingsSchema');
+const { getVoteXpStatus } = require('../../utils/voteManager');
 
 module.exports = {
     category: 'utility',
     cooldown: 5,
+    aliases: ['level', 'lvl', 'xp'],
     data: new SlashCommandBuilder()
         .setName('rank')
         .setDescription('Check your current level, XP, and rank in this server.')
@@ -25,7 +25,9 @@ module.exports = {
             || message.author;
         
         await showRankEmbed(message, target, true);
-    }
+    },
+
+    showRankEmbed
 };
 
 async function showRankEmbed(context, target, isPrefix = false) {
@@ -45,6 +47,26 @@ async function showRankEmbed(context, target, isPrefix = false) {
         if (!stats) {
             stats = new MemberStats({ guildId, userId: target.id });
             await stats.save();
+        }
+
+        const settings = await GuildSettings.findOne({ guildId }).lean();
+        const isVotingXpEnabled = settings?.leveling?.votingXpBoostEnabled !== false;
+        const voteStatus = await getVoteXpStatus(target.id);
+
+        let voteBoostDisplay = '';
+        if (!isVotingXpEnabled) {
+            if (voteStatus.active) {
+                voteBoostDisplay = `⚠️ **Voting XP Boost (Disabled)**\nServer admins/owner have disabled the Voting XP Boost in this server. Your ${voteStatus.phase} vote XP perk is currently inactive here!`;
+            } else {
+                voteBoostDisplay = `⚠️ **Disabled by Server Admins**\nServer admins/owner have disabled the Voting XP Boost in this server.`;
+            }
+        } else {
+            if (voteStatus.active) {
+                const phaseEmoji = voteStatus.phase === '3x' ? '🔥' : '⚡';
+                voteBoostDisplay = `${phaseEmoji} **${voteStatus.phase} Chat XP Boost Active!**\nEnds <t:${voteStatus.phaseExpiryEpoch}:R> (<t:${voteStatus.phaseExpiryEpoch}:t>)`;
+            } else {
+                voteBoostDisplay = `⚪ **Inactive**\n[Vote on Top.gg](https://top.gg/bot/1357752347643609198/vote) to unlock **3× XP** (20m) & **2× XP** (4h)!`;
+            }
         }
 
         const currentLevel = stats.level || 0;
@@ -67,7 +89,8 @@ async function showRankEmbed(context, target, isPrefix = false) {
                 { name: '🆙 Level', value: `\`Level ${currentLevel}\``, inline: true },
                 { name: '🏆 Server Rank', value: `\`#${rank}\``, inline: true },
                 { name: '✨ Total XP', value: `\`${totalXp.toLocaleString()} XP\``, inline: true },
-                { name: '📈 Level Progress', value: `${progressBar}\n*(Progress: \`${currentXpInLevel.toLocaleString()} / ${neededXpForNextLevel.toLocaleString()} XP\`)*` }
+                { name: '📈 Level Progress', value: `${progressBar}\n*(Progress: \`${currentXpInLevel.toLocaleString()} / ${neededXpForNextLevel.toLocaleString()} XP\`)*` },
+                { name: '🗳️ Voting XP Boost', value: voteBoostDisplay, inline: false }
             )
             .setTimestamp()
             .setFooter({ text: `Requested by ${isPrefix ? context.author.tag : context.user.tag}` });
