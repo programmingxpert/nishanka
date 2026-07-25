@@ -173,25 +173,7 @@ module.exports = {
                 ];
 
                 if (COLOR_ROLES.includes(role.id)) {
-                    // Fetch user level from DB
-                    const MemberStats = require('../models/MemberStats');
-                    const stats = await MemberStats.findOne({ guildId: guild.id, userId: user.id });
-                    const level = stats ? (stats.level || 0) : 0;
-
-                    if (level < 15) {
-                        // User is below Level 15! Remove their reaction and send a temporary warning message
-                        await reaction.users.remove(user.id).catch(() => {});
-                        const tempMsg = await reaction.message.channel.send(
-                            `❌ <@${user.id}>, you must be **Level 15** or higher to unlock name colors! (Your current level: **${level}**)`
-                        ).catch(() => null);
-                        
-                        if (tempMsg) {
-                            setTimeout(() => tempMsg.delete().catch(() => {}), 8000);
-                        }
-                        return;
-                    }
-
-                    // User is Level 15+. Remove all other color roles they currently have
+                    // Remove all other color roles they currently have
                     const currentColors = member.roles.cache.filter(r => COLOR_ROLES.includes(r.id) && r.id !== role.id);
                     if (currentColors.size > 0) {
                         await member.roles.remove(currentColors, 'Swapping custom name colors.');
