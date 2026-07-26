@@ -129,11 +129,14 @@ EmbedBuilder.prototype.toJSON = function() {
     return finalJson;
 };
 const { Riffy } = require('riffy');
-const { Bloom, initializeFonts } = require('musicard');
-
+let Bloom;
 (async () => {
     try {
-        await initializeFonts();
+        const musicardModule = await import('musicard');
+        Bloom = musicardModule.Bloom;
+        if (musicardModule.initializeFonts) {
+            await musicardModule.initializeFonts();
+        }
     } catch (e) {
         console.error("Failed to initialize musicard fonts", e);
     }
