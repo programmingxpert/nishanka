@@ -12,11 +12,12 @@ jobs:
 
     steps:
       - name: Deploy to AWS EC2
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ec2-user
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
           script: |
             cd /home/ec2-user/nishanka
             git fetch origin main
