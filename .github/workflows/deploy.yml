@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to VPS
+      - name: Deploy to AWS EC2
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.VPS_HOST }}
-          username: root
+          username: ec2-user
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /root/nishanka
+            cd /home/ec2-user/nishanka
             git fetch origin main
             git reset --hard origin/main
             npm install
