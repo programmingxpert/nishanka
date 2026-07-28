@@ -9,10 +9,11 @@ module.exports = {
             if (!settings) return;
 
             // ─── 1. Goodbye Messages ───
-            if (settings.welcome?.enabled && settings.welcome?.channelId && settings.welcome?.leaveMessage) {
+            if (settings.welcome?.enabled && settings.welcome?.channelId) {
                 const welcomeChannel = member.guild.channels.cache.get(settings.welcome.channelId);
                 if (welcomeChannel) {
-                    const message = settings.welcome.leaveMessage
+                    const rawMsg = settings.welcome.leaveMessage || '{user.name} has left the server. 😢';
+                    const message = rawMsg
                         .replace(/{user\.name}/g, member.user.username)
                         .replace(/{user\.mention}/g, `<@${member.user.id}>`)
                         .replace(/{server\.name}/g, member.guild.name)

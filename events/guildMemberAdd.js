@@ -41,10 +41,11 @@ module.exports = {
             }
 
             // ─── 4. Welcome Messages ───
-            if (settings.welcome?.enabled && settings.welcome?.channelId && settings.welcome?.joinMessage) {
+            if (settings.welcome?.enabled && settings.welcome?.channelId) {
                 const welcomeChannel = member.guild.channels.cache.get(settings.welcome.channelId);
                 if (welcomeChannel) {
-                    const greeting = settings.welcome.joinMessage
+                    const rawMsg = settings.welcome.joinMessage || 'Welcome {user.mention} to {server.name}! You are our {server.memberCount}th member! 🎉';
+                    const greeting = rawMsg
                         .replace(/{user\.name}/g, member.user.username)
                         .replace(/{user\.mention}/g, `<@${member.user.id}>`)
                         .replace(/{server\.name}/g, member.guild.name)
