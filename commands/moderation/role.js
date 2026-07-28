@@ -36,6 +36,11 @@ module.exports = {
 		const subcommand = interaction.options.getSubcommand();
 		const targetUser = interaction.options.getUser('user');
 		const role = interaction.options.getRole('role');
+
+		if (!targetUser || !role) {
+			return interaction.reply({ content: '⚠️ Please specify a valid user and role.', ephemeral: true });
+		}
+
 		const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
 		if (!member) {
