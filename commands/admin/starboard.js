@@ -111,8 +111,17 @@ module.exports = {
             return message.reply('❌ You do not have permission to run this command.').catch(() => {});
         }
 
-        const guildId = message.guild.id;
-        const sub = args[0]?.toLowerCase();
+        const guild = message.guild;
+        const guildId = guild.id;
+        const firstArg = args[0]?.toLowerCase();
+
+        const resolveChannel = (input) => {
+            if (!input) return null;
+            const cleanId = input.replace(/[<#&>]/g, '');
+            let ch = guild.channels.cache.get(cleanId);
+            if (ch && ch.type === ChannelType.GuildText) return ch;
+            return guild.channels.cache.find(c => c.type === ChannelType.GuildText && c.name.toLowerCase() === input.toLowerCase());
+        };
 
         try {
             let settings = await GuildSettings.findOne({ guildId });
@@ -124,7 +133,8 @@ module.exports = {
                 settings.starboard = { enabled: false, channelId: null, emoji: '⭐', threshold: 3 };
             }
 
-            if (!sub || sub === 'view') {
+            // 1. View settings
+            if (!firstArg || firstArg === 'view') {
                 const embed = new EmbedBuilder()
                     .setColor(0xF1C40F)
                     .setTitle('⭐ Starboard Configuration')
@@ -133,7 +143,7 @@ module.exports = {
                         `📺 **Channel:** ${settings.starboard.channelId ? `<#${settings.starboard.channelId}>` : 'None'}\n` +
                         `✨ **Reaction Emoji:** ${settings.starboard.emoji || '⭐'}\n` +
                         `🎯 **Star Threshold:** \`${settings.starboard.threshold || 3} reactions\`\n\n` +
-                        `*Use prefix command: \`-starboard toggle <on/off>\`, \`-starboard channel <#channel>\`, \`-starboard threshold <number>\`, or \`-starboard emoji <emoji>\`*`
+                        `*Examples:* \`-starboard #starboard\`, \`-starboard toggle on/off\`, \`-starboard threshold 3\``
                     )
                     .setFooter({ text: 'Nishanka Starboard System' })
                     .setTimestamp();
@@ -141,59 +151,88 @@ module.exports = {
                 return message.reply({ embeds: [embed] });
             }
 
-            if (sub === 'toggle' || sub === 'enable' || sub === 'disable') {
+            // 2. Direct state toggling: -starboard on / -starboard off / -starboard enable / -starboard disable
+            if (['on', 'off', 'enable', 'disable', 'true', 'false'].includes(firstArg)) {
+                const enabled = ['on', 'enable', 'true'].includes(firstArg);
+                settings.starboard.enabled = enabled;
+                await settings.save();
+                return message.reply(`⭐ Starboard has been **${enabled ? 'enabled' : 'disabled'}**.`);
+            }
+
+            // 3. Toggle command: -starboard toggle [on/off]
+            if (firstArg === 'toggle') {
+                const secondArg = args[1]?.toLowerCase();
                 let enabled;
-                if (sub === 'enable') enabled = true;
-                else if (sub === 'disable') enabled = false;
+                if (['on', 'enable', 'true', 'yes'].includes(secondArg)) enabled = true;
+                else if (['off', 'disable', 'false', 'no'].includes(secondArg)) enabled = false;
+                else if (!secondArg) enabled = !settings.starboard.enabled; // Flip state
                 else {
-                    const arg = args[1]?.toLowerCase();
-                    if (arg === 'on' || arg === 'true' || arg === 'yes' || arg === 'enable') enabled = true;
-                    else if (arg === 'off' || arg === 'false' || arg === 'no' || arg === 'disable') enabled = false;
-                    else {
-                        return message.reply('❌ Please specify `on` or `off`! Example: `-starboard toggle on`');
+                    const targetChannel = resolveChannel(args[1]);
+                    if (targetChannel) {
+                        settings.starboard.channelId = targetChannel.id;
+                        settings.starboard.enabled = true;
+                        await settings.save();
+                        return message.reply(`⭐ Starboard **enabled** and channel set to ${targetChannel}.`);
                     }
+                    return message.reply('❌ Specify `on` or `off`. Example: `-starboard toggle on`');
                 }
                 settings.starboard.enabled = enabled;
                 await settings.save();
                 return message.reply(`⭐ Starboard has been **${enabled ? 'enabled' : 'disabled'}**.`);
             }
 
-            if (sub === 'channel') {
-                const channelArg = args[1];
-                if (!channelArg) {
-                    return message.reply('❌ Please specify a text channel! Example: `-starboard channel #starboard`');
-                }
-                const channelId = channelArg.replace(/[<#&>]/g, '');
-                const targetChannel = message.guild.channels.cache.get(channelId);
-                if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
-                    return message.reply('❌ Please mention a valid text channel!');
+            // 4. Channel command: -starboard channel <#channel/ID/Name>
+            if (firstArg === 'channel') {
+                const targetChannel = resolveChannel(args[1]) || message.mentions.channels.first();
+                if (!targetChannel) {
+                    return message.reply('❌ Please mention a valid text channel. Example: `-starboard channel #starboard`');
                 }
                 settings.starboard.channelId = targetChannel.id;
+                settings.starboard.enabled = true; // Auto-enable!
                 await settings.save();
-                return message.reply(`⭐ Starboard channel has been set to ${targetChannel}.`);
+                return message.reply(`⭐ Starboard channel set to ${targetChannel} and status **enabled**.`);
             }
 
-            if (sub === 'threshold' || sub === 'limit') {
-                const countArg = args[1];
-                const count = parseInt(countArg);
+            // 5. Threshold / limit: -starboard threshold <number>
+            if (firstArg === 'threshold' || firstArg === 'limit') {
+                const count = parseInt(args[1]);
                 if (isNaN(count) || count < 1) {
                     return message.reply('❌ Please specify a valid threshold count (minimum 1)!');
                 }
                 settings.starboard.threshold = count;
                 await settings.save();
-                return message.reply(`⭐ Starboard threshold has been set to **${count}** reactions.`);
+                return message.reply(`⭐ Starboard threshold set to **${count}** reactions.`);
             }
 
-            if (sub === 'emoji') {
+            // 6. Emoji: -starboard emoji <emoji>
+            if (firstArg === 'emoji') {
                 const emoji = args[1]?.trim();
                 if (!emoji) {
                     return message.reply('❌ Please specify a reaction emoji!');
                 }
                 settings.starboard.emoji = emoji;
                 await settings.save();
-                return message.reply(`⭐ Starboard emoji has been set to: ${emoji}`);
+                return message.reply(`⭐ Starboard emoji set to: ${emoji}`);
             }
 
+            // 7. Direct Channel Mention or Name fallback: -starboard #starboard
+            const directChannel = resolveChannel(firstArg) || message.mentions.channels.first();
+            if (directChannel) {
+                settings.starboard.channelId = directChannel.id;
+                settings.starboard.enabled = true;
+                await settings.save();
+                return message.reply(`⭐ Starboard channel set to ${directChannel} and status **enabled**.`);
+            }
+
+            // 8. Direct Number Threshold fallback: -starboard 5
+            const directNumber = parseInt(firstArg);
+            if (!isNaN(directNumber) && directNumber >= 1) {
+                settings.starboard.threshold = directNumber;
+                await settings.save();
+                return message.reply(`⭐ Starboard threshold set to **${directNumber}** reactions.`);
+            }
+
+            return message.reply('❌ Unknown subcommand. Usage: `-starboard <#channel>`, `-starboard toggle <on/off>`, or `-starboard threshold <number>`.');
         } catch (err) {
             console.error(err);
             return message.reply('❌ Failed to update starboard settings.');
