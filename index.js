@@ -2501,26 +2501,41 @@ app.get('/api/guilds/:guildId/reaction-roles', async (req, res) => {
   try {
     const ReactionRole = require('./models/reactionRoleSchema');
     const list = await ReactionRole.find({ guildId }).lean();
-    res.json(list);
+    // Group by messageId so the dashboard can render panels
+    const grouped = {};
+    for (const item of list) {
+      if (!grouped[item.messageId]) {
+        grouped[item.messageId] = {
+          messageId: item.messageId,
+          channelId: item.channelId,
+          guildId: item.guildId,
+          mappings: []
+        };
+      }
+      grouped[item.messageId].mappings.push({ emoji: item.emoji, roleId: item.roleId });
+    }
+    res.json(Object.values(grouped));
   } catch (err) {
     console.error('Fetch reaction roles error:', err);
     res.status(500).json({ error: 'Failed to fetch reaction roles' });
   }
 });
 
-app.post('/api/guilds/:guildId/reaction-roles', express.json(), async (req, res) => {
+// Batch-create a full reaction role panel with multiple emoji→role pairs
+app.post('/api/guilds/:guildId/reaction-roles/batch', express.json(), async (req, res) => {
   const { guildId } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);
   if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
 
-  const { channelId, messageId, emojiStr, roleId, embedTitle, embedDesc } = req.body;
+  const { channelId, messageId, mappings, embedTitle, embedDesc, embedColor } = req.body;
 
-  if (!channelId || !emojiStr || !roleId) {
-    return res.status(400).json({ error: 'Channel, Emoji and Role are required.' });
+  if (!channelId || !mappings || !Array.isArray(mappings) || mappings.length === 0) {
+    return res.status(400).json({ error: 'Channel and at least one emoji→role mapping are required.' });
   }
 
   const parseEmoji = (str) => {
-    const match = str.match(/<?a?:?\w+:(\d+)>?/);
+    if (!str) return null;
+    const match = str.match(/<a?:\w+:(\d+)>/);
     if (match) return match[1];
     return str.trim();
   };
@@ -2530,63 +2545,149 @@ app.post('/api/guilds/:guildId/reaction-roles', express.json(), async (req, res)
     if (!guild) return res.status(404).json({ error: 'Bot is not in this server.' });
 
     const channel = guild.channels.cache.get(channelId);
-    if (!channel) return res.status(400).json({ error: 'Selected text channel not found.' });
-
-    const role = guild.roles.cache.get(roleId);
-    if (!role) return res.status(400).json({ error: 'Selected role not found.' });
+    if (!channel) return res.status(400).json({ error: 'Channel not found.' });
 
     const botMember = guild.members.me;
-    if (role.position >= botMember.roles.highest.position) {
-      return res.status(400).json({ error: `The role is higher than the bot's highest role. Please drag the bot's role higher in Discord Server Settings.` });
+    if (!botMember.permissions.has('ManageRoles')) {
+      return res.status(400).json({ error: 'Bot lacks Manage Roles permission.' });
     }
 
+    // Validate all roles upfront
+    const resolvedMappings = [];
+    for (const m of mappings) {
+      if (!m.emoji || !m.roleId) continue;
+      const role = guild.roles.cache.get(m.roleId);
+      if (!role) return res.status(400).json({ error: `Role ${m.roleId} not found.` });
+      if (role.position >= botMember.roles.highest.position) {
+        return res.status(400).json({ error: `Role @${role.name} is higher than my highest role. Please move my role above it.` });
+      }
+      resolvedMappings.push({ ...m, role, emojiKey: parseEmoji(m.emoji) });
+    }
+
+    if (resolvedMappings.length === 0) {
+      return res.status(400).json({ error: 'No valid emoji→role mappings provided.' });
+    }
+
+    const ReactionRole = require('./models/reactionRoleSchema');
     let msg;
+
     if (messageId) {
+      // Append to existing message
       msg = await channel.messages.fetch(messageId).catch(() => null);
-      if (!msg) return res.status(404).json({ error: 'Could not find message in that channel.' });
+      if (!msg) return res.status(404).json({ error: 'Message not found in that channel.' });
+
+      // Try to update the bot's embed to include new mappings
+      if (msg.author.id === client.user.id && msg.embeds.length > 0) {
+        const existing = await ReactionRole.find({ guildId, messageId: msg.id }).lean();
+        const allMappings = [
+          ...existing.map(e => ({ emoji: e.emoji, roleId: e.roleId })),
+          ...resolvedMappings.map(m => ({ emoji: m.emojiKey, roleId: m.roleId }))
+        ];
+        const seen = new Set();
+        const dedupedAll = [];
+        for (const m of allMappings) {
+          const key = `${m.emoji}:${m.roleId}`;
+          if (!seen.has(key)) { seen.add(key); dedupedAll.push(m); }
+        }
+        const roleLines = dedupedAll.map(m => {
+          const r = guild.roles.cache.get(m.roleId);
+          const emojiDisplay = isNaN(m.emoji) ? m.emoji : `<:emoji:${m.emoji}>`;
+          return `${emojiDisplay} ➜ ${r ? `<@&${r.id}>` : `<@&${m.roleId}>`}`;
+        }).join('\n');
+        const oldEmbed = msg.embeds[0];
+        const updatedEmbed = new EmbedBuilder()
+          .setColor(oldEmbed.color || 0x7c6cf0)
+          .setTitle(oldEmbed.title || '🎭 Reaction Roles')
+          .setDescription(oldEmbed.description || 'React to claim your roles!')
+          .addFields({ name: 'Roles List', value: roleLines || '*None*' })
+          .setTimestamp();
+        await msg.edit({ embeds: [updatedEmbed] }).catch(() => {});
+      }
     } else {
-      // Create new panel message
-      const embed = new EmbedBuilder()
-        .setColor(0x7c6cf0)
-        .setTitle(embedTitle || 'Select Roles')
-        .setDescription(embedDesc || 'React to claim your roles!')
-        .addFields({ name: 'Roles List', value: `${emojiStr} ➜ <@&${roleId}>` })
+      // Create new panel embed
+      const roleLines = resolvedMappings.map(m => {
+        const emojiDisplay = isNaN(m.emojiKey) ? m.emoji : `<:emoji:${m.emojiKey}>`;
+        return `${emojiDisplay} ➜ <@&${m.roleId}>`;
+      }).join('\n');
+
+      const panelEmbed = new EmbedBuilder()
+        .setColor(embedColor ? parseInt(embedColor.replace('#', ''), 16) : 0x7c6cf0)
+        .setTitle(`🎭 ${embedTitle || 'Reaction Roles'}`)
+        .setDescription(embedDesc || 'React below to claim your roles!')
+        .addFields({ name: 'Roles List', value: roleLines })
         .setTimestamp();
 
-      msg = await channel.send({ embeds: [embed] });
+      msg = await channel.send({ embeds: [panelEmbed] });
     }
 
-    const emojiKey = parseEmoji(emojiStr);
-
-    // React
-    await msg.react(emojiStr).catch(() => {});
-
-    // Save mapping
-    const ReactionRole = require('./models/reactionRoleSchema');
-    await ReactionRole.findOneAndUpdate(
-      { guildId, messageId: msg.id, emoji: emojiKey },
-      { channelId, roleId },
-      { upsert: true, new: true }
-    );
-
-    // Log setting update
+    // Save all mappings and react
     const { logServerEvent } = require('./utils/serverLogger');
-    await logServerEvent(
-      guildId,
-      'REACTION_ROLE_CREATE',
-      `Reaction role created on message ${msg.id} via Web Dashboard`,
-      req.session.user,
-      role,
-      { channelId, messageId: msg.id, emoji: emojiStr, roleId }
-    );
+    for (const m of resolvedMappings) {
+      await ReactionRole.findOneAndUpdate(
+        { guildId, messageId: msg.id, emoji: m.emojiKey },
+        { channelId, roleId: m.roleId },
+        { upsert: true, new: true }
+      );
+      await msg.react(m.emoji).catch(() => {});
+      await logServerEvent(
+        guildId, 'REACTION_ROLE_CREATE',
+        `Reaction role batch-created on message ${msg.id} for @${m.role.name} with emoji ${m.emoji}`,
+        req.session?.user, m.role,
+        { channelId, messageId: msg.id, emoji: m.emoji, roleId: m.roleId }
+      );
+    }
 
-    res.json({ success: true, messageId: msg.id });
+    res.json({ success: true, messageId: msg.id, messageUrl: msg.url });
   } catch (err) {
-    console.error('Create reaction role error:', err);
-    res.status(500).json({ error: err.message || 'Failed to create reaction role.' });
+    console.error('Batch reaction role error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create reaction role panel.' });
   }
 });
 
+// Delete all reaction role mappings for an entire panel (message)
+app.delete('/api/guilds/:guildId/reaction-roles/panel/:messageId', async (req, res) => {
+  const { guildId, messageId } = req.params;
+  const hasAccess = await checkGuildAccess(req, guildId);
+  if (!hasAccess) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const ReactionRole = require('./models/reactionRoleSchema');
+    const mappings = await ReactionRole.find({ guildId, messageId }).lean();
+    if (mappings.length === 0) return res.status(404).json({ error: 'No mappings found for this message.' });
+
+    await ReactionRole.deleteMany({ guildId, messageId });
+
+    // Remove all bot reactions from the message
+    const guild = client.guilds.cache.get(guildId);
+    if (guild && mappings[0]?.channelId) {
+      const channel = guild.channels.cache.get(mappings[0].channelId);
+      if (channel) {
+        const msg = await channel.messages.fetch(messageId).catch(() => null);
+        if (msg) {
+          for (const mapping of mappings) {
+            const reaction = msg.reactions.cache.get(mapping.emoji);
+            if (reaction) await reaction.users.remove(guild.members.me.id).catch(() => {});
+          }
+        }
+      }
+    }
+
+    const { logServerEvent } = require('./utils/serverLogger');
+    await logServerEvent(
+      guildId, 'REACTION_ROLE_DELETE',
+      `Entire reaction role panel deleted for message ${messageId} via Web Dashboard`,
+      req.session?.user, null,
+      { messageId, count: mappings.length }
+    );
+
+    res.json({ success: true, deleted: mappings.length });
+  } catch (err) {
+    console.error('Delete reaction role panel error:', err);
+    res.status(500).json({ error: 'Failed to delete reaction role panel.' });
+  }
+});
+
+// Delete single emoji→role mapping from a panel
 app.delete('/api/guilds/:guildId/reaction-roles', express.json(), async (req, res) => {
   const { guildId } = req.params;
   const hasAccess = await checkGuildAccess(req, guildId);
