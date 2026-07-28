@@ -130,6 +130,7 @@ module.exports = {
         const { resolveGroupedCommand } = require('../utils/slashCommandsBundler');
         const command = resolveGroupedCommand(interaction, client);
         if (!command) {
+            console.warn(`[interactionCreate] Command not found for /${interaction.commandName} (sub: ${interaction.options.getSubcommand(false)})`);
             return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });
         }
 

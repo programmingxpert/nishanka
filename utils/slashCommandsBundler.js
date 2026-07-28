@@ -294,16 +294,6 @@ function resolveGroupedCommand(interaction, client) {
         } else if (subCmd === 'achievements-list') {
             resolvedName = 'achievements-list';
         }
-    } else if (topLevel === 'utility') {
-        const subCmd = interaction.options.getSubcommand(false);
-        if (subCmd) {
-            resolvedName = subCmd;
-        }
-    } else if (topLevel === 'admin') {
-        const subCmd = interaction.options.getSubcommand(false);
-        if (subCmd) {
-            resolvedName = subCmd;
-        }
     } else if (topLevel === 'developer') {
         const subCmd = interaction.options.getSubcommand(false);
         if (subCmd) {
