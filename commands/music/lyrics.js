@@ -487,7 +487,7 @@ module.exports = {
             coverArt = currentTrack.info.artworkUrl || currentTrack.info.thumbnail;
         } else {
             // ── Branch 3: Song name query — resolve via Lavalink ─────────────
-            const resolveQuery = query.startsWith('http') ? query : `ytsearch:${query}`;
+            const resolveQuery = query;
 
             try {
                 const res = await client.riffy.resolve({ query: resolveQuery, requester: isSlash ? context.user : context.author });

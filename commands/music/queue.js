@@ -22,29 +22,41 @@ module.exports = {
     async displayQueue(interactionOrMessage, client, guildId, isSlash) {
         const player = client.activePlayers.get(guildId);
 
-        if (!player || !player.queue || player.queue.length === 0) {
+        const queue = player?.queue;
+        const currentTrack = player?.current;
+        const queueSize = queue?.size ?? queue?.length ?? 0;
+
+        if (!player || !queue || (!currentTrack && queueSize === 0)) {
             const replyContent = '❌ The queue is empty.';
             const options = { content: replyContent };
             if (isSlash) options.ephemeral = true;
             return isSlash ? (interactionOrMessage.replied ? interactionOrMessage.editReply(options) : interactionOrMessage.reply(options)) : interactionOrMessage.reply(replyContent);
         }
 
-        const queue = player.queue;
-
         const embed = new EmbedBuilder()
             .setColor('#FF7A00')
             .setTitle('🎵 Music Queue')
-            .setDescription(queue.length > 0 ? `There are currently **${queue.length}** tracks in the queue.` : "Queue is Empty");
+            .setDescription(queueSize > 0 ? `There are currently **${queueSize}** track(s) up next.` : 'No tracks are queued after the current song.');
+
+        if (currentTrack) {
+            const requester = currentTrack.info.requester?.id || currentTrack.info.requester;
+            embed.addFields({
+                name: 'Now Playing:',
+                value: `**[${currentTrack.info.title}](${currentTrack.info.uri})**${requester ? ` - Requested by <@${requester}>` : ''}`
+            });
+        }
 
         let queueString = "";
         let i = 1;
         const maxTracksToShow = 10; // Limit to 10 tracks to avoid exceeding the character limit.
 
         for (const track of queue) {
-            const trackString = `**${i}.** [${track.info.title}](${track.info.uri}) - Requested by <@${track.info.requester.id}>\n`;
+            const requester = track.info.requester?.id || track.info.requester;
+            const requestedBy = requester ? ` - Requested by <@${requester}>` : '';
+            const trackString = `**${i}.** [${track.info.title}](${track.info.uri})${requestedBy}\n`;
 
             if (queueString.length + trackString.length > 1024) {  // Check if adding the next track will exceed the limit
-                queueString += `...and ${queue.length - i + 1} more.`;  // Indicate remaining tracks
+                queueString += `...and ${queueSize - i + 1} more.`;  // Indicate remaining tracks
                 break; // Stop adding tracks
             }
 
@@ -53,10 +65,12 @@ module.exports = {
             i++;
         }
 
-        embed.addFields({
-            name: "Up Next:",
-            value: queueString || "The queue is empty."  // In case queueString is still empty
-        });
+        if (queueSize > 0) {
+            embed.addFields({
+                name: "Up Next:",
+                value: queueString || "The queue is empty."  // In case queueString is still empty
+            });
+        }
 
         const options = { embeds: [embed] };
         if (isSlash) {

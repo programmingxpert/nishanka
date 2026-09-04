@@ -386,7 +386,7 @@ module.exports = {
             trackUri = currentTrack.info.uri;
             durationMs = currentTrack.info.length || 0;
         } else {
-            const resolveQuery = query.startsWith('http') ? query : `ytsearch:${query}`;
+            const resolveQuery = query;
             try {
                 const res = await client.riffy.resolve({ query: resolveQuery, requester: isSlash ? context.user : context.author });
                 if (!res?.tracks?.length) return await reply('❌ Could not find that song. Try a more specific title.');

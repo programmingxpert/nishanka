@@ -55,6 +55,8 @@ module.exports = {
 
             // 4. Remove the player from the active players map
             client.activePlayers.delete(guildId);
+            const { guildTtsQueues } = require('../../utils/ttsManager');
+            guildTtsQueues.delete(guildId);
 
             const embed = new EmbedBuilder()
                 .setColor('#FF7A00')

@@ -69,7 +69,7 @@ process.on('uncaughtException', (err) => {
     console.error('💥 Uncaught Exception thrown:', err);
 });
 
-const { Client, GatewayIntentBits, Partials, Collection, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, AttachmentBuilder, EmbedBuilder, GatewayDispatchEvents } = require('discord.js');
 
 // Minimal & aesthetic bot branding and custom emojis across all embeds
 const originalToJSON = EmbedBuilder.prototype.toJSON;
@@ -375,8 +375,11 @@ client.riffy = new Riffy(client, lavalinkNodes, {
     }
 });
 
-// Forward raw WS events to Riffy (required for voice state)
-client.on('raw', (data) => client.riffy.updateVoiceState(data));
+// Forward Discord voice gateway events to Riffy.
+client.on('raw', (data) => {
+    if (![GatewayDispatchEvents.VoiceStateUpdate, GatewayDispatchEvents.VoiceServerUpdate].includes(data.t)) return;
+    client.riffy.updateVoiceState(data);
+});
 
 // Riffy events
 client.riffy.on('nodeConnect',    (node)          => console.log(`🎵 Music node "${node.name}" connected`));
@@ -389,6 +392,25 @@ client.riffy.on('nodeError',      (node, err)     => {
         console.error(`🎵 Music node "${node.name}" error:`, err.message);
     }
 });
+function clearMusicPlayer(player) {
+    if (!player) return;
+    try {
+        if (client.riffy?.players?.has(player.guildId)) {
+            player.destroy();
+        }
+    } catch (err) {
+        console.error(`Error destroying music player for guild ${player.guildId}:`, err);
+    } finally {
+        client.activePlayers.delete(player.guildId);
+        const { guildTtsQueues } = require('./utils/ttsManager');
+        guildTtsQueues.delete(player.guildId);
+    }
+}
+
+function shouldDisconnectIdlePlayer(player) {
+    return player && !player.playing && !player.paused && (player.queue?.size ?? player.queue?.length ?? 0) === 0;
+}
+
 client.riffy.on('trackStart', async (player, track) => {
     const isTTS = track?.info?.isTTS || (track?.info?.uri && track.info.uri.includes('translate.google.com/translate_tts'));
     if (isTTS) {
@@ -407,6 +429,8 @@ client.riffy.on('trackStart', async (player, track) => {
     if (!channel) return;
     
     try {
+        if (typeof Bloom !== 'function') throw new Error('musicard Bloom renderer is not ready');
+
         const musicard = await Bloom({
             trackName: track.info.title,
             artistName: track.info.author || 'Unknown',
@@ -435,7 +459,8 @@ client.riffy.on('trackStart', async (player, track) => {
     }
 });
 // Helper function to handle TTS lifecycle completion and resumption
-async function handleTtsLifecycleEnd(player, track) {
+async function handleTtsLifecycleEnd(player, track, options = {}) {
+    const { startPlayback = false } = options;
     const isTTS = track?.info?.isTTS || (track?.info?.uri && track.info.uri.includes('translate.google.com/translate_tts'));
     if (!isTTS) return false;
 
@@ -447,7 +472,13 @@ async function handleTtsLifecycleEnd(player, track) {
 
     // Process next TTS if any
     if (guildQueue && guildQueue.queue.length > 0) {
-        processTtsQueue(client, player.guildId);
+        if (startPlayback) {
+            await processTtsQueue(client, player.guildId);
+        } else {
+            setTimeout(() => processTtsQueue(client, player.guildId).catch(err => {
+                console.error("Error processing queued TTS after track end:", err);
+            }), 250);
+        }
         return true;
     }
 
@@ -457,10 +488,12 @@ async function handleTtsLifecycleEnd(player, track) {
         player.interruptedTrack = null;
         player.queue.unshift(interrupted.track);
         player.resumePosition = interrupted.position;
-        try {
-            await player.play();
-        } catch (err) {
-            console.error("Error resuming track after TTS:", err);
+        if (startPlayback) {
+            try {
+                await player.play();
+            } catch (err) {
+                console.error("Error resuming track after TTS:", err);
+            }
         }
         return true;
     }
@@ -473,14 +506,13 @@ client.riffy.on('trackEnd',       async (player, track, payload)        => {
     const wasTts = await handleTtsLifecycleEnd(player, track);
     if (wasTts) return;
 
-    if (!player.queue.size && !player.queue.current) {
+    if ((player.queue?.size ?? player.queue?.length ?? 0) === 0) {
         setTimeout(async () => {
-            if (!player.playing) {
+            if (shouldDisconnectIdlePlayer(player)) {
                 const settings = await require('./models/guildSettingsSchema').findOne({ guildId: player.guildId }).lean();
                 if (settings?.music?.twentyFourSeven) return; // Prevent bot from leaving
 
-                player.destroy();
-                client.activePlayers.delete(player.guildId);
+                clearMusicPlayer(player);
             }
         }, 30_000);
     }
@@ -488,7 +520,7 @@ client.riffy.on('trackEnd',       async (player, track, payload)        => {
 client.riffy.on('queueEnd',       async (player)        => {
     // Check if queueEnd was triggered by the end of a TTS track
     const endedTrack = player.previous;
-    const wasTts = await handleTtsLifecycleEnd(player, endedTrack);
+    const wasTts = await handleTtsLifecycleEnd(player, endedTrack, { startPlayback: true });
     if (wasTts) return; // Skip normal queue finish/disconnect if TTS handled resumption or next track
 
     const channel = client.channels.cache.get(player.textChannel);
@@ -498,9 +530,8 @@ client.riffy.on('queueEnd',       async (player)        => {
     if (!is24hr) {
         channel?.send('✅ Queue finished. Disconnecting in 30 seconds if no new tracks are added.').catch(() => {});
         setTimeout(() => {
-            if (!player.playing) {
-                player.destroy();
-                client.activePlayers.delete(player.guildId);
+            if (shouldDisconnectIdlePlayer(player)) {
+                clearMusicPlayer(player);
             }
         }, 30_000);
     } else {

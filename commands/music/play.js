@@ -49,6 +49,8 @@ module.exports = {
                 }
 
             } else {
+                player.textChannel = textChannelId;
+
                 // Ensure the player's voice channel matches the user's current channel
                 if (player.voiceChannel !== voiceChannelId) {
                    // **REPLACE THIS SECTION**
@@ -92,11 +94,12 @@ module.exports = {
                     .setTitle('🎶 Playlist Added')
                     .setDescription(`Added \`${tracks.length}\` tracks from **${playlistInfo.name}**.`);
                 await interaction.editReply({ embeds: [embed] });
-                if (!player.playing && !player.paused && !player.queue.current) {
+                if (!player.playing && !player.paused) {
                     try {
-                        player.play();
+                        await player.play();
                     } catch (err) {
                         console.error("player play error", err);
+                        await interaction.followUp({ content: '❌ Added the playlist, but failed to start playback.', ephemeral: true }).catch(() => {});
                     }
                 }
                 return;
@@ -106,7 +109,7 @@ module.exports = {
             const track = tracks[0];
             track.info.requester = interaction.user;
             player.queue.add(track);
-            if (!player.playing && !player.paused && !player.queue.current) {
+            if (!player.playing && !player.paused) {
                 try {
                     await player.play();
                     return interaction.editReply("Starting your track...");
@@ -170,6 +173,8 @@ module.exports = {
                 }
 
             } else {
+                player.textChannel = textChannelId;
+
                 // Ensure the player's voice channel matches the user's current channel
                 if (player.voiceChannel !== voiceChannelId) {
                     // **REPLACE THIS SECTION**
@@ -210,11 +215,12 @@ module.exports = {
                     .setTitle('🎶 Playlist Added')
                     .setDescription(`Added \`${tracks.length}\` tracks from **${playlistInfo.name}**.`);
                 await processingMsg.edit({ embeds: [embed] });
-                if (!player.playing && !player.paused && !player.queue.current) {
+                if (!player.playing && !player.paused) {
                     try {
-                        player.play();
+                        await player.play();
                     } catch (err) {
                         console.error("player play error", err);
+                        await message.channel.send('❌ Added the playlist, but failed to start playback.').catch(() => {});
                     }
                 }
                 return;
@@ -222,7 +228,7 @@ module.exports = {
             const track = tracks[0];
             track.info.requester = message.author;
             player.queue.add(track);
-            if (!player.playing && !player.paused && !player.queue.current) {
+            if (!player.playing && !player.paused) {
                 try {
                     await player.play();
                     return processingMsg.edit("Starting your track...");

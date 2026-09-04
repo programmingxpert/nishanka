@@ -19,7 +19,7 @@ module.exports = {
         await this.skipSong(message, message.client, message.guild.id, false);
     },
 
-    async checkMember(member) {
+    checkMember(member) {
         // Check if the member is a bot
         if (member.user.bot) return false;
 
@@ -64,7 +64,14 @@ module.exports = {
                 : interactionOrMessage.reply(msg);
         }
 
-        if (!player.playing) {
+        if (player.voiceChannel && channel.id !== player.voiceChannel) {
+            const msg = '❌ You must be in the same voice channel as the music player.';
+            return isSlash
+                ? interactionOrMessage.reply({ content: msg, ephemeral: true })
+                : interactionOrMessage.reply(msg);
+        }
+
+        if (!player.playing || !player.current) {
             const msg = '❌ Nothing is currently playing.';
             return isSlash
                 ? interactionOrMessage.reply({ content: msg, ephemeral: true })
