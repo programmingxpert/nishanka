@@ -36,7 +36,7 @@ jobs:
             rm -f /home/ec2-user/nishanka/bot.lock /home/ec2-user/nishanka/bot.ready
             : > "$LOG_FILE"
             : > "$ERROR_LOG"
-            pm2 start index.js --name nishanka --instances 1 --exec-mode fork --cwd /home/ec2-user/nishanka --output "$LOG_FILE" --error "$ERROR_LOG"
+            PM2_START_OUTPUT=$(pm2 start index.js --name nishanka --instances 1 --exec-mode fork --cwd /home/ec2-user/nishanka --output "$LOG_FILE" --error "$ERROR_LOG" 2>&1) || PM2_START_FAILED=1
             pm2 save
             for attempt in $(seq 1 12); do
               if test -s /home/ec2-user/nishanka/bot.ready; then
@@ -49,7 +49,10 @@ jobs:
             NEW_ERRORS=$(cat "$ERROR_LOG" 2>/dev/null || true)
             NEW_APP_LOG=$(tail -n +$((BEFORE_APP_LINES + 1)) "$APP_LOG" 2>/dev/null || true)
             STARTUP_LOG=$(printf '%s\n%s\n%s' "$NEW_OUTPUT" "$NEW_ERRORS" "$NEW_APP_LOG")
-            if printf '%s' "$STARTUP_LOG" | grep -q "Discord login failed"; then
+            PM2_STATE=$(pm2 jlist 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const p=JSON.parse(s).find(x=>x.name==='nishanka');console.log(p ? [p.pm2_env.status,p.pm2_env.exit_code,p.pm2_env.unstable_restarts].join(':') : 'missing')}catch{console.log('invalid')}})")
+            if test "${PM2_START_FAILED:-0}" = "1"; then
+              echo "NISHANKA_DEPLOY_RESULT=PM2_START_COMMAND_FAILED"
+            elif printf '%s' "$STARTUP_LOG" | grep -q "Discord login failed"; then
               echo "NISHANKA_DEPLOY_RESULT=DISCORD_LOGIN_FAILED"
             elif printf '%s' "$STARTUP_LOG" | grep -q "MongoDB connection failed"; then
               echo "NISHANKA_DEPLOY_RESULT=MONGODB_FAILED"
@@ -71,6 +74,10 @@ jobs:
               echo "NISHANKA_DEPLOY_RESULT=DISCORD_GATEWAY_TIMEOUT"
             elif pm2 pid nishanka 2>/dev/null | grep -Eq '^[1-9][0-9]*$'; then
               echo "NISHANKA_DEPLOY_RESULT=STARTUP_STALLED"
+            elif printf '%s' "$PM2_STATE" | grep -Eq ':(137|143):'; then
+              echo "NISHANKA_DEPLOY_RESULT=PROCESS_KILLED"
+            elif printf '%s' "$PM2_STATE" | grep -q '^errored:'; then
+              echo "NISHANKA_DEPLOY_RESULT=PM2_RESTART_LOOP"
             else
               echo "NISHANKA_DEPLOY_RESULT=PROCESS_NOT_STARTED"
             fi
@@ -92,6 +99,12 @@ jobs:
             echo '::error title=Bot API port in use::Another process is using the configured bot port.'
           elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=PROCESS_NOT_STARTED'; then
             echo '::error title=PM2 process failed::PM2 did not start the bot entry point.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=PM2_START_COMMAND_FAILED'; then
+            echo '::error title=PM2 launch command failed::PM2 rejected the bot process configuration.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=PROCESS_KILLED'; then
+            echo '::error title=Bot process killed::The VPS terminated Node during startup, commonly due to low memory.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=PM2_RESTART_LOOP'; then
+            echo '::error title=PM2 restart loop::The bot exits immediately until PM2 marks it errored.'
           elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=DISCORD_GATEWAY_TIMEOUT'; then
             echo '::error title=Discord gateway timeout::The app started but did not establish its Discord gateway session.'
           elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=MISSING_MODULE'; then
