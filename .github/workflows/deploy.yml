@@ -28,15 +28,15 @@ jobs:
             test -s /home/ec2-user/nishanka/.env
             node -e "require('dotenv').config({ override: true }); if (!process.env.TOKEN || !process.env.MONGO_URI) process.exit(1)"
             rm -f /home/ec2-user/nishanka/bot.lock /home/ec2-user/nishanka/bot.ready
-            LOG_FILE="$HOME/.pm2/logs/nishanka-out.log"
-            ERROR_LOG="$HOME/.pm2/logs/nishanka-error.log"
+            LOG_FILE="/home/ec2-user/nishanka/pm2-out.log"
+            ERROR_LOG="/home/ec2-user/nishanka/pm2-error.log"
             APP_LOG="/home/ec2-user/nishanka/bot.log"
-            BEFORE_LINES=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
-            BEFORE_ERROR_LINES=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
             BEFORE_APP_LINES=$(wc -l < "$APP_LOG" 2>/dev/null || echo 0)
             pm2 delete nishanka >/dev/null 2>&1 || true
             rm -f /home/ec2-user/nishanka/bot.lock /home/ec2-user/nishanka/bot.ready
-            pm2 start index.js --name nishanka --instances 1 --exec-mode fork --cwd /home/ec2-user/nishanka
+            : > "$LOG_FILE"
+            : > "$ERROR_LOG"
+            pm2 start index.js --name nishanka --instances 1 --exec-mode fork --cwd /home/ec2-user/nishanka --output "$LOG_FILE" --error "$ERROR_LOG"
             pm2 save
             for attempt in $(seq 1 12); do
               if test -s /home/ec2-user/nishanka/bot.ready; then
@@ -45,7 +45,7 @@ jobs:
               fi
               sleep 5
             done
-            NEW_ERRORS=$(tail -n +$((BEFORE_ERROR_LINES + 1)) "$ERROR_LOG" 2>/dev/null || true)
+            NEW_ERRORS=$(cat "$ERROR_LOG" 2>/dev/null || true)
             NEW_APP_LOG=$(tail -n +$((BEFORE_APP_LINES + 1)) "$APP_LOG" 2>/dev/null || true)
             STARTUP_LOG=$(printf '%s\n%s' "$NEW_ERRORS" "$NEW_APP_LOG")
             if printf '%s' "$STARTUP_LOG" | grep -q "Discord login failed"; then
@@ -58,6 +58,14 @@ jobs:
               echo "NISHANKA_DEPLOY_RESULT=PORT_IN_USE"
             elif printf '%s' "$STARTUP_LOG" | grep -q "Discord gateway ready timeout"; then
               echo "NISHANKA_DEPLOY_RESULT=DISCORD_GATEWAY_TIMEOUT"
+            elif printf '%s' "$STARTUP_LOG" | grep -q "Cannot find module\|MODULE_NOT_FOUND"; then
+              echo "NISHANKA_DEPLOY_RESULT=MISSING_MODULE"
+            elif printf '%s' "$STARTUP_LOG" | grep -q "SyntaxError\|Unexpected token"; then
+              echo "NISHANKA_DEPLOY_RESULT=NODE_SYNTAX_ERROR"
+            elif printf '%s' "$STARTUP_LOG" | grep -q "Failed to initialize log file\|EACCES"; then
+              echo "NISHANKA_DEPLOY_RESULT=FILE_PERMISSION_ERROR"
+            elif printf '%s' "$STARTUP_LOG" | grep -q "ReferenceError\|TypeError\|RangeError"; then
+              echo "NISHANKA_DEPLOY_RESULT=NODE_RUNTIME_ERROR"
             elif ! printf '%s' "$NEW_APP_LOG" | grep -q "Logger started"; then
               echo "NISHANKA_DEPLOY_RESULT=PROCESS_NOT_STARTED"
             elif printf '%s' "$NEW_APP_LOG" | grep -q "Bot Internal API running"; then
@@ -85,6 +93,14 @@ jobs:
             echo '::error title=PM2 process failed::PM2 did not start the bot entry point.'
           elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=DISCORD_GATEWAY_TIMEOUT'; then
             echo '::error title=Discord gateway timeout::The app started but did not establish its Discord gateway session.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=MISSING_MODULE'; then
+            echo '::error title=Node module missing::The production dependency installation is incomplete.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=NODE_SYNTAX_ERROR'; then
+            echo '::error title=Node syntax error::The VPS Node.js runtime cannot parse the application.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=FILE_PERMISSION_ERROR'; then
+            echo '::error title=VPS file permission error::The bot cannot write its runtime files.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=NODE_RUNTIME_ERROR'; then
+            echo '::error title=Node startup exception::The application threw an exception before Discord became ready.'
           elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=STARTUP_STALLED'; then
             echo '::error title=Bot startup stalled::Node started but did not reach the API or Discord readiness checkpoints.'
           else
