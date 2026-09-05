@@ -35,6 +35,9 @@ module.exports = {
             let player = interaction.client.activePlayers.get(guildId);
             if (!player) {
                 try {
+                    if (interaction.client.riffy.leastUsedNodes.length === 0) {
+                        return interaction.editReply('❌ The music service is temporarily unavailable and reconnecting. Please try again shortly.');
+                    }
                     player = await interaction.client.riffy.createConnection({
                         guildId: guildId,
                         voiceChannel: voiceChannelId,
@@ -45,7 +48,7 @@ module.exports = {
                     interaction.client.activePlayers.set(guildId, player); // Store player
                 } catch (connectionError) {
                     console.error("Error creating connection:", connectionError);
-                    return interaction.editReply("❌ Failed to establish a voice connection. Check bot permissions.");
+                    return interaction.editReply("❌ Failed to establish a music connection. Please try again shortly.");
                 }
 
             } else {
@@ -159,6 +162,9 @@ module.exports = {
             let player = message.client.activePlayers.get(guildId);
             if (!player) {
                 try {
+                    if (message.client.riffy.leastUsedNodes.length === 0) {
+                        return processingMsg.edit('❌ The music service is temporarily unavailable and reconnecting. Please try again shortly.');
+                    }
                     player = await message.client.riffy.createConnection({
                         guildId: guildId,
                         voiceChannel: voiceChannelId,
@@ -169,7 +175,7 @@ module.exports = {
                     message.client.activePlayers.set(guildId, player); // Store player
                 } catch (connectionError) {
                     console.error("Error creating connection:", connectionError);
-                    return processingMsg.edit("❌ Failed to establish a voice connection. Check bot permissions.");
+                    return processingMsg.edit("❌ Failed to establish a music connection. Please try again shortly.");
                 }
 
             } else {

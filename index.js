@@ -339,29 +339,42 @@ for (const file of eventFiles) {
 }
 
 // ─── Lavalink / riffy ─────────────────────────────────────────────────────────
-const lavalinkNodes = [
-    {
-        name:     'node-1',
-        host:     process.env.LAVALINK_HOST     ?? 'lavalink.jirayu.net',
-        port:     Number(process.env.LAVALINK_PORT ?? 443),
-        password: process.env.LAVALINK_PASSWORD  ?? 'youshallnotpass',
-        secure:   process.env.LAVALINK_SECURE !== 'false',
-    },
-    {
-        name:     'node-2',
-        host:     process.env.LAVALINK_HOST_2   ?? 'lavalink.jirayu.net',
-        port:     Number(process.env.LAVALINK_PORT_2 ?? 443),
-        password: process.env.LAVALINK_PASSWORD_2 ?? 'youshallnotpass',
-        secure:   process.env.LAVALINK_SECURE_2 !== 'false',
-    },
-    {
-        name:     'node-3',
-        host:     process.env.LAVALINK_HOST_3   ?? 'lavalink-v4.triniumhost.com',
-        port:     Number(process.env.LAVALINK_PORT_3 ?? 443),
-        password: process.env.LAVALINK_PASSWORD_3 ?? 'free',
-        secure:   process.env.LAVALINK_SECURE_3 === 'true',
-    },
-];
+function getLavalinkNodes() {
+    const configuredNodes = [{
+        host: process.env.LAVALINK_HOST ?? 'lavalink.jirayu.net',
+        port: Number(process.env.LAVALINK_PORT ?? 443),
+        password: process.env.LAVALINK_PASSWORD ?? 'youshallnotpass',
+        secure: process.env.LAVALINK_SECURE !== 'false',
+    }];
+
+    if (process.env.LAVALINK_ENABLE_BACKUPS === 'true') {
+        for (const suffix of ['_2', '_3']) {
+            const host = process.env[`LAVALINK_HOST${suffix}`];
+            const password = process.env[`LAVALINK_PASSWORD${suffix}`];
+            if (!host || !password) continue;
+
+            configuredNodes.push({
+                host,
+                port: Number(process.env[`LAVALINK_PORT${suffix}`] ?? 443),
+                password,
+                secure: process.env[`LAVALINK_SECURE${suffix}`] !== 'false',
+            });
+        }
+    }
+
+    const uniqueNodes = new Map();
+    for (const node of configuredNodes) {
+        const endpoint = `${node.secure ? 'https' : 'http'}://${node.host}:${node.port}`;
+        if (!uniqueNodes.has(endpoint)) uniqueNodes.set(endpoint, node);
+    }
+
+    return [...uniqueNodes.values()].map((node, index) => ({
+        name: `node-${index + 1}`,
+        ...node,
+    }));
+}
+
+const lavalinkNodes = getLavalinkNodes();
 
 client.riffy = new Riffy(client, lavalinkNodes, {
     send: (payload) => {
@@ -370,6 +383,11 @@ client.riffy = new Riffy(client, lavalinkNodes, {
     },
     defaultSearchPlatform: 'ytmsearch',
     restVersion: 'v4',
+    // Riffy's default is three attempts, after which it permanently removes the
+    // node. Keep retrying so a single-node setup recovers from temporary outages.
+    reconnectTries: Number.MAX_SAFE_INTEGER,
+    reconnectTimeout: 10_000,
+    resumeTimeout: 60,
     bypassChecks: {
         nodeFetchInfo: true
     }
@@ -383,6 +401,11 @@ client.on('raw', (data) => {
 
 // Riffy events
 client.riffy.on('nodeConnect',    (node)          => console.log(`🎵 Music node "${node.name}" connected`));
+client.riffy.on('nodeDisconnect', (node, details) => {
+    const code = details?.event ?? 'unknown';
+    console.warn(`🎵 Music node "${node.name}" disconnected (code: ${code}); reconnecting...`);
+});
+client.riffy.on('nodeReconnect',  (node)          => console.log(`🎵 Reconnecting music node "${node.name}"...`));
 const lastNodeErrors = new Map();
 client.riffy.on('nodeError',      (node, err)     => {
     const lastError = lastNodeErrors.get(node.name);
