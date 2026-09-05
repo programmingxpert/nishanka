@@ -28,15 +28,13 @@ jobs:
             test -s /home/ec2-user/nishanka/.env
             node -e "require('dotenv').config({ override: true }); if (!process.env.TOKEN || !process.env.MONGO_URI) process.exit(1)"
             rm -f /home/ec2-user/nishanka/bot.lock /home/ec2-user/nishanka/bot.ready
-            LOG_FILE="/home/ec2-user/nishanka/pm2-out.log"
-            ERROR_LOG="/home/ec2-user/nishanka/pm2-error.log"
+            LOG_FILE="$HOME/.pm2/logs/nishanka-out.log"
+            ERROR_LOG="$HOME/.pm2/logs/nishanka-error.log"
             APP_LOG="/home/ec2-user/nishanka/bot.log"
             BEFORE_APP_LINES=$(wc -l < "$APP_LOG" 2>/dev/null || echo 0)
             pm2 delete nishanka >/dev/null 2>&1 || true
             rm -f /home/ec2-user/nishanka/bot.lock /home/ec2-user/nishanka/bot.ready
-            : > "$LOG_FILE"
-            : > "$ERROR_LOG"
-            PM2_START_OUTPUT=$(pm2 start index.js --name nishanka --instances 1 --exec-mode fork --cwd /home/ec2-user/nishanka --output "$LOG_FILE" --error "$ERROR_LOG" 2>&1) || PM2_START_FAILED=1
+            PM2_START_OUTPUT=$(pm2 start index.js --name nishanka 2>&1) || PM2_START_FAILED=1
             pm2 save
             for attempt in $(seq 1 12); do
               if test -s /home/ec2-user/nishanka/bot.ready; then
