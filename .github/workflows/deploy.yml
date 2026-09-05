@@ -23,4 +23,6 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             npm install
-            pm2 restart nishanka
+            pm2 delete nishanka || true
+            pm2 start index.js --name nishanka --instances 1 --exec-mode fork
+            pm2 save
