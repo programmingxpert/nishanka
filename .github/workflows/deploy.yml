@@ -12,12 +12,14 @@ jobs:
 
     steps:
       - name: Deploy to AWS EC2
-        uses: appleboy/ssh-action@v1.2.0
+        id: deploy
+        uses: appleboy/ssh-action@v1.2.1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ec2-user
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
+          capture_stdout: true
           script: |
             cd /home/ec2-user/nishanka
             git fetch origin main
@@ -38,21 +40,40 @@ jobs:
             pm2 save
             for attempt in $(seq 1 12); do
               if tail -n +$((BEFORE_LINES + 1)) "$LOG_FILE" 2>/dev/null | grep -q "Bot is online as"; then
+                echo "NISHANKA_DEPLOY_RESULT=READY"
                 exit 0
               fi
               sleep 5
             done
             NEW_ERRORS=$(tail -n +$((BEFORE_ERROR_LINES + 1)) "$ERROR_LOG" 2>/dev/null || true)
             if printf '%s' "$NEW_ERRORS" | grep -q "Discord login failed"; then
-              echo "Deployment diagnosis: Discord login failed. Check the VPS token."
+              echo "NISHANKA_DEPLOY_RESULT=DISCORD_LOGIN_FAILED"
             elif printf '%s' "$NEW_ERRORS" | grep -q "MongoDB connection failed"; then
-              echo "Deployment diagnosis: MongoDB connection failed. Check the VPS connection string or network access."
+              echo "NISHANKA_DEPLOY_RESULT=MONGODB_FAILED"
             elif printf '%s' "$NEW_ERRORS" | grep -q "Another instance of Nishanka"; then
-              echo "Deployment diagnosis: another bot process is holding the instance lock."
+              echo "NISHANKA_DEPLOY_RESULT=INSTANCE_LOCKED"
             elif printf '%s' "$NEW_ERRORS" | grep -q "EADDRINUSE"; then
-              echo "Deployment diagnosis: the bot API port is already in use."
+              echo "NISHANKA_DEPLOY_RESULT=PORT_IN_USE"
             else
-              echo "Deployment diagnosis: Discord readiness timed out without a recognized startup error."
+              echo "NISHANKA_DEPLOY_RESULT=UNKNOWN_TIMEOUT"
             fi
-            pm2 describe nishanka | grep -E "status|restarts|pid" || true
-            exit 1
+            exit 0
+
+      - name: Verify bot readiness
+        env:
+          DEPLOY_OUTPUT: ${{ steps.deploy.outputs.stdout }}
+        run: |
+          if printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=READY'; then
+            exit 0
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=DISCORD_LOGIN_FAILED'; then
+            echo '::error title=Discord login failed::The VPS Discord token is invalid or rejected.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=MONGODB_FAILED'; then
+            echo '::error title=MongoDB connection failed::Check the VPS connection string and database network access.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=INSTANCE_LOCKED'; then
+            echo '::error title=Bot instance locked::Another bot process is still running on the VPS.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=PORT_IN_USE'; then
+            echo '::error title=Bot API port in use::Another process is using the configured bot port.'
+          else
+            echo '::error title=Bot readiness timeout::The bot did not reach Discord ready and emitted no recognized startup error.'
+          fi
+          exit 1
