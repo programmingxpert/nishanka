@@ -27,7 +27,7 @@ jobs:
             npm install
             test -s /home/ec2-user/nishanka/.env
             node -e "require('dotenv').config({ override: true }); if (!process.env.TOKEN || !process.env.MONGO_URI) process.exit(1)"
-            rm -f /home/ec2-user/nishanka/bot.lock
+            rm -f /home/ec2-user/nishanka/bot.lock /home/ec2-user/nishanka/bot.ready
             LOG_FILE="$HOME/.pm2/logs/nishanka-out.log"
             ERROR_LOG="$HOME/.pm2/logs/nishanka-error.log"
             APP_LOG="/home/ec2-user/nishanka/bot.log"
@@ -35,11 +35,11 @@ jobs:
             BEFORE_ERROR_LINES=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
             BEFORE_APP_LINES=$(wc -l < "$APP_LOG" 2>/dev/null || echo 0)
             pm2 delete nishanka >/dev/null 2>&1 || true
-            rm -f /home/ec2-user/nishanka/bot.lock
+            rm -f /home/ec2-user/nishanka/bot.lock /home/ec2-user/nishanka/bot.ready
             pm2 start index.js --name nishanka --instances 1 --exec-mode fork --cwd /home/ec2-user/nishanka
             pm2 save
             for attempt in $(seq 1 12); do
-              if tail -n +$((BEFORE_LINES + 1)) "$LOG_FILE" 2>/dev/null | grep -q "Bot is online as"; then
+              if test -s /home/ec2-user/nishanka/bot.ready; then
                 echo "NISHANKA_DEPLOY_RESULT=READY"
                 exit 0
               fi
@@ -56,6 +56,8 @@ jobs:
               echo "NISHANKA_DEPLOY_RESULT=INSTANCE_LOCKED"
             elif printf '%s' "$STARTUP_LOG" | grep -q "EADDRINUSE"; then
               echo "NISHANKA_DEPLOY_RESULT=PORT_IN_USE"
+            elif printf '%s' "$STARTUP_LOG" | grep -q "Discord gateway ready timeout"; then
+              echo "NISHANKA_DEPLOY_RESULT=DISCORD_GATEWAY_TIMEOUT"
             elif ! printf '%s' "$NEW_APP_LOG" | grep -q "Logger started"; then
               echo "NISHANKA_DEPLOY_RESULT=PROCESS_NOT_STARTED"
             elif printf '%s' "$NEW_APP_LOG" | grep -q "Bot Internal API running"; then

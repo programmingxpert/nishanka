@@ -6,6 +6,11 @@ require('dotenv').config({ override: true });
 const fs = require('fs');
 const path = require('path');
 const lockFilePath = path.join(__dirname, 'bot.lock');
+const readyFilePath = path.join(__dirname, 'bot.ready');
+
+try { fs.unlinkSync(readyFilePath); } catch (e) {
+    if (e.code !== 'ENOENT') console.warn('Failed to clear bot.ready file:', e.message);
+}
 
 if (fs.existsSync(lockFilePath)) {
     let oldPid;
@@ -42,6 +47,7 @@ const cleanLock = () => {
             }
         }
     } catch (_) {}
+    try { fs.unlinkSync(readyFilePath); } catch (_) {}
 };
 process.on('SIGINT', () => { cleanLock(); process.exit(0); });
 process.on('SIGTERM', () => { cleanLock(); process.exit(0); });
@@ -4684,7 +4690,25 @@ app.listen(PORT, () => {
 });
 
 // ─── Login ────────────────────────────────────────────────────────────────────
+const discordReadyTimeout = setTimeout(() => {
+    if (!client.isReady()) {
+        console.error('Discord gateway ready timeout after 45 seconds');
+        client.destroy();
+        process.exit(1);
+    }
+}, 45_000);
+
+client.once('clientReady', () => {
+    clearTimeout(discordReadyTimeout);
+    try {
+        fs.writeFileSync(readyFilePath, `${process.pid}\n`, 'utf8');
+    } catch (err) {
+        console.error('Failed to write bot.ready file:', err.message);
+    }
+});
+
 client.login(process.env.TOKEN).catch(err => {
+    clearTimeout(discordReadyTimeout);
     console.error('❌ Discord login failed:', err.message);
     process.exit(1);
 });
