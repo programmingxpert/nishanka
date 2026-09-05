@@ -30,13 +30,13 @@ jobs:
             rm -f /home/ec2-user/nishanka/bot.lock
             LOG_FILE="$HOME/.pm2/logs/nishanka-out.log"
             ERROR_LOG="$HOME/.pm2/logs/nishanka-error.log"
+            APP_LOG="/home/ec2-user/nishanka/bot.log"
             BEFORE_LINES=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
             BEFORE_ERROR_LINES=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
-            if pm2 describe nishanka >/dev/null 2>&1; then
-              pm2 restart nishanka --update-env
-            else
-              pm2 start index.js --name nishanka --instances 1 --exec-mode fork
-            fi
+            BEFORE_APP_LINES=$(wc -l < "$APP_LOG" 2>/dev/null || echo 0)
+            pm2 delete nishanka >/dev/null 2>&1 || true
+            rm -f /home/ec2-user/nishanka/bot.lock
+            pm2 start index.js --name nishanka --instances 1 --exec-mode fork --cwd /home/ec2-user/nishanka
             pm2 save
             for attempt in $(seq 1 12); do
               if tail -n +$((BEFORE_LINES + 1)) "$LOG_FILE" 2>/dev/null | grep -q "Bot is online as"; then
@@ -46,16 +46,22 @@ jobs:
               sleep 5
             done
             NEW_ERRORS=$(tail -n +$((BEFORE_ERROR_LINES + 1)) "$ERROR_LOG" 2>/dev/null || true)
-            if printf '%s' "$NEW_ERRORS" | grep -q "Discord login failed"; then
+            NEW_APP_LOG=$(tail -n +$((BEFORE_APP_LINES + 1)) "$APP_LOG" 2>/dev/null || true)
+            STARTUP_LOG=$(printf '%s\n%s' "$NEW_ERRORS" "$NEW_APP_LOG")
+            if printf '%s' "$STARTUP_LOG" | grep -q "Discord login failed"; then
               echo "NISHANKA_DEPLOY_RESULT=DISCORD_LOGIN_FAILED"
-            elif printf '%s' "$NEW_ERRORS" | grep -q "MongoDB connection failed"; then
+            elif printf '%s' "$STARTUP_LOG" | grep -q "MongoDB connection failed"; then
               echo "NISHANKA_DEPLOY_RESULT=MONGODB_FAILED"
-            elif printf '%s' "$NEW_ERRORS" | grep -q "Another instance of Nishanka"; then
+            elif printf '%s' "$STARTUP_LOG" | grep -q "Another instance of Nishanka"; then
               echo "NISHANKA_DEPLOY_RESULT=INSTANCE_LOCKED"
-            elif printf '%s' "$NEW_ERRORS" | grep -q "EADDRINUSE"; then
+            elif printf '%s' "$STARTUP_LOG" | grep -q "EADDRINUSE"; then
               echo "NISHANKA_DEPLOY_RESULT=PORT_IN_USE"
+            elif ! printf '%s' "$NEW_APP_LOG" | grep -q "Logger started"; then
+              echo "NISHANKA_DEPLOY_RESULT=PROCESS_NOT_STARTED"
+            elif printf '%s' "$NEW_APP_LOG" | grep -q "Bot Internal API running"; then
+              echo "NISHANKA_DEPLOY_RESULT=DISCORD_GATEWAY_TIMEOUT"
             else
-              echo "NISHANKA_DEPLOY_RESULT=UNKNOWN_TIMEOUT"
+              echo "NISHANKA_DEPLOY_RESULT=STARTUP_STALLED"
             fi
             exit 0
 
@@ -73,6 +79,12 @@ jobs:
             echo '::error title=Bot instance locked::Another bot process is still running on the VPS.'
           elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=PORT_IN_USE'; then
             echo '::error title=Bot API port in use::Another process is using the configured bot port.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=PROCESS_NOT_STARTED'; then
+            echo '::error title=PM2 process failed::PM2 did not start the bot entry point.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=DISCORD_GATEWAY_TIMEOUT'; then
+            echo '::error title=Discord gateway timeout::The app started but did not establish its Discord gateway session.'
+          elif printf '%s' "$DEPLOY_OUTPUT" | grep -q 'NISHANKA_DEPLOY_RESULT=STARTUP_STALLED'; then
+            echo '::error title=Bot startup stalled::Node started but did not reach the API or Discord readiness checkpoints.'
           else
             echo '::error title=Bot readiness timeout::The bot did not reach Discord ready and emitted no recognized startup error.'
           fi
