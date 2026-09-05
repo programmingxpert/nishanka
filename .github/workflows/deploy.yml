@@ -24,14 +24,12 @@ jobs:
             git reset --hard origin/main
             npm install
             test -s /home/ec2-user/nishanka/.env
-            set -a
-            . /home/ec2-user/nishanka/.env
-            set +a
-            test -n "$TOKEN"
-            test -n "$MONGO_URI"
+            node -e "require('dotenv').config({ override: true }); if (!process.env.TOKEN || !process.env.MONGO_URI) process.exit(1)"
             rm -f /home/ec2-user/nishanka/bot.lock
             LOG_FILE="$HOME/.pm2/logs/nishanka-out.log"
+            ERROR_LOG="$HOME/.pm2/logs/nishanka-error.log"
             BEFORE_LINES=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
+            BEFORE_ERROR_LINES=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
             if pm2 describe nishanka >/dev/null 2>&1; then
               pm2 restart nishanka --update-env
             else
@@ -44,5 +42,17 @@ jobs:
               fi
               sleep 5
             done
-            pm2 logs nishanka --lines 100 --nostream
+            NEW_ERRORS=$(tail -n +$((BEFORE_ERROR_LINES + 1)) "$ERROR_LOG" 2>/dev/null || true)
+            if printf '%s' "$NEW_ERRORS" | grep -q "Discord login failed"; then
+              echo "Deployment diagnosis: Discord login failed. Check the VPS token."
+            elif printf '%s' "$NEW_ERRORS" | grep -q "MongoDB connection failed"; then
+              echo "Deployment diagnosis: MongoDB connection failed. Check the VPS connection string or network access."
+            elif printf '%s' "$NEW_ERRORS" | grep -q "Another instance of Nishanka"; then
+              echo "Deployment diagnosis: another bot process is holding the instance lock."
+            elif printf '%s' "$NEW_ERRORS" | grep -q "EADDRINUSE"; then
+              echo "Deployment diagnosis: the bot API port is already in use."
+            else
+              echo "Deployment diagnosis: Discord readiness timed out without a recognized startup error."
+            fi
+            pm2 describe nishanka | grep -E "status|restarts|pid" || true
             exit 1

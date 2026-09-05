@@ -1,6 +1,6 @@
 /* eslint-disable */
 require('./utils/logger'); // Start console log interception immediately
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 // Single-instance lock to prevent duplicate bot processes
 const fs = require('fs');
