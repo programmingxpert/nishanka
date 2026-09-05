@@ -80,11 +80,7 @@ module.exports = {
             }
 
             // Resolve the query using riffy
-            const res = await interaction.client.riffy.resolve({
-                query,
-                requester: interaction.user,
-                node: player.node,
-            });
+            const res = await interaction.client.riffy.resolve({ query, requester: interaction.user });
             const { loadType, tracks, playlistInfo } = res;
             if (!tracks.length) {
                 return interaction.editReply('❌ No results found.');
@@ -210,11 +206,7 @@ module.exports = {
             }
 
             // Resolve the query using riffy
-            const res = await message.client.riffy.resolve({
-                query,
-                requester: message.author,
-                node: player.node,
-            });
+            const res = await message.client.riffy.resolve({ query, requester: message.author });
             const { loadType, tracks, playlistInfo } = res;
             if (!tracks.length) {
                 return processingMsg.edit("❌ No results found.");
