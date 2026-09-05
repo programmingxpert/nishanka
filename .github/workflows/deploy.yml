@@ -24,5 +24,8 @@ jobs:
             git reset --hard origin/main
             npm install
             pm2 delete nishanka || true
+            rm -f /home/ec2-user/nishanka/bot.lock
             pm2 start index.js --name nishanka --instances 1 --exec-mode fork
             pm2 save
+            sleep 5
+            test "$(pm2 pid nishanka)" != "0"
