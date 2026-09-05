@@ -45,9 +45,10 @@ jobs:
               fi
               sleep 5
             done
+            NEW_OUTPUT=$(cat "$LOG_FILE" 2>/dev/null || true)
             NEW_ERRORS=$(cat "$ERROR_LOG" 2>/dev/null || true)
             NEW_APP_LOG=$(tail -n +$((BEFORE_APP_LINES + 1)) "$APP_LOG" 2>/dev/null || true)
-            STARTUP_LOG=$(printf '%s\n%s' "$NEW_ERRORS" "$NEW_APP_LOG")
+            STARTUP_LOG=$(printf '%s\n%s\n%s' "$NEW_OUTPUT" "$NEW_ERRORS" "$NEW_APP_LOG")
             if printf '%s' "$STARTUP_LOG" | grep -q "Discord login failed"; then
               echo "NISHANKA_DEPLOY_RESULT=DISCORD_LOGIN_FAILED"
             elif printf '%s' "$STARTUP_LOG" | grep -q "MongoDB connection failed"; then
@@ -66,12 +67,12 @@ jobs:
               echo "NISHANKA_DEPLOY_RESULT=FILE_PERMISSION_ERROR"
             elif printf '%s' "$STARTUP_LOG" | grep -q "ReferenceError\|TypeError\|RangeError"; then
               echo "NISHANKA_DEPLOY_RESULT=NODE_RUNTIME_ERROR"
-            elif ! printf '%s' "$NEW_APP_LOG" | grep -q "Logger started"; then
-              echo "NISHANKA_DEPLOY_RESULT=PROCESS_NOT_STARTED"
-            elif printf '%s' "$NEW_APP_LOG" | grep -q "Bot Internal API running"; then
+            elif printf '%s' "$STARTUP_LOG" | grep -q "Bot Internal API running"; then
               echo "NISHANKA_DEPLOY_RESULT=DISCORD_GATEWAY_TIMEOUT"
-            else
+            elif pm2 pid nishanka 2>/dev/null | grep -Eq '^[1-9][0-9]*$'; then
               echo "NISHANKA_DEPLOY_RESULT=STARTUP_STALLED"
+            else
+              echo "NISHANKA_DEPLOY_RESULT=PROCESS_NOT_STARTED"
             fi
             exit 0
 
