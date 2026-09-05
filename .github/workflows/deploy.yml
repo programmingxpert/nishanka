@@ -23,11 +23,20 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             npm install
-            pm2 delete nishanka || true
+            test -s /home/ec2-user/nishanka/.env
+            set -a
+            . /home/ec2-user/nishanka/.env
+            set +a
+            test -n "$TOKEN"
+            test -n "$MONGO_URI"
             rm -f /home/ec2-user/nishanka/bot.lock
             LOG_FILE="$HOME/.pm2/logs/nishanka-out.log"
             BEFORE_LINES=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
-            pm2 start index.js --name nishanka --instances 1 --exec-mode fork
+            if pm2 describe nishanka >/dev/null 2>&1; then
+              pm2 restart nishanka --update-env
+            else
+              pm2 start index.js --name nishanka --instances 1 --exec-mode fork
+            fi
             pm2 save
             for attempt in $(seq 1 12); do
               if tail -n +$((BEFORE_LINES + 1)) "$LOG_FILE" 2>/dev/null | grep -q "Bot is online as"; then
