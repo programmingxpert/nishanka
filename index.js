@@ -1,4 +1,5 @@
 /* eslint-disable */
+require('dns').setDefaultResultOrder('ipv4first');
 require('./utils/logger'); // Start console log interception immediately
 require('dotenv').config({ override: true });
 
