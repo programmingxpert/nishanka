@@ -135,7 +135,9 @@ EmbedBuilder.prototype.toJSON = function() {
     }
     return finalJson;
 };
-const { Riffy } = require('riffy');
+const { Riffy, Player: RiffyPlayer } = require('riffy');
+const { installRiffyPlaybackPatch } = require('./utils/riffyPlaybackPatch');
+installRiffyPlaybackPatch(RiffyPlayer);
 let Bloom;
 (async () => {
     try {
@@ -390,7 +392,7 @@ client.riffy = new Riffy(client, lavalinkNodes, {
         const guild = client.guilds.cache.get(payload.d?.guild_id);
         if (guild) guild.shard.send(payload);
     },
-    defaultSearchPlatform: 'ytmsearch',
+    defaultSearchPlatform: 'scsearch',
     restVersion: 'v4',
     // Riffy's default is three attempts, after which it permanently removes the
     // node. Keep retrying so a single-node setup recovers from temporary outages.
@@ -423,6 +425,50 @@ client.riffy.on('nodeError',      (node, err)     => {
         lastNodeErrors.set(node.name, { message: err.message, time: now });
         console.error(`🎵 Music node "${node.name}" error:`, err.message);
     }
+});
+client.riffy.on('trackError', (player, track, payload) => {
+    const exception = payload?.exception?.message || payload?.exception?.cause || 'Unknown playback error';
+    console.error(`🎵 Track failed in guild ${player.guildId} on ${player.node?.name}: ${track?.info?.title || 'unknown'} - ${exception}`);
+
+    if (!track || track.nishankaFallbackAttempted) {
+        client.channels.cache.get(player.textChannel)
+            ?.send('❌ This track could not be played by the music server. Please try another result.')
+            .catch(() => {});
+        return;
+    }
+
+    track.nishankaFallbackAttempted = true;
+    const failedSource = track.info?.sourceName;
+    const fallbackSource = failedSource === 'soundcloud' ? 'ytmsearch' : 'scsearch';
+    const fallbackQuery = [track.info?.title, track.info?.author].filter(Boolean).join(' ');
+
+    setTimeout(async () => {
+        try {
+            const result = await client.riffy.resolve({
+                query: fallbackQuery,
+                source: fallbackSource,
+                requester: track.info?.requester,
+                node: player.node,
+            });
+            const fallbackTrack = result.tracks?.[0];
+            if (!fallbackTrack) throw new Error(`No ${fallbackSource} result found`);
+
+            fallbackTrack.nishankaFallbackAttempted = true;
+            player.queue.unshift(fallbackTrack);
+            if (!player.playing && !player.paused) await player.play();
+        } catch (error) {
+            console.error(`🎵 Playback fallback failed in guild ${player.guildId}:`, error);
+            client.channels.cache.get(player.textChannel)
+                ?.send('❌ This track could not be played by the music server. Please try another result.')
+                .catch(() => {});
+        }
+    }, 500);
+});
+client.riffy.on('trackStuck', (player, track, payload) => {
+    console.error(`🎵 Track stuck in guild ${player.guildId}: ${track?.info?.title || 'unknown'} (${payload?.thresholdMs || 0}ms)`);
+});
+client.riffy.on('socketClosed', (player, payload) => {
+    console.warn(`🎵 Voice socket closed in guild ${player.guildId} (code: ${payload?.code || 'unknown'})`);
 });
 function clearMusicPlayer(player) {
     if (!player) return;
