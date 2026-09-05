@@ -347,7 +347,9 @@ function getLavalinkNodes() {
         secure: process.env.LAVALINK_SECURE !== 'false',
     }];
 
-    if (process.env.LAVALINK_ENABLE_BACKUPS === 'true') {
+    // Use every configured node unless backups are explicitly disabled. This
+    // lets playback continue when only one of several public nodes is online.
+    if (process.env.LAVALINK_ENABLE_BACKUPS !== 'false') {
         for (const suffix of ['_2', '_3']) {
             const host = process.env[`LAVALINK_HOST${suffix}`];
             const password = process.env[`LAVALINK_PASSWORD${suffix}`];
