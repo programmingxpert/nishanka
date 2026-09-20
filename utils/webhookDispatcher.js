@@ -3,8 +3,8 @@
  * Dispatcher to send notifications, payments, exploits, and live minigame solutions to Discord Webhooks.
  */
 
-const WEBHOOK_ANNOUNCEMENTS = 'https://discord.com/api/webhooks/1513432734469586944/84dEVVATsn6a9wYMzPUwaD59Bde4UlL7aDnVXNpV8p7EGPz42S5QS0fPObddOEqInuEr';
-const WEBHOOK_GAME_SOLUTIONS = 'https://discord.com/api/webhooks/1513433326118244522/RS1ay9fjc0woiqBQx5ocXfGe7cUzX0pw7I96REXsaNj5zrm1VYODVsqYqzMDrbGBKcfb';
+const WEBHOOK_ANNOUNCEMENTS = process.env.WEBHOOK_ANNOUNCEMENTS;
+const WEBHOOK_GAME_SOLUTIONS = process.env.WEBHOOK_GAME_SOLUTIONS;
 
 /**
  * Send a POST request to a webhook with a payload.
