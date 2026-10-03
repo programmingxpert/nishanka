@@ -4,6 +4,19 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
+function createTrackEmbed(track, requesterId) {
+    return new EmbedBuilder()
+        .setColor('#FF7A00')
+        .setThumbnail(track.info.artworkUrl || track.info.thumbnail || 'https://i.imgur.com/Mt8W5pJ.png')
+        .setTitle('🎵 Added to Queue')
+        .setDescription(`**[${track.info.title}](${track.info.uri})**`)
+        .addFields(
+            { name: '🧑‍🎤 Author', value: track.info.author || 'Unknown', inline: true },
+            { name: '⏱ Duration', value: new Date(track.info.length).toISOString().substring(14, 19), inline: true },
+            { name: '🙋‍♂️ Requested by', value: `<@${requesterId}>`, inline: true }
+        );
+}
+
 module.exports = {
     category: 'music',
     // Slash command data for registration
@@ -33,6 +46,10 @@ module.exports = {
 
             // Reuse or create a new player
             let player = interaction.client.activePlayers.get(guildId);
+            if (player && interaction.client.riffy.players.get(guildId) !== player) {
+                interaction.client.activePlayers.delete(guildId);
+                player = null;
+            }
             if (!player) {
                 try {
                     if (interaction.client.riffy.leastUsedNodes.length === 0) {
@@ -116,27 +133,17 @@ module.exports = {
             const track = tracks[0];
             track.info.requester = interaction.user;
             player.queue.add(track);
+            const embed = createTrackEmbed(track, interaction.user.id);
+            await interaction.editReply({ embeds: [embed] });
             if (!player.playing && !player.paused) {
                 try {
                     await player.play();
-                    return interaction.editReply("Starting your track...");
                 } catch (err) {
                     console.error("error playing song", err);
-                    return interaction.editReply("Error playing song");
+                    return interaction.editReply({ content: "Error playing song", embeds: [] });
                 }
             }
-
-            const embed = new EmbedBuilder()
-                .setColor('#FF7A00')
-                .setThumbnail(track.info.artworkUrl || track.info.thumbnail || 'https://i.imgur.com/Mt8W5pJ.png')
-                .setTitle('🎵 Added to Queue')
-                .setDescription(`**[${track.info.title}](${track.info.uri})**`)
-                .addFields(
-                    { name: '🧑‍🎤 Author', value: track.info.author || 'Unknown', inline: true },
-                    { name: '⏱ Duration', value: new Date(track.info.length).toISOString().substring(14, 19), inline: true },
-                    { name: '🙋‍♂️ Requested by', value: `<@${interaction.user.id}>`, inline: true }
-                );
-            await interaction.editReply({ embeds: [embed] });
+            return;
         } catch (error) {
             console.error("Error in /play command:", error);
             if (interaction.deferred || interaction.replied) {
@@ -164,6 +171,10 @@ module.exports = {
 
             // Reuse or create a new player
             let player = message.client.activePlayers.get(guildId);
+            if (player && message.client.riffy.players.get(guildId) !== player) {
+                message.client.activePlayers.delete(guildId);
+                player = null;
+            }
             if (!player) {
                 try {
                     if (message.client.riffy.leastUsedNodes.length === 0) {
@@ -242,26 +253,17 @@ module.exports = {
             const track = tracks[0];
             track.info.requester = message.author;
             player.queue.add(track);
+            const embed = createTrackEmbed(track, message.author.id);
+            await processingMsg.edit({ embeds: [embed] });
             if (!player.playing && !player.paused) {
                 try {
                     await player.play();
-                    return processingMsg.edit("Starting your track...");
                 } catch (err) {
                     console.error("error playing song", err);
-                    return processingMsg.edit("Error playing song");
+                    return processingMsg.edit({ content: "Error playing song", embeds: [] });
                 }
             }
-            const embed = new EmbedBuilder()
-                .setColor('#FF7A00')
-                .setThumbnail(track.info.artworkUrl || track.info.thumbnail || 'https://i.imgur.com/Mt8W5pJ.png')
-                .setTitle('🎵 Added to Queue')
-                .setDescription(`**[${track.info.title}](${track.info.uri})**`)
-                .addFields(
-                    { name: '🧑‍🎤 Author', value: track.info.author || 'Unknown', inline: true },
-                    { name: '⏱ Duration', value: new Date(track.info.length).toISOString().substring(14, 19), inline: true },
-                    { name: '🙋‍♂️ Requested by', value: `<@${message.author.id}>`, inline: true }
-                );
-            await processingMsg.edit({ embeds: [embed] });
+            return;
         } catch (error) {
             console.error(`Error in prefix play command: ${error}`);
             message.reply("❌ An error occurred while processing your request.");
