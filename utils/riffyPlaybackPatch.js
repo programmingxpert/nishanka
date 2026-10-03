@@ -1,28 +1,3 @@
-function waitForPlayerConnection(player, timeoutMs) {
-    if (player.connected && player.connection?.isReady && !player.connection.establishing) {
-        return Promise.resolve();
-    }
-
-    return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            cleanup();
-            reject(new Error(`Voice connection did not become ready within ${timeoutMs}ms`));
-        }, timeoutMs);
-
-        const onConnected = () => {
-            cleanup();
-            resolve();
-        };
-
-        const cleanup = () => {
-            clearTimeout(timeout);
-            player.off('connectionRestored', onConnected);
-        };
-
-        player.once('connectionRestored', onConnected);
-    });
-}
-
 function installRiffyPlaybackPatch(Player) {
     if (Player.prototype.__nishankaPlaybackPatched) return;
 
@@ -33,11 +8,9 @@ function installRiffyPlaybackPatch(Player) {
     Player.prototype.play = async function play() {
         await this.connection.resolve();
 
-        if (this.connection?.establishing || !this.connection?.isReady) {
-            await waitForPlayerConnection(this, this.connectionTimeout);
-        }
-
-        if (!this.connected || !this.connection?.isReady || this.connection.establishing) {
+        // Some Lavalink nodes only send playerUpdate.connected after receiving
+        // the first track. Waiting for that event here creates a deadlock.
+        if (!this.connected || !this.connection?.isReady) {
             throw new Error('The Lavalink voice connection is not ready.');
         }
         if (!this.queue.length) {
