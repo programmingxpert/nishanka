@@ -10,7 +10,9 @@ function installRiffyPlaybackPatch(Player) {
 
         // Some Lavalink nodes only send playerUpdate.connected after receiving
         // the first track. Waiting for that event here creates a deadlock.
-        if (!this.connected || !this.connection?.isReady) {
+        // `playerUpdate.connected` may remain false until the first track is
+        // submitted. Discord voice credentials are the reliable precondition.
+        if (!this.connection?.isReady) {
             throw new Error('The Lavalink voice connection is not ready.');
         }
         if (!this.queue.length) {
