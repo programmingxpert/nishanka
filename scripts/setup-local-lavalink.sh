@@ -90,15 +90,40 @@ sudo systemctl restart nishanka-lavalink.service
 
 LAVALINK_PASSWORD="$(sed -n 's/^LAVALINK_PASSWORD=//p' "$LAVALINK_DIR/lavalink.env" | head -n 1)"
 
+LAVALINK_READY=false
 for _ in $(seq 1 30); do
   if curl --silent --fail --header "Authorization: $LAVALINK_PASSWORD" \
     "http://127.0.0.1:2333/v4/info" >/dev/null; then
-    echo "Local Lavalink $LAVALINK_VERSION is ready"
-    exit 0
+    LAVALINK_READY=true
+    break
   fi
   sleep 2
 done
 
-sudo journalctl -u nishanka-lavalink.service --no-pager -n 100
-exit 1
+if [[ "$LAVALINK_READY" != "true" ]]; then
+  sudo journalctl -u nishanka-lavalink.service --no-pager -n 100
+  exit 1
+fi
+
+MUSIC_NODE=""
+if node "$ROOT_DIR/scripts/test-lavalink-playback.js" _3; then
+  MUSIC_NODE="node-3"
+elif node "$ROOT_DIR/scripts/test-lavalink-playback.js" _2; then
+  MUSIC_NODE="node-2"
+else
+  echo "No configured Lavalink node passed the YouTube playback probe" >&2
+  exit 1
+fi
+
+ENV_FILE="$ENV_FILE" MUSIC_NODE="$MUSIC_NODE" node <<'NODE'
+const fs = require('fs');
+const envFile = process.env.ENV_FILE;
+let source = fs.readFileSync(envFile, 'utf8');
+const line = `LAVALINK_MUSIC_NODE=${process.env.MUSIC_NODE}`;
+const pattern = /^(?:export\s+)?LAVALINK_MUSIC_NODE\s*=.*$/m;
+source = pattern.test(source) ? source.replace(pattern, line) : `${source.trimEnd()}\n${line}\n`;
+fs.writeFileSync(envFile, source, { mode: 0o600 });
+NODE
+
+echo "Local Lavalink $LAVALINK_VERSION is ready; music playback selected $MUSIC_NODE"
 

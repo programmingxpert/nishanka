@@ -1,5 +1,5 @@
-function createMusicConnection(riffy, options) {
-    const primaryNode = riffy.nodeMap.get('node-1');
+function createMusicConnection(riffy, options, preferredNodeName = process.env.LAVALINK_MUSIC_NODE || 'node-1') {
+    const primaryNode = riffy.nodeMap.get(preferredNodeName);
 
     if (primaryNode?.connected) {
         const existingPlayer = riffy.players.get(options.guildId);

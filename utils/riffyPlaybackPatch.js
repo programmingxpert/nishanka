@@ -26,6 +26,20 @@ function installRiffyPlaybackPatch(Player) {
             throw new Error('Lavalink could not resolve the queued track.');
         }
 
+        const previousState = {
+            current: this.current,
+            playing: this.playing,
+            paused: this.paused,
+            position: this.position,
+        };
+
+        // Lavalink can emit TrackStart before the PATCH response reaches Riffy.
+        // Publish the selected track first so that event handlers never see null.
+        this.current = track;
+        this.playing = true;
+        this.paused = false;
+        this.position = 0;
+
         try {
             await this.node.rest.updatePlayer({
                 guildId: this.guildId,
@@ -33,13 +47,12 @@ function installRiffyPlaybackPatch(Player) {
             });
         } catch (error) {
             this.queue.unshift(track);
+            this.current = previousState.current;
+            this.playing = previousState.playing;
+            this.paused = previousState.paused;
+            this.position = previousState.position;
             throw error;
         }
-
-        this.current = track;
-        this.playing = true;
-        this.paused = false;
-        this.position = 0;
         return this;
     };
 }

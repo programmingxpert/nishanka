@@ -228,7 +228,7 @@ async function handleTtsCommand(client, guild, member, subcommand, options, sett
                 voiceChannel: voiceChannel.id,
                 textChannel: voiceChannel.id, // read text channel of the voice channel itself
                 deaf: true
-            });
+            }, 'node-1');
             client.activePlayers.set(guild.id, player);
             return { content: `✅ Connected to <#${voiceChannel.id}>! Send messages in this voice channel's text chat to have them read out loud.` };
         } catch (connectionError) {
