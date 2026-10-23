@@ -3,6 +3,7 @@ const {
     SlashCommandBuilder,
     EmbedBuilder
 } = require('discord.js');
+const { createMusicConnection } = require('../../utils/musicConnection');
 
 function createTrackEmbed(track, requesterId) {
     return new EmbedBuilder()
@@ -55,7 +56,7 @@ module.exports = {
                     if (interaction.client.riffy.leastUsedNodes.length === 0) {
                         return interaction.editReply('❌ The music service is temporarily unavailable and reconnecting. Please try again shortly.');
                     }
-                    player = await interaction.client.riffy.createConnection({
+                    player = createMusicConnection(interaction.client.riffy, {
                         guildId: guildId,
                         voiceChannel: voiceChannelId,
                         textChannel: textChannelId,
@@ -79,7 +80,7 @@ module.exports = {
                         player.destroy(); // Destroy the old connection
                         interaction.client.activePlayers.delete(guildId); // Remove the old player
 
-                        player = await interaction.client.riffy.createConnection({ // Recreate the connection
+                        player = createMusicConnection(interaction.client.riffy, { // Recreate the connection
                             guildId: guildId,
                             voiceChannel: voiceChannelId,
                             textChannel: textChannelId,
@@ -180,7 +181,7 @@ module.exports = {
                     if (message.client.riffy.leastUsedNodes.length === 0) {
                         return processingMsg.edit('❌ The music service is temporarily unavailable and reconnecting. Please try again shortly.');
                     }
-                    player = await message.client.riffy.createConnection({
+                    player = createMusicConnection(message.client.riffy, {
                         guildId: guildId,
                         voiceChannel: voiceChannelId,
                         textChannel: textChannelId,
@@ -204,7 +205,7 @@ module.exports = {
                         player.destroy(); // Destroy the old connection
                         message.client.activePlayers.delete(guildId); // Remove the old player
 
-                        player = await message.client.riffy.createConnection({ // Recreate the connection
+                        player = createMusicConnection(message.client.riffy, { // Recreate the connection
                             guildId: guildId,
                             voiceChannel: voiceChannelId,
                             textChannel: textChannelId,

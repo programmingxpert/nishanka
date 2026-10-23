@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const GuildSettings = require('../../models/guildSettingsSchema');
+const { createMusicConnection } = require('../../utils/musicConnection');
 
 module.exports = {
     category: 'utility',
@@ -222,7 +223,7 @@ async function handleTtsCommand(client, guild, member, subcommand, options, sett
 
         // Create player
         try {
-            player = await client.riffy.createConnection({
+            player = createMusicConnection(client.riffy, {
                 guildId: guild.id,
                 voiceChannel: voiceChannel.id,
                 textChannel: voiceChannel.id, // read text channel of the voice channel itself

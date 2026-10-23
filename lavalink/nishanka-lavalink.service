@@ -1,0 +1,19 @@
+[Unit]
+Description=Nishanka Lavalink audio server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/nishanka/lavalink
+EnvironmentFile=/home/ec2-user/nishanka/lavalink/lavalink.env
+ExecStart=/usr/bin/java -Xms128M -Xmx640M -jar /home/ec2-user/nishanka/lavalink/Lavalink.jar
+Restart=always
+RestartSec=5
+SuccessExitStatus=143
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+
